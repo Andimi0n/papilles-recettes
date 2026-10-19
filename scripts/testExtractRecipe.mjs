@@ -57,10 +57,11 @@ Extrais fidèlement la recette sous forme de JSON strict respectant la structure
       "instruction": "Texte clair de l'étape"
     }
   ],
-  "userNote": "Astuce du chef (optionnel)"
+  "userNote": "Note humaine présente sur la photo si écrite, sinon \"\""
 }
 
 Règles :
+- RÈGLE STRICTE SUR 'userNote' : Ne génère, n'invente et ne déduis JAMAIS de conseil de chef. Recopie uniquement une note humaine si expressément écrite sur la photo, sinon laisse strictement "".
 - Si la fiche présente plusieurs colonnes de portions (ex: 2p, 3p, 4p, 5p), choisis par défaut les quantités pour 2 personnes ou 4 personnes et renseigne "servings".
 - Ne résume pas les étapes, conserve les consignes détaillées pour réussir le plat.
 - Réponds UNIQUEMENT en JSON valide.`;

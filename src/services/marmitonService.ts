@@ -159,7 +159,7 @@ export const MarmitonService = {
       availableImages, // Liste complète de toutes les photos détectées pour choix de couverture
       isFavorite: false,
       isVegetarian: extracted.isVegetarian ?? false,
-      userNote: extracted.userNote || `Importé depuis Marmiton (${cleanUrl})`,
+      userNote: extracted.userNote ? extracted.userNote.trim() : '',
       createdAt: now,
       updatedAt: now,
       ingredients: (extracted.ingredients || []).map((ing, idx) => ({

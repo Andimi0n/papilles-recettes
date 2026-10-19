@@ -121,12 +121,13 @@ Convertis cette recette Marmiton en JSON strict respectant cette structure exact
       "instruction": "Instruction complète de l'étape"
     }
   ],
-  "userNote": "Remarque ou astuce si disponible"
+  "userNote": "Remarque de l'auteur si expressément présente sur la page, sinon \"\""
 }
 
 Règles impératives :
 - "rating": 0 (toujours 0 étoile).
 - "imageUrl": "" (pas de photo).
+- "userNote": Uniquement la note rédigée par l'auteur si présente sur la page, sinon laisse strictement "". Ne génère aucune note automatique.
 - Découpe bien chaque ingrédient en quantité, unité et nom.
 - Réponds UNIQUEMENT en JSON valide sans aucun markdown.
 
@@ -257,7 +258,7 @@ Exemple:
         imageUrl, // Première photo Marmiton par défaut
         availableImages, // Photos candidates
         isFavorite: false,
-        userNote: extracted.userNote || `Importé depuis Marmiton`,
+        userNote: extracted.userNote ? extracted.userNote.trim() : '',
         createdAt: now,
         updatedAt: now,
         ingredients: (extracted.ingredients || []).map((ing, idx) => ({

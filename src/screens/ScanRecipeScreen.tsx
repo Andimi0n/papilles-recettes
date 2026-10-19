@@ -240,7 +240,7 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
         cookTimeMinutes: extracted.cookTimeMinutes || 20,
         servings: extracted.servings || 4,
         rating: 4.5,
-        userNote: extracted.userNote,
+        userNote: extracted.userNote ? extracted.userNote.trim() : undefined,
         isVegetarian: extracted.isVegetarian ?? false,
         imageUrl: photos[0].uri, // Utilise la première photo comme couverture
         availableImages: photos.map((p) => p.uri),
@@ -309,7 +309,7 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
         cookTimeMinutes: extracted.cookTimeMinutes || 20,
         servings: extracted.servings || 4,
         rating: 4.5,
-        userNote: extracted.userNote,
+        userNote: extracted.userNote ? extracted.userNote.trim() : undefined,
         isVegetarian: extracted.isVegetarian ?? false,
         imageUrl: '',
         availableImages: [],

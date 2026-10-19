@@ -278,7 +278,7 @@ Extrais ou déduis fidèlement la recette sous forme de JSON strict avec cette s
       "instruction": "Consigne claire, complète et détaillée de l'étape 1"
     }
   ],
-  "userNote": "Astuce du chef, conseil de conservation, suggestion ou remarque présente sur la recette (optionnel)"
+  "userNote": "Remarque ou annotation humaine présente sur la photo si expressément écrite sur le document, sinon strictement \"\""
 }
 
 Règles universelles :
@@ -286,6 +286,7 @@ Règles universelles :
 - Ne résume pas et ne tronque pas les étapes : garde toutes les instructions nécessaires pour réussir le plat en cuisine.
 - Si la catégorie ou la difficulté ne sont pas mentionnées, détermine-les intelligemment d'après les ingrédients et la préparation.
 - Détermine avec précision si la recette est végétarienne (sans chair animale) dans 'isVegetarian'.
+- RÈGLE STRICTE SUR 'userNote' : Ne génère, n'invente et ne déduis JAMAIS de conseil de chef ou d'astuce automatiquement. Recopie UNIQUEMENT une note ou annotation humaine si elle est expressément écrite sur la photo (manuscrite ou imprimée). S'il n'y a aucune note humaine explicite sur l'image, laisse STRICTEMENT "" (vide).
 - Réponds STRICTEMENT en JSON valide, sans texte additionnel ni balises markdown.`;
 
     // Prépare les parties images pour Gemini
@@ -396,7 +397,7 @@ Extrais fidèlement la recette sous forme de JSON strict avec cette structure ex
       "instruction": "Consigne complète et détaillée de l'étape 1"
     }
   ],
-  "userNote": "Astuce ou conseil utile présent dans la recette (optionnel)"
+  "userNote": "Remarque ou astuce rédigée par l'auteur humain si présente dans la recette source, sinon strictement \"\""
 }
 
 Règles impératives :
@@ -404,6 +405,7 @@ Règles impératives :
 - Ne tronque pas les étapes : garde les instructions complètes pour cuisiner le plat.
 - Détermine la catégorie et la difficulté si elles ne sont pas explicitement données.
 - Détermine avec précision si la recette est végétarienne (sans chair animale) dans 'isVegetarian'.
+- RÈGLE STRICTE SUR 'userNote' : Ne génère, n'invente et ne déduis JAMAIS de conseil de chef ou d'astuce automatiquement. Recopie UNIQUEMENT une note ou astuce rédigée par l'auteur humain si elle figure expressément sur la page (ex: astuce de l'auteur sur Marmiton). S'il n'y en a pas, laisse STRICTEMENT "" (vide).
 - Réponds STRICTEMENT en JSON valide, sans texte additionnel ni balises markdown.`;
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${apiKey}`;
@@ -514,7 +516,7 @@ Règles impératives d'extraction et d'autocomplétion :
 - "steps" : Étapes de préparation claires, chronologiques, complètes et pédagogiques :
   * Si le texte source ne contient que des indications partielles ou télégraphiques (ex: "mélanger et enfourner"), DÉVELOPPE et AUTOCOMPLÈTE les étapes avec les gestes professionnels précis (température du four, temps indicatifs, ordre d'incorporation des ingrédients) pour garantir le succès de la recette.
   * Chaque étape doit avoir un "order" croissant (1, 2, 3...) et une "instruction" bien rédigée en français.
-- "userNote" : Ajoute un conseil de chef utile (accord mets-vin, astuce de conservation, variante possible ou secret de cuisson).
+- RÈGLE STRICTE SUR 'userNote' : Laisse STRICTEMENT ce champ vide (""). Ne génère, n'invente et ne déduis JAMAIS de note, astuce ou conseil de chef automatiquement. Si et seulement si une note personnelle explicite rédigée par l'utilisateur figure textuellement dans le texte fourni (ex: "note : ne pas trop saler"), recopie-la fidèlement ; sinon laisse strictement "" (vide).
 
 Réponds STRICTEMENT en JSON valide, sans texte d'accompagnement ni balises markdown additionnelles, avec cette structure :
 {
@@ -532,7 +534,7 @@ Réponds STRICTEMENT en JSON valide, sans texte d'accompagnement ni balises mark
   "steps": [
     { "order": 1, "instruction": "Consigne complète" }
   ],
-  "userNote": "Conseil du chef"
+  "userNote": ""
 }`;
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${apiKey}`;
@@ -589,6 +591,26 @@ Réponds STRICTEMENT en JSON valide, sans texte d'accompagnement ni balises mark
     parsed.isVegetarian = typeof parsed.isVegetarian === 'boolean'
       ? parsed.isVegetarian
       : isRecipeVegetarian(parsed.ingredients, parsed.title, parsed.description);
+
+    // Règle absolue : Aucune note automatique ne doit être générée.
+    // userNote doit rester vide sauf si le texte utilisateur contenait expressément une note humaine.
+    if (parsed.userNote) {
+      const lowerInput = trimmedInput.toLowerCase();
+      const hasExplicitNoteInSource =
+        lowerInput.includes('note') ||
+        lowerInput.includes('remarque') ||
+        lowerInput.includes('astuce') ||
+        lowerInput.includes('conseil') ||
+        lowerInput.includes('p.s') ||
+        lowerInput.includes('ps:');
+      if (!hasExplicitNoteInSource) {
+        parsed.userNote = '';
+      } else {
+        parsed.userNote = parsed.userNote.trim();
+      }
+    } else {
+      parsed.userNote = '';
+    }
 
     return parsed;
   },
