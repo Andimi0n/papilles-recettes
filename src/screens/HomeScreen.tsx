@@ -525,12 +525,21 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           updateCellsBatchingPeriod={50}
           renderItem={renderRecipeItem}
           ListEmptyComponent={
-            <EmptyState
-              title="Aucune recette trouvée"
-              description="Essayez de modifier vos critères de recherche ou ajoutez votre propre recette !"
-              actionLabel="Réinitialiser les filtres"
-              onAction={handleResetAllFilters}
-            />
+            selectedIngredients.length > 0 ? (
+              <EmptyState
+                title="Aucune recette avec ces restes"
+                description={`Votre carnet ne contient pas de recette avec : ${selectedIngredients.join(', ')}.\nDemandez au Chef IA d'inventer une recette originale avec exactement ces ingrédients !`}
+                actionLabel="✨ Inventer avec le Chef IA"
+                onAction={() => setIsFridgeModalVisible(true)}
+              />
+            ) : (
+              <EmptyState
+                title="Aucune recette trouvée"
+                description="Essayez de modifier vos critères de recherche ou ajoutez votre propre recette !"
+                actionLabel="Réinitialiser les filtres"
+                onAction={handleResetAllFilters}
+              />
+            )
           }
         />
 
@@ -677,6 +686,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           recipes={recipes}
           selectedIngredients={selectedIngredients}
           onApply={(ingredients) => setSelectedIngredients(ingredients)}
+          onGenerateRecipe={(recipe) => {
+            setIsFridgeModalVisible(false);
+            if (onImportRecipe) {
+              onImportRecipe(recipe as Recipe);
+            }
+          }}
           onClose={() => setIsFridgeModalVisible(false)}
         />
 
