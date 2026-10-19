@@ -193,3 +193,16 @@ function formatScaledNumber(num: number): string {
   const withOneDecimal = Math.round(num * 10) / 10;
   return withOneDecimal.toString().replace('.', ',');
 }
+
+let idCounter = 0;
+
+/**
+ * Génère un identifiant unique robuste combinant préfixe, timestamp, compteur et aléatoire
+ * pour éliminer tout risque de collision (race condition) sur des créations rapides.
+ */
+export function generateUniqueId(prefix: string): string {
+  idCounter = (idCounter + 1) % 10000;
+  const rand = Math.random().toString(36).substring(2, 9);
+  return `${prefix}_${Date.now()}_${idCounter}_${rand}`;
+}
+

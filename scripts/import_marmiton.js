@@ -46,13 +46,14 @@ function extractRecipePayload(html) {
   }
 
   const stripped = html
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
     .replace(/<[^>]+>/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 
   return stripped.slice(0, 12000);
+
 }
 
 function extractMarmitonImages(html) {
@@ -134,10 +135,13 @@ Règles impératives :
 Voici le contenu de la recette :
 ${payloadText}`;
 
-  const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${API_KEY}`;
+  const geminiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent';
   const aiResp = await fetch(geminiUrl, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'x-goog-api-key': API_KEY,
+    },
     body: JSON.stringify({
       contents: [{ parts: [{ text: prompt }] }],
       generationConfig: {
@@ -146,6 +150,7 @@ ${payloadText}`;
       },
     }),
   });
+
 
   if (!aiResp.ok) {
     const errText = await aiResp.text();

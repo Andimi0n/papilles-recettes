@@ -22,6 +22,8 @@ import {
   AiConnectionStatus,
 } from '../services/recipeAiService';
 import { Recipe } from '../types/recipe';
+import { generateUniqueId } from '../utils/helpers';
+
 
 interface ScanRecipeScreenProps {
   onBack: () => void;
@@ -90,7 +92,9 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
   const [apiKey, setApiKey] = useState<string>('');
   const [isApiKeyModalVisible, setIsApiKeyModalVisible] = useState(false);
   const [tempApiKeyInput, setTempApiKeyInput] = useState('');
+  const [isKeyVisible, setIsKeyVisible] = useState(false);
   const [loadingStep, setLoadingStep] = useState('Préparation des données...');
+
 
   // État de la vérification de connexion réelle
   const [connectionStatus, setConnectionStatus] = useState<AiConnectionStatus | null>(null);
@@ -245,16 +249,17 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
         imageUrl: photos[0].uri, // Utilise la première photo comme couverture
         availableImages: photos.map((p) => p.uri),
         ingredients: (extracted.ingredients || []).map((ing, idx) => ({
-          id: `ing_scanned_${Date.now()}_${idx}`,
+          id: generateUniqueId(`ing_scanned_${idx + 1}`),
           name: ing.name,
           quantity: ing.quantity,
           unit: ing.unit,
         })),
         steps: (extracted.steps || []).map((st, idx) => ({
-          id: `stp_scanned_${Date.now()}_${idx}`,
+          id: generateUniqueId(`stp_scanned_${idx + 1}`),
           order: st.order || idx + 1,
           instruction: st.instruction,
         })),
+
       };
 
       onRecipeExtracted(partialRecipe, photos[0].uri);
@@ -314,16 +319,17 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
         imageUrl: '',
         availableImages: [],
         ingredients: (extracted.ingredients || []).map((ing, idx) => ({
-          id: `ing_text_${Date.now()}_${idx}`,
+          id: generateUniqueId(`ing_text_${idx + 1}`),
           name: ing.name,
           quantity: ing.quantity,
           unit: ing.unit,
         })),
         steps: (extracted.steps || []).map((st, idx) => ({
-          id: `stp_text_${Date.now()}_${idx}`,
+          id: generateUniqueId(`stp_text_${idx + 1}`),
           order: st.order || idx + 1,
           instruction: st.instruction,
         })),
+
       };
 
       onRecipeExtracted(partialRecipe);
@@ -723,15 +729,31 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
                 L'analyse multimodale utilise Gemini 3.8 Flash. Vous pouvez utiliser votre propre clé Google AI Studio.
               </Text>
 
-              <TextInput
-                style={styles.keyInput}
-                value={tempApiKeyInput}
-                onChangeText={setTempApiKeyInput}
-                placeholder="Collez votre clé API Gemini ici..."
-                placeholderTextColor={Colors.textMuted}
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
+              <View style={styles.keyInputContainer}>
+                <TextInput
+                  style={styles.keyInput}
+                  value={tempApiKeyInput}
+                  onChangeText={setTempApiKeyInput}
+                  placeholder="Collez votre clé API Gemini ici..."
+                  placeholderTextColor={Colors.textMuted}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  secureTextEntry={!isKeyVisible}
+                />
+                <TouchableOpacity
+                  style={styles.eyeBtn}
+                  onPress={() => setIsKeyVisible(!isKeyVisible)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  accessibilityLabel={isKeyVisible ? "Masquer la clé" : "Afficher la clé"}
+                >
+                  <Ionicons
+                    name={isKeyVisible ? "eye-off-outline" : "eye-outline"}
+                    size={20}
+                    color={Colors.textSecondary}
+                  />
+                </TouchableOpacity>
+              </View>
+
 
               <View style={styles.modalActions}>
                 <TouchableOpacity
@@ -1240,16 +1262,26 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     marginBottom: 16,
   },
-  keyInput: {
+  keyInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: Colors.surfaceAlt,
     borderWidth: 1,
     borderColor: Colors.border,
     borderRadius: 12,
+    marginBottom: 16,
+    paddingRight: 10,
+  },
+  keyInput: {
+    flex: 1,
     padding: 12,
     fontSize: 14,
     color: Colors.textPrimary,
-    marginBottom: 16,
   },
+  eyeBtn: {
+    padding: 6,
+  },
+
   modalActions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',

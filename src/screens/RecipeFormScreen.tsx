@@ -15,6 +15,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { Recipe, Category, Difficulty, Ingredient, RecipeStep } from '../types/recipe';
 import { Colors, Shadows } from '../theme/colors';
 import { StarRating } from '../components/StarRating';
+import { generateUniqueId } from '../utils/helpers';
+
 
 interface RecipeFormScreenProps {
   initialRecipe?: Recipe | null;
@@ -118,7 +120,7 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
   const handleAddIngredient = () => {
     setIngredients([
       ...ingredients,
-      { id: `ing_${Date.now()}`, name: '', quantity: '', unit: '' },
+      { id: generateUniqueId('ing'), name: '', quantity: '', unit: '' },
     ]);
   };
 
@@ -130,7 +132,7 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
 
   const handleRemoveIngredient = (index: number) => {
     if (ingredients.length <= 1) {
-      setIngredients([{ id: `ing_${Date.now()}`, name: '', quantity: '', unit: '' }]);
+      setIngredients([{ id: generateUniqueId('ing'), name: '', quantity: '', unit: '' }]);
       return;
     }
     setIngredients(ingredients.filter((_, i) => i !== index));
@@ -140,7 +142,7 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
   const handleAddStep = () => {
     setSteps([
       ...steps,
-      { id: `stp_${Date.now()}`, order: steps.length + 1, instruction: '' },
+      { id: generateUniqueId('stp'), order: steps.length + 1, instruction: '' },
     ]);
   };
 
@@ -152,7 +154,7 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
 
   const handleRemoveStep = (index: number) => {
     if (steps.length <= 1) {
-      setSteps([{ id: `stp_${Date.now()}`, order: 1, instruction: '' }]);
+      setSteps([{ id: generateUniqueId('stp'), order: 1, instruction: '' }]);
       return;
     }
     const filtered = steps.filter((_, i) => i !== index);
@@ -180,8 +182,9 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
     }
 
     const recipe: Recipe = {
-      id: initialRecipe?.id || `rec_${Date.now()}`,
+      id: initialRecipe?.id || generateUniqueId('rec'),
       title: title.trim(),
+
       description: description.trim(),
       category,
       difficulty,

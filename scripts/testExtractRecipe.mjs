@@ -70,11 +70,14 @@ parts.push({ text: systemPrompt });
 
 async function run() {
   console.log(`\n⏳ Envoi de la requête à l'API Gemini 3.8 Flash...`);
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${apiKey}`;
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent';
 
   const response = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'x-goog-api-key': apiKey,
+    },
     body: JSON.stringify({
       contents: [{ parts }],
       generationConfig: {
@@ -83,6 +86,7 @@ async function run() {
       },
     }),
   });
+
 
   if (!response.ok) {
     const errorBody = await response.text();
