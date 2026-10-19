@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Recipe } from '../types/recipe';
 import { INITIAL_RECIPES } from '../data/initialRecipes';
 
-const RECIPES_STORAGE_KEY = '@papilles_recipes_v3';
+const RECIPES_STORAGE_KEY = '@papilles_recipes_v4';
 
 export const StorageService = {
   /**
@@ -12,13 +12,13 @@ export const StorageService = {
     try {
       const data = await AsyncStorage.getItem(RECIPES_STORAGE_KEY);
       if (!data) {
-        // Premier lancement v3 : on sauvegarde les 100 recettes de Marmiton avec catégorisation végé
+        // Premier lancement v4 : on sauvegarde les 100 recettes de Marmiton avec photos et catégorisation végé
         await AsyncStorage.setItem(RECIPES_STORAGE_KEY, JSON.stringify(INITIAL_RECIPES));
         return INITIAL_RECIPES;
       }
       const parsed = JSON.parse(data) as Recipe[];
-      // Si la base locale contient l'ancien format ou pas de flag isVegetarian, on synchronise avec INITIAL_RECIPES
-      if (parsed.length <= 6 || parsed.some((r) => r.isVegetarian === undefined)) {
+      // Si la base locale contient l'ancien format, sans photos ou sans flag isVegetarian, on synchronise avec INITIAL_RECIPES
+      if (parsed.length <= 6 || parsed.some((r) => !r.imageUrl || r.isVegetarian === undefined)) {
         await AsyncStorage.setItem(RECIPES_STORAGE_KEY, JSON.stringify(INITIAL_RECIPES));
         return INITIAL_RECIPES;
       }

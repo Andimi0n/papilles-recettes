@@ -133,11 +133,15 @@ export const MarmitonService = {
       payloadText = strippedHtml.slice(0, 12000);
     }
 
-    // 3. Appel de l'IA Gemini 3.8 Flash pour structurer la recette
+    // 3. Extraction automatique de toutes les photos candidates de Marmiton
+    const availableImages = MarmitonService.extractMarmitonImages(html);
+    const coverImage = availableImages.length > 0 ? availableImages[0] : '';
+
+    // 4. Appel de l'IA Gemini 3.8 Flash pour structurer la recette
     const extracted = await RecipeAiService.extractRecipeFromText(payloadText, apiKey);
 
-    // 4. Construction de l'objet Recipe officiel de Papilles
-    // Contrainte demandée : 0 étoile par défaut et pas de photo requise
+    // 5. Construction de l'objet Recipe officiel de Papilles
+    // Photo par défaut : la première image disponible sur Marmiton, avec liste des photos candidates
     const now = new Date().toISOString();
     const recipeId = `rec_marmiton_${Date.now()}`;
 
@@ -151,7 +155,8 @@ export const MarmitonService = {
       cookTimeMinutes: extracted.cookTimeMinutes || 0,
       servings: extracted.servings || 4,
       rating: 0, // Par défaut : 0 étoile
-      imageUrl: '', // Pas besoin de photo
+      imageUrl: coverImage, // Première photo Marmiton par défaut
+      availableImages, // Liste complète de toutes les photos détectées pour choix de couverture
       isFavorite: false,
       isVegetarian: extracted.isVegetarian ?? false,
       userNote: extracted.userNote || `Importé depuis Marmiton (${cleanUrl})`,
@@ -171,5 +176,82 @@ export const MarmitonService = {
     };
 
     return recipe;
+  },
+
+  /**
+   * Détecte et extrait toutes les images haute résolution d'une page Marmiton :
+   * - Balise OpenGraph (og:image)
+   * - Galerie photos de la recette (balises recipe-main-photo)
+   * - Images déclarées dans le schéma JSON-LD
+   */
+  extractMarmitonImages(html: string): string[] {
+    const images: string[] = [];
+    const seenIds = new Set<string>();
+
+    // 1. Image principale OpenGraph
+    const ogMatch =
+      html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i) ||
+      html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["']/i);
+    if (ogMatch && ogMatch[1]) {
+      const ogUrl = ogMatch[1].trim();
+      const m = ogUrl.match(/\/recipe\/(\d+)\/(\d+)_/);
+      if (m) {
+        const [, date, imgId] = m;
+        images.push(`https://assets.afcdn.com/recipe/${date}/${imgId}_w1024h768c1.jpg`);
+        seenIds.add(imgId);
+      } else if (ogUrl.startsWith('http')) {
+        images.push(ogUrl);
+      }
+    }
+
+    // 2. Balises images de la galerie de photos de la recette
+    const imgTagRegex = /<img[^>]+class=["'][^"']*recipe-main-photo[^"']*["'][^>]+>/gi;
+    let tagMatch;
+    while ((tagMatch = imgTagRegex.exec(html)) !== null) {
+      const tag = tagMatch[0];
+      const srcMatch = tag.match(/(?:src|data-src)=["']([^"']+)["']/i);
+      if (srcMatch && srcMatch[1]) {
+        const src = srcMatch[1];
+        const m = src.match(/\/recipe\/(\d+)\/(\d+)_/);
+        if (m) {
+          const [, date, imgId] = m;
+          if (!seenIds.has(imgId)) {
+            images.push(`https://assets.afcdn.com/recipe/${date}/${imgId}_w1024h768c1.jpg`);
+            seenIds.add(imgId);
+          }
+        }
+      }
+    }
+
+    // 3. Schéma JSON-LD Recipe
+    const jsonLdRegex = /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+    let ldMatch;
+    while ((ldMatch = jsonLdRegex.exec(html)) !== null) {
+      try {
+        const parsed = JSON.parse(ldMatch[1].trim());
+        const graph = parsed['@graph'] || (Array.isArray(parsed) ? parsed : [parsed]);
+        for (const item of graph) {
+          if (item && (item['@type'] === 'Recipe' || item['@type']?.includes?.('Recipe'))) {
+            const rawImg = item.image;
+            const imgList = Array.isArray(rawImg) ? rawImg : rawImg ? [rawImg] : [];
+            for (const u of imgList) {
+              const urlStr = typeof u === 'string' ? u : u?.url;
+              if (urlStr) {
+                const m = urlStr.match(/\/recipe\/(\d+)\/(\d+)_/);
+                if (m) {
+                  const [, date, imgId] = m;
+                  if (!seenIds.has(imgId)) {
+                    images.push(`https://assets.afcdn.com/recipe/${date}/${imgId}_w1024h768c1.jpg`);
+                    seenIds.add(imgId);
+                  }
+                }
+              }
+            }
+          }
+        }
+      } catch {}
+    }
+
+    return images;
   },
 };

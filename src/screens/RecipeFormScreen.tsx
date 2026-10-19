@@ -66,6 +66,13 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
     initialRecipe?.imageUrl ||
       'https://images.unsplash.com/photo-1495521821757-a1efb6729352?auto=format&fit=crop&w=1000&q=80'
   );
+  const [availableImages, setAvailableImages] = useState<string[]>(
+    initialRecipe?.availableImages && initialRecipe.availableImages.length > 0
+      ? initialRecipe.availableImages
+      : initialRecipe?.imageUrl && !initialRecipe.imageUrl.includes('unsplash.com')
+      ? [initialRecipe.imageUrl]
+      : []
+  );
 
   // Ingredients state
   const [ingredients, setIngredients] = useState<Ingredient[]>(
@@ -185,6 +192,7 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
       isVegetarian,
       userNote: userNote.trim() || undefined,
       imageUrl: imageUrl.trim(),
+      availableImages: availableImages.length > 0 ? availableImages : undefined,
       isFavorite: initialRecipe?.isFavorite || false,
       createdAt: initialRecipe?.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -230,6 +238,52 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
                 <Text style={styles.changeImageBtnText}>Choisir une photo</Text>
               </TouchableOpacity>
             </View>
+
+            {/* Photos Marmiton disponibles pour la couverture */}
+            {availableImages.length > 0 && (
+              <View style={styles.candidateBlock}>
+                <View style={styles.candidateHeaderRow}>
+                  <Ionicons name="images" size={16} color={Colors.primary} />
+                  <Text style={styles.candidateHeaderTitle}>
+                    Photos Marmiton disponibles ({availableImages.length}) :
+                  </Text>
+                </View>
+                <Text style={styles.candidateSubtitle}>
+                  Touchez une photo pour la définir comme image de couverture
+                </Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.candidateScroll}>
+                  {availableImages.map((imgUrl, idx) => {
+                    const isSelected = imageUrl === imgUrl;
+                    return (
+                      <TouchableOpacity
+                        key={`avail_img_${idx}`}
+                        style={[
+                          styles.candidateThumb,
+                          isSelected && styles.candidateThumbSelected,
+                        ]}
+                        onPress={() => setImageUrl(imgUrl)}
+                        activeOpacity={0.8}
+                      >
+                        <Image source={{ uri: imgUrl }} style={styles.candidateImage} />
+                        {isSelected && (
+                          <View style={styles.candidateCheckBadge}>
+                            <Ionicons name="checkmark" size={12} color="#FFFFFF" />
+                          </View>
+                        )}
+                        <Text
+                          style={[
+                            styles.candidateThumbLabel,
+                            isSelected && styles.candidateThumbLabelSelected,
+                          ]}
+                        >
+                          Photo {idx + 1}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            )}
 
             {/* Presets rapides d'images */}
             <Text style={styles.subLabel}>Ou choisissez parmi nos photos gourmandes :</Text>
@@ -828,5 +882,76 @@ const styles = StyleSheet.create({
   vegeSubtitle: {
     fontSize: 12,
     color: Colors.textSecondary,
+  },
+  candidateBlock: {
+    marginTop: 12,
+    marginBottom: 10,
+    backgroundColor: '#FAF5EE',
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: Colors.primary + '30',
+  },
+  candidateHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
+  candidateHeaderTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.primaryDark,
+  },
+  candidateSubtitle: {
+    fontSize: 11,
+    color: Colors.textSecondary,
+    marginBottom: 10,
+  },
+  candidateScroll: {
+    flexDirection: 'row',
+  },
+  candidateThumb: {
+    width: 90,
+    marginRight: 10,
+    borderRadius: 10,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: 'transparent',
+    backgroundColor: '#FFFFFF',
+    position: 'relative',
+  },
+  candidateThumbSelected: {
+    borderColor: '#16A34A',
+    ...Shadows.small,
+  },
+  candidateImage: {
+    width: '100%',
+    height: 64,
+    borderRadius: 8,
+  },
+  candidateCheckBadge: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    backgroundColor: '#16A34A',
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
+  },
+  candidateThumbLabel: {
+    fontSize: 11,
+    textAlign: 'center',
+    paddingVertical: 4,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+  },
+  candidateThumbLabelSelected: {
+    color: '#16A34A',
+    fontWeight: '700',
   },
 });

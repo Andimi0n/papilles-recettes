@@ -2,7 +2,7 @@ import { Recipe } from '../types/recipe';
 
 /**
  * Les 100 meilleures recettes cultes de Marmiton,
- * pré-chargées par défaut dans Papilles avec 0 étoile et sans photos.
+ * pré-chargées par défaut dans Papilles avec photos haute résolution et catégorisation végétarienne.
  */
 export const INITIAL_RECIPES: Recipe[] = [
   {
@@ -15,7 +15,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 120,
     "servings": 4,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20190529/93191_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_blanquette-de-veau-facile_19219.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -137,7 +137,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Dans un bol, bien mélanger la crème fraîche, le jaune d’oeuf et le jus de citron. Ajouter ce mélange au dernier moment, bien remuer et servir tout de suite."
       }
     ],
-    "isVegetarian": false
+    "isVegetarian": false,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20190529/93191_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20230619/143548_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20131223/2265_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_002",
@@ -149,7 +154,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 155,
     "servings": 4,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20220623/133014_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_la-vraie-moussaka-grecque_72593.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -323,7 +328,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Enfourner le tout dans le four à 200°C (thermostat 6-7) et laisser cuire 1h (la béchamel doit croustiller et être dorée)."
       }
     ],
-    "isVegetarian": false
+    "isVegetarian": false,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20220623/133014_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20221013/136125_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20180503/79002_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_003",
@@ -335,7 +345,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 20,
     "servings": 6,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20180726/81587_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_genoise-ultra-rapide-et-pourtant-si-aerienne_49844.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -413,7 +423,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Démoulez tiède et attendez que le gâteau soit refroidi pour le trancher dans l'épaisseur et le garnir."
       }
     ],
-    "isVegetarian": true
+    "isVegetarian": true,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20180726/81587_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20160401/48369_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20160830/48145_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_004",
@@ -425,7 +440,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 60,
     "servings": 5,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20201217/116564_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_gratin-dauphinois-recette-originale_22307.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -504,7 +519,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Déguster"
       }
     ],
-    "isVegetarian": true
+    "isVegetarian": true,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20201217/116564_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20170201/63483_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20160401/63482_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_005",
@@ -516,7 +536,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 12,
     "servings": 4,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20160610/21702_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_ramequins-fondants-au-chocolat_15816.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -600,7 +620,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Miam !"
       }
     ],
-    "isVegetarian": true
+    "isVegetarian": true,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20160610/21702_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20160610/21700_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20130627/21701_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_006",
@@ -612,7 +637,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 15,
     "servings": 4,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20190529/93185_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_gratin-de-courgettes-rapide_17071.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -704,7 +729,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Mettre les courgettes dans un plat et verser par dessus la sauce et faire à four chaud pendant 15 min."
       }
     ],
-    "isVegetarian": true
+    "isVegetarian": true,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20190529/93185_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20190529/93181_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20190529/93184_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_007",
@@ -716,7 +746,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 0,
     "servings": 4,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20190529/93097_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_tiramisu-recette-originale_12023.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -807,7 +837,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Mettre au réfrigérateur 4 heures minimum puis déguster frais."
       }
     ],
-    "isVegetarian": true
+    "isVegetarian": true,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20190529/93097_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20221013/136181_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20170614/69362_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_008",
@@ -819,7 +854,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 30,
     "servings": 6,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20171020/73718_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_le-crumble-aux-pommes-du-chat-qui-tousse_10534.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -905,7 +940,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Servir tiède avec de la crème fouettée ou de la glace à la vanille."
       }
     ],
-    "isVegetarian": true
+    "isVegetarian": true,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20171020/73718_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20130123/50045_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20121214/50042_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_009",
@@ -917,7 +957,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 30,
     "servings": 4,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20221010/135902_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_quiche-sans-pate_12744.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -984,7 +1024,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Placez dans un plat a tarte beurré et faites cuire une dmi-heure à 200°C."
       }
     ],
-    "isVegetarian": false
+    "isVegetarian": false,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20221010/135902_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20180612/79546_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20180612/79545_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_010",
@@ -996,7 +1041,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 25,
     "servings": 4,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20221004/135706_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_parmentier-de-confit-de-canard_17048.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -1140,7 +1185,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Servez avec une salade (mâche, par exemple) et un Cahors léger: ce plat ne paye pas de mine, mais vos convives seront très agréablement surpris !"
       }
     ],
-    "isVegetarian": false
+    "isVegetarian": false,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20221004/135706_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20141009/1649_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20141009/1648_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_011",
@@ -1152,7 +1202,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 15,
     "servings": 6,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20221007/135812_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_creme-patissiere_35195.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -1216,7 +1266,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "A ce moment là, votre crème sera déjà bien épaisse et vous pouvez arrêter la cuisson."
       }
     ],
-    "isVegetarian": true
+    "isVegetarian": true,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20221007/135812_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20220930/135568_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20180713/80960_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_012",
@@ -1228,7 +1283,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 0,
     "servings": 20,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20160331/26445_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_meringue-pour-les-nuls_36610.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -1309,7 +1364,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Une fois cuites, décoller les meringues délicatement dès la sortie du four et laisser refroidir sur une grille."
       }
     ],
-    "isVegetarian": true
+    "isVegetarian": true,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20160331/26445_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20170623/69370_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20100120/25181_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_013",
@@ -1321,7 +1381,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 3,
     "servings": 4,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20140921/15292_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_les-timbales-de-jeanne-saumon-a-la-mousse-de-courgettes-au-micro-ondes_21864.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -1440,7 +1500,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Déguster !"
       }
     ],
-    "isVegetarian": false
+    "isVegetarian": false,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20140921/15292_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20100120/6321_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20130501/5135_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_014",
@@ -1452,7 +1517,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 4,
     "servings": 4,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20221027/136756_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_pancakes_15299.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -1533,7 +1598,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Dans une poêle chaude et légèrement huilée, faire cuire comme des crêpes, mais en les faisant plus petites. Réserver au chaud et déguster."
       }
     ],
-    "isVegetarian": true
+    "isVegetarian": true,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20221027/136756_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20180413/78569_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20221013/136166_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_015",
@@ -1545,7 +1615,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 45,
     "servings": 6,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20201001/114522_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_filet-mignon-en-croute_14407.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -1640,7 +1710,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Enfourner pour 45 minutes de cuisson à 200°C (thermostat 6-7)."
       }
     ],
-    "isVegetarian": false
+    "isVegetarian": false,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20201001/114522_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20170615/69644_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20131108/55853_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_016",
@@ -1652,7 +1727,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 240,
     "servings": 4,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20220707/133382_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_boeuf-bourguignon_18889.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -1739,7 +1814,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Le lendemain, faire mijoter au moins 2 heures en plusieurs fois, ajouter du vin ou de l'eau si nécessaire."
       }
     ],
-    "isVegetarian": false
+    "isVegetarian": false,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20220707/133382_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20130123/38929_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20100120/33175_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_017",
@@ -1751,7 +1831,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 5,
     "servings": 4,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20130627/42230_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_hamburger-maison_32672.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -1838,7 +1918,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Vous pouvez maintenant recouvrir la préparation de l'autre tranche (avec ketchup et moutarde)"
       }
     ],
-    "isVegetarian": false
+    "isVegetarian": false,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20130627/42230_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20180712/80895_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20131222/43879_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_018",
@@ -1850,7 +1935,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 6,
     "servings": 1,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20190219/88020_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_oeufs-mollet-de-ma-grand-mere-facile_197487.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -1924,7 +2009,10 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Bon appétit."
       }
     ],
-    "isVegetarian": true
+    "isVegetarian": true,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20190219/88020_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_019",
@@ -1936,7 +2024,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 10,
     "servings": 6,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20130909/1163_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_muffins-tout-chocolat_56020.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -2037,7 +2125,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Laissez refroidir et démoulez."
       }
     ],
-    "isVegetarian": true
+    "isVegetarian": true,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20130909/1163_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20140711/26488_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20140928/26490_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_020",
@@ -2049,7 +2142,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 30,
     "servings": 8,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20230620/143594_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_foret-noire_11529.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -2162,7 +2255,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Pour un gâteau de 28 cm de diamètre multiplier les proportions par 1,5."
       }
     ],
-    "isVegetarian": true
+    "isVegetarian": true,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20230620/143594_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20210511/120269_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20141023/27286_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_021",
@@ -2174,7 +2272,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 0,
     "servings": 4,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20140814/32191_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_ceviche-mexique_13102.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -2283,7 +2381,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Servir dans des coupes, en ajoutant l'avocat."
       }
     ],
-    "isVegetarian": false
+    "isVegetarian": false,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20140814/32191_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20130712/32192_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20130721/60583_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_022",
@@ -2295,7 +2398,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 95,
     "servings": 8,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20200408/109520_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_lasagnes-a-la-bolognaise_18215.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -2494,7 +2597,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Déguster"
       }
     ],
-    "isVegetarian": false
+    "isVegetarian": false,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20200408/109520_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20221013/136146_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20160630/63224_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_023",
@@ -2506,7 +2614,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 2,
     "servings": 4,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20221013/136174_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_bechamel-rapide-et-facile_14764.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -2570,7 +2678,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Bien fouetter, c'est prêt !"
       }
     ],
-    "isVegetarian": true
+    "isVegetarian": true,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20221013/136174_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20180628/80001_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20150909/46783_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_024",
@@ -2582,7 +2695,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 25,
     "servings": 6,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20160404/56530_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_crumble-simple_12173.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -2650,7 +2763,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Laisser cuire 25 min. Servir avec une crème anglaise."
       }
     ],
-    "isVegetarian": true
+    "isVegetarian": true,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20160404/56530_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20180713/81159_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20100120/49296_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_025",
@@ -2662,7 +2780,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 10,
     "servings": 2,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20211222/126211_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_pancakes-faciles-et-rapides_81518.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -2742,7 +2860,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Lorsque les bulles apparaissent et éclatent, retourner les pancakes et ne pas les laisser plus d'une min sur l'autre face."
       }
     ],
-    "isVegetarian": true
+    "isVegetarian": true,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20211222/126211_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20221013/136180_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20180716/81396_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_026",
@@ -2754,7 +2877,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 60,
     "servings": 6,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20221011/135945_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_pain-d-epices_11087.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -2880,7 +3003,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Il se garde une semaine, enveloppé dans du papier d'aluminium."
       }
     ],
-    "isVegetarian": true
+    "isVegetarian": true,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20221011/135945_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20220929/135546_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20181219/84929_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_027",
@@ -2892,7 +3020,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 30,
     "servings": 6,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20230127/139908_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_tarte-aux-pommes-a-l-alsacienne_11457.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -2972,7 +3100,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Déguster"
       }
     ],
-    "isVegetarian": true
+    "isVegetarian": true,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20230127/139908_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20191119/102677_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20160922/65402_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_028",
@@ -2984,7 +3117,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 60,
     "servings": 6,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20130627/35195_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_saute-de-veau-au-chorizo_17027.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -3077,7 +3210,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Ce plat est encore meilleur préparé la veille et réchauffé le jour même."
       }
     ],
-    "isVegetarian": false
+    "isVegetarian": false,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20130627/35195_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20130122/35196_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20140225/31460_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_029",
@@ -3089,7 +3227,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 45,
     "servings": 6,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20130206/48875_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_cake-sale-au-jambon-et-aux-olives_18876.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -3181,7 +3319,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Mettre le tout dans un plat à cake au préalable beurré et placer au four 45 min."
       }
     ],
-    "isVegetarian": false
+    "isVegetarian": false,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20130206/48875_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20100120/42671_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20140126/45227_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_030",
@@ -3193,7 +3336,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 60,
     "servings": 6,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20131009/56293_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_boeuf-bourguignon-rapide_19218.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -3308,7 +3451,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Laisser cuire doucement 60 min à partir de la mise en rotation de la soupape."
       }
     ],
-    "isVegetarian": false
+    "isVegetarian": false,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20131009/56293_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20230619/143545_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20100120/50011_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_031",
@@ -3320,7 +3468,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 25,
     "servings": 16,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20230630/143922_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_petits-croissants-au-saumon-fume-toast-aperitif_20483.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -3367,7 +3515,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Passer un petit peu de lait dessus, et mettre à four 25 min."
       }
     ],
-    "isVegetarian": false
+    "isVegetarian": false,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20230630/143922_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20170623/69321_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20130122/5806_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_032",
@@ -3379,7 +3532,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 30,
     "servings": 6,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20160404/27170_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_cake-au-chocolat_17391.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -3455,7 +3608,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Attendre 5 min avant de démouler. Laisser refroidir."
       }
     ],
-    "isVegetarian": true
+    "isVegetarian": true,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20160404/27170_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20190907/97941_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20190527/93035_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_033",
@@ -3467,7 +3625,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 20,
     "servings": 4,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20160527/26170_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_blinis-faciles-maison_22261.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -3531,7 +3689,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Servir de suite ou réchauffer avant de passer à table."
       }
     ],
-    "isVegetarian": true
+    "isVegetarian": true,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20160527/26170_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20160527/26169_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20160401/26167_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_034",
@@ -3543,7 +3706,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 10,
     "servings": 6,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20221026/136708_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_panna-cotta_17991.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -3596,7 +3759,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Ajouter du coulis de fraise, framboise ou autre fruit juste avant de servir."
       }
     ],
-    "isVegetarian": true
+    "isVegetarian": true,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20221026/136708_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20120831/37557_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20150512/42334_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_035",
@@ -3608,7 +3776,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 30,
     "servings": 6,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20130304/1669_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_filet-mignon-de-porc-au-maroilles_12734.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -3699,7 +3867,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Ce plat est très bon accompagné de tagliatelles fraîches."
       }
     ],
-    "isVegetarian": false
+    "isVegetarian": false,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20130304/1669_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20140212/5240_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20140814/1670_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_036",
@@ -3711,7 +3884,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 60,
     "servings": 4,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20221007/135811_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_riz-au-lait-de-ma-maman_20380.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -3776,7 +3949,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "On peut servir ce dessert tiède ou froid dans des ramequins avec un zeste de citron vert pour décorer le dessus."
       }
     ],
-    "isVegetarian": true
+    "isVegetarian": true,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20221007/135811_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20160520/34572_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20160520/34570_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_037",
@@ -3788,7 +3966,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 10,
     "servings": 4,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20221007/135810_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_pommes-de-terres-sautees_36392.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -3862,7 +4040,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Maintenant, elles sont cuites. Vérifier tout de même avec la pointe d'un couteau."
       }
     ],
-    "isVegetarian": true
+    "isVegetarian": true,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20221007/135810_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20180621/79737_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20110517/44536_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_038",
@@ -3874,7 +4057,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 15,
     "servings": 8,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20170623/69271_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_le-trianon-ou-royal-de-nadine_63868.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -4065,7 +4248,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Enfin, on peut décorer avec de la pâte d'amandes, des copeaux de chocolat noir et blanc, des pistaches, des crêpes dentelles… bref ce qu'on veut."
       }
     ],
-    "isVegetarian": true
+    "isVegetarian": true,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20170623/69271_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20170315/2466_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20170623/69287_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_039",
@@ -4077,7 +4265,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 60,
     "servings": 6,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20210203/117771_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_roti-de-porc-de-dijon_12145.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -4158,7 +4346,13 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Couper le rôti en tranches, puis le servir nappé de sauce et accompagné des petites échalotes entières."
       }
     ],
-    "isVegetarian": false
+    "isVegetarian": false,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20210203/117771_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20190320/89694_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20110530/43300_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20140701/41795_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_040",
@@ -4170,7 +4364,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 47,
     "servings": 4,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20171004/72705_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_filet-mignon-de-porc-a-la-moutarde_36310.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -4267,7 +4461,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Bon appétit."
       }
     ],
-    "isVegetarian": false
+    "isVegetarian": false,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20171004/72705_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20160405/8964_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20111204/10840_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_041",
@@ -4279,7 +4478,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 0,
     "servings": 6,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20191128/103126_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_tiramisu-aux-speculoos_36386.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -4371,7 +4570,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Saupoudrer de cacao, couvrir d'un film plastique et mettre au réfrigérateur quelques heures."
       }
     ],
-    "isVegetarian": true
+    "isVegetarian": true,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20191128/103126_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20160616/27628_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20160616/23601_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_042",
@@ -4383,7 +4587,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 25,
     "servings": 4,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20211222/126214_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_chili-con-carne-facile_15415.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -4494,7 +4698,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Couvrir et cuire 25 min au four."
       }
     ],
-    "isVegetarian": false
+    "isVegetarian": false,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20211222/126214_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20221019/136415_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20161116/23198_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_043",
@@ -4506,7 +4715,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 40,
     "servings": 4,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20180503/79010_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_tarte-thon-tomate-et-moutarde_17226.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -4604,7 +4813,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Mettre au four (pré-chauffé à 200°C/th 6-7), et cuire environ 40 min (jusqu'à ce que la tarte soit dorée sans être trop brunie!)."
       }
     ],
-    "isVegetarian": false
+    "isVegetarian": false,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20180503/79010_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20180628/80053_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20221013/136157_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_044",
@@ -4616,7 +4830,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 35,
     "servings": 6,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20250304/158700_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_couscous-poulet-et-merguez-facile_17751.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -4737,7 +4951,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Servez accompagné d'une semoule fine."
       }
     ],
-    "isVegetarian": false
+    "isVegetarian": false,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20250304/158700_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20180621/79724_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20221013/136129_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_045",
@@ -4749,7 +4968,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 60,
     "servings": 16,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20220426/131518_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_canneles-7eme-rencontre-marmiton_29816.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -4846,7 +5065,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Démouler encore chaud."
       }
     ],
-    "isVegetarian": true
+    "isVegetarian": true,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20220426/131518_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20160405/63560_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20100120/60485_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_046",
@@ -4858,7 +5082,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 40,
     "servings": 3,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20160404/2282_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_veloute-de-champignons_26749.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -4973,7 +5197,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Quelques minutes avant de servir ajouter le jus d’un citron puis 2 cuillères à soupe de crème fraîche."
       }
     ],
-    "isVegetarian": true
+    "isVegetarian": true,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20160404/2282_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20130123/2284_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20101121/8151_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_047",
@@ -4985,7 +5214,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 10,
     "servings": 15,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20160513/21955_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_original-american-cookies-de-mike_39907.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -5093,7 +5322,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Vous m’en direz des nouvelles !"
       }
     ],
-    "isVegetarian": true
+    "isVegetarian": true,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20160513/21955_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20200916/114198_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20160513/21947_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_048",
@@ -5105,7 +5339,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 30,
     "servings": 2,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20221007/135809_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_paupiettes-de-veau_82641.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -5192,7 +5426,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "S'accommode avec toutes sortes de légumes ainsi que des féculents."
       }
     ],
-    "isVegetarian": false
+    "isVegetarian": false,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20221007/135809_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20131001/22169_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20180716/81382_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_049",
@@ -5204,7 +5443,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 35,
     "servings": 6,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20171019/73549_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_galette-des-rois-facile_19012.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -5309,7 +5548,13 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "La galette est cuite quand on peut la soulever sans qu’elle ne plie."
       }
     ],
-    "isVegetarian": true
+    "isVegetarian": true,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20171019/73549_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20100120/19476_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20130111/18675_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20130506/27449_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_050",
@@ -5321,7 +5566,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 25,
     "servings": 6,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20140121/63377_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_the-tarte-au-citron-meringuee_22082.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -5528,7 +5773,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Une part ?"
       }
     ],
-    "isVegetarian": true
+    "isVegetarian": true,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20140121/63377_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20170213/63342_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20170213/63346_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_051",
@@ -5540,7 +5790,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 30,
     "servings": 6,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20230620/143582_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_gateau-au-chocolat-fondant-rapide_166352.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -5609,7 +5859,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "A la sortie du four le gâteau ne paraît pas assez cuit. C'est normal, laissez-le refroidir puis démoulez- le."
       }
     ],
-    "isVegetarian": false
+    "isVegetarian": false,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20230620/143582_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20190529/93106_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20190529/93102_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_052",
@@ -5621,7 +5876,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 40,
     "servings": 6,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20170529/37207_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_gateau-aux-pommes-facile_13493.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -5697,7 +5952,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Déguster !"
       }
     ],
-    "isVegetarian": true
+    "isVegetarian": true,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20170529/37207_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20170529/37211_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20170529/37209_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_053",
@@ -5709,7 +5969,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 30,
     "servings": 6,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20171220/76170_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_tarte-frangipane-aux-poires-et-au-chocolat_15765.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -5785,7 +6045,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Faire cuire votre tarte dans la partie basse du four environ 30 min (surveiller la cuisson pour ne pas que le fond de tarte brûle)."
       }
     ],
-    "isVegetarian": true
+    "isVegetarian": true,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20171220/76170_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20171220/76169_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20141105/46014_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_054",
@@ -5797,7 +6062,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 35,
     "servings": 8,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20201201/116004_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_pain-d-epices-facile_15915.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -5948,7 +6213,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Cuire 30 à 35 minutes."
       }
     ],
-    "isVegetarian": true
+    "isVegetarian": true,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20201201/116004_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20160527/2316_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20131018/2313_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_055",
@@ -5960,7 +6230,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 40,
     "servings": 4,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20180219/77624_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_tarte-tatin-aux-endives-et-chavignol_23918.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -6072,7 +6342,13 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Pour finir, saupoudrez avec la moitié des herbes de Provence restantes."
       }
     ],
-    "isVegetarian": true
+    "isVegetarian": true,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20180219/77624_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20130628/38356_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20120828/44255_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20140319/49188_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_056",
@@ -6084,7 +6360,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 25,
     "servings": 6,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20160513/2643_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_gougeres-au-fromage_20095.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -6185,7 +6461,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "C'est prêt"
       }
     ],
-    "isVegetarian": true
+    "isVegetarian": true,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20160513/2643_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20160513/2644_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20100120/1528_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_057",
@@ -6197,7 +6478,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 30,
     "servings": 4,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20220930/135573_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_soupe-veloutee-de-potimarron-et-pommes-de-terre_41161.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -6307,7 +6588,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Vérifier l'assaisonnement, saler, poivrer selon votre goût puis ajouter la crème fraîche et laisser mijoter encore 2 ou 3 min. Bon appétit !"
       }
     ],
-    "isVegetarian": false
+    "isVegetarian": false,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20220930/135573_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20201217/116545_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20180713/81050_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_058",
@@ -6319,7 +6605,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 20,
     "servings": 4,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20200430/110248_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_financier-minute-pour-utiliser-des-blancs-d-oeuf_17526.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -6373,7 +6659,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Cuire 20 minutes à 200°C (thermostat 6/7)."
       }
     ],
-    "isVegetarian": true
+    "isVegetarian": true,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20200430/110248_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20200430/110249_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20131201/10643_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_059",
@@ -6385,7 +6676,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 25,
     "servings": 6,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20160325/58176_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_tarte-aux-poireaux-et-aux-lardons_12850.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -6499,7 +6790,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Mettre au four 25 min."
       }
     ],
-    "isVegetarian": false
+    "isVegetarian": false,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20160325/58176_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20180713/81163_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20131019/65092_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_060",
@@ -6511,7 +6807,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 30,
     "servings": 6,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20160404/63886_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_tarte-tatin-de-legumes_24112.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -6611,7 +6907,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "A la sortie du four, retourner la tarte sur un plat et servir chaud."
       }
     ],
-    "isVegetarian": true
+    "isVegetarian": true,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20160404/63886_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20140407/62534_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20100120/62054_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_061",
@@ -6623,7 +6924,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 60,
     "servings": 3,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20160405/8490_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_saute-de-veau-de-lisbonne_28556.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -6743,7 +7044,13 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Nota 4 : on peut remplacer le Porto rouge par du blanc."
       }
     ],
-    "isVegetarian": false
+    "isVegetarian": false,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20160405/8490_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20100120/3171_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20150224/30601_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20150120/4880_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_062",
@@ -6755,7 +7062,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 190,
     "servings": 4,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20130201/9458_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_carbonades-flamandes-traditionnelles_29711.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -6874,7 +7181,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Si après trois heures, le jus est encore trop liquide, laisser encore mijoter en laissant le couvercle en partie ouvert, la sauce doit être légèrement collante en surface mais bien liquide en dessous et ne doit surtout pas brûler au fond."
       }
     ],
-    "isVegetarian": false
+    "isVegetarian": false,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20130201/9458_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20180712/80825_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20111026/27987_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_063",
@@ -6886,7 +7198,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 30,
     "servings": 6,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20220128/128250_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_tarte-aux-pommes_18588.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -6959,7 +7271,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Mettre au four et laisser cuire pendant 30 min max. Surveiller la cuisson. Vous pouvez ajouter un peu de sucre vanillé sur la tarte pendant que çà cuit pour caraméliser un peu."
       }
     ],
-    "isVegetarian": true
+    "isVegetarian": true,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20220128/128250_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20120905/13569_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20221019/136424_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_064",
@@ -6971,7 +7288,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 60,
     "servings": 1,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20250408/159503_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_lapin-a-la-moutarde-maison_15983.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -7094,7 +7411,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Filtrez le jus de cuisson (facultatif) et incorporez la crème à la moutarde. Faites cuire 1 minutes sans faire bouillir et nappez les morceaux de lapin avec cette préparation."
       }
     ],
-    "isVegetarian": false
+    "isVegetarian": false,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20250408/159503_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20180628/80080_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20160404/4197_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_065",
@@ -7106,7 +7428,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 60,
     "servings": 10,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20190529/93143_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_gateau-d-anniversaire_16870.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -7192,7 +7514,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Décorer selon vos désirs : par exemple une crème au chocolat blanc en mélangeant du chocolat blanc à du fromage frais puis décorer avec des décors en sucre ou des paillettes colorées."
       }
     ],
-    "isVegetarian": true
+    "isVegetarian": true,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20190529/93143_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20181017/82777_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20190529/93141_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_066",
@@ -7204,7 +7531,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 5,
     "servings": 2,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20150225/32437_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_crevettes-au-curry-express_12645.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -7252,7 +7579,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Servir immédiatement avec du riz thaï."
       }
     ],
-    "isVegetarian": false
+    "isVegetarian": false,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20150225/32437_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20100120/27272_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20140313/26828_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_067",
@@ -7264,7 +7596,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 30,
     "servings": 6,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20180827/81950_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_gateau-banane-de-steph_31190.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -7351,7 +7683,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Laisser cuire environ 30 mn à four thermostat 6."
       }
     ],
-    "isVegetarian": true
+    "isVegetarian": true,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20180827/81950_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20181017/82863_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20131223/39598_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_068",
@@ -7363,7 +7700,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 10,
     "servings": 4,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20160405/21836_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_creme-de-citron-lemon-curd_11210.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -7456,7 +7793,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "3- mousse minute : émulsionner le lemon curd avec de la chantilly"
       }
     ],
-    "isVegetarian": true
+    "isVegetarian": true,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20160405/21836_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20160405/21835_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20160405/21829_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_069",
@@ -7468,7 +7810,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 30,
     "servings": 4,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20161006/1269_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_endive-jambon_19848.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -7533,7 +7875,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Faire gratiner pendant à peu près 30 mn à four chaud et régalez vous."
       }
     ],
-    "isVegetarian": false
+    "isVegetarian": false,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20161006/1269_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20140218/6227_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20100120/277_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_070",
@@ -7545,7 +7892,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 15,
     "servings": 4,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20200907/114028_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_filet-de-poulet-au-curry_80990.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -7639,7 +7986,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Bon appétit à vous."
       }
     ],
-    "isVegetarian": false
+    "isVegetarian": false,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20200907/114028_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20200907/114027_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20180827/81937_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_071",
@@ -7651,7 +8003,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 40,
     "servings": 6,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20161206/9654_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_galette-des-rois_10832.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -7747,7 +8099,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Déguster."
       }
     ],
-    "isVegetarian": true
+    "isVegetarian": true,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20161206/9654_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20161206/9656_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20150104/25512_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_072",
@@ -7759,7 +8116,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 2,
     "servings": 6,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20260126/165572_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_pate-a-crepes-des-plus-raffinees_49665.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -7835,7 +8192,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Faire cuire les crêpes dans une poêle chaude huilée."
       }
     ],
-    "isVegetarian": true
+    "isVegetarian": true,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20260126/165572_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20250131/157849_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20171020/73720_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_073",
@@ -7847,7 +8209,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 25,
     "servings": 8,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20171220/76165_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_gateau-au-chocolat-des-ecoliers_20654.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -7927,7 +8289,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Faites cuire environ 25 minutes (adaptez le temps de cuisson pour obtenir un cœur plus ou moins fondant)."
       }
     ],
-    "isVegetarian": true
+    "isVegetarian": true,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20171220/76165_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20171220/76164_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20160331/36957_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_074",
@@ -7939,7 +8306,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 45,
     "servings": 4,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20161128/28118_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_quiche-lorraine_30283.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -8052,7 +8419,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Déguster"
       }
     ],
-    "isVegetarian": false
+    "isVegetarian": false,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20161128/28118_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20221013/136150_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20130204/31291_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_075",
@@ -8064,7 +8436,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 36,
     "servings": 18,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20221013/136076_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_pancakes-la-vraie-recette_69412.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -8156,7 +8528,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Pour la cuisson, à feu très doux : huiler une petite poêle, mettre 1 louche de préparation puis attendre que toute la surface soit couverte de trous et qu’elle paraisse « sèche » et la retourner pour qu’elle cuise de l’autre côté environ 1 minute."
       }
     ],
-    "isVegetarian": true
+    "isVegetarian": true,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20221013/136076_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20140330/19158_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20100120/10363_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_076",
@@ -8168,7 +8545,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 10,
     "servings": 3,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20171206/75873_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_pate-a-pizza-fine_29544.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -8232,7 +8609,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Après repos, pétrir quelques instants puis diviser la pâte en trois boules égales (on peut en congeler). Etaler la pâte sur une surface farinée. Badigeonner la plaque d'un peu d'huile d'olive avant d'y appliquer la pâte. Cuisson 10 minutes à 220°C (thermostat 7-8)."
       }
     ],
-    "isVegetarian": true
+    "isVegetarian": true,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20171206/75873_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20180712/80809_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20130823/42626_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_077",
@@ -8244,7 +8626,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 25,
     "servings": 1,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20160527/53994_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_baba-au-rhum-express_13608.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -8362,7 +8744,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Et déguster"
       }
     ],
-    "isVegetarian": true
+    "isVegetarian": true,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20160527/53994_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20160527/53991_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20160527/53996_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_078",
@@ -8374,7 +8761,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 10,
     "servings": 1,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20130122/64052_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_tatin-de-magret-de-canard-au-foie-gras_17047.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -8439,7 +8826,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Démouler sur le pain de mie grillé, puis recouvrir de la tranche de foie gras. Servir chaud."
       }
     ],
-    "isVegetarian": false
+    "isVegetarian": false,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20130122/64052_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20140127/66304_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20140127/62815_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_079",
@@ -8451,7 +8843,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 15,
     "servings": 6,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20130823/62932_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_bechamel_23880.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -8516,7 +8908,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Assaisonnez de sel, poivre et muscade râpée."
       }
     ],
-    "isVegetarian": true
+    "isVegetarian": true,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20130823/62932_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20180710/80586_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20140409/65469_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_080",
@@ -8528,7 +8925,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 55,
     "servings": 4,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20160624/36724_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_ratatouille_23223.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -8658,7 +9055,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Salez et poivrez si besoin."
       }
     ],
-    "isVegetarian": true
+    "isVegetarian": true,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20160624/36724_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20160624/36725_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20160404/36723_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_081",
@@ -8670,7 +9072,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 0,
     "servings": 2,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20230620/143619_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_pate-a-pizza-pour-map-machine-a-pain_50364.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -8741,7 +9143,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Travailler légèremement la pâte, laisser gonfler environ 20 mminutes au chaud avant d'étaler et de garnir."
       }
     ],
-    "isVegetarian": true
+    "isVegetarian": true,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20230620/143619_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20120312/42969_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20131122/47028_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_082",
@@ -8753,7 +9160,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 45,
     "servings": 4,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20130205/63559_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_osso-bucco-de-veau_16090.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -8843,7 +9250,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Laisser cuire 45 min à partir de la mise en rotation de la soupape, à feu doux."
       }
     ],
-    "isVegetarian": false
+    "isVegetarian": false,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20130205/63559_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20110511/67202_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20160124/61014_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_083",
@@ -8855,7 +9267,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 0,
     "servings": 6,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20201203/116055_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_mousse-au-citron-et-au-mascarpone-tres-facile_23974.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -8903,7 +9315,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Dresser dans des petits pots."
       }
     ],
-    "isVegetarian": true
+    "isVegetarian": true,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20201203/116055_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20150814/17425_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20130303/19572_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_084",
@@ -8915,7 +9332,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 15,
     "servings": 4,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20130319/29847_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_ramequins-au-chocolat-aux-coeurs-fondants_14734.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -8990,7 +9407,13 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Dégustez les ramequins tièdes, démoulés ou non."
       }
     ],
-    "isVegetarian": true
+    "isVegetarian": true,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20130319/29847_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20140821/10412_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20100120/271_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20130308/6844_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_085",
@@ -9002,7 +9425,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 60,
     "servings": 6,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20180622/79920_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_boeuf-braise-aux-carottes_13296.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -9114,7 +9537,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Assaisonner avec le sel etle poivre, mélanger et laisser mijoter 1h30 à feu doux."
       }
     ],
-    "isVegetarian": false
+    "isVegetarian": false,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20180622/79920_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20100120/27254_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20130828/30912_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_086",
@@ -9126,7 +9554,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 75,
     "servings": 16,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20230621/143653_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_canneles-bordelais_11439.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -9244,7 +9672,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Déguster !"
       }
     ],
-    "isVegetarian": false
+    "isVegetarian": false,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20230621/143653_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20160713/54684_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20160713/56301_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_087",
@@ -9256,7 +9689,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 20,
     "servings": 6,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20230620/143627_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_galette-des-rois-a-la-frangipane_20147.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -9331,7 +9764,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Enfourner pendant 20 à 30 min à 200°C (thermostat 6-7); vérifier régulièrement la cuisson !"
       }
     ],
-    "isVegetarian": true
+    "isVegetarian": true,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20230620/143627_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20141217/841_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20180706/80415_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_088",
@@ -9343,7 +9781,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 30,
     "servings": 6,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20171024/73829_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_tarte-chocolat-poires-facile_14023.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -9424,7 +9862,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Mettre au four pendant 30 min."
       }
     ],
-    "isVegetarian": true
+    "isVegetarian": true,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20171024/73829_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20130304/26366_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20130524/38638_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_089",
@@ -9436,7 +9879,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 30,
     "servings": 1,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20210630/121024_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_pate-brisee-vite-faite_31639.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -9495,7 +9938,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Pour étaler sans problème, étaler la pâte sur du papier cuisson et cuire tel quel dans la platine."
       }
     ],
-    "isVegetarian": true
+    "isVegetarian": true,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20210630/121024_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20221019/136418_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20160331/12788_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_090",
@@ -9507,7 +9955,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 20,
     "servings": 4,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20221012/136013_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_hachis-parmentier_17639.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -9614,7 +10062,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Préchauffer le four à 200°C (thermostat 6-7).  Etaler au fond du plat à gratin. Préparer la purée. L'étaler au dessus de la viande. Saupoudrer de fromage râpé et faire gratiner."
       }
     ],
-    "isVegetarian": false
+    "isVegetarian": false,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20221012/136013_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20201228/116812_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20170614/69758_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_091",
@@ -9626,7 +10079,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 0,
     "servings": 6,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20190704/94699_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_tiramisu-aux-framboises_28919.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -9712,7 +10165,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Mettre au réfrigérateur 24 heures avant de servir, voire 48h."
       }
     ],
-    "isVegetarian": true
+    "isVegetarian": true,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20190704/94699_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20190704/94696_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20190704/94695_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_092",
@@ -9724,7 +10182,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 60,
     "servings": 4,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20200828/113366_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_cuisse-de-canard-a-l-orientale_61466.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -9862,7 +10320,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Rectifier l'assaisonnement si nécessaire  puis servir les cuisses de canard nappées de sauce."
       }
     ],
-    "isVegetarian": false
+    "isVegetarian": false,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20200828/113366_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20180827/81936_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20100120/3354_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_093",
@@ -9874,7 +10337,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 15,
     "servings": 4,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20131121/56974_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_veloute-de-butternut-a-la-canelle_220583.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -9948,7 +10411,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "C'est prêt et c'est délicieux !"
       }
     ],
-    "isVegetarian": true
+    "isVegetarian": true,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20131121/56974_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20180711/80722_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20131027/53876_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_094",
@@ -9960,7 +10428,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 20,
     "servings": 15,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20140608/61945_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_muffins-de-sandrine_57367.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -10064,7 +10532,13 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Enfourner pour 20 à 25 minutes de cuisson."
       }
     ],
-    "isVegetarian": true
+    "isVegetarian": true,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20140608/61945_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20100120/61328_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20120826/61218_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20130502/62150_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_095",
@@ -10076,7 +10550,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 60,
     "servings": 6,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20201217/116563_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_gratin-dauphinois_13809.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -10163,7 +10637,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Enfourner pour 50 min à 1 heure de cuisson.  Utiliser le lait restant de la cuisson des pommes de terre pour faire une soupe ou une purée dans la foulée."
       }
     ],
-    "isVegetarian": true
+    "isVegetarian": true,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20201217/116563_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20160401/5313_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20180622/79932_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_096",
@@ -10175,7 +10654,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 10,
     "servings": 6,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20171019/73301_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_moelleux-au-chocolat_17982.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -10249,7 +10728,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Servir tiède avec une crème anglaise (le centre doit être coulant) ou servir froid nappé de ganache au chocolat."
       }
     ],
-    "isVegetarian": true
+    "isVegetarian": true,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20171019/73301_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20180705/80267_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20131018/57637_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_097",
@@ -10261,7 +10745,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 35,
     "servings": 6,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20190529/93196_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_flan-de-courgettes_23249.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -10325,7 +10809,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "SERVIR FROID OU CHAUD avec une sauce mayonnaise + ketchup hot."
       }
     ],
-    "isVegetarian": true
+    "isVegetarian": true,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20190529/93196_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20190529/93195_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20190529/93194_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_098",
@@ -10337,7 +10826,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 60,
     "servings": 6,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20230623/143801_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_blanquette-de-veau-maison_16224.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -10477,7 +10966,12 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Juste avant de servir mélangez la crème et les jaunes d'oeufs, incorporez-les à la sauce en tournant sans laisser bouillir. Ajoutez quelques gouttes de jus de citron. Servez dans un plat creux avec du persil."
       }
     ],
-    "isVegetarian": false
+    "isVegetarian": false,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20230623/143801_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20120502/6429_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20140913/6431_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_099",
@@ -10489,7 +10983,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 0,
     "servings": 6,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20171019/73623_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_charlotte-aux-fruits-d-ete_20546.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -10575,7 +11069,13 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Démouler la charlotte et décorer de framboises."
       }
     ],
-    "isVegetarian": true
+    "isVegetarian": true,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20171019/73623_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20130625/52352_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20100120/40730_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20140328/52559_w1024h768c1.jpg"
+    ]
   },
   {
     "id": "rec_top100_100",
@@ -10587,7 +11087,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "cookTimeMinutes": 25,
     "servings": 4,
     "rating": 0,
-    "imageUrl": "",
+    "imageUrl": "https://assets.afcdn.com/recipe/20150922/57763_w1024h768c1.jpg",
     "isFavorite": false,
     "userNote": "Recette culte issue du Top Marmiton (https://www.marmiton.org/recettes/recette_amour-de-saumon-en-papillote_21494.aspx)",
     "createdAt": "2026-03-01T12:00:00.000Z",
@@ -10710,6 +11210,11 @@ export const INITIAL_RECIPES: Recipe[] = [
         "instruction": "Déguster."
       }
     ],
-    "isVegetarian": false
+    "isVegetarian": false,
+    "availableImages": [
+      "https://assets.afcdn.com/recipe/20150922/57763_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20140531/58826_w1024h768c1.jpg",
+      "https://assets.afcdn.com/recipe/20131020/58583_w1024h768c1.jpg"
+    ]
   }
 ];

@@ -73,8 +73,11 @@ export const ImportMarmitonModal: React.FC<ImportMarmitonModalProps> = ({
 
       const recipe = await MarmitonService.importRecipeFromUrl(urlToImport.trim());
 
-      setImportStepText('3/3 - Enregistrement de la recette (0 étoile)...');
-      await new Promise((resolve) => setTimeout(resolve, 200));
+      const imgCount = recipe.availableImages?.length || (recipe.imageUrl ? 1 : 0);
+      setImportStepText(
+        `3/3 - ${imgCount > 0 ? `${imgCount} photo(s) Marmiton détectée(s)` : 'Recette structurée'}, ouverture pour revue...`
+      );
+      await new Promise((resolve) => setTimeout(resolve, 350));
 
       resetState();
       onRecipeImported(recipe);

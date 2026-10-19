@@ -55,6 +55,46 @@ function extractRecipePayload(html) {
   return stripped.slice(0, 12000);
 }
 
+function extractMarmitonImages(html) {
+  const images = [];
+  const seenIds = new Set();
+
+  const ogMatch =
+    html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i) ||
+    html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["']/i);
+  if (ogMatch && ogMatch[1]) {
+    const ogUrl = ogMatch[1].trim();
+    const m = ogUrl.match(/\/recipe\/(\d+)\/(\d+)_/);
+    if (m) {
+      const [, date, imgId] = m;
+      images.push(`https://assets.afcdn.com/recipe/${date}/${imgId}_w1024h768c1.jpg`);
+      seenIds.add(imgId);
+    } else if (ogUrl.startsWith('http')) {
+      images.push(ogUrl);
+    }
+  }
+
+  const imgTagRegex = /<img[^>]+class=["'][^"']*recipe-main-photo[^"']*["'][^>]+>/gi;
+  let tagMatch;
+  while ((tagMatch = imgTagRegex.exec(html)) !== null) {
+    const tag = tagMatch[0];
+    const srcMatch = tag.match(/(?:src|data-src)=["']([^"']+)["']/i);
+    if (srcMatch && srcMatch[1]) {
+      const src = srcMatch[1];
+      const m = src.match(/\/recipe\/(\d+)\/(\d+)_/);
+      if (m) {
+        const [, date, imgId] = m;
+        if (!seenIds.has(imgId)) {
+          images.push(`https://assets.afcdn.com/recipe/${date}/${imgId}_w1024h768c1.jpg`);
+          seenIds.add(imgId);
+        }
+      }
+    }
+  }
+
+  return images;
+}
+
 async function convertWithGeminiAI(payloadText) {
   const prompt = `Tu es un chef cuisinier expert et un extracteur de données culinaires.
 Convertis cette recette Marmiton en JSON strict respectant cette structure exacte :
@@ -198,6 +238,9 @@ Exemple:
       console.log('  ⚡ Structuration IA par Gemini 3.8 Flash...');
       const extracted = await convertWithGeminiAI(payload);
 
+      const availableImages = extractMarmitonImages(html);
+      const imageUrl = availableImages.length > 0 ? availableImages[0] : '';
+
       const now = new Date().toISOString();
       const id = `rec_marmiton_${Date.now()}_${i + 1}`;
 
@@ -211,7 +254,8 @@ Exemple:
         cookTimeMinutes: extracted.cookTimeMinutes || 0,
         servings: extracted.servings || 4,
         rating: 0, // 0 étoile
-        imageUrl: '', // sans photo
+        imageUrl, // Première photo Marmiton par défaut
+        availableImages, // Photos candidates
         isFavorite: false,
         userNote: extracted.userNote || `Importé depuis Marmiton`,
         createdAt: now,

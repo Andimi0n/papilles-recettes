@@ -196,6 +196,7 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
         userNote: extracted.userNote,
         isVegetarian: extracted.isVegetarian ?? false,
         imageUrl: photos[0].uri, // Utilise la première photo comme couverture
+        availableImages: photos.map((p) => p.uri),
         ingredients: (extracted.ingredients || []).map((ing, idx) => ({
           id: `ing_scanned_${Date.now()}_${idx}`,
           name: ing.name,

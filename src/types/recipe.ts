@@ -36,6 +36,7 @@ export interface Recipe {
   rating: number; // 0 to 5
   userNote?: string; // personal chef tip or comment
   imageUrl: string;
+  availableImages?: string[];
   isFavorite: boolean;
   isVegetarian?: boolean;
   createdAt: string;
