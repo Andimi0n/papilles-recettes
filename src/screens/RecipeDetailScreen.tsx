@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,13 +11,31 @@ import {
   Share,
   TextInput,
   Modal,
+  Platform,
+  Vibration,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Recipe } from '../types/recipe';
 import { Colors, Shadows } from '../theme/colors';
 import { StarRating } from '../components/StarRating';
 import { CookingModeModal } from '../components/CookingModeModal';
-import { formatDuration, getRatingLabel, scaleQuantity, extractTimersFromText } from '../utils/helpers';
+import {
+  formatDuration,
+  getRatingLabel,
+  scaleQuantity,
+  extractTimersFromText,
+  formatTimerSeconds,
+} from '../utils/helpers';
+
+interface InlineStepTimer {
+  id: string;
+  stepId: string;
+  stepIndex: number;
+  label: string;
+  totalSeconds: number;
+  remainingSeconds: number;
+  isRunning: boolean;
+}
 
 interface RecipeDetailScreenProps {
   recipe: Recipe;
@@ -47,6 +65,148 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
   // Checklists locales pour la session de cuisine
   const [checkedIngredients, setCheckedIngredients] = useState<Record<string, boolean>>({});
   const [checkedSteps, setCheckedSteps] = useState<Record<string, boolean>>({});
+
+  // Minuteurs interactifs autonomes pour chaque étape
+  const [inlineTimers, setInlineTimers] = useState<Record<string, InlineStepTimer>>({});
+
+  // Réinitialiser les minuteurs si l'utilisateur change de recette
+  useEffect(() => {
+    setInlineTimers({});
+  }, [recipe.id]);
+
+  // Alerte haptique et sonore lors de la fin d'un minuteur
+  const triggerInlineTimerAlert = () => {
+    if (Platform.OS !== 'web') {
+      Vibration.vibrate([0, 500, 200, 500, 200, 800]);
+    }
+    try {
+      if (typeof window !== 'undefined' && (window.AudioContext || (window as any).webkitAudioContext)) {
+        const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+        const ctx = new AudioCtx();
+        const playTone = (freq: number, delay: number, duration: number) => {
+          setTimeout(() => {
+            try {
+              const osc = ctx.createOscillator();
+              const gain = ctx.createGain();
+              osc.type = 'sine';
+              osc.frequency.setValueAtTime(freq, ctx.currentTime);
+              gain.gain.setValueAtTime(0.3, ctx.currentTime);
+              gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+              osc.connect(gain);
+              gain.connect(ctx.destination);
+              osc.start();
+              osc.stop(ctx.currentTime + duration);
+            } catch (e) {}
+          }, delay);
+        };
+        playTone(880, 0, 0.4);
+        playTone(1174.66, 150, 0.6);
+        playTone(1760, 400, 0.8);
+      }
+    } catch (e) {}
+  };
+
+  // Compte à rebours temps réel pour l'ensemble des minuteurs actifs
+  useEffect(() => {
+    const hasRunningTimer = Object.values(inlineTimers).some(
+      (t) => t.isRunning && t.remainingSeconds > 0
+    );
+
+    if (!hasRunningTimer) return;
+
+    const interval = setInterval(() => {
+      setInlineTimers((prev) => {
+        let hasChanges = false;
+        const nextState = { ...prev };
+
+        Object.keys(nextState).forEach((key) => {
+          const timer = nextState[key];
+          if (timer.isRunning && timer.remainingSeconds > 0) {
+            hasChanges = true;
+            const newRemaining = timer.remainingSeconds - 1;
+            if (newRemaining === 0) {
+              triggerInlineTimerAlert();
+              nextState[key] = {
+                ...timer,
+                remainingSeconds: 0,
+                isRunning: false,
+              };
+            } else {
+              nextState[key] = {
+                ...timer,
+                remainingSeconds: newRemaining,
+              };
+            }
+          }
+        });
+
+        return hasChanges ? nextState : prev;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [inlineTimers]);
+
+  const handleStartInlineTimer = (
+    stepId: string,
+    stepIndex: number,
+    timerId: string,
+    label: string,
+    totalSeconds: number
+  ) => {
+    const key = `${stepId}_${timerId}`;
+    setInlineTimers((prev) => ({
+      ...prev,
+      [key]: {
+        id: key,
+        stepId,
+        stepIndex,
+        label,
+        totalSeconds,
+        remainingSeconds: totalSeconds,
+        isRunning: true,
+      },
+    }));
+  };
+
+  const handleToggleInlineTimerPause = (key: string) => {
+    setInlineTimers((prev) => {
+      const existing = prev[key];
+      if (!existing) return prev;
+      return {
+        ...prev,
+        [key]: {
+          ...existing,
+          isRunning: !existing.isRunning,
+        },
+      };
+    });
+  };
+
+  const handleAddMinuteToInlineTimer = (key: string) => {
+    setInlineTimers((prev) => {
+      const existing = prev[key];
+      if (!existing) return prev;
+      const newRem = existing.remainingSeconds + 60;
+      return {
+        ...prev,
+        [key]: {
+          ...existing,
+          remainingSeconds: newRem,
+          totalSeconds: Math.max(existing.totalSeconds, newRem),
+          isRunning: true,
+        },
+      };
+    });
+  };
+
+  const handleStopInlineTimer = (key: string) => {
+    setInlineTimers((prev) => {
+      const copy = { ...prev };
+      delete copy[key];
+      return copy;
+    });
+  };
 
   // Modal Mode Cuisine Pas-à-Pas
   const [isCookingModeVisible, setIsCookingModeVisible] = useState(false);
@@ -391,17 +551,138 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
 
                   {stepTimers.length > 0 && (
                     <View style={styles.inlineTimerChipsRow}>
-                      {stepTimers.map((t) => (
-                        <TouchableOpacity
-                          key={t.id}
-                          style={styles.inlineTimerChip}
-                          onPress={() => setIsCookingModeVisible(true)}
-                          activeOpacity={0.7}
-                        >
-                          <Ionicons name="alarm-outline" size={13} color={Colors.primary} />
-                          <Text style={styles.inlineTimerChipText}>⏱ {t.label}</Text>
-                        </TouchableOpacity>
-                      ))}
+                      {stepTimers.map((t) => {
+                        const timerKey = `${step.id}_${t.id}`;
+                        const activeTimer = inlineTimers[timerKey];
+
+                        if (!activeTimer) {
+                          return (
+                            <TouchableOpacity
+                              key={t.id}
+                              style={styles.inlineStartTimerBtn}
+                              onPress={() =>
+                                handleStartInlineTimer(
+                                  step.id,
+                                  index,
+                                  t.id,
+                                  t.label,
+                                  t.totalSeconds
+                                )
+                              }
+                              activeOpacity={0.8}
+                            >
+                              <Ionicons name="play" size={12} color="#FFFFFF" />
+                              <Text style={styles.inlineStartTimerBtnText}>
+                                Lancer minuteur ({t.label})
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        }
+
+                        const progressPercent = Math.min(
+                          100,
+                          Math.max(
+                            0,
+                            (activeTimer.remainingSeconds / activeTimer.totalSeconds) * 100
+                          )
+                        );
+                        const isFinished = activeTimer.remainingSeconds === 0;
+
+                        return (
+                          <View
+                            key={t.id}
+                            style={[
+                              styles.inlineActiveTimerBox,
+                              isFinished && styles.inlineActiveTimerBoxFinished,
+                            ]}
+                          >
+                            <View style={styles.inlineActiveTimerHeader}>
+                              <View style={styles.inlineTimerTitleRow}>
+                                <Ionicons
+                                  name={
+                                    isFinished
+                                      ? 'alarm'
+                                      : activeTimer.isRunning
+                                      ? 'timer'
+                                      : 'pause-circle'
+                                  }
+                                  size={15}
+                                  color={isFinished ? '#FFFFFF' : Colors.primary}
+                                />
+                                <Text
+                                  style={[
+                                    styles.inlineTimerDigits,
+                                    isFinished && styles.inlineTimerDigitsFinished,
+                                  ]}
+                                >
+                                  {formatTimerSeconds(activeTimer.remainingSeconds)}
+                                </Text>
+                                <Text
+                                  style={[
+                                    styles.inlineTimerLabel,
+                                    isFinished && styles.inlineTimerLabelFinished,
+                                  ]}
+                                >
+                                  {isFinished ? '• Temps écoulé !' : `(${activeTimer.label})`}
+                                </Text>
+                              </View>
+
+                              {/* Actions de contrôle */}
+                              <View style={styles.inlineTimerActionsRow}>
+                                {!isFinished ? (
+                                  <>
+                                    <TouchableOpacity
+                                      style={styles.inlineTimerSmallBtn}
+                                      onPress={() => handleToggleInlineTimerPause(timerKey)}
+                                      activeOpacity={0.7}
+                                    >
+                                      <Ionicons
+                                        name={activeTimer.isRunning ? 'pause' : 'play'}
+                                        size={13}
+                                        color={Colors.primary}
+                                      />
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                      style={styles.inlineTimerSmallBtn}
+                                      onPress={() => handleAddMinuteToInlineTimer(timerKey)}
+                                      activeOpacity={0.7}
+                                    >
+                                      <Text style={styles.inlineTimerAddText}>+1m</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                      style={[styles.inlineTimerSmallBtn, styles.inlineTimerStopBtn]}
+                                      onPress={() => handleStopInlineTimer(timerKey)}
+                                      activeOpacity={0.7}
+                                    >
+                                      <Ionicons name="close" size={13} color={Colors.textSecondary} />
+                                    </TouchableOpacity>
+                                  </>
+                                ) : (
+                                  <TouchableOpacity
+                                    style={styles.inlineTimerStopAlarmBtn}
+                                    onPress={() => handleStopInlineTimer(timerKey)}
+                                    activeOpacity={0.8}
+                                  >
+                                    <Ionicons name="checkmark-circle" size={14} color="#FFFFFF" />
+                                    <Text style={styles.inlineTimerStopAlarmText}>Arrêter</Text>
+                                  </TouchableOpacity>
+                                )}
+                              </View>
+                            </View>
+
+                            {/* Jauge d'avancement horizontale */}
+                            <View style={styles.inlineProgressBarTrack}>
+                              <View
+                                style={[
+                                  styles.inlineProgressBarFill,
+                                  { width: `${progressPercent}%` },
+                                  isFinished && styles.inlineProgressBarFillFinished,
+                                ]}
+                              />
+                            </View>
+                          </View>
+                        );
+                      })}
                     </View>
                   )}
                 </View>
@@ -460,6 +741,24 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
           onClose={() => setIsCookingModeVisible(false)}
           onQuickRate={(rating) => onUpdateRating(recipe.id, rating)}
         />
+
+        {/* Bandeau flottant des minuteurs en cours si au moins un minuteur est actif */}
+        {Object.values(inlineTimers).length > 0 && (
+          <View style={styles.floatingTimersSummaryBar}>
+            <Ionicons name="timer" size={16} color="#FFFFFF" />
+            <Text style={styles.floatingTimersSummaryText} numberOfLines={1}>
+              {Object.values(inlineTimers).length} minuteur{Object.values(inlineTimers).length > 1 ? 's' : ''} :{' '}
+              {Object.values(inlineTimers)
+                .map(
+                  (t) =>
+                    `Étape ${t.stepIndex + 1} (${
+                      t.remainingSeconds === 0 ? 'Fin !' : formatTimerSeconds(t.remainingSeconds)
+                    })`
+                )
+                .join(' • ')}
+            </Text>
+          </View>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -924,27 +1223,139 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.borderLight,
   },
+  // Minuteurs Inline dans les étapes
   inlineTimerChipsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
     marginLeft: 38,
-    marginTop: 6,
-    gap: 6,
+    marginTop: 8,
+    gap: 8,
   },
-  inlineTimerChip: {
+  inlineStartTimerBtn: {
     flexDirection: 'row',
     alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 12,
+    gap: 6,
+    ...Shadows.small,
+  },
+  inlineStartTimerBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  inlineActiveTimerBox: {
     backgroundColor: Colors.primaryLight,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 10,
-    gap: 4,
+    borderRadius: 14,
+    padding: 10,
     borderWidth: 1,
     borderColor: Colors.border,
+    width: '100%',
+    ...Shadows.small,
   },
-  inlineTimerChipText: {
+  inlineActiveTimerBoxFinished: {
+    backgroundColor: Colors.danger,
+    borderColor: Colors.danger,
+  },
+  inlineActiveTimerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  inlineTimerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  inlineTimerDigits: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: Colors.primary,
+    fontVariant: ['tabular-nums'],
+  },
+  inlineTimerDigitsFinished: {
+    color: '#FFFFFF',
+  },
+  inlineTimerLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+  },
+  inlineTimerLabelFinished: {
+    color: '#FFFFFF',
+  },
+  inlineTimerActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  inlineTimerSmallBtn: {
+    backgroundColor: Colors.cardBackground,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  inlineTimerStopBtn: {
+    borderColor: Colors.border,
+  },
+  inlineTimerAddText: {
     fontSize: 11,
     fontWeight: '700',
     color: Colors.primary,
+  },
+  inlineTimerStopAlarmBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    gap: 4,
+  },
+  inlineTimerStopAlarmText: {
+    color: Colors.danger,
+    fontWeight: '800',
+    fontSize: 11,
+  },
+  inlineProgressBarTrack: {
+    height: 4,
+    backgroundColor: 'rgba(0, 0, 0, 0.08)',
+    borderRadius: 2,
+    overflow: 'hidden',
+    width: '100%',
+  },
+  inlineProgressBarFill: {
+    height: '100%',
+    backgroundColor: Colors.primary,
+  },
+  inlineProgressBarFillFinished: {
+    backgroundColor: '#FFFFFF',
+  },
+  // Barre flottante récapitulative des minuteurs
+  floatingTimersSummaryBar: {
+    position: 'absolute',
+    bottom: 12,
+    left: 16,
+    right: 16,
+    backgroundColor: Colors.textPrimary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 16,
+    gap: 10,
+    ...Shadows.medium,
+  },
+  floatingTimersSummaryText: {
+    flex: 1,
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
   },
 });
