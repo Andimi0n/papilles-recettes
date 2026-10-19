@@ -5,15 +5,15 @@ import { Colors } from '../theme/colors';
 
 interface CategoryPillsProps {
   categories: Category[];
-  selectedCategory: Category;
-  onSelectCategory: (cat: Category) => void;
+  selectedCategories: Category[];
+  onToggleCategory: (cat: Category) => void;
   recipeCountByCategory?: Record<string, number>;
 }
 
 export const CategoryPills: React.FC<CategoryPillsProps> = ({
   categories,
-  selectedCategory,
-  onSelectCategory,
+  selectedCategories,
+  onToggleCategory,
   recipeCountByCategory,
 }) => {
   return (
@@ -24,14 +24,17 @@ export const CategoryPills: React.FC<CategoryPillsProps> = ({
         contentContainerStyle={styles.scrollContent}
       >
         {categories.map((cat) => {
-          const isSelected = selectedCategory === cat;
+          const isTous = cat === 'Tous';
+          const isSelected = isTous
+            ? selectedCategories.length === 0 || selectedCategories.includes('Tous')
+            : selectedCategories.includes(cat);
           const count = recipeCountByCategory ? recipeCountByCategory[cat] : undefined;
 
           return (
             <TouchableOpacity
               key={cat}
               activeOpacity={0.7}
-              onPress={() => onSelectCategory(cat)}
+              onPress={() => onToggleCategory(cat)}
               style={[styles.pill, isSelected && styles.pillSelected]}
             >
               <Text style={[styles.pillText, isSelected && styles.pillTextSelected]}>
