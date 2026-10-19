@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   SafeAreaView,
   Modal,
   ScrollView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Recipe, Category, SortOption } from '../types/recipe';
@@ -20,6 +21,8 @@ import { FridgeSearchModal } from '../components/FridgeSearchModal';
 import { ImportMarmitonModal } from '../components/ImportMarmitonModal';
 import { normalizeString } from '../utils/helpers';
 import { searchRecipes, RecipeSearchResult } from '../utils/searchEngine';
+
+const RECIPES_PER_PAGE = 20;
 
 const CATEGORIES: Category[] = [
   'Tous',
@@ -51,6 +54,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   onQuickRate,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const flatListRef = useRef<FlatList<Recipe>>(null);
   const [selectedCategories, setSelectedCategories] = useState<Category[]>([]);
   const [selectedIngredients, setSelectedIngredients] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState<SortOption>('rating_desc');
@@ -174,6 +179,34 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     };
   }, [recipes, searchQuery, selectedCategories, selectedIngredients, minRatingFilter, onlyVegetarian, sortBy]);
 
+  // Réinitialiser la page courante à 1 dès qu'un critère de recherche ou filtre change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedCategories, selectedIngredients, sortBy, minRatingFilter, onlyVegetarian]);
+
+  // Pagination (20 recettes par page pour une fluidité maximale)
+  const totalPages = Math.max(1, Math.ceil(filteredRecipes.length / RECIPES_PER_PAGE));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+
+  const paginatedRecipes = useMemo(() => {
+    const startIndex = (safeCurrentPage - 1) * RECIPES_PER_PAGE;
+    return filteredRecipes.slice(startIndex, startIndex + RECIPES_PER_PAGE);
+  }, [filteredRecipes, safeCurrentPage]);
+
+  const handleNextPage = () => {
+    if (safeCurrentPage < totalPages) {
+      setCurrentPage((prev) => prev + 1);
+      flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+    }
+  };
+
+  const handlePrevPage = () => {
+    if (safeCurrentPage > 1) {
+      setCurrentPage((prev) => prev - 1);
+      flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+    }
+  };
+
   // Helper pour trouver les ingrédients matchés pour chaque recette (recherche + frigo)
   const getMatchedIngredientsForRecipe = (recipe: Recipe): string[] => {
     const fromSearch = matchedIngredientsMap[recipe.id] || [];
@@ -197,6 +230,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     setSelectedIngredients([]);
     setMinRatingFilter(0);
     setOnlyVegetarian(false);
+    setCurrentPage(1);
   };
 
   // En-tête de la liste (filtres, catégories, résultats) - mémorisé pour éviter tout re-render intempestif
@@ -310,6 +344,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         <View style={styles.resultsCountRow}>
           <Text style={styles.resultsCountText}>
             {filteredRecipes.length} recette{filteredRecipes.length > 1 ? 's' : ''} trouvée{filteredRecipes.length > 1 ? 's' : ''}
+            {filteredRecipes.length > RECIPES_PER_PAGE && ` • Page ${safeCurrentPage}/${totalPages}`}
           </Text>
 
           {searchQuery.trim().length > 0 && (
@@ -330,7 +365,85 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       sortBy,
       filteredRecipes.length,
       searchQuery,
+      safeCurrentPage,
+      totalPages,
     ]
+  );
+
+  // Pied de liste avec bouton Page suivante / précédente
+  const listFooterElement = useMemo(() => {
+    if (filteredRecipes.length === 0) return null;
+
+    if (totalPages <= 1) {
+      return (
+        <View style={styles.paginationEndContainer}>
+          <Text style={styles.paginationEndText}>
+            Fin des {filteredRecipes.length} recette{filteredRecipes.length > 1 ? 's' : ''}
+          </Text>
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.paginationContainer}>
+        {/* Résumé de pagination */}
+        <View style={styles.paginationInfoBox}>
+          <Text style={styles.paginationCountText}>
+            Recettes {(safeCurrentPage - 1) * RECIPES_PER_PAGE + 1} à{' '}
+            {Math.min(safeCurrentPage * RECIPES_PER_PAGE, filteredRecipes.length)} sur{' '}
+            {filteredRecipes.length}
+          </Text>
+          <View style={styles.pagePill}>
+            <Text style={styles.pagePillText}>
+              Page {safeCurrentPage} / {totalPages}
+            </Text>
+          </View>
+        </View>
+
+        {/* Boutons d'action : Page suivante (mise en avant) et Page précédente */}
+        <View style={styles.paginationNavRow}>
+          {safeCurrentPage > 1 && (
+            <TouchableOpacity
+              style={[styles.pageBtn, styles.pageBtnPrev]}
+              onPress={handlePrevPage}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="chevron-back" size={18} color={Colors.textPrimary} />
+              <Text style={styles.pageBtnTextPrev}>Page précédente</Text>
+            </TouchableOpacity>
+          )}
+
+          {safeCurrentPage < totalPages && (
+            <TouchableOpacity
+              style={[
+                styles.pageBtn,
+                styles.pageBtnNext,
+                safeCurrentPage === 1 && styles.pageBtnNextFull,
+              ]}
+              onPress={handleNextPage}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.pageBtnTextNext}>Page suivante</Text>
+              <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+    );
+  }, [filteredRecipes.length, totalPages, safeCurrentPage]);
+
+  // Rendu mémoïsé de chaque carte recette
+  const renderRecipeItem = useCallback(
+    ({ item }: { item: Recipe }) => (
+      <RecipeCard
+        recipe={item}
+        onPress={() => onSelectRecipe(item)}
+        onToggleFavorite={() => onToggleFavorite(item.id)}
+        onQuickRate={(rating) => onQuickRate(item.id, rating)}
+        highlightedIngredients={getMatchedIngredientsForRecipe(item)}
+      />
+    ),
+    [onSelectRecipe, onToggleFavorite, onQuickRate, matchedIngredientsMap, selectedIngredients]
   );
 
   return (
@@ -395,23 +508,22 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           />
         </View>
 
-        {/* Liste des recettes avec filtres déroulants */}
+        {/* Liste des recettes avec pagination (20 par page) et virtualisation haute performance */}
         <FlatList
-          data={filteredRecipes}
+          ref={flatListRef}
+          data={paginatedRecipes}
           keyExtractor={(item) => item.id}
           ListHeaderComponent={listHeaderElement}
+          ListFooterComponent={listFooterElement}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
-          renderItem={({ item }) => (
-            <RecipeCard
-              recipe={item}
-              onPress={() => onSelectRecipe(item)}
-              onToggleFavorite={() => onToggleFavorite(item.id)}
-              onQuickRate={(rating) => onQuickRate(item.id, rating)}
-              highlightedIngredients={getMatchedIngredientsForRecipe(item)}
-            />
-          )}
+          initialNumToRender={6}
+          maxToRenderPerBatch={6}
+          windowSize={5}
+          removeClippedSubviews={Platform.OS === 'android'}
+          updateCellsBatchingPeriod={50}
+          renderItem={renderRecipeItem}
           ListEmptyComponent={
             <EmptyState
               title="Aucune recette trouvée"
@@ -1050,5 +1162,82 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     fontWeight: '600',
     fontSize: 14,
+  },
+  // Styles Pagination
+  paginationContainer: {
+    paddingVertical: 18,
+    paddingHorizontal: 4,
+    marginBottom: 40,
+  },
+  paginationInfoBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  paginationCountText: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    fontWeight: '500',
+  },
+  pagePill: {
+    backgroundColor: Colors.surfaceAlt,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  pagePillText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.primary,
+  },
+  paginationNavRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  pageBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    gap: 8,
+    ...Shadows.small,
+  },
+  pageBtnPrev: {
+    backgroundColor: Colors.cardBackground,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  pageBtnNext: {
+    backgroundColor: Colors.primary,
+  },
+  pageBtnNextFull: {
+    flex: 1,
+  },
+  pageBtnTextPrev: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+  },
+  pageBtnTextNext: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  paginationEndContainer: {
+    alignItems: 'center',
+    paddingVertical: 24,
+    marginBottom: 40,
+  },
+  paginationEndText: {
+    fontSize: 13,
+    color: Colors.textMuted,
+    fontWeight: '500',
   },
 });

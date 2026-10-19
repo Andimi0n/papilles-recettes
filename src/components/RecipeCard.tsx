@@ -20,7 +20,7 @@ interface RecipeCardProps {
   highlightedIngredients?: string[]; // ingredients matched by search
 }
 
-export const RecipeCard: React.FC<RecipeCardProps> = ({
+const RecipeCardComponent: React.FC<RecipeCardProps> = ({
   recipe,
   onPress,
   onToggleFavorite,
@@ -331,4 +331,15 @@ const styles = StyleSheet.create({
     height: 14,
     backgroundColor: Colors.border,
   },
+});
+
+export const RecipeCard = React.memo(RecipeCardComponent, (prevProps, nextProps) => {
+  return (
+    prevProps.recipe.id === nextProps.recipe.id &&
+    prevProps.recipe.rating === nextProps.recipe.rating &&
+    prevProps.recipe.isFavorite === nextProps.recipe.isFavorite &&
+    prevProps.recipe.title === nextProps.recipe.title &&
+    prevProps.recipe.imageUrl === nextProps.recipe.imageUrl &&
+    (prevProps.highlightedIngredients?.length || 0) === (nextProps.highlightedIngredients?.length || 0)
+  );
 });
