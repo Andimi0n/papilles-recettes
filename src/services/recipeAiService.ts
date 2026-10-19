@@ -462,4 +462,134 @@ Règles impératives :
       : isRecipeVegetarian(parsed.ingredients, parsed.title, parsed.description);
     return parsed;
   },
+
+  /**
+   * Analyse, structure et AUTOCOMPLÈTE une recette à partir d'un texte brut copié-collé
+   * (message WhatsApp, notes personnelles en vrac, ébauche incomplète, recette de famille).
+   * Spécialisé pour déduire intelligemment les informations manquantes (temps, portions, étapes développées).
+   */
+  async extractRecipeFromRawText(
+    rawText: string,
+    providedKey?: string
+  ): Promise<ExtractedRecipeData> {
+    const apiKey = providedKey || (await this.getApiKey());
+
+    if (!apiKey) {
+      throw new Error(
+        'Clé API Gemini manquante. Veuillez renseigner votre clé API dans les paramètres.'
+      );
+    }
+
+    const trimmedInput = rawText.trim();
+    if (!trimmedInput) {
+      throw new Error('Veuillez saisir ou coller le texte de votre recette.');
+    }
+
+    const systemPrompt = `Tu es un chef cuisinier renommé et un expert en extraction et structuration de données culinaires.
+L'utilisateur te fournit du TEXTE BRUT représentant une recette ou une ébauche de recette.
+Ce texte peut être :
+- Un message informel (ex: WhatsApp, SMS, e-mail)
+- Une note personnelle rapide, incomplète ou mal ordonnée
+- Une liste d'ingrédients jetée pêle-mêle avec quelques mots d'instructions télégraphiques
+- Un copier-coller depuis un blog, un article ou un réseau social
+- Une recette de grand-mère avec des mesures approximatives
+
+Ta mission est double :
+1. Extraire fidèlement tous les éléments explicitement mentionnés dans le texte.
+2. AUTOCOMPLÉTER INTELLIGEMMENT toutes les informations manquantes pour produire une recette complète, équilibrée et prête à cuisiner.
+
+Règles impératives d'extraction et d'autocomplétion :
+- "title" : Nom précis, appétissant et évocateur de la recette (déduis-le d'après les ingrédients et le plat si absent).
+- "description" : Une ou deux phrases d'introduction gourmande qui décrivent le plat, ses saveurs ou sa texture.
+- "category" : Classe obligatoirement dans une des catégories exactes : "Plat", "Entrée", "Dessert", "Apéritif", "Petit-déjeuner", "Boisson".
+- "difficulty" : Évalue la difficulté réelle ("Facile", "Moyen", "Difficile").
+- "prepTimeMinutes" : Temps de préparation en minutes. SI NON MENTIONNÉ, déduis et autocomplète un temps réaliste selon les gestes requis (ex: épluchage, découpe, repos).
+- "cookTimeMinutes" : Temps de cuisson en minutes. SI NON MENTIONNÉ, déduis et autocomplète un temps réaliste (ou mets 0 si recette crue/sans cuisson).
+- "servings" : Nombre de portions / personnes. SI NON MENTIONNÉ, mets 4 par défaut.
+- "isVegetarian" : true ou false. Mets true SI ET SEULEMENT SI la recette ne contient AUCUNE chair animale (pas de boeuf, porc, poulet, dinde, canard, poisson, fruits de mer, lardons, charcuterie, bouillon de volaille/viande, gélatine de porc).
+- "ingredients" : Découpe proprement chaque ingrédient dans le tableau :
+  * "name" : nom de l'ingrédient nettoyé (ex: "Farine de blé", "Tomates cerises", "Beurre doux"), en minuscules avec majuscule initiale, SANS quantité ni unité dans le nom.
+  * "quantity" : quantité numérique ou fraction (ex: '250', '2', '1/2'). SI AUCUNE QUANTITÉ N'EST FOURNIE dans le texte (ex: "un peu de beurre", "du sel", "des pâtes"), AUTOCOMPLÈTE une quantité réaliste et cohérente pour le nombre de portions indiqué.
+  * "unit" : unité normalisée (ex: 'g', 'kg', 'ml', 'cl', 'l', 'c. à soupe', 'c. à café', 'pincée', 'gousses', 'tranches', ou vide si unitaire).
+- "steps" : Étapes de préparation claires, chronologiques, complètes et pédagogiques :
+  * Si le texte source ne contient que des indications partielles ou télégraphiques (ex: "mélanger et enfourner"), DÉVELOPPE et AUTOCOMPLÈTE les étapes avec les gestes professionnels précis (température du four, temps indicatifs, ordre d'incorporation des ingrédients) pour garantir le succès de la recette.
+  * Chaque étape doit avoir un "order" croissant (1, 2, 3...) et une "instruction" bien rédigée en français.
+- "userNote" : Ajoute un conseil de chef utile (accord mets-vin, astuce de conservation, variante possible ou secret de cuisson).
+
+Réponds STRICTEMENT en JSON valide, sans texte d'accompagnement ni balises markdown additionnelles, avec cette structure :
+{
+  "title": "Nom de la recette",
+  "description": "Courte description alléchante",
+  "category": "Plat",
+  "difficulty": "Facile",
+  "prepTimeMinutes": 15,
+  "cookTimeMinutes": 25,
+  "servings": 4,
+  "isVegetarian": false,
+  "ingredients": [
+    { "name": "Nom", "quantity": "Quantité", "unit": "Unité" }
+  ],
+  "steps": [
+    { "order": 1, "instruction": "Consigne complète" }
+  ],
+  "userNote": "Conseil du chef"
+}`;
+
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${apiKey}`;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              {
+                text: `${systemPrompt}\n\nVoici le texte brut fourni par l'utilisateur à analyser et autocompléter :\n${trimmedInput.slice(0, 15000)}`,
+              },
+            ],
+          },
+        ],
+        generationConfig: {
+          response_mime_type: 'application/json',
+          temperature: 0.2,
+        },
+      }),
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      let errorMsg = `Erreur API Gemini (${response.status})`;
+      try {
+        const errJson = JSON.parse(errText);
+        if (errJson?.error?.message) {
+          errorMsg = errJson.error.message;
+        }
+      } catch {}
+      throw new Error(errorMsg);
+    }
+
+    const data = await response.json();
+    const rawAiText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    if (!rawAiText) {
+      throw new Error("L'IA n'a retourné aucune donnée pour ce texte.");
+    }
+
+    let cleanJson = rawAiText.trim();
+    if (cleanJson.startsWith('```json')) {
+      cleanJson = cleanJson.replace(/^```json/, '').replace(/```$/, '').trim();
+    } else if (cleanJson.startsWith('```')) {
+      cleanJson = cleanJson.replace(/^```/, '').replace(/```$/, '').trim();
+    }
+
+    const parsed = JSON.parse(cleanJson) as ExtractedRecipeData;
+    parsed.isVegetarian = typeof parsed.isVegetarian === 'boolean'
+      ? parsed.isVegetarian
+      : isRecipeVegetarian(parsed.ingredients, parsed.title, parsed.description);
+
+    return parsed;
+  },
 };

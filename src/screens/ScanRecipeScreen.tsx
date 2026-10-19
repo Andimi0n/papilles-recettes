@@ -26,6 +26,7 @@ import { Recipe } from '../types/recipe';
 interface ScanRecipeScreenProps {
   onBack: () => void;
   onRecipeExtracted: (recipeData: Partial<Recipe>, coverImageUri?: string) => void;
+  initialMode?: 'photo' | 'text';
 }
 
 interface CapturedPhoto {
@@ -34,16 +35,62 @@ interface CapturedPhoto {
   base64: string;
 }
 
+const SAMPLE_RECIPES = [
+  `Risotto crémeux aux champignons & parmesan
+Pour 4 personnes
+- 300g de riz arborio
+- 250g de champignons de Paris
+- 1 échalote
+- 1 gousse d'ail
+- 15cl de vin blanc sec
+- 1 litre de bouillon de légumes chaud
+- 50g de parmesan râpé
+- 30g de beurre doux
+- 2 c. à soupe d'huile d'olive
+- Sel, poivre du moulin, persil plat ciselé
+
+Préparation :
+Émincer l'échalote et l'ail. Couper les champignons en lamelles.
+Dans une sauteuse, faire dorer les champignons dans un filet d'huile d'olive 5 min puis réserver.
+Faire suer l'échalote avec le reste d'huile, ajouter le riz et le nacrer 2 minutes.
+Déglacer au vin blanc et laisser évaporer complètement.
+Verser le bouillon chaud louche après louche en remuant constamment pendant 18 à 20 minutes.
+Hors du feu, incorporer les champignons, le beurre bien froid et le parmesan.
+Couvrir 2 minutes, rectifier l'assaisonnement et servir immédiatement avec du persil frais.`,
+  `Quiche fondante poireaux & fromage de chèvre
+Ingrédients :
+1 pâte brisée pur beurre
+3 blancs de poireaux
+150g de fromage de chèvre frais (ou bûche)
+3 gros oeufs
+20cl de crème fraîche épaisse
+10cl de lait
+Noix de muscade râpée, sel fin et poivre du moulin
+Un filet d'huile d'olive
+
+Instructions :
+Préchauffer le four à 180°C (th. 6).
+Laver et émincer finement les poireaux. Les faire fondre à feu doux dans une poêle avec un filet d'huile d'olive pendant 15 minutes jusqu'à ce qu'ils soient tendres.
+Dans un saladier, fouetter les oeufs entiers avec la crème fraîche et le lait. Assaisonner avec le sel, le poivre et une pincée de muscade.
+Étaler la pâte brisée dans un moule à tarte, piquer le fond avec une fourchette.
+Répartir la fondue de poireaux, émietter le chèvre par-dessus, puis verser l'appareil aux oeufs.
+Enfourner pour environ 35 à 40 minutes jusqu'à ce que la quiche soit bien dorée et gonflée. Laisser tiédir avant de servir.`,
+];
+
 export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
   onBack,
   onRecipeExtracted,
+  initialMode = 'photo',
 }) => {
+  const [mode, setMode] = useState<'photo' | 'text'>(initialMode);
   const [photos, setPhotos] = useState<CapturedPhoto[]>([]);
+  const [rawTextInput, setRawTextInput] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isAnalyzingText, setIsAnalyzingText] = useState(false);
   const [apiKey, setApiKey] = useState<string>('');
   const [isApiKeyModalVisible, setIsApiKeyModalVisible] = useState(false);
   const [tempApiKeyInput, setTempApiKeyInput] = useState('');
-  const [loadingStep, setLoadingStep] = useState('Préparation des photos...');
+  const [loadingStep, setLoadingStep] = useState('Préparation des données...');
 
   // État de la vérification de connexion réelle
   const [connectionStatus, setConnectionStatus] = useState<AiConnectionStatus | null>(null);
@@ -222,6 +269,82 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
     }
   };
 
+  const handleAnalyzeText = async () => {
+    const trimmed = rawTextInput.trim();
+    if (!trimmed) {
+      Alert.alert(
+        'Texte requis',
+        'Veuillez coller ou saisir le texte de votre recette avant de lancer l\'analyse.'
+      );
+      return;
+    }
+
+    if (connectionStatus && !connectionStatus.ok) {
+      Alert.alert(
+        'IA indisponible',
+        `${connectionStatus.message}\n\nVeuillez vérifier votre connexion ou votre clé API avant de lancer l'analyse.`
+      );
+      return;
+    }
+
+    setIsAnalyzingText(true);
+    setLoadingStep('Lecture et compréhension de votre texte...');
+
+    try {
+      setTimeout(() => setLoadingStep('Découpage et normalisation des ingrédients...'), 1200);
+      setTimeout(() => setLoadingStep('Autocomplétion des temps et portions manquantes...'), 2500);
+      setTimeout(() => setLoadingStep('Rédaction des étapes de préparation...'), 3800);
+
+      const extracted: ExtractedRecipeData = await RecipeAiService.extractRecipeFromRawText(
+        trimmed,
+        apiKey
+      );
+
+      const partialRecipe: Partial<Recipe> = {
+        title: extracted.title || 'Recette importée',
+        description: extracted.description || '',
+        category: extracted.category || 'Plat',
+        difficulty: extracted.difficulty || 'Moyen',
+        prepTimeMinutes: extracted.prepTimeMinutes || 15,
+        cookTimeMinutes: extracted.cookTimeMinutes || 20,
+        servings: extracted.servings || 4,
+        rating: 4.5,
+        userNote: extracted.userNote,
+        isVegetarian: extracted.isVegetarian ?? false,
+        imageUrl: '',
+        availableImages: [],
+        ingredients: (extracted.ingredients || []).map((ing, idx) => ({
+          id: `ing_text_${Date.now()}_${idx}`,
+          name: ing.name,
+          quantity: ing.quantity,
+          unit: ing.unit,
+        })),
+        steps: (extracted.steps || []).map((st, idx) => ({
+          id: `stp_text_${Date.now()}_${idx}`,
+          order: st.order || idx + 1,
+          instruction: st.instruction,
+        })),
+      };
+
+      onRecipeExtracted(partialRecipe);
+    } catch (error: any) {
+      console.error('Erreur extraction texte:', error);
+      Alert.alert(
+        'Échec de l\'analyse',
+        error?.message || 'Une erreur est survenue lors de l\'analyse du texte.'
+      );
+    } finally {
+      setIsAnalyzingText(false);
+    }
+  };
+
+  const handleFillSample = () => {
+    const sample = SAMPLE_RECIPES[Math.floor(Math.random() * SAMPLE_RECIPES.length)];
+    setRawTextInput(sample);
+  };
+
+  const isCurrentBusy = mode === 'photo' ? isAnalyzing : isAnalyzingText;
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
@@ -230,7 +353,14 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
           <TouchableOpacity onPress={onBack} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={22} color={Colors.textPrimary} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Scanner une recette</Text>
+          <View style={styles.headerTitleCol}>
+            <Text style={styles.headerTitle}>
+              {mode === 'photo' ? 'Scanner une recette' : 'Ajouter par texte'}
+            </Text>
+            <Text style={styles.headerSubtitle}>
+              {mode === 'photo' ? 'Vision multimodale IA' : 'Copier-coller & autocomplétion'}
+            </Text>
+          </View>
           <TouchableOpacity
             onPress={() => {
               setTempApiKeyInput(apiKey);
@@ -247,8 +377,56 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
           </TouchableOpacity>
         </View>
 
-        <ScrollView contentContainerStyle={styles.scrollContent}>
-          {/* Vérification Live de l'IA */}
+        {/* Switcher Segmenté Mode Scan / Mode Texte */}
+        <View style={styles.segmentContainer}>
+          <TouchableOpacity
+            style={[styles.segmentBtn, mode === 'photo' && styles.segmentBtnActive]}
+            onPress={() => setMode('photo')}
+            activeOpacity={0.8}
+            disabled={isCurrentBusy}
+          >
+            <Ionicons
+              name="camera"
+              size={16}
+              color={mode === 'photo' ? '#FFFFFF' : Colors.textSecondary}
+            />
+            <Text
+              style={[
+                styles.segmentBtnText,
+                mode === 'photo' && styles.segmentBtnTextActive,
+              ]}
+            >
+              Scanner photo
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.segmentBtn, mode === 'text' && styles.segmentBtnActive]}
+            onPress={() => setMode('text')}
+            activeOpacity={0.8}
+            disabled={isCurrentBusy}
+          >
+            <Ionicons
+              name="document-text"
+              size={16}
+              color={mode === 'text' ? '#FFFFFF' : Colors.textSecondary}
+            />
+            <Text
+              style={[
+                styles.segmentBtnText,
+                mode === 'text' && styles.segmentBtnTextActive,
+              ]}
+            >
+              Coller du texte
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* Vérification Live de l'IA (commune aux 2 modes) */}
           {isCheckingConnection ? (
             <View style={styles.checkingBadge}>
               <ActivityIndicator size="small" color={Colors.primary} />
@@ -304,129 +482,230 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
             </View>
           )}
 
-          {/* Guide explicatif universel */}
-          <View style={styles.guideCard}>
-            <View style={styles.guideHeader}>
-              <Ionicons name="sparkles" size={16} color={Colors.primary} />
-              <Text style={styles.guideTitle}>Tous formats acceptés</Text>
-            </View>
-            <Text style={styles.guideText}>
-              Prenez en photo votre recette depuis n'importe quel support : livre de cuisine, fiche repas, carnet manuscrit, magazine ou capture d'écran.
-              {'\n'}Par défaut <Text style={styles.guideBold}>1 photo</Text> suffit, mais vous pouvez en ajouter d'autres si la recette s'étale sur plusieurs pages.
-            </Text>
-          </View>
-
-          {/* Zone de photos */}
-          {photos.length === 0 ? (
-            /* État initial : Invitation à prendre une 1ère photo */
-            <View style={styles.emptyHeroBox}>
-              <View style={styles.emptyHeroIconCircle}>
-                <Ionicons name="camera-outline" size={40} color={Colors.primary} />
-              </View>
-              <Text style={styles.emptyHeroTitle}>Prenez en photo votre recette</Text>
-              <Text style={styles.emptyHeroSubtitle}>
-                Photographiez la page de votre livre ou votre fiche
-              </Text>
-
-              <View style={styles.heroButtonsCol}>
-                <TouchableOpacity
-                  style={styles.heroCameraBtn}
-                  onPress={() => handlePickPhoto(true)}
-                  activeOpacity={0.85}
-                >
-                  <Ionicons name="camera" size={20} color="#FFFFFF" />
-                  <Text style={styles.heroCameraBtnText}>Prendre une photo</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.heroGalleryBtn}
-                  onPress={() => handlePickPhoto(false)}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="images-outline" size={20} color={Colors.textPrimary} />
-                  <Text style={styles.heroGalleryBtnText}>Choisir dans la galerie</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          ) : (
-            /* Liste dynamique des photos capturées */
-            <View style={styles.photosSection}>
-              <View style={styles.photosSectionHeader}>
-                <Text style={styles.photosCountTitle}>
-                  {photos.length} photo{photos.length > 1 ? 's' : ''} sélectionnée{photos.length > 1 ? 's' : ''}
-                </Text>
-                <Text style={styles.photosCountHint}>
-                  La 1ère servira de photo de couverture
+          {/* CONTENU MODE PHOTO */}
+          {mode === 'photo' && (
+            <>
+              {/* Guide explicatif universel */}
+              <View style={styles.guideCard}>
+                <View style={styles.guideHeader}>
+                  <Ionicons name="sparkles" size={16} color={Colors.primary} />
+                  <Text style={styles.guideTitle}>Tous formats de photo acceptés</Text>
+                </View>
+                <Text style={styles.guideText}>
+                  Prenez en photo votre recette depuis n'importe quel support : livre de cuisine, fiche repas, carnet manuscrit, magazine ou capture d'écran.
+                  {'\n'}Par défaut <Text style={styles.guideBold}>1 photo</Text> suffit, mais vous pouvez en ajouter d'autres si la recette s'étale sur plusieurs pages.
                 </Text>
               </View>
 
-              <View style={styles.photosGrid}>
-                {photos.map((photo, index) => (
-                  <View key={photo.id} style={styles.photoCard}>
-                    <Image source={{ uri: photo.uri }} style={styles.photoThumb} resizeMode="cover" />
-                    <View style={styles.photoIndexBadge}>
-                      <Text style={styles.photoIndexBadgeText}>
-                        {index === 0 ? 'Photo 1 (couverture)' : `Photo ${index + 1}`}
-                      </Text>
-                    </View>
+              {/* Zone de photos */}
+              {photos.length === 0 ? (
+                /* État initial : Invitation à prendre une 1ère photo */
+                <View style={styles.emptyHeroBox}>
+                  <View style={styles.emptyHeroIconCircle}>
+                    <Ionicons name="camera-outline" size={40} color={Colors.primary} />
+                  </View>
+                  <Text style={styles.emptyHeroTitle}>Prenez en photo votre recette</Text>
+                  <Text style={styles.emptyHeroSubtitle}>
+                    Photographiez la page de votre livre ou votre fiche
+                  </Text>
+
+                  <View style={styles.heroButtonsCol}>
                     <TouchableOpacity
-                      style={styles.removePhotoBtn}
-                      onPress={() => handleRemovePhoto(photo.id)}
-                      hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                      style={styles.heroCameraBtn}
+                      onPress={() => handlePickPhoto(true)}
+                      activeOpacity={0.85}
                     >
-                      <Ionicons name="close" size={16} color="#FFFFFF" />
+                      <Ionicons name="camera" size={20} color="#FFFFFF" />
+                      <Text style={styles.heroCameraBtnText}>Prendre une photo</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.heroGalleryBtn}
+                      onPress={() => handlePickPhoto(false)}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name="images-outline" size={20} color={Colors.textPrimary} />
+                      <Text style={styles.heroGalleryBtnText}>Choisir dans la galerie</Text>
                     </TouchableOpacity>
                   </View>
-                ))}
-              </View>
-
-              {/* Bouton pour ajouter une photo supplémentaire */}
-              <View style={styles.addMoreRow}>
-                <TouchableOpacity
-                  style={styles.addMoreBtn}
-                  onPress={() => handlePickPhoto(true)}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="camera-outline" size={17} color={Colors.primary} />
-                  <Text style={styles.addMoreBtnText}>Ajouter une photo (caméra)</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.addMoreBtn}
-                  onPress={() => handlePickPhoto(false)}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="images-outline" size={17} color={Colors.primary} />
-                  <Text style={styles.addMoreBtnText}>Galerie</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
-
-          {/* Bouton d'action principal d'analyse */}
-          {photos.length > 0 && (
-            <TouchableOpacity
-              style={[
-                styles.analyzeBtn,
-                (isAnalyzing || (connectionStatus && !connectionStatus.ok)) && styles.analyzeBtnDisabled,
-              ]}
-              onPress={handleAnalyze}
-              disabled={isAnalyzing}
-              activeOpacity={0.85}
-            >
-              {isAnalyzing ? (
-                <View style={styles.analyzingContent}>
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                  <Text style={styles.analyzeBtnText}>{loadingStep}</Text>
                 </View>
               ) : (
-                <View style={styles.analyzingContent}>
-                  <Ionicons name="sparkles" size={20} color="#FFFFFF" />
-                  <Text style={styles.analyzeBtnText}>
-                    Analyser la recette ({photos.length} photo{photos.length > 1 ? 's' : ''})
-                  </Text>
+                /* Liste dynamique des photos capturées */
+                <View style={styles.photosSection}>
+                  <View style={styles.photosSectionHeader}>
+                    <Text style={styles.photosCountTitle}>
+                      {photos.length} photo{photos.length > 1 ? 's' : ''} sélectionnée{photos.length > 1 ? 's' : ''}
+                    </Text>
+                    <Text style={styles.photosCountHint}>
+                      La 1ère servira de photo de couverture
+                    </Text>
+                  </View>
+
+                  <View style={styles.photosGrid}>
+                    {photos.map((photo, index) => (
+                      <View key={photo.id} style={styles.photoCard}>
+                        <Image source={{ uri: photo.uri }} style={styles.photoThumb} resizeMode="cover" />
+                        <View style={styles.photoIndexBadge}>
+                          <Text style={styles.photoIndexBadgeText}>
+                            {index === 0 ? 'Photo 1 (couverture)' : `Photo ${index + 1}`}
+                          </Text>
+                        </View>
+                        <TouchableOpacity
+                          style={styles.removePhotoBtn}
+                          onPress={() => handleRemovePhoto(photo.id)}
+                          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                        >
+                          <Ionicons name="close" size={16} color="#FFFFFF" />
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                  </View>
+
+                  {/* Bouton pour ajouter une photo supplémentaire */}
+                  <View style={styles.addMoreRow}>
+                    <TouchableOpacity
+                      style={styles.addMoreBtn}
+                      onPress={() => handlePickPhoto(true)}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name="camera-outline" size={17} color={Colors.primary} />
+                      <Text style={styles.addMoreBtnText}>Ajouter photo</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.addMoreBtn}
+                      onPress={() => handlePickPhoto(false)}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name="images-outline" size={17} color={Colors.primary} />
+                      <Text style={styles.addMoreBtnText}>Galerie</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
               )}
-            </TouchableOpacity>
+
+              {/* Bouton d'action principal d'analyse photo */}
+              {photos.length > 0 && (
+                <TouchableOpacity
+                  style={[
+                    styles.analyzeBtn,
+                    (isAnalyzing || (connectionStatus && !connectionStatus.ok)) && styles.analyzeBtnDisabled,
+                  ]}
+                  onPress={handleAnalyze}
+                  disabled={isAnalyzing}
+                  activeOpacity={0.85}
+                >
+                  {isAnalyzing ? (
+                    <View style={styles.analyzingContent}>
+                      <ActivityIndicator size="small" color="#FFFFFF" />
+                      <Text style={styles.analyzeBtnText}>{loadingStep}</Text>
+                    </View>
+                  ) : (
+                    <View style={styles.analyzingContent}>
+                      <Ionicons name="sparkles" size={20} color="#FFFFFF" />
+                      <Text style={styles.analyzeBtnText}>
+                        Analyser la recette ({photos.length} photo{photos.length > 1 ? 's' : ''})
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              )}
+            </>
+          )}
+
+          {/* CONTENU MODE TEXTE BRUT & AUTOCOMPLÉTION */}
+          {mode === 'text' && (
+            <>
+              {/* Guide explicatif mode texte */}
+              <View style={styles.guideCard}>
+                <View style={styles.guideHeader}>
+                  <Ionicons name="sparkles" size={16} color={Colors.primary} />
+                  <Text style={styles.guideTitle}>Copier-coller libre & autocomplétion</Text>
+                </View>
+                <Text style={styles.guideText}>
+                  Collez votre texte brut : recette griffonnée, message WhatsApp, notes ou extrait web.
+                  {'\n'}Même s'il manque les <Text style={styles.guideBold}>temps</Text>, les <Text style={styles.guideBold}>portions</Text> ou des <Text style={styles.guideBold}>étapes</Text>, l'IA se charge de tout structurer et de compléter les détails !
+                </Text>
+              </View>
+
+              {/* Boîte de saisie texte */}
+              <View style={styles.textInputBox}>
+                <View style={styles.textInputHeader}>
+                  <View style={styles.textInputHeaderLeft}>
+                    <Ionicons name="document-text-outline" size={16} color={Colors.primary} />
+                    <Text style={styles.textInputHeaderTitle}>Votre texte ou notes</Text>
+                  </View>
+
+                  <View style={styles.textInputHeaderActions}>
+                    <TouchableOpacity
+                      style={styles.sampleQuickBtn}
+                      onPress={handleFillSample}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="bulb-outline" size={13} color={Colors.secondary} />
+                      <Text style={styles.sampleQuickBtnText}>Exemple</Text>
+                    </TouchableOpacity>
+
+                    {rawTextInput.length > 0 && (
+                      <TouchableOpacity
+                        style={styles.clearQuickBtn}
+                        onPress={() => setRawTextInput('')}
+                        hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                      >
+                        <Ionicons name="trash-outline" size={14} color={Colors.danger} />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+
+                <TextInput
+                  style={styles.rawTextArea}
+                  value={rawTextInput}
+                  onChangeText={setRawTextInput}
+                  placeholder={`Collez ici votre texte brut ou notes...\n\nExemple :\nQuiche aux poireaux et chèvre pour 4\n1 pâte brisée, 3 poireaux, 150g chèvre, 3 oeufs, 20cl crème, sel, poivre.\nFaire fondre les poireaux 15 min, mélanger les oeufs et la crème, verser sur la pâte et cuire 35 min à 180°C...`}
+                  placeholderTextColor={Colors.textMuted}
+                  multiline={true}
+                  textAlignVertical="top"
+                  autoCapitalize="sentences"
+                  autoCorrect={false}
+                />
+
+                <View style={styles.textInputFooter}>
+                  <Text style={styles.textCountHint}>
+                    {rawTextInput.trim().length > 0
+                      ? `${rawTextInput.trim().length} caractères`
+                      : 'Astuce : Même quelques mots d\'ingrédients suffisent, l\'IA complétera le reste !'}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Bouton d'action principal d'analyse texte */}
+              <TouchableOpacity
+                style={[
+                  styles.analyzeBtn,
+                  (isAnalyzingText ||
+                    rawTextInput.trim().length === 0 ||
+                    (connectionStatus && !connectionStatus.ok)) &&
+                    styles.analyzeBtnDisabled,
+                ]}
+                onPress={handleAnalyzeText}
+                disabled={isAnalyzingText || rawTextInput.trim().length === 0}
+                activeOpacity={0.85}
+              >
+                {isAnalyzingText ? (
+                  <View style={styles.analyzingContent}>
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                    <Text style={styles.analyzeBtnText}>{loadingStep}</Text>
+                  </View>
+                ) : (
+                  <View style={styles.analyzingContent}>
+                    <Ionicons name="sparkles" size={20} color="#FFFFFF" />
+                    <Text style={styles.analyzeBtnText}>
+                      Structurer et autocompléter avec l'IA
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            </>
           )}
         </ScrollView>
 
@@ -497,15 +776,131 @@ const styles = StyleSheet.create({
   backBtn: {
     padding: 6,
   },
+  headerTitleCol: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: 8,
+  },
   headerTitle: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '700',
     color: Colors.textPrimary,
+  },
+  headerSubtitle: {
+    fontSize: 11,
+    color: Colors.textSecondary,
+    marginTop: 1,
   },
   keyBtn: {
     padding: 6,
     backgroundColor: Colors.surfaceAlt,
     borderRadius: 16,
+  },
+  segmentContainer: {
+    flexDirection: 'row',
+    backgroundColor: Colors.surfaceAlt,
+    borderRadius: 14,
+    padding: 4,
+    marginHorizontal: 16,
+    marginTop: 12,
+    marginBottom: 4,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  segmentBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 9,
+    borderRadius: 10,
+    gap: 7,
+  },
+  segmentBtnActive: {
+    backgroundColor: Colors.primary,
+    ...Shadows.small,
+  },
+  segmentBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+  },
+  segmentBtnTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  textInputBox: {
+    backgroundColor: Colors.cardBackground,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    padding: 14,
+    marginBottom: 16,
+    ...Shadows.small,
+  },
+  textInputHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border + '50',
+  },
+  textInputHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  textInputHeaderTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+  },
+  textInputHeaderActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  sampleQuickBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.secondaryLight,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 8,
+    gap: 4,
+  },
+  sampleQuickBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.secondary,
+  },
+  clearQuickBtn: {
+    padding: 5,
+    backgroundColor: '#FEE2E2',
+    borderRadius: 8,
+  },
+  rawTextArea: {
+    minHeight: 180,
+    maxHeight: 280,
+    fontSize: 14,
+    lineHeight: 20,
+    color: Colors.textPrimary,
+    textAlignVertical: 'top',
+    paddingTop: 4,
+  },
+  textInputFooter: {
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border + '40',
+  },
+  textCountHint: {
+    fontSize: 11,
+    color: Colors.textMuted,
+    fontStyle: 'italic',
   },
   scrollContent: {
     padding: 16,

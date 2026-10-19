@@ -41,6 +41,8 @@ export default function App() {
 
   const selectedRecipe = recipes.find((r) => r.id === selectedRecipeId) || null;
 
+  const [scanInitialMode, setScanInitialMode] = useState<'photo' | 'text'>('photo');
+
   // Actions de navigation
   const navigateToDetail = (recipe: Recipe) => {
     setSelectedRecipeId(recipe.id);
@@ -52,7 +54,8 @@ export default function App() {
     setCurrentScreen('form');
   };
 
-  const navigateToScan = () => {
+  const navigateToScan = (initialMode: 'photo' | 'text' = 'photo') => {
+    setScanInitialMode(initialMode);
     setCurrentScreen('scan');
   };
 
@@ -138,6 +141,7 @@ export default function App() {
 
         {currentScreen === 'scan' && (
           <ScanRecipeScreen
+            initialMode={scanInitialMode}
             onBack={navigateToHome}
             onRecipeExtracted={handleRecipeExtracted}
           />

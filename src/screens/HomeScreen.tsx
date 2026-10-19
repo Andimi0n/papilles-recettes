@@ -34,7 +34,7 @@ interface HomeScreenProps {
   recipes: Recipe[];
   onSelectRecipe: (recipe: Recipe) => void;
   onAddNewRecipe: () => void;
-  onScanRecipe: () => void;
+  onScanRecipe: (initialMode?: 'photo' | 'text') => void;
   onImportRecipe?: (recipe: Recipe) => void;
   onToggleFavorite: (id: string) => void;
   onQuickRate: (id: string, rating: number) => void;
@@ -59,6 +59,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const [isFridgeModalVisible, setIsFridgeModalVisible] = useState(false);
   const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
   const [isMarmitonModalVisible, setIsMarmitonModalVisible] = useState(false);
+  const [isAiChoiceModalVisible, setIsAiChoiceModalVisible] = useState(false);
 
   // Category counts
   const recipeCountByCategory = useMemo(() => {
@@ -339,11 +340,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
               <TouchableOpacity
                 style={styles.scanTopBtn}
-                onPress={onScanRecipe}
+                onPress={() => setIsAiChoiceModalVisible(true)}
                 activeOpacity={0.8}
               >
-                <Ionicons name="camera" size={15} color={Colors.primary} />
-                <Text style={styles.scanTopBtnText}>Scanner</Text>
+                <Ionicons name="sparkles" size={14} color={Colors.primary} />
+                <Text style={styles.scanTopBtnText}>Scan & IA</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -467,6 +468,95 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             }
           }}
         />
+
+        {/* Modal Choix Assistant IA (Scan Photo ou Coller Texte) */}
+        <Modal
+          visible={isAiChoiceModalVisible}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setIsAiChoiceModalVisible(false)}
+        >
+          <View style={styles.aiModalBackdrop}>
+            <View style={styles.aiModalBox}>
+              <View style={styles.aiModalHeader}>
+                <View style={styles.aiModalTitleRow}>
+                  <Ionicons name="sparkles" size={20} color={Colors.primary} />
+                  <Text style={styles.aiModalTitle}>Ajouter avec l'IA</Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => setIsAiChoiceModalVisible(false)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons name="close" size={20} color={Colors.textSecondary} />
+                </TouchableOpacity>
+              </View>
+
+              <Text style={styles.aiModalSubtitle}>
+                Choisissez votre méthode d'importation assistée par IA :
+              </Text>
+
+              {/* Option 1: Scanner une photo */}
+              <TouchableOpacity
+                style={styles.aiOptionCard}
+                onPress={() => {
+                  setIsAiChoiceModalVisible(false);
+                  onScanRecipe('photo');
+                }}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.aiOptionIconCircle, { backgroundColor: Colors.primaryLight }]}>
+                  <Ionicons name="camera" size={24} color={Colors.primary} />
+                </View>
+                <View style={styles.aiOptionContent}>
+                  <View style={styles.aiOptionTitleRow}>
+                    <Text style={styles.aiOptionTitle}>Scanner une photo</Text>
+                    <View style={styles.aiOptionTag}>
+                      <Text style={styles.aiOptionTagText}>Photo</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.aiOptionDescription}>
+                    Photographiez un livre de cuisine, une fiche repas ou vos carnets manuscrits.
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
+              </TouchableOpacity>
+
+              {/* Option 2: Coller du texte brut */}
+              <TouchableOpacity
+                style={styles.aiOptionCard}
+                onPress={() => {
+                  setIsAiChoiceModalVisible(false);
+                  onScanRecipe('text');
+                }}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.aiOptionIconCircle, { backgroundColor: Colors.secondaryLight }]}>
+                  <Ionicons name="document-text" size={24} color={Colors.secondary} />
+                </View>
+                <View style={styles.aiOptionContent}>
+                  <View style={styles.aiOptionTitleRow}>
+                    <Text style={styles.aiOptionTitle}>Coller du texte brut</Text>
+                    <View style={[styles.aiOptionTag, { backgroundColor: Colors.secondaryLight }]}>
+                      <Text style={[styles.aiOptionTagText, { color: Colors.secondary }]}>Autocomplétion</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.aiOptionDescription}>
+                    Collez des notes, un message WhatsApp ou une recette brute. L'IA déduit et complète les portions, temps et étapes.
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.aiModalCloseBtn}
+                onPress={() => setIsAiChoiceModalVisible(false)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.aiModalCloseBtnText}>Annuler</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
       </View>
     </SafeAreaView>
   );
@@ -716,6 +806,99 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   closeSortModalText: {
+    color: Colors.textSecondary,
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  aiModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  aiModalBox: {
+    backgroundColor: Colors.cardBackground,
+    borderRadius: 22,
+    padding: 20,
+    ...Shadows.large,
+  },
+  aiModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  aiModalTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  aiModalTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: Colors.textPrimary,
+  },
+  aiModalSubtitle: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    marginBottom: 16,
+    lineHeight: 18,
+  },
+  aiOptionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surfaceAlt,
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  aiOptionIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  aiOptionContent: {
+    flex: 1,
+    marginRight: 6,
+  },
+  aiOptionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 3,
+  },
+  aiOptionTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+  },
+  aiOptionTag: {
+    backgroundColor: Colors.primaryLight,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  aiOptionTagText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: Colors.primary,
+  },
+  aiOptionDescription: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    lineHeight: 16,
+  },
+  aiModalCloseBtn: {
+    alignItems: 'center',
+    paddingVertical: 10,
+    marginTop: 4,
+  },
+  aiModalCloseBtnText: {
     color: Colors.textSecondary,
     fontWeight: '600',
     fontSize: 14,
