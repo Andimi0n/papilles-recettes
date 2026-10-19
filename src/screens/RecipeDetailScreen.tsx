@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Recipe } from '../types/recipe';
+import { StorageService } from '../services/storageService';
 import { Colors, Shadows } from '../theme/colors';
 import { StarRating } from '../components/StarRating';
 import { CookingModeModal } from '../components/CookingModeModal';
@@ -44,6 +45,7 @@ interface RecipeDetailScreenProps {
   onDelete: (id: string) => void;
   onToggleFavorite: (id: string) => void;
   onUpdateRating: (id: string, rating: number, userNote?: string) => void;
+  onNavigateToShoppingList?: () => void;
 }
 
 export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
@@ -53,9 +55,11 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
   onDelete,
   onToggleFavorite,
   onUpdateRating,
+  onNavigateToShoppingList,
 }) => {
   // Nombre de portions ajustables dynamiquement
   const [currentServings, setCurrentServings] = useState<number>(recipe.servings || 4);
+  const [isAddingToShoppingList, setIsAddingToShoppingList] = useState(false);
 
   // Synchronise lorsque la recette change
   React.useEffect(() => {
@@ -262,6 +266,36 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
     setIsNoteModalVisible(false);
   };
 
+  const handleAddToShoppingList = async () => {
+    setIsAddingToShoppingList(true);
+    try {
+      const { addedCount } = await StorageService.addRecipeToShoppingList(
+        recipe,
+        currentServings
+      );
+      Alert.alert(
+        '🛒 Ajouté à la liste de courses',
+        `${addedCount} ingrédient${addedCount > 1 ? 's ajoutés' : ' ajouté'} pour ${currentServings} personne${currentServings > 1 ? 's' : ''} (rayons triés automatiquement) !`,
+        [
+          { text: 'Continuer', style: 'cancel' },
+          ...(onNavigateToShoppingList
+            ? [
+                {
+                  text: 'Voir ma liste',
+                  style: 'default' as const,
+                  onPress: onNavigateToShoppingList,
+                },
+              ]
+            : []),
+        ]
+      );
+    } catch (e) {
+      Alert.alert('Erreur', "Impossible d'ajouter les ingrédients à la liste de courses.");
+    } finally {
+      setIsAddingToShoppingList(false);
+    }
+  };
+
   const totalTime = recipe.prepTimeMinutes + recipe.cookTimeMinutes;
 
   return (
@@ -273,6 +307,13 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
             <Ionicons name="arrow-back" size={22} color={Colors.textPrimary} />
           </TouchableOpacity>
           <View style={styles.navRight}>
+            <TouchableOpacity
+              onPress={handleAddToShoppingList}
+              style={styles.navBtn}
+              accessibilityLabel="Ajouter à ma liste de courses"
+            >
+              <Ionicons name="cart-outline" size={22} color={Colors.primary} />
+            </TouchableOpacity>
             <TouchableOpacity onPress={() => onToggleFavorite(recipe.id)} style={styles.navBtn}>
               <Ionicons
                 name={recipe.isFavorite ? 'heart' : 'heart-outline'}
@@ -459,6 +500,19 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
                 )}
               </View>
             </View>
+
+            {/* Bouton 1 clic : Ajouter à ma liste de courses */}
+            <TouchableOpacity
+              style={styles.addToShoppingBtn}
+              onPress={handleAddToShoppingList}
+              activeOpacity={0.85}
+              disabled={isAddingToShoppingList}
+            >
+              <Ionicons name="cart" size={17} color="#FFFFFF" />
+              <Text style={styles.addToShoppingBtnText}>
+                Ajouter à ma liste de courses ({currentServings} pers.)
+              </Text>
+            </TouchableOpacity>
 
             {recipe.ingredients.map((ing) => {
               const isChecked = !!checkedIngredients[ing.id];
@@ -1357,5 +1411,23 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '600',
+  },
+  addToShoppingBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: Colors.secondary,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    marginTop: 10,
+    marginBottom: 8,
+    ...Shadows.small,
+  },
+  addToShoppingBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
   },
 });

@@ -801,7 +801,7 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   listContent: {
-    paddingBottom: 40,
+    paddingBottom: 70,
   },
   listHeaderContainer: {
     paddingTop: 4,

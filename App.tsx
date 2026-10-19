@@ -1,51 +1,79 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
+  Text,
   ActivityIndicator,
   StyleSheet,
   Alert,
+  TouchableOpacity,
+  Platform,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { Recipe } from './src/types/recipe';
 import { StorageService } from './src/services/storageService';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { RecipeDetailScreen } from './src/screens/RecipeDetailScreen';
 import { RecipeFormScreen } from './src/screens/RecipeFormScreen';
 import { ScanRecipeScreen } from './src/screens/ScanRecipeScreen';
-import { Colors } from './src/theme/colors';
+import { ShoppingListScreen } from './src/screens/ShoppingListScreen';
+import { MealPlannerScreen } from './src/screens/MealPlannerScreen';
+import { Colors, Shadows } from './src/theme/colors';
 
-type AppScreen = 'home' | 'detail' | 'form' | 'scan';
+type AppScreen = 'home' | 'planner' | 'shopping' | 'detail' | 'form' | 'scan';
 
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState<AppScreen>('home');
+  const [returnScreenAfterDetail, setReturnScreenAfterDetail] = useState<'home' | 'planner'>('home');
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [selectedRecipeId, setSelectedRecipeId] = useState<string | null>(null);
   const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [shoppingBadgeCount, setShoppingBadgeCount] = useState(0);
 
-  // Chargement initial des recettes depuis le stockage local (AsyncStorage)
+  // Met à jour le compteur d'articles de courses restants pour le badge
+  const refreshShoppingBadge = useCallback(async () => {
+    try {
+      const items = await StorageService.getShoppingList();
+      const uncompleted = items.filter((i) => !i.isChecked).length;
+      setShoppingBadgeCount(uncompleted);
+    } catch (e) {
+      console.error('Erreur rafraîchissement badge courses:', e);
+    }
+  }, []);
+
+  // Chargement initial des recettes et du badge courses
   useEffect(() => {
-    const loadRecipes = async () => {
+    const loadInitialData = async () => {
       try {
         const loaded = await StorageService.getRecipes();
         setRecipes(loaded);
+        await refreshShoppingBadge();
       } catch (e) {
-        console.error('Erreur chargement recettes:', e);
+        console.error('Erreur chargement initial:', e);
       } finally {
         setIsLoading(false);
       }
     };
-    loadRecipes();
-  }, []);
+    loadInitialData();
+  }, [refreshShoppingBadge]);
+
+  // Actualise le badge à chaque fois qu'on revient sur un écran principal
+  useEffect(() => {
+    if (['home', 'planner', 'shopping'].includes(currentScreen)) {
+      refreshShoppingBadge();
+    }
+  }, [currentScreen, refreshShoppingBadge]);
 
   const selectedRecipe = recipes.find((r) => r.id === selectedRecipeId) || null;
 
   const [scanInitialMode, setScanInitialMode] = useState<'photo' | 'text'>('photo');
 
   // Actions de navigation
-  const navigateToDetail = (recipe: Recipe) => {
+  const navigateToDetail = (recipe: Recipe, fromScreen: 'home' | 'planner' = 'home') => {
     setSelectedRecipeId(recipe.id);
+    setReturnScreenAfterDetail(fromScreen);
     setCurrentScreen('detail');
   };
 
@@ -75,6 +103,19 @@ export default function App() {
     setEditingRecipe(null);
   };
 
+  const navigateToShopping = () => {
+    setCurrentScreen('shopping');
+    setSelectedRecipeId(null);
+    setEditingRecipe(null);
+    refreshShoppingBadge();
+  };
+
+  const navigateToPlanner = () => {
+    setCurrentScreen('planner');
+    setSelectedRecipeId(null);
+    setEditingRecipe(null);
+  };
+
   // Actions de gestion des données
   const handleSaveRecipe = async (savedRecipe: Recipe) => {
     try {
@@ -83,7 +124,7 @@ export default function App() {
       setSelectedRecipeId(savedRecipe.id);
       setCurrentScreen('detail');
     } catch (e) {
-      Alert.alert('Erreur', 'Impossible d\'enregistrer la recette.');
+      Alert.alert('Erreur', "Impossible d'enregistrer la recette.");
     }
   };
 
@@ -123,53 +164,152 @@ export default function App() {
     );
   }
 
+  const isMainTab = ['home', 'planner', 'shopping'].includes(currentScreen);
+
   return (
     <SafeAreaProvider>
       <StatusBar style="dark" />
       <View style={styles.container}>
-        {currentScreen === 'home' && (
-          <HomeScreen
-            recipes={recipes}
-            onSelectRecipe={navigateToDetail}
-            onAddNewRecipe={navigateToCreate}
-            onScanRecipe={navigateToScan}
-            onImportRecipe={handleRecipeExtracted}
-            onToggleFavorite={handleToggleFavorite}
-            onQuickRate={handleUpdateRating}
-          />
-        )}
+        {/* Écrans Principaux */}
+        <View style={styles.mainContent}>
+          {currentScreen === 'home' && (
+            <HomeScreen
+              recipes={recipes}
+              onSelectRecipe={(r) => navigateToDetail(r, 'home')}
+              onAddNewRecipe={navigateToCreate}
+              onScanRecipe={navigateToScan}
+              onImportRecipe={handleRecipeExtracted}
+              onToggleFavorite={handleToggleFavorite}
+              onQuickRate={handleUpdateRating}
+            />
+          )}
 
-        {currentScreen === 'scan' && (
-          <ScanRecipeScreen
-            initialMode={scanInitialMode}
-            onBack={navigateToHome}
-            onRecipeExtracted={handleRecipeExtracted}
-          />
-        )}
+          {currentScreen === 'planner' && (
+            <MealPlannerScreen
+              recipes={recipes}
+              onSelectRecipe={(r) => navigateToDetail(r, 'planner')}
+              onNavigateToShoppingList={navigateToShopping}
+            />
+          )}
 
-        {currentScreen === 'detail' && selectedRecipe && (
-          <RecipeDetailScreen
-            recipe={selectedRecipe}
-            onBack={navigateToHome}
-            onEdit={navigateToEdit}
-            onDelete={handleDeleteRecipe}
-            onToggleFavorite={handleToggleFavorite}
-            onUpdateRating={handleUpdateRating}
-          />
-        )}
+          {currentScreen === 'shopping' && (
+            <ShoppingListScreen
+              onNavigateToRecipes={navigateToHome}
+              onNavigateToPlanner={navigateToPlanner}
+            />
+          )}
 
-        {currentScreen === 'form' && (
-          <RecipeFormScreen
-            initialRecipe={editingRecipe}
-            onSave={handleSaveRecipe}
-            onCancel={() => {
-              if (selectedRecipeId) {
-                setCurrentScreen('detail');
-              } else {
-                navigateToHome();
-              }
-            }}
-          />
+          {/* Écrans Secondaires (pleine page) */}
+          {currentScreen === 'scan' && (
+            <ScanRecipeScreen
+              initialMode={scanInitialMode}
+              onBack={navigateToHome}
+              onRecipeExtracted={handleRecipeExtracted}
+            />
+          )}
+
+          {currentScreen === 'detail' && selectedRecipe && (
+            <RecipeDetailScreen
+              recipe={selectedRecipe}
+              onBack={() => {
+                setCurrentScreen(returnScreenAfterDetail);
+                refreshShoppingBadge();
+              }}
+              onEdit={navigateToEdit}
+              onDelete={handleDeleteRecipe}
+              onToggleFavorite={handleToggleFavorite}
+              onUpdateRating={handleUpdateRating}
+              onNavigateToShoppingList={navigateToShopping}
+            />
+          )}
+
+          {currentScreen === 'form' && (
+            <RecipeFormScreen
+              initialRecipe={editingRecipe}
+              onSave={handleSaveRecipe}
+              onCancel={() => {
+                if (selectedRecipeId) {
+                  setCurrentScreen('detail');
+                } else {
+                  navigateToHome();
+                }
+              }}
+            />
+          )}
+        </View>
+
+        {/* Barre de navigation inférieure persistante pour les onglets principaux */}
+        {isMainTab && (
+          <View style={styles.bottomTabBar}>
+            <TouchableOpacity
+              style={styles.tabItem}
+              onPress={navigateToHome}
+              activeOpacity={0.7}
+            >
+              <Ionicons
+                name={currentScreen === 'home' ? 'book' : 'book-outline'}
+                size={22}
+                color={currentScreen === 'home' ? Colors.primary : Colors.textSecondary}
+              />
+              <Text
+                style={[
+                  styles.tabLabel,
+                  currentScreen === 'home' && styles.tabLabelActive,
+                ]}
+              >
+                Recettes
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.tabItem}
+              onPress={navigateToPlanner}
+              activeOpacity={0.7}
+            >
+              <Ionicons
+                name={currentScreen === 'planner' ? 'calendar' : 'calendar-outline'}
+                size={22}
+                color={currentScreen === 'planner' ? Colors.primary : Colors.textSecondary}
+              />
+              <Text
+                style={[
+                  styles.tabLabel,
+                  currentScreen === 'planner' && styles.tabLabelActive,
+                ]}
+              >
+                Planning
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.tabItem}
+              onPress={navigateToShopping}
+              activeOpacity={0.7}
+            >
+              <View style={styles.tabIconWrapper}>
+                <Ionicons
+                  name={currentScreen === 'shopping' ? 'cart' : 'cart-outline'}
+                  size={23}
+                  color={currentScreen === 'shopping' ? Colors.primary : Colors.textSecondary}
+                />
+                {shoppingBadgeCount > 0 && (
+                  <View style={styles.tabBadge}>
+                    <Text style={styles.tabBadgeText}>
+                      {shoppingBadgeCount > 99 ? '99+' : shoppingBadgeCount}
+                    </Text>
+                  </View>
+                )}
+              </View>
+              <Text
+                style={[
+                  styles.tabLabel,
+                  currentScreen === 'shopping' && styles.tabLabelActive,
+                ]}
+              >
+                Courses
+              </Text>
+            </TouchableOpacity>
+          </View>
         )}
       </View>
     </SafeAreaProvider>
@@ -181,10 +321,61 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background,
   },
+  mainContent: {
+    flex: 1,
+  },
   loadingContainer: {
     flex: 1,
     backgroundColor: Colors.background,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  bottomTabBar: {
+    flexDirection: 'row',
+    backgroundColor: Colors.cardBackground,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+    paddingTop: 8,
+    paddingBottom: Platform.OS === 'ios' ? 24 : 10,
+    ...Shadows.medium,
+  },
+  tabItem: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabIconWrapper: {
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabBadge: {
+    position: 'absolute',
+    top: -5,
+    right: -10,
+    backgroundColor: Colors.primary,
+    borderRadius: 9,
+    minWidth: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
+  },
+  tabBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  tabLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+    marginTop: 3,
+  },
+  tabLabelActive: {
+    color: Colors.primary,
+    fontWeight: '700',
   },
 });
