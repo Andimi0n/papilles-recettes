@@ -23,9 +23,9 @@
     "typescript": "~6.0.3"
   },
   "scripts": {
-    "start": "EXPO_NO_TELEMETRY=1 expo start -c",
+    "start": "EXPO_NO_TELEMETRY=1 REACT_NATIVE_PACKAGER_HOSTNAME=$(ip route get 1.1.1.1 2>/dev/null | awk '{print $7}' || hostname -I | awk '{print $1}') expo start --lan -c",
+    "lan": "EXPO_NO_TELEMETRY=1 REACT_NATIVE_PACKAGER_HOSTNAME=$(ip route get 1.1.1.1 2>/dev/null | awk '{print $7}' || hostname -I | awk '{print $1}') expo start --lan",
     "tunnel": "EXPO_NO_TELEMETRY=1 expo start --tunnel",
-    "lan": "EXPO_NO_TELEMETRY=1 expo start --lan",
     "lan:wifi": "EXPO_NO_TELEMETRY=1 REACT_NATIVE_PACKAGER_HOSTNAME=192.168.99.164 expo start --lan",
     "android": "EXPO_NO_TELEMETRY=1 expo start --android",
     "ios": "EXPO_NO_TELEMETRY=1 expo start --ios",
