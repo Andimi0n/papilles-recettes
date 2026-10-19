@@ -206,3 +206,136 @@ export function generateUniqueId(prefix: string): string {
   return `${prefix}_${Date.now()}_${idCounter}_${rand}`;
 }
 
+export interface DetectedTimer {
+  id: string;
+  label: string;
+  totalSeconds: number;
+}
+
+/**
+ * Détecte intelligemment les durées culinaires dans une étape de recette (ex: "15 min", "1 h 30", "45 secondes")
+ */
+export function extractTimersFromText(text: string): DetectedTimer[] {
+  if (!text) return [];
+  const timers: DetectedTimer[] = [];
+  const seenSeconds = new Set<number>();
+  let remainingText = text;
+
+  // 1. Heures + Minutes (ex: "1h30", "1 heure 15 minutes", "2 h 05")
+  const hourMinRegex = /\b(\d+)\s*(?:h|heures?)\s*(?:et\s*)?(\d+)\s*(?:min|minutes?|mn)?\b/gi;
+  let match: RegExpExecArray | null;
+  while ((match = hourMinRegex.exec(text)) !== null) {
+    const hours = parseInt(match[1], 10);
+    const mins = parseInt(match[2], 10);
+    const totalSec = (hours * 60 + mins) * 60;
+    if (totalSec > 0 && !seenSeconds.has(totalSec)) {
+      seenSeconds.add(totalSec);
+      timers.push({
+        id: `timer_${totalSec}`,
+        label: `${hours}h${mins < 10 ? '0' : ''}${mins}`,
+        totalSeconds: totalSec,
+      });
+    }
+  }
+  remainingText = remainingText.replace(hourMinRegex, ' ');
+
+  // 2. Heure et demie (ex: "1 heure et demie")
+  const hourHalfRegex = /\b(\d+)\s*(?:h|heures?)\s*et\s*demi[e]?\b/gi;
+  while ((match = hourHalfRegex.exec(remainingText)) !== null) {
+    const hours = parseInt(match[1], 10);
+    const totalSec = Math.round((hours + 0.5) * 3600);
+    if (!seenSeconds.has(totalSec)) {
+      seenSeconds.add(totalSec);
+      timers.push({
+        id: `timer_${totalSec}`,
+        label: `${hours}h30`,
+        totalSeconds: totalSec,
+      });
+    }
+  }
+  remainingText = remainingText.replace(hourHalfRegex, ' ');
+
+  // 3. Heures seules (ex: "1 heure", "2 h", "3 heures")
+  const hourRegex = /\b(\d+)\s*(?:h|heures?)\b/gi;
+  while ((match = hourRegex.exec(remainingText)) !== null) {
+    const hours = parseInt(match[1], 10);
+    const totalSec = hours * 3600;
+    if (totalSec > 0 && !seenSeconds.has(totalSec)) {
+      seenSeconds.add(totalSec);
+      timers.push({
+        id: `timer_${totalSec}`,
+        label: `${hours} h`,
+        totalSeconds: totalSec,
+      });
+    }
+  }
+  remainingText = remainingText.replace(hourRegex, ' ');
+
+  // 4. Fourchettes de minutes (ex: "15 à 20 min", "10-15 minutes")
+  const rangeMinRegex = /\b(\d+)\s*(?:à|-)\s*(\d+)\s*(?:min|minutes?|mn)\b/gi;
+  while ((match = rangeMinRegex.exec(remainingText)) !== null) {
+    const min1 = parseInt(match[1], 10);
+    const min2 = parseInt(match[2], 10);
+    const totalSec = min1 * 60;
+    if (totalSec > 0 && !seenSeconds.has(totalSec)) {
+      seenSeconds.add(totalSec);
+      timers.push({
+        id: `timer_${totalSec}`,
+        label: `${min1} à ${min2} min`,
+        totalSeconds: totalSec,
+      });
+    }
+  }
+  remainingText = remainingText.replace(rangeMinRegex, ' ');
+
+  // 5. Minutes simples (ex: "15 min", "20 minutes", "5 mn")
+  const minRegex = /\b(\d+)\s*(?:min|minutes?|mn)\b/gi;
+  while ((match = minRegex.exec(remainingText)) !== null) {
+    const mins = parseInt(match[1], 10);
+    const totalSec = mins * 60;
+    if (totalSec > 0 && !seenSeconds.has(totalSec)) {
+      seenSeconds.add(totalSec);
+      timers.push({
+        id: `timer_${totalSec}`,
+        label: `${mins} min`,
+        totalSeconds: totalSec,
+      });
+    }
+  }
+  remainingText = remainingText.replace(minRegex, ' ');
+
+  // 6. Secondes (ex: "30 secondes", "45 sec")
+  const secRegex = /\b(\d+)\s*(?:secondes?|sec)\b/gi;
+  while ((match = secRegex.exec(remainingText)) !== null) {
+    const secs = parseInt(match[1], 10);
+    if (secs > 0 && !seenSeconds.has(secs)) {
+      seenSeconds.add(secs);
+      timers.push({
+        id: `timer_${secs}`,
+        label: `${secs} sec`,
+        totalSeconds: secs,
+      });
+    }
+  }
+
+  return timers;
+}
+
+/**
+ * Formate un nombre de secondes en texte mm:ss ou hh:mm:ss
+ */
+export function formatTimerSeconds(seconds: number): string {
+  if (seconds <= 0) return '00:00';
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const remainingSecs = seconds % 60;
+
+  const mm = minutes < 10 ? `0${minutes}` : `${minutes}`;
+  const ss = remainingSecs < 10 ? `0${remainingSecs}` : `${remainingSecs}`;
+
+  if (hours > 0) {
+    return `${hours}:${mm}:${ss}`;
+  }
+  return `${mm}:${ss}`;
+}
+

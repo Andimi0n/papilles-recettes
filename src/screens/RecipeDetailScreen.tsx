@@ -16,7 +16,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { Recipe } from '../types/recipe';
 import { Colors, Shadows } from '../theme/colors';
 import { StarRating } from '../components/StarRating';
-import { formatDuration, getRatingLabel, scaleQuantity } from '../utils/helpers';
+import { CookingModeModal } from '../components/CookingModeModal';
+import { formatDuration, getRatingLabel, scaleQuantity, extractTimersFromText } from '../utils/helpers';
 
 interface RecipeDetailScreenProps {
   recipe: Recipe;
@@ -46,6 +47,9 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
   // Checklists locales pour la session de cuisine
   const [checkedIngredients, setCheckedIngredients] = useState<Record<string, boolean>>({});
   const [checkedSteps, setCheckedSteps] = useState<Record<string, boolean>>({});
+
+  // Modal Mode Cuisine Pas-à-Pas
+  const [isCookingModeVisible, setIsCookingModeVisible] = useState(false);
 
   // Modal pour modifier l'astuce / commentaire
   const [isNoteModalVisible, setIsNoteModalVisible] = useState(false);
@@ -222,6 +226,24 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
             </View>
           </View>
 
+          {/* Bouton Principal : Lancer le Mode Cuisine Pas-à-Pas */}
+          <TouchableOpacity
+            style={styles.startCookingBannerBtn}
+            onPress={() => setIsCookingModeVisible(true)}
+            activeOpacity={0.88}
+          >
+            <View style={styles.startCookingIconCircle}>
+              <Ionicons name="restaurant" size={22} color="#FFFFFF" />
+            </View>
+            <View style={styles.startCookingTextCol}>
+              <Text style={styles.startCookingTitle}>Lancer le Mode Cuisine</Text>
+              <Text style={styles.startCookingSubtitle}>
+                Plein écran • Instructions XXL • Minuteurs intégrés
+              </Text>
+            </View>
+            <Ionicons name="arrow-forward-circle" size={26} color="#FFFFFF" />
+          </TouchableOpacity>
+
           {/* Ingredients Section with Dynamic Servings Stepper */}
           <View style={styles.sectionCard}>
             <View style={styles.sectionHeader}>
@@ -323,34 +345,66 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
           {/* Steps Section */}
           <View style={styles.sectionCard}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>
-                Préparation ({recipe.steps.length} étapes)
-              </Text>
+              <View style={styles.stepsHeaderRow}>
+                <Text style={styles.sectionTitle}>
+                  Préparation ({recipe.steps.length} étapes)
+                </Text>
+                <TouchableOpacity
+                  style={styles.headerCookBtn}
+                  onPress={() => setIsCookingModeVisible(true)}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="play" size={13} color="#FFFFFF" />
+                  <Text style={styles.headerCookBtnText}>Cuisiner</Text>
+                </TouchableOpacity>
+              </View>
             </View>
 
             {recipe.steps.map((step, index) => {
               const isChecked = !!checkedSteps[step.id];
+              const stepTimers = extractTimersFromText(step.instruction);
+
               return (
-                <TouchableOpacity
+                <View
                   key={step.id}
-                  style={[styles.stepRow, isChecked && styles.rowChecked]}
-                  onPress={() => toggleStepCheck(step.id)}
-                  activeOpacity={0.8}
+                  style={[styles.stepItemContainer, isChecked && styles.rowChecked]}
                 >
-                  <View style={[styles.stepNumberBadge, isChecked && styles.stepNumberChecked]}>
-                    <Text style={[styles.stepNumberText, isChecked && styles.stepNumberTextChecked]}>
-                      {index + 1}
-                    </Text>
-                  </View>
-                  <Text
-                    style={[
-                      styles.stepInstruction,
-                      isChecked && styles.textChecked,
-                    ]}
+                  <TouchableOpacity
+                    style={styles.stepRow}
+                    onPress={() => toggleStepCheck(step.id)}
+                    activeOpacity={0.8}
                   >
-                    {step.instruction}
-                  </Text>
-                </TouchableOpacity>
+                    <View style={[styles.stepNumberBadge, isChecked && styles.stepNumberChecked]}>
+                      <Text style={[styles.stepNumberText, isChecked && styles.stepNumberTextChecked]}>
+                        {index + 1}
+                      </Text>
+                    </View>
+                    <Text
+                      style={[
+                        styles.stepInstruction,
+                        isChecked && styles.textChecked,
+                      ]}
+                    >
+                      {step.instruction}
+                    </Text>
+                  </TouchableOpacity>
+
+                  {stepTimers.length > 0 && (
+                    <View style={styles.inlineTimerChipsRow}>
+                      {stepTimers.map((t) => (
+                        <TouchableOpacity
+                          key={t.id}
+                          style={styles.inlineTimerChip}
+                          onPress={() => setIsCookingModeVisible(true)}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons name="alarm-outline" size={13} color={Colors.primary} />
+                          <Text style={styles.inlineTimerChipText}>⏱ {t.label}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  )}
+                </View>
               );
             })}
           </View>
@@ -397,6 +451,15 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
             </View>
           </View>
         </Modal>
+
+        {/* Modal Mode Cuisine Pas-à-Pas Plein Écran */}
+        <CookingModeModal
+          visible={isCookingModeVisible}
+          recipe={recipe}
+          servings={currentServings}
+          onClose={() => setIsCookingModeVisible(false)}
+          onQuickRate={(rating) => onUpdateRating(recipe.id, rating)}
+        />
       </View>
     </SafeAreaView>
   );
@@ -713,9 +776,6 @@ const styles = StyleSheet.create({
   },
   stepRow: {
     flexDirection: 'row',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
     alignItems: 'flex-start',
   },
   stepNumberBadge: {
@@ -804,5 +864,87 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+  // Bouton Bannière Lancer le Mode Cuisine
+  startCookingBannerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.primary,
+    borderRadius: 20,
+    padding: 16,
+    marginHorizontal: 16,
+    marginBottom: 16,
+    gap: 12,
+    ...Shadows.medium,
+  },
+  startCookingIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  startCookingTextCol: {
+    flex: 1,
+  },
+  startCookingTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    marginBottom: 2,
+  },
+  startCookingSubtitle: {
+    fontSize: 12,
+    color: '#FFEFEA',
+    fontWeight: '500',
+  },
+  stepsHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  headerCookBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 14,
+    gap: 5,
+  },
+  headerCookBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  stepItemContainer: {
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.borderLight,
+  },
+  inlineTimerChipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginLeft: 38,
+    marginTop: 6,
+    gap: 6,
+  },
+  inlineTimerChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.primaryLight,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+    gap: 4,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  inlineTimerChipText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.primary,
   },
 });
