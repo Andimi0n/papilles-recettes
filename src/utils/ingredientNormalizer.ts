@@ -5,16 +5,16 @@ import { stemWord, levenshteinDistance } from './searchEngine';
 
 // Contenants et unités incorporés fréquemment dans le nom de l'ingrédient
 const CONTAINER_PREFIXES: { regex: RegExp; unitLabel: string }[] = [
-  { regex: /^(?:une?|[0-9]+(?:\/[0-9]+)?(?:\.[0-9]+)?|\d+)?\s*(?:bo[iî]tes?\s+de?|bo[iî]tes?\s+d')\s*/i, unitLabel: 'boîte' },
-  { regex: /^(?:une?|[0-9]+(?:\/[0-9]+)?(?:\.[0-9]+)?|\d+)?\s*(?:bocaux|bocals?)\s+de?\s*/i, unitLabel: 'bocal' },
-  { regex: /^(?:une?|[0-9]+(?:\/[0-9]+)?(?:\.[0-9]+)?|\d+)?\s*(?:sachets?|paquets?)\s+de?\s*/i, unitLabel: 'sachet' },
-  { regex: /^(?:une?|[0-9]+(?:\/[0-9]+)?(?:\.[0-9]+)?|\d+)?\s*(?:barquettes?)\s+de?\s*/i, unitLabel: 'barquette' },
-  { regex: /^(?:une?|[0-9]+(?:\/[0-9]+)?(?:\.[0-9]+)?|\d+)?\s*(?:tranches?)\s+de?\s*/i, unitLabel: 'tranche' },
+  { regex: /^(?:une?|[0-9]+(?:\/[0-9]+)?(?:\.[0-9]+)?|\d+)?\s*(?:petites?|grosses?|belles?|grandes?)?\s*(?:bo[iî]tes?\s+de?|bo[iî]tes?\s+d')\s*/i, unitLabel: 'boîte' },
+  { regex: /^(?:une?|[0-9]+(?:\/[0-9]+)?(?:\.[0-9]+)?|\d+)?\s*(?:petits?|gros?|beaux?|grands?)?\s*(?:bocaux|bocals?)\s+de?\s*/i, unitLabel: 'bocal' },
+  { regex: /^(?:une?|[0-9]+(?:\/[0-9]+)?(?:\.[0-9]+)?|\d+)?\s*(?:petits?|gros?|beaux?|grands?)?\s*(?:sachets?|paquets?)\s+de?\s*/i, unitLabel: 'sachet' },
+  { regex: /^(?:une?|[0-9]+(?:\/[0-9]+)?(?:\.[0-9]+)?|\d+)?\s*(?:petites?|grosses?|belles?|grandes?)?\s*(?:barquettes?)\s+de?\s*/i, unitLabel: 'barquette' },
+  { regex: /^(?:une?|[0-9]+(?:\/[0-9]+)?(?:\.[0-9]+)?|\d+)?\s*(?:belles?|fines?|grosses?)?\s*(?:tranches?)\s+de?\s*/i, unitLabel: 'tranche' },
   { regex: /^(?:une?|[0-9]+(?:\/[0-9]+)?(?:\.[0-9]+)?|\d+)?\s*(?:gousses?)\s+d['e]\s*/i, unitLabel: 'gousse' },
   { regex: /^(?:une?|[0-9]+(?:\/[0-9]+)?(?:\.[0-9]+)?|\d+)?\s*(?:pinc[eé]es?)\s+de?\s*/i, unitLabel: 'pincée' },
   { regex: /^(?:une?|[0-9]+(?:\/[0-9]+)?(?:\.[0-9]+)?|\d+)?\s*(?:brins?)\s+de?\s*/i, unitLabel: 'brin' },
-  { regex: /^(?:une?|[0-9]+(?:\/[0-9]+)?(?:\.[0-9]+)?|\d+)?\s*(?:pots?)\s+de?\s*/i, unitLabel: 'pot' },
-  { regex: /^(?:une?|[0-9]+(?:\/[0-9]+)?(?:\.[0-9]+)?|\d+)?\s*(?:bouteilles?)\s+de?\s*/i, unitLabel: 'bouteille' },
+  { regex: /^(?:une?|[0-9]+(?:\/[0-9]+)?(?:\.[0-9]+)?|\d+)?\s*(?:petits?|gros?|grands?)?\s*(?:pots?)\s+de?\s*/i, unitLabel: 'pot' },
+  { regex: /^(?:une?|[0-9]+(?:\/[0-9]+)?(?:\.[0-9]+)?|\d+)?\s*(?:petites?|grosses?|grandes?)?\s*(?:bouteilles?)\s+de?\s*/i, unitLabel: 'bouteille' },
   { regex: /^(?:une?|[0-9]+(?:\/[0-9]+)?(?:\.[0-9]+)?|\d+)?\s*(?:tablettes?)\s+de?\s*/i, unitLabel: 'tablette' },
   { regex: /^(?:une?|[0-9]+(?:\/[0-9]+)?(?:\.[0-9]+)?|\d+)?\s*(?:cubes?)\s+de?\s*/i, unitLabel: 'cube' },
   { regex: /^(?:une?|[0-9]+(?:\/[0-9]+)?(?:\.[0-9]+)?|\d+)?\s*(?:feuilles?)\s+de?\s*/i, unitLabel: 'feuille' },
@@ -30,6 +30,7 @@ const LEADING_QUANTITY_REGEX = /^([0-9]+(?:\/[0-9]+)?(?:\.[0-9]+)?)\s+(.*)$/;
 
 // Adjectifs et préparations culinaires superflus à élaguer dans le nom de l'ingrédient
 const QUALIFIER_PATTERNS: RegExp[] = [
+  /\s*\([^)]*\)/g, // Parenthèses descriptives ex: (coupés), (facultatif), (en dés)
   /\b(?:et\s+)?coup[eé]e?s?\s+en\s+d[eé]s\b/gi,
   /\b(?:et\s+)?coup[eé]e?s?\s+en\s+rondelles\b/gi,
   /\b(?:et\s+)?coup[eé]e?s?\s+en\s+lamelles\b/gi,
@@ -39,6 +40,7 @@ const QUALIFIER_PATTERNS: RegExp[] = [
   /\b(?:et\s+)?en\s+lamelles\b/gi,
   /\b(?:et\s+)?en\s+morceaux\b/gi,
   /\b(?:et\s+)?en\s+julienne\b/gi,
+  /\bcoup[eé]e?s?\b/gi,
   /\b[eé]pluch[eé]e?s?\b/gi,
   /\br[aâ]p[eé]e?s?\b/gi,
   /\bhach[eé]e?s?\b/gi,
@@ -93,8 +95,9 @@ function cleanRawIngredientString(raw: string): {
     str = str.replace(pattern, ' ');
   }
 
-  // 4. Nettoyer les espaces résiduels, virgules ou tirets
+  // 4. Nettoyer les espaces résiduels, apostrophes, virgules ou tirets
   str = str
+    .replace(/['’]/g, ' ')
     .replace(/\s+/g, ' ')
     .replace(/^[,.\s-]+/, '')
     .replace(/[,.\s-]+$/, '')

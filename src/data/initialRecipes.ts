@@ -3,6 +3,7 @@ import { Recipe } from '../types/recipe';
 /**
  * Les 100 meilleures recettes cultes de Marmiton,
  * pré-chargées par défaut dans Papilles avec photos haute résolution et catégorisation végétarienne.
+ * Ingrédients strictement normalisés selon le lexique canonique Papilles.
  */
 export const INITIAL_RECIPES: Recipe[] = [
   {
@@ -29,33 +30,33 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_001_2",
-        "name": "Bouillon de poule",
+        "name": "Bouillon de volaille",
         "quantity": "1",
         "unit": ""
       },
       {
         "id": "ing_rec_top100_001_3",
-        "name": "Carottes",
+        "name": "Carotte",
         "quantity": "2",
         "unit": ""
       },
       {
         "id": "ing_rec_top100_001_4",
-        "name": "Oignon jaune",
+        "name": "Oignon",
         "quantity": "1",
         "unit": ""
       },
       {
         "id": "ing_rec_top100_001_5",
-        "name": "Petite boîte de champignon (coupés)",
+        "name": "Champignon de Paris",
         "quantity": "1",
-        "unit": ""
+        "unit": "boîte"
       },
       {
         "id": "ing_rec_top100_001_6",
-        "name": "Petit pot de crème fraîche",
+        "name": "Crème fraîche",
         "quantity": "1",
-        "unit": ""
+        "unit": "pot"
       },
       {
         "id": "ing_rec_top100_001_7",
@@ -65,7 +66,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_001_8",
-        "name": "Jaune d'oeuf",
+        "name": "Œufs",
         "quantity": "1",
         "unit": ""
       },
@@ -162,13 +163,13 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_002_1",
-        "name": "Aubergines",
+        "name": "Aubergine",
         "quantity": "2",
         "unit": ""
       },
       {
         "id": "ing_rec_top100_002_2",
-        "name": "Pommes de terre",
+        "name": "Pomme de terre",
         "quantity": "6",
         "unit": ""
       },
@@ -180,7 +181,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_002_4",
-        "name": "Tomates (+/- une demie brique de coulis de tomate)",
+        "name": "Tomate",
         "quantity": "5",
         "unit": ""
       },
@@ -192,7 +193,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_002_6",
-        "name": "Huile d'olive (je la prends au basilic)",
+        "name": "Huile d'olive",
         "quantity": "",
         "unit": ""
       },
@@ -353,7 +354,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_003_1",
-        "name": "Oeufs",
+        "name": "Œufs",
         "quantity": "4",
         "unit": ""
       },
@@ -454,7 +455,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_004_2",
-        "name": "Crème liquide",
+        "name": "Crème fraîche",
         "quantity": "1",
         "unit": "l"
       },
@@ -544,25 +545,25 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_005_1",
-        "name": "Chocolat noir + 8 carrés (5 g)",
+        "name": "Chocolat noir + 8 carrés",
         "quantity": "120",
         "unit": "g"
       },
       {
         "id": "ing_rec_top100_005_2",
-        "name": "Oeufs",
+        "name": "Œufs",
         "quantity": "3",
         "unit": ""
       },
       {
         "id": "ing_rec_top100_005_3",
-        "name": "Sucre semoule",
+        "name": "Sucre",
         "quantity": "80",
         "unit": "g"
       },
       {
         "id": "ing_rec_top100_005_4",
-        "name": "Beurre doux",
+        "name": "Beurre",
         "quantity": "35",
         "unit": "g"
       },
@@ -645,25 +646,25 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_006_1",
-        "name": "Courgettes",
+        "name": "Courgette",
         "quantity": "4",
         "unit": ""
       },
       {
         "id": "ing_rec_top100_006_2",
-        "name": "Oignons",
+        "name": "Oignon",
         "quantity": "3",
         "unit": ""
       },
       {
         "id": "ing_rec_top100_006_3",
-        "name": "Gruyère râpé",
+        "name": "Fromage râpé",
         "quantity": "100",
         "unit": "g"
       },
       {
         "id": "ing_rec_top100_006_4",
-        "name": "Oeufs",
+        "name": "Œufs",
         "quantity": "2",
         "unit": ""
       },
@@ -675,7 +676,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_006_6",
-        "name": "Noix de beurre",
+        "name": "Beurre",
         "quantity": "1",
         "unit": ""
       },
@@ -754,19 +755,19 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_007_1",
-        "name": "Oeufs",
+        "name": "Œufs",
         "quantity": "3",
         "unit": ""
       },
       {
         "id": "ing_rec_top100_007_2",
-        "name": "Sucre roux",
+        "name": "Sucre",
         "quantity": "100",
         "unit": "g"
       },
       {
         "id": "ing_rec_top100_007_3",
-        "name": "Sucre vanillé",
+        "name": "Vanille",
         "quantity": "1",
         "unit": "sachet"
       },
@@ -862,37 +863,37 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_008_1",
-        "name": "Pommes (des Canada par exemple)",
+        "name": "Pomme",
         "quantity": "6",
         "unit": ""
       },
       {
         "id": "ing_rec_top100_008_2",
-        "name": "Cassonade",
+        "name": "Sucre",
         "quantity": "150",
         "unit": "g"
       },
       {
         "id": "ing_rec_top100_008_3",
-        "name": "Farine de blé",
+        "name": "Farine",
         "quantity": "150",
         "unit": "g"
       },
       {
         "id": "ing_rec_top100_008_4",
-        "name": "Beurre doux (le sortir 1/2 heure avant de commencer la recette)",
+        "name": "Beurre",
         "quantity": "125",
         "unit": "g"
       },
       {
         "id": "ing_rec_top100_008_5",
-        "name": "Petite cuillère de cannelle en poudre",
+        "name": "Petite cuillère de cannelle",
         "quantity": "1",
         "unit": ""
       },
       {
         "id": "ing_rec_top100_008_6",
-        "name": "Sucre vanillé",
+        "name": "Vanille",
         "quantity": "1",
         "unit": "sachet"
       },
@@ -965,7 +966,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_009_1",
-        "name": "Oeufs",
+        "name": "Œufs",
         "quantity": "3",
         "unit": ""
       },
@@ -989,7 +990,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_009_5",
-        "name": "Gruyère râpé",
+        "name": "Fromage râpé",
         "quantity": "100",
         "unit": "g"
       },
@@ -1055,19 +1056,19 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_010_2",
-        "name": "Oignons",
+        "name": "Oignon",
         "quantity": "2",
         "unit": ""
       },
       {
         "id": "ing_rec_top100_010_3",
-        "name": "Échalotes",
+        "name": "Échalote",
         "quantity": "2",
         "unit": ""
       },
       {
         "id": "ing_rec_top100_010_4",
-        "name": "Pommes de terre (bintje)",
+        "name": "Pomme de terre",
         "quantity": "10",
         "unit": ""
       },
@@ -1085,7 +1086,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_010_7",
-        "name": "Eau",
+        "name": "Veau",
         "quantity": "",
         "unit": ""
       },
@@ -1228,7 +1229,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_011_4",
-        "name": "Jaunes d'oeuf",
+        "name": "Œufs",
         "quantity": "4",
         "unit": ""
       },
@@ -1291,13 +1292,13 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_012_1",
-        "name": "Blancs d'oeuf",
+        "name": "Œufs",
         "quantity": "4",
         "unit": ""
       },
       {
         "id": "ing_rec_top100_012_2",
-        "name": "Sucre semoule",
+        "name": "Sucre",
         "quantity": "250",
         "unit": "g"
       }
@@ -1395,25 +1396,25 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_013_2",
-        "name": "Courgettes",
+        "name": "Courgette",
         "quantity": "2",
         "unit": ""
       },
       {
         "id": "ing_rec_top100_013_3",
-        "name": "Oeufs",
+        "name": "Œufs",
         "quantity": "3",
         "unit": ""
       },
       {
         "id": "ing_rec_top100_013_4",
-        "name": "Crème fraîche épaisse",
+        "name": "Crème fraîche",
         "quantity": "10",
         "unit": "cl"
       },
       {
         "id": "ing_rec_top100_013_5",
-        "name": "Petite gousse d'ail",
+        "name": "Petite gousse d ail",
         "quantity": "1",
         "unit": ""
       },
@@ -1531,13 +1532,13 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_014_2",
-        "name": "Sucre semoule",
+        "name": "Sucre",
         "quantity": "30",
         "unit": "g"
       },
       {
         "id": "ing_rec_top100_014_3",
-        "name": "Oeufs",
+        "name": "Œufs",
         "quantity": "2",
         "unit": ""
       },
@@ -1549,7 +1550,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_014_5",
-        "name": "Beurre doux",
+        "name": "Beurre",
         "quantity": "65",
         "unit": "g"
       },
@@ -1629,31 +1630,31 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_015_2",
-        "name": "Pâtes feuilletées",
+        "name": "Pâte feuilletée",
         "quantity": "2",
         "unit": ""
       },
       {
         "id": "ing_rec_top100_015_3",
-        "name": "Jambon blanc",
+        "name": "Jambon",
         "quantity": "4",
         "unit": "tranches"
       },
       {
         "id": "ing_rec_top100_015_4",
-        "name": "Gruyère râpé",
+        "name": "Fromage râpé",
         "quantity": "200",
         "unit": "g"
       },
       {
         "id": "ing_rec_top100_015_5",
-        "name": "Oignons jaunes",
+        "name": "Oignon",
         "quantity": "2",
         "unit": ""
       },
       {
         "id": "ing_rec_top100_015_6",
-        "name": "Jaunes d'oeuf",
+        "name": "Œufs",
         "quantity": "2",
         "unit": ""
       }
@@ -1735,19 +1736,19 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_016_1",
-        "name": "Bourguignon",
+        "name": "Bœuf",
         "quantity": "600",
         "unit": "g"
       },
       {
         "id": "ing_rec_top100_016_2",
-        "name": "Oignons",
+        "name": "Oignon",
         "quantity": "4",
         "unit": ""
       },
       {
         "id": "ing_rec_top100_016_3",
-        "name": "Carottes",
+        "name": "Carotte",
         "quantity": "4",
         "unit": ""
       },
@@ -1759,9 +1760,9 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_016_5",
-        "name": "Bouteille de vin rouge assez bon",
+        "name": "Vin rouge assez bon",
         "quantity": "1",
-        "unit": ""
+        "unit": "bouteille"
       },
       {
         "id": "ing_rec_top100_016_6",
@@ -1845,7 +1846,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_017_2",
-        "name": "Viande hachée",
+        "name": "Viande",
         "quantity": "",
         "unit": ""
       },
@@ -1857,7 +1858,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_017_4",
-        "name": "Cheddar (achat sous vide en grande surface)",
+        "name": "Cheddar",
         "quantity": "",
         "unit": ""
       },
@@ -1943,7 +1944,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_018_1",
-        "name": "Oeuf par personne (ou + si vous êtes gourmand ou pour en faire un plat)",
+        "name": "Oeuf par personne",
         "quantity": "1",
         "unit": ""
       },
@@ -2032,25 +2033,25 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_019_1",
-        "name": "Farine avec levure incorporée (ou ajoutez 1/2 sachet de levure chimique)",
+        "name": "Farine avec levure incorporée",
         "quantity": "120",
         "unit": "g"
       },
       {
         "id": "ing_rec_top100_019_2",
-        "name": "Sucre en poudre",
+        "name": "Sucre",
         "quantity": "60",
         "unit": "g"
       },
       {
         "id": "ing_rec_top100_019_3",
-        "name": "Lait écrémé",
+        "name": "Lait",
         "quantity": "4",
         "unit": "c. à soupe"
       },
       {
         "id": "ing_rec_top100_019_4",
-        "name": "Oeuf entier + un blanc d'oeuf",
+        "name": "Oeuf entier + un blanc d oeuf",
         "quantity": "1",
         "unit": ""
       },
@@ -2150,7 +2151,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_020_1",
-        "name": "Oeufs",
+        "name": "Œufs",
         "quantity": "4",
         "unit": ""
       },
@@ -2174,13 +2175,13 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_020_5",
-        "name": "Beurre fondu",
+        "name": "Beurre",
         "quantity": "160",
         "unit": "g"
       },
       {
         "id": "ing_rec_top100_020_6",
-        "name": "Chocolat",
+        "name": "Chocolat noir",
         "quantity": "100",
         "unit": "g"
       },
@@ -2192,13 +2193,13 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_020_8",
-        "name": "Crème fraîche entière",
+        "name": "Crème fraîche",
         "quantity": "40",
         "unit": "cl"
       },
       {
         "id": "ing_rec_top100_020_9",
-        "name": "Cerises confites maisons ou cerises à l’eau de vie",
+        "name": "Cerises confites maisons ou cerises à l eau de vie",
         "quantity": "",
         "unit": ""
       }
@@ -2280,13 +2281,13 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_021_1",
-        "name": "Poissons (espadon, cabillaud, loup...)",
+        "name": "Poissons",
         "quantity": "500",
         "unit": "g"
       },
       {
         "id": "ing_rec_top100_021_2",
-        "name": "Tomates",
+        "name": "Tomate",
         "quantity": "5",
         "unit": ""
       },
@@ -2304,9 +2305,9 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_021_5",
-        "name": "Tasse de coriandre ciselée (12 g environ))",
+        "name": "Coriandre",
         "quantity": "0.25",
-        "unit": ""
+        "unit": "verre"
       },
       {
         "id": "ing_rec_top100_021_6",
@@ -2316,7 +2317,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_021_7",
-        "name": "Olives coupées en petits morceaux",
+        "name": "Olives en petits morceaux",
         "quantity": "",
         "unit": ""
       },
@@ -2412,7 +2413,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_022_2",
-        "name": "Oignons jaunes",
+        "name": "Oignon",
         "quantity": "3",
         "unit": ""
       },
@@ -2424,7 +2425,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_022_4",
-        "name": "Branche de céleri",
+        "name": "Céleri",
         "quantity": "1",
         "unit": ""
       },
@@ -2442,13 +2443,13 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_022_7",
-        "name": "Purée de tomate",
+        "name": "Coulis de tomate",
         "quantity": "800",
         "unit": "g"
       },
       {
         "id": "ing_rec_top100_022_8",
-        "name": "Eau",
+        "name": "Veau",
         "quantity": "15",
         "unit": "cl"
       },
@@ -2478,7 +2479,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_022_13",
-        "name": "Muscade râpée",
+        "name": "Muscade",
         "quantity": "3",
         "unit": "pincée"
       },
@@ -2703,7 +2704,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_024_1",
-        "name": "Pommes (ou 3 poires)",
+        "name": "Pomme",
         "quantity": "3",
         "unit": ""
       },
@@ -2788,19 +2789,19 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_025_1",
-        "name": "Oeuf",
+        "name": "Œufs",
         "quantity": "1",
         "unit": ""
       },
       {
         "id": "ing_rec_top100_025_2",
-        "name": "Sucre blanc",
+        "name": "Sucre",
         "quantity": "1",
         "unit": "c. à soupe"
       },
       {
         "id": "ing_rec_top100_025_3",
-        "name": "Huile ou de beurre fondu",
+        "name": "Huile ou de beurre",
         "quantity": "1",
         "unit": "c. à soupe"
       },
@@ -2897,7 +2898,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_026_3",
-        "name": "Sucre en poudre",
+        "name": "Sucre",
         "quantity": "100",
         "unit": "g"
       },
@@ -2909,7 +2910,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_026_5",
-        "name": "Sucre vanillé",
+        "name": "Vanille",
         "quantity": "1",
         "unit": "sachet"
       },
@@ -2921,19 +2922,19 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_026_7",
-        "name": "Muscade râpée",
+        "name": "Muscade",
         "quantity": "1",
         "unit": "c. à café"
       },
       {
         "id": "ing_rec_top100_026_8",
-        "name": "Cannelle en poudre",
+        "name": "Cannelle",
         "quantity": "1",
         "unit": "c. à café"
       },
       {
         "id": "ing_rec_top100_026_9",
-        "name": "Gingembre en poudre",
+        "name": "Gingembre",
         "quantity": "1",
         "unit": "c. à café"
       },
@@ -2945,7 +2946,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_026_11",
-        "name": "Oeufs",
+        "name": "Œufs",
         "quantity": "2",
         "unit": ""
       },
@@ -3028,7 +3029,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_027_1",
-        "name": "Pommes (selon la grosseur)",
+        "name": "Pomme",
         "quantity": "3",
         "unit": ""
       },
@@ -3040,7 +3041,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_027_3",
-        "name": "Oeufs",
+        "name": "Œufs",
         "quantity": "2",
         "unit": ""
       },
@@ -3052,13 +3053,13 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_027_5",
-        "name": "Sucre en poudre",
+        "name": "Sucre",
         "quantity": "100",
         "unit": "g"
       },
       {
         "id": "ing_rec_top100_027_6",
-        "name": "Sucre vanillé",
+        "name": "Vanille",
         "quantity": "1",
         "unit": "sachet"
       }
@@ -3137,19 +3138,19 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_028_3",
-        "name": "Chorizo (doux ou extra fort selon votre goût)",
+        "name": "Saucisse",
         "quantity": "1",
         "unit": ""
       },
       {
         "id": "ing_rec_top100_028_4",
-        "name": "Olives vertes dénoyautées",
+        "name": "Olives vertes",
         "quantity": "1",
         "unit": "pot"
       },
       {
         "id": "ing_rec_top100_028_5",
-        "name": "Oignons",
+        "name": "Oignon",
         "quantity": "4",
         "unit": ""
       },
@@ -3241,25 +3242,25 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_029_2",
-        "name": "Dés de jambon",
+        "name": "Jambon",
         "quantity": "100",
         "unit": "g"
       },
       {
         "id": "ing_rec_top100_029_3",
-        "name": "Olives vertes dénoyautées",
+        "name": "Olives vertes",
         "quantity": "150",
         "unit": "g"
       },
       {
         "id": "ing_rec_top100_029_4",
-        "name": "Gruyère râpé",
+        "name": "Fromage râpé",
         "quantity": "75",
         "unit": "g"
       },
       {
         "id": "ing_rec_top100_029_5",
-        "name": "Oeufs",
+        "name": "Œufs",
         "quantity": "4",
         "unit": ""
       },
@@ -3356,7 +3357,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_030_3",
-        "name": "Beurre ou 3 cuillères à soupe d'huile",
+        "name": "Beurre ou 3 cuillères à soupe d huile",
         "quantity": "50",
         "unit": "g"
       },
@@ -3368,7 +3369,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_030_5",
-        "name": "Oignons",
+        "name": "Oignon",
         "quantity": "2",
         "unit": ""
       },
@@ -3392,7 +3393,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_030_9",
-        "name": "Champignons de Paris (en boîte)",
+        "name": "Champignon de Paris",
         "quantity": "250",
         "unit": "g"
       },
@@ -3540,19 +3541,19 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_032_1",
-        "name": "Chocolat pâtissier",
+        "name": "Chocolat noir",
         "quantity": "150",
         "unit": "g"
       },
       {
         "id": "ing_rec_top100_032_2",
-        "name": "Oeufs",
+        "name": "Œufs",
         "quantity": "3",
         "unit": ""
       },
       {
         "id": "ing_rec_top100_032_3",
-        "name": "Sucre en poudre",
+        "name": "Sucre",
         "quantity": "100",
         "unit": "g"
       },
@@ -3576,7 +3577,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_032_7",
-        "name": "Amandes en poudre",
+        "name": "Amandes",
         "quantity": "50",
         "unit": "g"
       }
@@ -3639,7 +3640,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_033_2",
-        "name": "Oeuf",
+        "name": "Œufs",
         "quantity": "1",
         "unit": ""
       },
@@ -3714,7 +3715,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_034_1",
-        "name": "Crème fraîche liquide",
+        "name": "Crème fraîche",
         "quantity": "50",
         "unit": "cl"
       },
@@ -3910,13 +3911,13 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_036_4",
-        "name": "Sucre vanillé",
+        "name": "Vanille",
         "quantity": "1",
         "unit": "sachet"
       },
       {
         "id": "ing_rec_top100_036_5",
-        "name": "Zeste de citron",
+        "name": "Citron",
         "quantity": "1",
         "unit": ""
       },
@@ -4065,19 +4066,19 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_038_1",
-        "name": "Oeufs",
+        "name": "Œufs",
         "quantity": "2",
         "unit": ""
       },
       {
         "id": "ing_rec_top100_038_2",
-        "name": "Sucre en poudre",
+        "name": "Sucre",
         "quantity": "60",
         "unit": "g"
       },
       {
         "id": "ing_rec_top100_038_3",
-        "name": "Poudre de noisette (ou, à la limite, de la poudre d'amandes)",
+        "name": "Poudre de noisette",
         "quantity": "40",
         "unit": "g"
       },
@@ -4089,7 +4090,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_038_5",
-        "name": "Beurre fondu",
+        "name": "Beurre",
         "quantity": "30",
         "unit": "g"
       },
@@ -4101,37 +4102,37 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_038_7",
-        "name": "Pralinoise (voir la photo...Poulain 1848)",
+        "name": "Pralinoise",
         "quantity": "200",
         "unit": "g"
       },
       {
         "id": "ing_rec_top100_038_8",
-        "name": "Crêpe dentelle (\" gavottes \", voir photo) soit 9 petits papiers dorés (il y en a 12 au total et le paquet complet fait 125 g)",
+        "name": "Crêpe dentelle soit 9 petits papiers dorés",
         "quantity": "",
         "unit": ""
       },
       {
         "id": "ing_rec_top100_038_9",
-        "name": "Pralin (marque Vahiné, c'est de la nougatine concassée finement, ce produit n'est pas indispensable)",
+        "name": "Pain",
         "quantity": "40",
         "unit": "g"
       },
       {
         "id": "ing_rec_top100_038_10",
-        "name": "Crème entière (liquide ou pas, celle que vous savez monter en chantilly)",
+        "name": "Crème fraîche",
         "quantity": "500",
         "unit": "g"
       },
       {
         "id": "ing_rec_top100_038_11",
-        "name": "Chocolat noir (52% cacao)",
+        "name": "Chocolat noir",
         "quantity": "300",
         "unit": "g"
       },
       {
         "id": "ing_rec_top100_038_12",
-        "name": "Liqueur de menthe (Ricqlès, ou à défaut Get 27 voire sirop de menthe, 1 cuillère à soupe)",
+        "name": "Liqueur de menthe",
         "quantity": "3",
         "unit": "cl"
       }
@@ -4285,13 +4286,13 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_039_3",
-        "name": "Moutarde de Dijon forte (quantité selon votre goût)",
+        "name": "Moutarde",
         "quantity": "",
         "unit": ""
       },
       {
         "id": "ing_rec_top100_039_4",
-        "name": "Échalotes",
+        "name": "Échalote",
         "quantity": "10",
         "unit": ""
       },
@@ -4309,7 +4310,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_039_7",
-        "name": "Crème fraîche allégée",
+        "name": "Crème allégée",
         "quantity": "",
         "unit": ""
       }
@@ -4378,7 +4379,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_040_2",
-        "name": "Vin blanc sec",
+        "name": "Vin blanc",
         "quantity": "25",
         "unit": "cl"
       },
@@ -4396,7 +4397,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_040_5",
-        "name": "Champignons en boîte",
+        "name": "Champignon de Paris",
         "quantity": "500",
         "unit": "g"
       },
@@ -4492,19 +4493,19 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_041_2",
-        "name": "Sucre roux",
+        "name": "Sucre",
         "quantity": "80",
         "unit": "g"
       },
       {
         "id": "ing_rec_top100_041_3",
-        "name": "Sucre vanillé",
+        "name": "Vanille",
         "quantity": "1",
         "unit": "sachet"
       },
       {
         "id": "ing_rec_top100_041_4",
-        "name": "Oeufs",
+        "name": "Œufs",
         "quantity": "3",
         "unit": ""
       },
@@ -4516,9 +4517,9 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_041_6",
-        "name": "Tasses de café noir assez fort",
+        "name": "Café noir assez fort",
         "quantity": "2",
-        "unit": ""
+        "unit": "verre"
       },
       {
         "id": "ing_rec_top100_041_7",
@@ -4528,7 +4529,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_041_8",
-        "name": "Cacao en poudre non sucré",
+        "name": "Cacao non sucré",
         "quantity": "30",
         "unit": "g"
       }
@@ -4601,7 +4602,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_042_2",
-        "name": "Oignons",
+        "name": "Oignon",
         "quantity": "2",
         "unit": ""
       },
@@ -4619,27 +4620,27 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_042_5",
-        "name": "Chili en poudre",
+        "name": "Chili",
         "quantity": "1",
         "unit": "c. à café"
       },
       {
         "id": "ing_rec_top100_042_6",
-        "name": "Cumin en poudre",
+        "name": "Cumin",
         "quantity": "2",
         "unit": "c. à café"
       },
       {
         "id": "ing_rec_top100_042_7",
-        "name": "Concentré de tomates",
+        "name": "Concentré de tomate",
         "quantity": "65",
         "unit": "g"
       },
       {
         "id": "ing_rec_top100_042_8",
-        "name": "Grosse boîte de haricots rouges égouttés",
+        "name": "Haricots rouges égouttés",
         "quantity": "1",
-        "unit": ""
+        "unit": "boîte"
       },
       {
         "id": "ing_rec_top100_042_9",
@@ -4729,7 +4730,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_043_2",
-        "name": "Thon (moyennes)",
+        "name": "Thon",
         "quantity": "2",
         "unit": "boîtes"
       },
@@ -4741,7 +4742,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_043_4",
-        "name": "Moutarde (fine et forte !)",
+        "name": "Moutarde",
         "quantity": "3",
         "unit": "c. à soupe"
       },
@@ -4753,7 +4754,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_043_6",
-        "name": "Crème fraîche semi-liquide ou épaisse",
+        "name": "Crème semi-liquide ou épaisse",
         "quantity": "20",
         "unit": "cl"
       },
@@ -4838,13 +4839,13 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_044_1",
-        "name": "Pilons de poulet (fermier de préférence)",
+        "name": "Pilons de poulet",
         "quantity": "8",
         "unit": ""
       },
       {
         "id": "ing_rec_top100_044_2",
-        "name": "Merguez",
+        "name": "Saucisse",
         "quantity": "12",
         "unit": ""
       },
@@ -4856,7 +4857,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_044_4",
-        "name": "Concentré de tomates",
+        "name": "Concentré de tomate",
         "quantity": "2",
         "unit": "boîtes"
       },
@@ -4874,31 +4875,31 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_044_7",
-        "name": "Cubes de bouillon de boeuf",
+        "name": "Bouillon de boeuf",
         "quantity": "2",
-        "unit": ""
+        "unit": "cube"
       },
       {
         "id": "ing_rec_top100_044_8",
-        "name": "Tomates",
+        "name": "Tomate",
         "quantity": "3",
         "unit": ""
       },
       {
         "id": "ing_rec_top100_044_9",
-        "name": "Navets",
+        "name": "Navet",
         "quantity": "10",
         "unit": ""
       },
       {
         "id": "ing_rec_top100_044_10",
-        "name": "Carottes",
+        "name": "Carotte",
         "quantity": "5",
         "unit": ""
       },
       {
         "id": "ing_rec_top100_044_11",
-        "name": "Courgettes",
+        "name": "Courgette",
         "quantity": "2",
         "unit": ""
       },
@@ -4988,13 +4989,13 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_045_3",
-        "name": "Jaunes d'oeuf",
+        "name": "Œufs",
         "quantity": "2",
         "unit": ""
       },
       {
         "id": "ing_rec_top100_045_4",
-        "name": "Vanille (ou ½ cuillère à café d’extrait de vanille liquide)",
+        "name": "Vanille",
         "quantity": "0.5",
         "unit": "gousses"
       },
@@ -5012,7 +5013,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_045_7",
-        "name": "Sucre en poudre",
+        "name": "Sucre",
         "quantity": "200",
         "unit": "g"
       },
@@ -5102,7 +5103,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_046_3",
-        "name": "Champignons de Paris surgelés",
+        "name": "Champignon de Paris",
         "quantity": "250",
         "unit": "g"
       },
@@ -5138,7 +5139,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_046_9",
-        "name": "Persil haché",
+        "name": "Persil",
         "quantity": "1",
         "unit": "c. à soupe"
       },
@@ -5228,13 +5229,13 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_047_2",
-        "name": "Sucre de canne roux (ou cassonade)",
+        "name": "Sucre de canne roux",
         "quantity": "90",
         "unit": "g"
       },
       {
         "id": "ing_rec_top100_047_3",
-        "name": "Sucre vanillé",
+        "name": "Vanille",
         "quantity": "1",
         "unit": "sachet"
       },
@@ -5252,13 +5253,13 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_047_6",
-        "name": "Oeuf",
+        "name": "Œufs",
         "quantity": "1",
         "unit": ""
       },
       {
         "id": "ing_rec_top100_047_7",
-        "name": "Beurre doux",
+        "name": "Beurre",
         "quantity": "125",
         "unit": "g"
       },
@@ -5270,7 +5271,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_047_9",
-        "name": "Chocolat",
+        "name": "Chocolat noir",
         "quantity": "",
         "unit": ""
       }
@@ -5377,19 +5378,19 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_048_6",
-        "name": "Eau",
+        "name": "Veau",
         "quantity": "12.5",
         "unit": "cl"
       },
       {
         "id": "ing_rec_top100_048_7",
-        "name": "Moutarde de Dijon",
+        "name": "Moutarde",
         "quantity": "1",
         "unit": "c. à soupe"
       },
       {
         "id": "ing_rec_top100_048_8",
-        "name": "Vinaigre balsamique",
+        "name": "Vinaigre",
         "quantity": "1",
         "unit": "c. à soupe"
       }
@@ -5457,7 +5458,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_049_2",
-        "name": "Amandes en poudre",
+        "name": "Amandes",
         "quantity": "125",
         "unit": "g"
       },
@@ -5469,7 +5470,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_049_4",
-        "name": "Sucre en poudre",
+        "name": "Sucre",
         "quantity": "100",
         "unit": "g"
       },
@@ -5481,25 +5482,25 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_049_6",
-        "name": "Jaune d'oeuf pour dorer",
+        "name": "Jaune d oeuf pour dorer",
         "quantity": "1",
         "unit": ""
       },
       {
         "id": "ing_rec_top100_049_7",
-        "name": "Vanille en poudre",
+        "name": "Vanille",
         "quantity": "",
         "unit": ""
       },
       {
         "id": "ing_rec_top100_049_8",
-        "name": "Liqueur d'amande",
+        "name": "Liqueur d amande",
         "quantity": "",
         "unit": ""
       },
       {
         "id": "ing_rec_top100_049_9",
-        "name": "Maïzena (1 cuillère à soupe rase)",
+        "name": "Maïzena",
         "quantity": "10",
         "unit": "g"
       },
@@ -5511,7 +5512,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_049_11",
-        "name": "Cuillère de rhum (ou kirsch)",
+        "name": "Cuillère de rhum",
         "quantity": "1",
         "unit": ""
       }
@@ -5580,25 +5581,25 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_050_2",
-        "name": "Beurre doux",
+        "name": "Beurre",
         "quantity": "125",
         "unit": "g"
       },
       {
         "id": "ing_rec_top100_050_3",
-        "name": "Sucre semoule",
+        "name": "Sucre",
         "quantity": "70",
         "unit": "g"
       },
       {
         "id": "ing_rec_top100_050_4",
-        "name": "Jaunes d'oeuf",
+        "name": "Œufs",
         "quantity": "2",
         "unit": ""
       },
       {
         "id": "ing_rec_top100_050_5",
-        "name": "Eau",
+        "name": "Veau",
         "quantity": "5",
         "unit": "cl"
       },
@@ -5616,13 +5617,13 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_050_8",
-        "name": "Sucre semoule",
+        "name": "Sucre",
         "quantity": "150",
         "unit": "g"
       },
       {
         "id": "ing_rec_top100_050_9",
-        "name": "Oeufs",
+        "name": "Œufs",
         "quantity": "3",
         "unit": ""
       },
@@ -5634,13 +5635,13 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_050_11",
-        "name": "Blancs d'oeuf",
+        "name": "Œufs",
         "quantity": "2",
         "unit": ""
       },
       {
         "id": "ing_rec_top100_050_12",
-        "name": "Sucre glace",
+        "name": "Sucre",
         "quantity": "100",
         "unit": "g"
       },
@@ -5798,7 +5799,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_051_1",
-        "name": "Chocolat pâtissier",
+        "name": "Chocolat noir",
         "quantity": "200",
         "unit": "g"
       },
@@ -5810,7 +5811,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_051_3",
-        "name": "Oeufs",
+        "name": "Œufs",
         "quantity": "3",
         "unit": ""
       },
@@ -5822,7 +5823,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_051_5",
-        "name": "Sucre en poudre",
+        "name": "Sucre",
         "quantity": "100",
         "unit": "g"
       }
@@ -5884,19 +5885,19 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_052_1",
-        "name": "Sucre semoule",
+        "name": "Sucre",
         "quantity": "120",
         "unit": "g"
       },
       {
         "id": "ing_rec_top100_052_2",
-        "name": "Sucre vanillé",
+        "name": "Vanille",
         "quantity": "1",
         "unit": "paquet"
       },
       {
         "id": "ing_rec_top100_052_3",
-        "name": "Oeufs",
+        "name": "Œufs",
         "quantity": "3",
         "unit": ""
       },
@@ -5914,13 +5915,13 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_052_6",
-        "name": "Huile de colza",
+        "name": "Huile de tournesol",
         "quantity": "0.5",
         "unit": "verre"
       },
       {
         "id": "ing_rec_top100_052_7",
-        "name": "Pommes",
+        "name": "Pomme",
         "quantity": "3",
         "unit": ""
       }
@@ -5995,7 +5996,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_053_4",
-        "name": "Oeufs",
+        "name": "Œufs",
         "quantity": "2",
         "unit": ""
       },
@@ -6007,13 +6008,13 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_053_6",
-        "name": "Amandes en poudre",
+        "name": "Amandes",
         "quantity": "100",
         "unit": "g"
       },
       {
         "id": "ing_rec_top100_053_7",
-        "name": "Sucre en poudre",
+        "name": "Sucre",
         "quantity": "125",
         "unit": "g"
       }
@@ -6070,7 +6071,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_054_1",
-        "name": "Miel (d'un goût assez fort, bruyère par exemple)",
+        "name": "Miel",
         "quantity": "250",
         "unit": "g"
       },
@@ -6082,7 +6083,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_054_3",
-        "name": "Beurre fondu",
+        "name": "Beurre",
         "quantity": "100",
         "unit": "g"
       },
@@ -6100,13 +6101,13 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_054_6",
-        "name": "Cassonade",
+        "name": "Sucre",
         "quantity": "50",
         "unit": "g"
       },
       {
         "id": "ing_rec_top100_054_7",
-        "name": "Oeuf",
+        "name": "Œufs",
         "quantity": "1",
         "unit": ""
       },
@@ -6136,7 +6137,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_054_12",
-        "name": "Muscade ",
+        "name": "Muscade",
         "quantity": "",
         "unit": ""
       },
@@ -6166,7 +6167,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_054_17",
-        "name": "Écorce d'orange",
+        "name": "Écorce d orange",
         "quantity": "",
         "unit": ""
       }
@@ -6238,7 +6239,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_055_1",
-        "name": "Rouleau de pâte feuilletée",
+        "name": "Pâte feuilletée",
         "quantity": "1",
         "unit": ""
       },
@@ -6368,13 +6369,13 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_056_1",
-        "name": "Oeufs + 1 jaune (pas obligé)",
+        "name": "Oeufs + 1 jaune",
         "quantity": "4",
         "unit": ""
       },
       {
         "id": "ing_rec_top100_056_2",
-        "name": "Gruyère râpé",
+        "name": "Fromage râpé",
         "quantity": "150",
         "unit": "g"
       },
@@ -6392,7 +6393,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_056_5",
-        "name": "Muscade râpée",
+        "name": "Muscade",
         "quantity": "1",
         "unit": "pincée"
       },
@@ -6492,19 +6493,19 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_057_2",
-        "name": "Pommes de terre",
+        "name": "Pomme de terre",
         "quantity": "2",
         "unit": ""
       },
       {
         "id": "ing_rec_top100_057_3",
-        "name": "Oignons hachés",
+        "name": "Oignon",
         "quantity": "2",
         "unit": ""
       },
       {
         "id": "ing_rec_top100_057_4",
-        "name": "Ail hachées",
+        "name": "Ail",
         "quantity": "3",
         "unit": "gousses"
       },
@@ -6528,9 +6529,9 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_057_8",
-        "name": "Cube de bouillon de poule",
+        "name": "Bouillon de volaille",
         "quantity": "1",
-        "unit": ""
+        "unit": "cube"
       },
       {
         "id": "ing_rec_top100_057_9",
@@ -6613,7 +6614,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_058_1",
-        "name": "Amandes en poudre",
+        "name": "Amandes",
         "quantity": "80",
         "unit": "g"
       },
@@ -6637,7 +6638,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_058_5",
-        "name": "Blancs d'oeuf",
+        "name": "Œufs",
         "quantity": "4",
         "unit": ""
       }
@@ -6696,13 +6697,13 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_059_3",
-        "name": "Eau",
+        "name": "Veau",
         "quantity": "2",
         "unit": "c. à soupe"
       },
       {
         "id": "ing_rec_top100_059_4",
-        "name": "Poireaux",
+        "name": "Poireau",
         "quantity": "3",
         "unit": ""
       },
@@ -6714,7 +6715,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_059_6",
-        "name": "Oeufs",
+        "name": "Œufs",
         "quantity": "3",
         "unit": ""
       },
@@ -6833,7 +6834,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_060_4",
-        "name": "Tomates",
+        "name": "Tomate",
         "quantity": "2",
         "unit": ""
       },
@@ -6863,7 +6864,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_060_9",
-        "name": "Herbes de Provence (facultatif)",
+        "name": "Herbes de Provence",
         "quantity": "",
         "unit": ""
       },
@@ -6938,31 +6939,31 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_061_2",
-        "name": "Chorizo (15 cm environ) coupé en fines rondelles",
+        "name": "Chorizo coupé en fines rondelles",
         "quantity": "1",
         "unit": "morceau"
       },
       {
         "id": "ing_rec_top100_061_3",
-        "name": "Pommes de terre coupées en gros morceaux",
+        "name": "Pommes de terre en gros morceaux",
         "quantity": "3",
         "unit": ""
       },
       {
         "id": "ing_rec_top100_061_4",
-        "name": "Petite poignée d'olives noires",
+        "name": "Petite poignée d olives noires",
         "quantity": "1",
         "unit": ""
       },
       {
         "id": "ing_rec_top100_061_5",
-        "name": "Petite boîte de concentré de tomates",
+        "name": "Concentré de tomate",
         "quantity": "1",
-        "unit": ""
+        "unit": "boîte"
       },
       {
         "id": "ing_rec_top100_061_6",
-        "name": "Porto + 1 verre d'eau",
+        "name": "Porto + 1 verre d eau",
         "quantity": "1",
         "unit": "verre"
       },
@@ -7070,13 +7071,13 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_062_1",
-        "name": "Boeuf maigre à braiser (paleron, gîte, hampe, etc ...)",
+        "name": "Boeuf maigre à braiser",
         "quantity": "1",
         "unit": "kg"
       },
       {
         "id": "ing_rec_top100_062_2",
-        "name": "Cassonade",
+        "name": "Sucre",
         "quantity": "1",
         "unit": "c. à soupe"
       },
@@ -7088,25 +7089,25 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_062_4",
-        "name": "Bière brune (Pelforth brune pour un goût délicat, ou Leffe Brune pour un goût plus sucré)",
+        "name": "Bière brune",
         "quantity": "1",
         "unit": "l"
       },
       {
         "id": "ing_rec_top100_062_5",
-        "name": "Oignons",
+        "name": "Oignon",
         "quantity": "400",
         "unit": "g"
       },
       {
         "id": "ing_rec_top100_062_6",
-        "name": "Lard fumé entier (pas des lardons sous vide)",
+        "name": "Lard fumé entier",
         "quantity": "250",
         "unit": "g"
       },
       {
         "id": "ing_rec_top100_062_7",
-        "name": "Pains d'épices (si possible maison)",
+        "name": "Pains d épices",
         "quantity": "5",
         "unit": "tranches"
       },
@@ -7218,7 +7219,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_063_3",
-        "name": "Sucre vanillé",
+        "name": "Vanille",
         "quantity": "1",
         "unit": "sachet"
       },
@@ -7302,25 +7303,25 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_064_2",
-        "name": "Bouteille de vin blanc sec",
+        "name": "Vin blanc",
         "quantity": "1",
-        "unit": ""
+        "unit": "bouteille"
       },
       {
         "id": "ing_rec_top100_064_3",
-        "name": "Moutarde de Dijon",
+        "name": "Moutarde",
         "quantity": "1",
         "unit": ""
       },
       {
         "id": "ing_rec_top100_064_4",
-        "name": "Petit pot de crème fraîche",
+        "name": "Crème fraîche",
         "quantity": "1",
-        "unit": ""
+        "unit": "pot"
       },
       {
         "id": "ing_rec_top100_064_5",
-        "name": "Huile d'olive (ou beurre)",
+        "name": "Huile d'olive",
         "quantity": "",
         "unit": ""
       },
@@ -7332,7 +7333,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_064_7",
-        "name": "Échalotes (ou à défaut, oignons)",
+        "name": "Échalote",
         "quantity": "5",
         "unit": ""
       },
@@ -7368,13 +7369,13 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_064_13",
-        "name": "Sucre (facultatif)",
+        "name": "Sucre",
         "quantity": "1",
         "unit": "morceau"
       },
       {
         "id": "ing_rec_top100_064_14",
-        "name": "Carotte (facultatif mais... le lapin aime bien la carotte!)",
+        "name": "Carotte",
         "quantity": "1",
         "unit": ""
       }
@@ -7448,13 +7449,13 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_065_3",
-        "name": "Oeufs (blancs en neige)",
+        "name": "Œufs",
         "quantity": "4",
         "unit": ""
       },
       {
         "id": "ing_rec_top100_065_4",
-        "name": "Sucre vanillé",
+        "name": "Vanille",
         "quantity": "1",
         "unit": "paquet"
       },
@@ -7539,13 +7540,13 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_066_1",
-        "name": "Crevettes roses",
+        "name": "Crevettes",
         "quantity": "300",
         "unit": "g"
       },
       {
         "id": "ing_rec_top100_066_2",
-        "name": "Crème",
+        "name": "Crème fraîche",
         "quantity": "2",
         "unit": "c. à soupe"
       },
@@ -7604,7 +7605,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_067_1",
-        "name": "Oeufs",
+        "name": "Œufs",
         "quantity": "3",
         "unit": ""
       },
@@ -7720,7 +7721,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_068_3",
-        "name": "Oeufs",
+        "name": "Œufs",
         "quantity": "3",
         "unit": ""
       },
@@ -7830,19 +7831,19 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_069_3",
-        "name": "Crème fraîche liquide épaisse (1 pot)",
+        "name": "Crème liquide épaisse",
         "quantity": "",
         "unit": ""
       },
       {
         "id": "ing_rec_top100_069_4",
-        "name": "Ail 2 à 3 gousses (selon la grosseur)",
+        "name": "Ail 2 à 3 gousses",
         "quantity": "",
         "unit": ""
       },
       {
         "id": "ing_rec_top100_069_5",
-        "name": "Gruyère râpé (1 sachet)",
+        "name": "Fromage râpé",
         "quantity": "",
         "unit": ""
       },
@@ -7924,7 +7925,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_070_5",
-        "name": "Ciboulette",
+        "name": "Oignon",
         "quantity": "4",
         "unit": "brins"
       },
@@ -7942,7 +7943,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_070_8",
-        "name": "Crème fraîche épaisse ou liquide",
+        "name": "Crème épaisse ou liquide",
         "quantity": "10",
         "unit": "cl"
       },
@@ -8011,25 +8012,25 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_071_1",
-        "name": "Pâtes feuilletées",
+        "name": "Pâte feuilletée",
         "quantity": "2",
         "unit": ""
       },
       {
         "id": "ing_rec_top100_071_2",
-        "name": "Amandes en poudre",
+        "name": "Amandes",
         "quantity": "100",
         "unit": "g"
       },
       {
         "id": "ing_rec_top100_071_3",
-        "name": "Sucre semoule",
+        "name": "Sucre",
         "quantity": "75",
         "unit": "g"
       },
       {
         "id": "ing_rec_top100_071_4",
-        "name": "Oeuf",
+        "name": "Œufs",
         "quantity": "1",
         "unit": ""
       },
@@ -8041,13 +8042,13 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_071_6",
-        "name": "Extrait d'amande amère",
+        "name": "Extrait d amande amère",
         "quantity": "",
         "unit": ""
       },
       {
         "id": "ing_rec_top100_071_7",
-        "name": "Jaune d'oeuf pour dorer",
+        "name": "Jaune d oeuf pour dorer",
         "quantity": "1",
         "unit": ""
       }
@@ -8136,7 +8137,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_072_3",
-        "name": "Sucre en poudre",
+        "name": "Sucre",
         "quantity": "75",
         "unit": "g"
       },
@@ -8148,7 +8149,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_072_5",
-        "name": "Beurre fondu",
+        "name": "Beurre",
         "quantity": "90",
         "unit": "g"
       },
@@ -8223,19 +8224,19 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_073_2",
-        "name": "Oeufs",
+        "name": "Œufs",
         "quantity": "4",
         "unit": ""
       },
       {
         "id": "ing_rec_top100_073_3",
-        "name": "Beurre doux",
+        "name": "Beurre",
         "quantity": "125",
         "unit": "g"
       },
       {
         "id": "ing_rec_top100_073_4",
-        "name": "Sucre en poudre",
+        "name": "Sucre",
         "quantity": "200",
         "unit": "g"
       },
@@ -8314,7 +8315,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_074_1",
-        "name": "Pâtes brisées",
+        "name": "Pâte brisée",
         "quantity": "200",
         "unit": "g"
       },
@@ -8332,7 +8333,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_074_4",
-        "name": "Oeufs",
+        "name": "Œufs",
         "quantity": "3",
         "unit": ""
       },
@@ -8462,7 +8463,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_075_4",
-        "name": "Sucre vanillé",
+        "name": "Vanille",
         "quantity": "1",
         "unit": "sachet"
       },
@@ -8474,7 +8475,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_075_6",
-        "name": "Oeufs",
+        "name": "Œufs",
         "quantity": "2",
         "unit": ""
       },
@@ -8486,7 +8487,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_075_8",
-        "name": "Beurre fondu",
+        "name": "Beurre",
         "quantity": "50",
         "unit": "g"
       }
@@ -8646,7 +8647,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_077_3",
-        "name": "Sucre en poudre",
+        "name": "Sucre",
         "quantity": "150",
         "unit": "g"
       },
@@ -8664,13 +8665,13 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_077_6",
-        "name": "Oeufs",
+        "name": "Œufs",
         "quantity": "3",
         "unit": ""
       },
       {
         "id": "ing_rec_top100_077_7",
-        "name": "Eau",
+        "name": "Veau",
         "quantity": "0.25",
         "unit": "l"
       },
@@ -8787,7 +8788,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_078_4",
-        "name": "Foie gras (prêt à consommer)",
+        "name": "Foie gras",
         "quantity": "1",
         "unit": "tranche"
       },
@@ -8799,7 +8800,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_078_6",
-        "name": "Noix de beurre",
+        "name": "Beurre",
         "quantity": "1",
         "unit": ""
       }
@@ -8881,7 +8882,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_079_6",
-        "name": "Muscade râpée",
+        "name": "Muscade",
         "quantity": "",
         "unit": ""
       }
@@ -8933,13 +8934,13 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_080_1",
-        "name": "Aubergines",
+        "name": "Aubergine",
         "quantity": "350",
         "unit": "g"
       },
       {
         "id": "ing_rec_top100_080_2",
-        "name": "Courgettes",
+        "name": "Courgette",
         "quantity": "350",
         "unit": "g"
       },
@@ -8951,7 +8952,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_080_4",
-        "name": "Oignons",
+        "name": "Oignon",
         "quantity": "350",
         "unit": "g"
       },
@@ -9116,7 +9117,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_081_7",
-        "name": "Fromage râpé (facultatif)",
+        "name": "Fromage râpé",
         "quantity": "",
         "unit": ""
       }
@@ -9168,7 +9169,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_082_1",
-        "name": "Jarrets de veau d'environ 200 g chacune",
+        "name": "Jarrets de veau d environ 200 g chacune",
         "quantity": "4",
         "unit": "tranches"
       },
@@ -9186,25 +9187,25 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_082_4",
-        "name": "400 g de tomates concassées",
+        "name": "G de tomates",
         "quantity": "1",
         "unit": "boîte"
       },
       {
         "id": "ing_rec_top100_082_5",
-        "name": "Carottes",
+        "name": "Carotte",
         "quantity": "200",
         "unit": "g"
       },
       {
         "id": "ing_rec_top100_082_6",
-        "name": "Oignons (environ 2)",
+        "name": "Oignon",
         "quantity": "100",
         "unit": "g"
       },
       {
         "id": "ing_rec_top100_082_7",
-        "name": "Vin blanc sec",
+        "name": "Vin blanc",
         "quantity": "20",
         "unit": "cl"
       },
@@ -9293,7 +9294,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_083_4",
-        "name": "Jus de citron",
+        "name": "Citron",
         "quantity": "100",
         "unit": "g"
       }
@@ -9340,7 +9341,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_084_1",
-        "name": "Chocolat pâtissier",
+        "name": "Chocolat noir",
         "quantity": "100",
         "unit": "g"
       },
@@ -9352,7 +9353,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_084_3",
-        "name": "Oeufs",
+        "name": "Œufs",
         "quantity": "3",
         "unit": ""
       },
@@ -9439,13 +9440,13 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_085_2",
-        "name": "Oignons",
+        "name": "Oignon",
         "quantity": "2",
         "unit": ""
       },
       {
         "id": "ing_rec_top100_085_3",
-        "name": "Lard coupée en dés",
+        "name": "Lard",
         "quantity": "1",
         "unit": "tranche"
       },
@@ -9457,9 +9458,9 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_085_5",
-        "name": "Petite boîte de concentré de tomates",
+        "name": "Concentré de tomate",
         "quantity": "1",
-        "unit": ""
+        "unit": "boîte"
       },
       {
         "id": "ing_rec_top100_085_6",
@@ -9481,9 +9482,9 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_085_9",
-        "name": "Tablette de bouillon de boeuf",
+        "name": "Bouillon de boeuf",
         "quantity": "1",
-        "unit": ""
+        "unit": "tablette"
       },
       {
         "id": "ing_rec_top100_085_10",
@@ -9505,7 +9506,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_085_13",
-        "name": "Carottes",
+        "name": "Carotte",
         "quantity": "6",
         "unit": ""
       }
@@ -9574,7 +9575,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_086_3",
-        "name": "Jaunes d'oeuf",
+        "name": "Œufs",
         "quantity": "2",
         "unit": ""
       },
@@ -9598,13 +9599,13 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_086_7",
-        "name": "Sucre en poudre",
+        "name": "Sucre",
         "quantity": "250",
         "unit": "g"
       },
       {
         "id": "ing_rec_top100_086_8",
-        "name": "Beurre doux (+ 50 g pour beurrer les moules)",
+        "name": "Beurre",
         "quantity": "50",
         "unit": "g"
       },
@@ -9697,13 +9698,13 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_087_1",
-        "name": "Pâtes feuilletées",
+        "name": "Pâte feuilletée",
         "quantity": "2",
         "unit": ""
       },
       {
         "id": "ing_rec_top100_087_2",
-        "name": "Amandes en poudre",
+        "name": "Amandes",
         "quantity": "140",
         "unit": "g"
       },
@@ -9715,7 +9716,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_087_4",
-        "name": "Oeufs",
+        "name": "Œufs",
         "quantity": "2",
         "unit": ""
       },
@@ -9727,7 +9728,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_087_6",
-        "name": "Jaune d'oeuf",
+        "name": "Œufs",
         "quantity": "1",
         "unit": ""
       }
@@ -9807,7 +9808,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_088_4",
-        "name": "Oeufs",
+        "name": "Œufs",
         "quantity": "3",
         "unit": ""
       },
@@ -9825,9 +9826,9 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_088_7",
-        "name": "Grosse boîte de poire",
+        "name": "Poire",
         "quantity": "1",
-        "unit": ""
+        "unit": "boîte"
       }
     ],
     "steps": [
@@ -9893,7 +9894,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_089_2",
-        "name": "Beurre en dés et en pommade",
+        "name": "Beurre et en pommade",
         "quantity": "150",
         "unit": "g"
       },
@@ -9905,7 +9906,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_089_4",
-        "name": "Sucre (si pâte sucrée)",
+        "name": "Sucre",
         "quantity": "3",
         "unit": "c. à soupe"
       },
@@ -9963,7 +9964,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_090_1",
-        "name": "Viande hachée",
+        "name": "Viande",
         "quantity": "400",
         "unit": "g"
       },
@@ -9975,7 +9976,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_090_3",
-        "name": "Oignons",
+        "name": "Oignon",
         "quantity": "2",
         "unit": ""
       },
@@ -9987,7 +9988,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_090_5",
-        "name": "Tomates fraîches ou pelées",
+        "name": "Tomate",
         "quantity": "2",
         "unit": ""
       },
@@ -10005,7 +10006,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_090_8",
-        "name": "Jaune d'oeuf",
+        "name": "Œufs",
         "quantity": "1",
         "unit": ""
       },
@@ -10087,19 +10088,19 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_091_1",
-        "name": "Oeufs (4 si petits)",
+        "name": "Œufs",
         "quantity": "3",
         "unit": ""
       },
       {
         "id": "ing_rec_top100_091_2",
-        "name": "Sucre roux (à doser en fonction du sucre des framboises)",
+        "name": "Sucre",
         "quantity": "100",
         "unit": "g"
       },
       {
         "id": "ing_rec_top100_091_3",
-        "name": "Sucre vanillé",
+        "name": "Vanille",
         "quantity": "1",
         "unit": "sachet"
       },
@@ -10123,7 +10124,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_091_7",
-        "name": "Framboises (fraîches ou surgelées)",
+        "name": "Framboise",
         "quantity": "500",
         "unit": "g"
       }
@@ -10196,7 +10197,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_092_2",
-        "name": "Oignons",
+        "name": "Oignon",
         "quantity": "2",
         "unit": ""
       },
@@ -10238,15 +10239,15 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_092_9",
-        "name": "Vinaigre balsamique",
+        "name": "Vinaigre",
         "quantity": "2",
         "unit": "c. à soupe"
       },
       {
         "id": "ing_rec_top100_092_10",
-        "name": "Cube de bouillon de volaille",
+        "name": "Bouillon de volaille",
         "quantity": "1",
-        "unit": ""
+        "unit": "cube"
       },
       {
         "id": "ing_rec_top100_092_11",
@@ -10256,7 +10257,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_092_12",
-        "name": "Eau",
+        "name": "Veau",
         "quantity": "",
         "unit": ""
       },
@@ -10345,7 +10346,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_093_1",
-        "name": "Butternut",
+        "name": "Potimarron",
         "quantity": "1",
         "unit": ""
       },
@@ -10357,9 +10358,9 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_093_3",
-        "name": "Cube de bouillon",
+        "name": "Bouillon",
         "quantity": "1",
-        "unit": ""
+        "unit": "cube"
       },
       {
         "id": "ing_rec_top100_093_4",
@@ -10448,19 +10449,19 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_094_3",
-        "name": "Sucre vanillé",
+        "name": "Vanille",
         "quantity": "3",
         "unit": "sachet"
       },
       {
         "id": "ing_rec_top100_094_4",
-        "name": "Oeufs",
+        "name": "Œufs",
         "quantity": "3",
         "unit": ""
       },
       {
         "id": "ing_rec_top100_094_5",
-        "name": "Farine de blé",
+        "name": "Farine",
         "quantity": "360",
         "unit": "g"
       },
@@ -10484,7 +10485,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_094_9",
-        "name": "Chocolat",
+        "name": "Chocolat noir",
         "quantity": "",
         "unit": ""
       },
@@ -10558,7 +10559,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_095_1",
-        "name": "Pommes de terre",
+        "name": "Pomme de terre",
         "quantity": "1.5",
         "unit": "kg"
       },
@@ -10570,7 +10571,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_095_3",
-        "name": "Crème",
+        "name": "Crème fraîche",
         "quantity": "30",
         "unit": "cl"
       },
@@ -10662,7 +10663,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_096_1",
-        "name": "Chocolat",
+        "name": "Chocolat noir",
         "quantity": "250",
         "unit": "g"
       },
@@ -10674,7 +10675,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_096_3",
-        "name": "Sucre glace",
+        "name": "Sucre",
         "quantity": "125",
         "unit": "g"
       },
@@ -10686,7 +10687,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_096_5",
-        "name": "Oeufs",
+        "name": "Œufs",
         "quantity": "5",
         "unit": ""
       }
@@ -10759,7 +10760,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_097_2",
-        "name": "Gruyère râpé (60 g de gruyère + 40 g de parmesan)",
+        "name": "Fromage râpé",
         "quantity": "100",
         "unit": "g"
       },
@@ -10771,7 +10772,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_097_4",
-        "name": "Oeufs",
+        "name": "Œufs",
         "quantity": "6",
         "unit": ""
       },
@@ -10834,7 +10835,7 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_098_1",
-        "name": "Épaule de veau ou de tendron de veau coupé en morceaux",
+        "name": "Épaule de veau ou de tendron de veau",
         "quantity": "1.2",
         "unit": "kg"
       },
@@ -10846,7 +10847,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_098_3",
-        "name": "Poireaux",
+        "name": "Poireau",
         "quantity": "2",
         "unit": ""
       },
@@ -10864,7 +10865,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_098_6",
-        "name": "Échalotes",
+        "name": "Échalote",
         "quantity": "2",
         "unit": ""
       },
@@ -10894,19 +10895,19 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_098_11",
-        "name": "Champignons de Paris",
+        "name": "Champignon de Paris",
         "quantity": "300",
         "unit": "g"
       },
       {
         "id": "ing_rec_top100_098_12",
-        "name": "Vin blanc sec",
+        "name": "Vin blanc",
         "quantity": "3",
         "unit": "c. à soupe"
       },
       {
         "id": "ing_rec_top100_098_13",
-        "name": "Jaunes d'oeuf",
+        "name": "Œufs",
         "quantity": "2",
         "unit": ""
       },
@@ -10997,7 +10998,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_099_2",
-        "name": "Jus d'orange",
+        "name": "Orange",
         "quantity": "30",
         "unit": "cl"
       },
@@ -11015,13 +11016,13 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_099_5",
-        "name": "Sucre glace",
+        "name": "Sucre",
         "quantity": "100",
         "unit": "g"
       },
       {
         "id": "ing_rec_top100_099_6",
-        "name": "Framboises",
+        "name": "Framboise",
         "quantity": "150",
         "unit": "g"
       },
@@ -11095,19 +11096,19 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_100_1",
-        "name": "Saumon frais",
+        "name": "Saumon",
         "quantity": "4",
         "unit": "pavés"
       },
       {
         "id": "ing_rec_top100_100_2",
-        "name": "Tomates cerise",
+        "name": "Tomate",
         "quantity": "20",
         "unit": ""
       },
       {
         "id": "ing_rec_top100_100_3",
-        "name": "Champignons de Paris frais",
+        "name": "Champignon de Paris",
         "quantity": "20",
         "unit": ""
       },
@@ -11131,7 +11132,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_100_7",
-        "name": "Citron jaune",
+        "name": "Citron",
         "quantity": "1",
         "unit": ""
       },
@@ -11143,7 +11144,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_100_9",
-        "name": "Poivre du moulin",
+        "name": "Poivre",
         "quantity": "",
         "unit": ""
       }

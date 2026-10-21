@@ -14,10 +14,12 @@ import {
 import { isRecipeVegetarian } from './recipeAiService';
 import { createShoppingItemFromIngredient, mergeShoppingItems } from '../utils/shoppingAggregator';
 import { classifyIngredientAisle } from '../utils/aisleClassifier';
+import { normalizeIngredient } from '../utils/ingredientNormalizer';
 
 const RECIPES_STORAGE_KEY = '@papilles_recipes_v4';
 const SCHEMA_VERSION_KEY = '@papilles_schema_version';
 const CURRENT_SCHEMA_VERSION = 'v4';
+const CANONICAL_MIGRATION_KEY = '@papilles_canonical_vocabulary_migrated_v1';
 const SHOPPING_LIST_KEY = '@papilles_shopping_list_v1';
 const FRIDGE_ITEMS_KEY = '@papilles_fridge_items_v1';
 const WEEKLY_PLAN_KEY = '@papilles_weekly_plan_v1';
@@ -277,6 +279,134 @@ export const StorageService = {
     } catch (error) {
       console.error('Erreur réinitialisation recettes:', error);
       return INITIAL_RECIPES;
+    }
+  },
+
+  /**
+   * Migration transparente à chaud de toutes les données existantes de l'utilisateur
+   * (recettes personnelles, liste de courses et étagères du placard/frigo)
+   * pour normaliser les ingrédients selon le lexique canonique strict.
+   */
+  async runCanonicalVocabularyMigration(): Promise<{
+    recipesUpdated: number;
+    shoppingUpdated: number;
+    fridgeUpdated: number;
+  }> {
+    try {
+      const alreadyDone = await AsyncStorage.getItem(CANONICAL_MIGRATION_KEY);
+      if (alreadyDone === 'done') {
+        return { recipesUpdated: 0, shoppingUpdated: 0, fridgeUpdated: 0 };
+      }
+
+      let recipesUpdated = 0;
+      let shoppingUpdated = 0;
+      let fridgeUpdated = 0;
+
+      // 1. Migration des recettes existantes
+      const recipesData = await AsyncStorage.getItem(RECIPES_STORAGE_KEY);
+      if (recipesData) {
+        try {
+          const parsedRecipes: Recipe[] = JSON.parse(recipesData);
+          if (Array.isArray(parsedRecipes)) {
+            const updatedRecipes = parsedRecipes.map((recipe) => {
+              let hasChanges = false;
+              const updatedIngredients = (recipe.ingredients || []).map((ing) => {
+                const res = normalizeIngredient(ing);
+                if (res.name !== ing.name || res.unit !== ing.unit || res.quantity !== ing.quantity) {
+                  hasChanges = true;
+                }
+                return {
+                  ...ing,
+                  name: res.name || ing.name,
+                  quantity: res.quantity !== undefined ? res.quantity : ing.quantity,
+                  unit: res.unit !== undefined ? res.unit : ing.unit,
+                };
+              });
+
+              if (hasChanges) {
+                recipesUpdated++;
+                return {
+                  ...recipe,
+                  ingredients: updatedIngredients,
+                  // les étapes restent 100% intouchées
+                };
+              }
+              return recipe;
+            });
+
+            if (recipesUpdated > 0) {
+              await AsyncStorage.setItem(RECIPES_STORAGE_KEY, JSON.stringify(updatedRecipes));
+            }
+          }
+        } catch (e) {
+          console.error('Erreur migration recettes:', e);
+        }
+      }
+
+      // 2. Migration de la liste de courses
+      const shoppingData = await AsyncStorage.getItem(SHOPPING_LIST_KEY);
+      if (shoppingData) {
+        try {
+          const parsedShopping: ShoppingItem[] = JSON.parse(shoppingData);
+          if (Array.isArray(parsedShopping)) {
+            const updatedShopping = parsedShopping.map((item) => {
+              const res = normalizeIngredient({ name: item.name });
+              if (res.name !== item.name) {
+                shoppingUpdated++;
+                return {
+                  ...item,
+                  name: res.name || item.name,
+                  quantity: item.quantity || res.quantity,
+                  unit: item.unit || res.unit,
+                  aisle: item.aisle || classifyIngredientAisle(res.name || item.name),
+                };
+              }
+              return item;
+            });
+
+            if (shoppingUpdated > 0) {
+              await AsyncStorage.setItem(SHOPPING_LIST_KEY, JSON.stringify(updatedShopping));
+            }
+          }
+        } catch (e) {
+          console.error('Erreur migration courses:', e);
+        }
+      }
+
+      // 3. Migration des étagères (stock du frigo / placard)
+      const fridgeData = await AsyncStorage.getItem(FRIDGE_ITEMS_KEY);
+      if (fridgeData) {
+        try {
+          const parsedFridge: FridgeItem[] = JSON.parse(fridgeData);
+          if (Array.isArray(parsedFridge)) {
+            const updatedFridge = parsedFridge.map((item) => {
+              const res = normalizeIngredient({ name: item.name });
+              if (res.name !== item.name) {
+                fridgeUpdated++;
+                return {
+                  ...item,
+                  name: res.name || item.name,
+                  aisle: item.aisle || classifyIngredientAisle(res.name || item.name),
+                };
+              }
+              return item;
+            });
+
+            if (fridgeUpdated > 0) {
+              await AsyncStorage.setItem(FRIDGE_ITEMS_KEY, JSON.stringify(updatedFridge));
+            }
+          }
+        } catch (e) {
+          console.error('Erreur migration étagères:', e);
+        }
+      }
+
+      // Marquer la migration comme effectuée avec succès
+      await AsyncStorage.setItem(CANONICAL_MIGRATION_KEY, 'done');
+      return { recipesUpdated, shoppingUpdated, fridgeUpdated };
+    } catch (err) {
+      console.error('Erreur globale migration canonique:', err);
+      return { recipesUpdated: 0, shoppingUpdated: 0, fridgeUpdated: 0 };
     }
   },
 

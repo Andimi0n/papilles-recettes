@@ -566,7 +566,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   <Ionicons name="restaurant" size={13} color={colors.primary} />
                 </View>
 
-                {/* Bouton discret bascule Thème (Jardin Botanique / Table Nocturne) */}
+                {/* Bouton bascule Thème (Jardin Botanique / Table Nocturne) */}
                 <TouchableOpacity
                   style={styles.headerIconBtn}
                   onPress={toggleTheme}
@@ -576,12 +576,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 >
                   <Ionicons
                     name={isDark ? 'sunny' : 'moon'}
-                    size={15}
+                    size={17}
                     color={isDark ? colors.amber : colors.textSecondary}
                   />
                 </TouchableOpacity>
 
-                {/* Bouton discret Paramètres */}
+                {/* Bouton Paramètres (Réglages & Lexique) */}
                 {onOpenSettings && (
                   <TouchableOpacity
                     style={styles.headerIconBtn}
@@ -590,7 +590,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                     hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
                     accessibilityLabel="Ouvrir les paramètres"
                   >
-                    <Ionicons name="settings-outline" size={15} color={colors.textSecondary} />
+                    <Ionicons name="settings-outline" size={17} color={colors.textPrimary} />
                   </TouchableOpacity>
                 )}
               </View>
@@ -1012,9 +1012,9 @@ const styles = createDynamicStyles((colors, shadows) => ({
     flex: 1,
   },
   headerIconBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: Colors.surfaceAlt,
     alignItems: 'center',
     justifyContent: 'center',

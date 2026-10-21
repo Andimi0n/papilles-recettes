@@ -60,6 +60,9 @@ function AppContent() {
   useEffect(() => {
     const loadInitialData = async () => {
       try {
+        // Migration transparente à chaud vers le vocabulaire canonique (recettes perso, courses, étagères)
+        await StorageService.runCanonicalVocabularyMigration();
+
         const loaded = await StorageService.getRecipes();
         setRecipes(loaded);
         await refreshShoppingBadge();

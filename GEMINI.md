@@ -73,6 +73,7 @@ papilles-recettes/
 ├── scripts/
 │   ├── fetch_top_100_marmiton.py # Python scraper for Marmiton recipes
 │   ├── import_marmiton.js        # Node.js batch converter to initialRecipes.ts
+│   ├── normalizeInitialRecipes.js # Batch normalizer script for seed recipes
 │   └── testExtractRecipe.mjs     # Standalone CLI testing script for Gemini extraction
 └── src/
     ├── types/                  # TypeScript interface definitions
@@ -173,6 +174,9 @@ npx expo install --fix
 ```bash
 # Batch import Marmiton recipes into src/data/initialRecipes.ts
 npm run import:marmiton
+
+# Batch normalize all ingredients of seed recipes in src/data/initialRecipes.ts
+npm run normalize:seed
 
 # Standalone CLI test for Gemini recipe extraction on sample images
 node scripts/testExtractRecipe.mjs <GEMINI_API_KEY>
