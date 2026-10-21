@@ -82,27 +82,25 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const [isMarmitonModalVisible, setIsMarmitonModalVisible] = useState(false);
   const [isAiChoiceModalVisible, setIsAiChoiceModalVisible] = useState(false);
 
-  // Double bandeau de filtres rétractable au défilement avec hystérésis et verrou anti-saccades
+  // Double bandeau de filtres rétractable au défilement (haute performance, 60fps via useNativeDriver)
+  const FILTER_BAR_HEIGHT = 88;
   const filterBarAnim = useRef(new Animated.Value(1)).current;
   const isFilterBarVisibleRef = useRef(true);
   const [isFilterBarVisible, setIsFilterBarVisible] = useState(true);
-  const [filterBarHeight, setFilterBarHeight] = useState(92);
 
   const isAnimatingRef = useRef(false);
   const prevScrollY = useRef(0);
   const scrollDeltaAcc = useRef(0);
-  const lastAnimTimestamp = useRef(0);
 
   const showFilterBar = useCallback(() => {
     if (!isFilterBarVisibleRef.current && !isAnimatingRef.current) {
       isFilterBarVisibleRef.current = true;
       setIsFilterBarVisible(true);
       isAnimatingRef.current = true;
-      lastAnimTimestamp.current = Date.now();
       Animated.timing(filterBarAnim, {
         toValue: 1,
         duration: 220,
-        useNativeDriver: false,
+        useNativeDriver: true,
       }).start(() => {
         isAnimatingRef.current = false;
         scrollDeltaAcc.current = 0;
@@ -111,31 +109,28 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   }, [filterBarAnim]);
 
   const forceShowFilterBar = useCallback(() => {
-    if (!isFilterBarVisibleRef.current || isAnimatingRef.current) {
-      isFilterBarVisibleRef.current = true;
-      setIsFilterBarVisible(true);
+    isFilterBarVisibleRef.current = true;
+    setIsFilterBarVisible(true);
+    isAnimatingRef.current = false;
+    filterBarAnim.stopAnimation();
+    Animated.timing(filterBarAnim, {
+      toValue: 1,
+      duration: 180,
+      useNativeDriver: true,
+    }).start(() => {
       isAnimatingRef.current = false;
-      filterBarAnim.stopAnimation();
-      Animated.timing(filterBarAnim, {
-        toValue: 1,
-        duration: 180,
-        useNativeDriver: false,
-      }).start(() => {
-        isAnimatingRef.current = false;
-        scrollDeltaAcc.current = 0;
-      });
-    }
+      scrollDeltaAcc.current = 0;
+    });
   }, [filterBarAnim]);
 
   const hideFilterBar = useCallback(() => {
     if (isFilterBarVisibleRef.current && !isAnimatingRef.current) {
       isFilterBarVisibleRef.current = false;
       isAnimatingRef.current = true;
-      lastAnimTimestamp.current = Date.now();
       Animated.timing(filterBarAnim, {
         toValue: 0,
-        duration: 200,
-        useNativeDriver: false,
+        duration: 220,
+        useNativeDriver: true,
       }).start(() => {
         isAnimatingRef.current = false;
         setIsFilterBarVisible(false);
@@ -150,45 +145,53 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       const diff = currentY - prevScrollY.current;
       prevScrollY.current = currentY;
 
-      // Tout en haut de la liste : toujours afficher et réinitialiser
-      if (currentY <= 15) {
+      // Tout en haut de la liste (zone d'en-tête ou rebond élastique) : toujours afficher et réinitialiser
+      if (currentY <= 35) {
         scrollDeltaAcc.current = 0;
         if (!isFilterBarVisibleRef.current) {
-          forceShowFilterBar();
+          showFilterBar();
         }
         return;
       }
 
-      // Si une animation est en cours ou vient de se terminer (cooldown de 100ms),
-      // ignorer les à-coups et réajustements de layout internes de React Native
-      if (isAnimatingRef.current || Date.now() - lastAnimTimestamp.current < 100) {
+      // Si une animation est en cours, ignorer les événements pour laisser l'animation native se dérouler
+      if (isAnimatingRef.current) {
+        scrollDeltaAcc.current = 0;
         return;
       }
 
-      // Accumulation de défilement directionnel (hystérésis)
-      // Si la direction de défilement s'inverse, on remet l'accumulateur à zéro
-      if ((diff > 0 && scrollDeltaAcc.current < 0) || (diff < 0 && scrollDeltaAcc.current > 0)) {
-        scrollDeltaAcc.current = 0;
+      // Ignorer les micro-bruits de capteur tactile (< 1.5px) lorsque le doigt reste posé sur l'écran
+      if (Math.abs(diff) < 1.5) {
+        return;
       }
-      scrollDeltaAcc.current += diff;
 
-      // Seuils de défilement continu requis :
-      // - Défilement vers le bas soutenu d'au moins 35px pour masquer
-      // - Défilement vers le haut soutenu d'au moins 30px pour réafficher
-      const HIDE_THRESHOLD = 35;
-      const SHOW_THRESHOLD = -30;
+      // Accumulation directionnelle avec hystérésis élevée
+      // Défilement vers le bas (diff > 0)
+      if (diff > 0) {
+        if (scrollDeltaAcc.current < 0) {
+          scrollDeltaAcc.current = 0;
+        }
+        scrollDeltaAcc.current += diff;
 
-      if (scrollDeltaAcc.current > HIDE_THRESHOLD && currentY > 60) {
-        if (isFilterBarVisibleRef.current) {
+        // Défilement continu vers le bas d'au moins 70px pour masquer le bandeau
+        if (scrollDeltaAcc.current > 70 && isFilterBarVisibleRef.current && currentY > 60) {
           hideFilterBar();
         }
-      } else if (scrollDeltaAcc.current < SHOW_THRESHOLD) {
-        if (!isFilterBarVisibleRef.current) {
+      }
+      // Défilement vers le haut (diff < 0)
+      else if (diff < 0) {
+        if (scrollDeltaAcc.current > 0) {
+          scrollDeltaAcc.current = 0;
+        }
+        scrollDeltaAcc.current += diff;
+
+        // Défilement continu délibéré vers le haut d'au moins 65px pour réafficher le bandeau
+        if (scrollDeltaAcc.current < -65 && !isFilterBarVisibleRef.current) {
           showFilterBar();
         }
       }
     },
-    [forceShowFilterBar, hideFilterBar, showFilterBar]
+    [hideFilterBar, showFilterBar]
   );
 
   // État du suivi des repas du jour (midi et soir)
@@ -629,173 +632,165 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             onOpenFridgeSearch={() => setIsFridgeModalVisible(true)}
             activeIngredientsCount={selectedIngredients.length}
           />
+        </View>
 
-          {/* Double bandeau de filtres animé (disparaît au défilement vers le bas, réapparaît vers le haut) */}
+        {/* Zone de contenu principale (FlatList + Double bandeau rétractable en superposition native) */}
+        <View style={styles.contentArea}>
+          {/* Liste des recettes avec virtualisation haute performance et layout stable */}
+          <FlatList
+            ref={flatListRef}
+            data={paginatedRecipes}
+            extraData={themeId}
+            keyExtractor={(item) => item.id}
+            ListHeaderComponent={listHeaderElement}
+            ListFooterComponent={listFooterElement}
+            contentContainerStyle={[styles.listContent, { paddingTop: FILTER_BAR_HEIGHT + 6 }]}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            initialNumToRender={8}
+            maxToRenderPerBatch={8}
+            windowSize={7}
+            removeClippedSubviews={false}
+            renderItem={renderRecipeItem}
+            onScroll={handleScroll}
+            scrollEventThrottle={16}
+            ListEmptyComponent={
+              selectedIngredients.length > 0 ? (
+                <EmptyState
+                  title="Aucune recette avec ces restes"
+                  description={`Votre carnet ne contient pas de recette avec : ${selectedIngredients.join(', ')}.\nDemandez au Chef IA d'inventer une recette originale avec exactement ces ingrédients !`}
+                  actionLabel="✨ Inventer avec le Chef IA"
+                  onAction={() => setIsFridgeModalVisible(true)}
+                />
+              ) : (
+                <EmptyState
+                  title="Aucune recette trouvée"
+                  description="Essayez de modifier vos critères de recherche ou ajoutez votre propre recette !"
+                  actionLabel="Réinitialiser les filtres"
+                  onAction={handleResetAllFilters}
+                />
+              )
+            }
+          />
+
+          {/* Double bandeau de filtres rétractable natif (disparaît au défilement vers le bas, réapparaît vers le haut) */}
           <Animated.View
             style={[
               styles.collapsibleFilterContainer,
               {
-                height: filterBarAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0, filterBarHeight],
-                }),
-                opacity: filterBarAnim,
                 transform: [
                   {
                     translateY: filterBarAnim.interpolate({
                       inputRange: [0, 1],
-                      outputRange: [-10, 0],
+                      outputRange: [-FILTER_BAR_HEIGHT, 0],
                     }),
                   },
                 ],
+                opacity: filterBarAnim.interpolate({
+                  inputRange: [0, 0.35, 1],
+                  outputRange: [0, 0.2, 1],
+                }),
               },
             ]}
             pointerEvents={isFilterBarVisible ? 'auto' : 'none'}
           >
-            <View
-              onLayout={(e) => {
-                const measuredH = e.nativeEvent.layout.height;
-                if (measuredH > 0 && Math.abs(measuredH - filterBarHeight) > 2) {
-                  setFilterBarHeight(measuredH);
-                }
-              }}
+            {/* Bandeau 1 : Catégories (Tous, Entrées, Plats, Desserts...) */}
+            <CategoryPills
+              categories={CATEGORIES}
+              selectedCategories={selectedCategories}
+              onToggleCategory={handleToggleCategory}
+              recipeCountByCategory={recipeCountByCategory}
+            />
+
+            {/* Bandeau 2 : Filtres secondaires (Végé, Note interactive 5 étoiles, Tri, Reset) */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.filterToolbarScroll}
             >
-              {/* Bandeau 1 : Catégories (Tous, Entrées, Plats, Desserts...) */}
-              <CategoryPills
-                categories={CATEGORIES}
-                selectedCategories={selectedCategories}
-                onToggleCategory={handleToggleCategory}
-                recipeCountByCategory={recipeCountByCategory}
-              />
-
-              {/* Bandeau 2 : Filtres secondaires (Végé, Note interactive 5 étoiles, Tri, Reset) */}
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.filterToolbarScroll}
+              {/* Végétarien Toggle Pill */}
+              <TouchableOpacity
+                style={[styles.toolPill, onlyVegetarian && styles.vegeToolPillActive]}
+                onPress={() => setOnlyVegetarian(!onlyVegetarian)}
+                activeOpacity={0.7}
               >
-                {/* Végétarien Toggle Pill */}
-                <TouchableOpacity
-                  style={[styles.toolPill, onlyVegetarian && styles.vegeToolPillActive]}
-                  onPress={() => setOnlyVegetarian(!onlyVegetarian)}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons
-                    name="leaf"
-                    size={13}
-                    color={onlyVegetarian ? (isDark ? '#4ADE80' : '#15803D') : colors.textSecondary}
-                  />
-                  <Text style={[styles.toolPillText, onlyVegetarian && styles.vegeToolPillTextActive]}>
-                    Végé
-                  </Text>
-                </TouchableOpacity>
+                <Ionicons
+                  name="leaf"
+                  size={13}
+                  color={onlyVegetarian ? (isDark ? '#4ADE80' : '#15803D') : colors.textSecondary}
+                />
+                <Text style={[styles.toolPillText, onlyVegetarian && styles.vegeToolPillTextActive]}>
+                  Végé
+                </Text>
+              </TouchableOpacity>
 
-                {/* Bouton Filtre Note (ouvre la modale pour choisir la note minimale) */}
-                <TouchableOpacity
-                  style={[styles.toolPill, minRatingFilter > 0 && styles.ratingToolPillActive]}
-                  onPress={() => setIsRatingModalVisible(true)}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons
-                    name={minRatingFilter > 0 ? 'star' : 'star-outline'}
-                    size={13}
-                    color={minRatingFilter > 0 ? colors.amber : colors.textSecondary}
-                  />
-                  <Text style={[styles.toolPillText, minRatingFilter > 0 && styles.ratingToolPillTextActive]}>
-                    {minRatingFilter > 0
-                      ? `≥ ${minRatingFilter % 1 === 0 ? minRatingFilter : minRatingFilter.toFixed(1)} ★`
-                      : 'Note'}
-                  </Text>
-                  {minRatingFilter > 0 ? (
-                    <TouchableOpacity
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        setMinRatingFilter(0);
-                      }}
-                      hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
-                      accessibilityLabel="Effacer le filtre de note"
-                    >
-                      <Ionicons name="close-circle" size={13} color={colors.amber} />
-                    </TouchableOpacity>
-                  ) : (
-                    <Ionicons name="chevron-down" size={11} color={colors.textMuted} />
-                  )}
-                </TouchableOpacity>
-
-                {/* Modal de Tri (labels courts et instinctifs) */}
-                <TouchableOpacity
-                  style={[styles.toolPill, styles.sortToolPill]}
-                  onPress={() => setIsFilterModalVisible(true)}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="swap-vertical" size={13} color={colors.textSecondary} />
-                  <Text style={styles.toolPillText}>
-                    Tri : {sortBy === 'rating_desc'
-                      ? 'Note'
-                      : sortBy === 'prep_time'
-                      ? 'Temps'
-                      : sortBy === 'title'
-                      ? 'A-Z'
-                      : 'Date'}
-                  </Text>
-                  <Ionicons name="chevron-down" size={11} color={colors.textMuted} />
-                </TouchableOpacity>
-
-                {/* Bouton Effacer les filtres si au moins un filtre est actif */}
-                {(minRatingFilter > 0 ||
-                  onlyVegetarian ||
-                  (selectedCategories.length > 0 && !selectedCategories.includes('Tous'))) && (
+              {/* Bouton Filtre Note (ouvre la modale pour choisir la note minimale) */}
+              <TouchableOpacity
+                style={[styles.toolPill, minRatingFilter > 0 && styles.ratingToolPillActive]}
+                onPress={() => setIsRatingModalVisible(true)}
+                activeOpacity={0.7}
+              >
+                <Ionicons
+                  name={minRatingFilter > 0 ? 'star' : 'star-outline'}
+                  size={13}
+                  color={minRatingFilter > 0 ? colors.amber : colors.textSecondary}
+                />
+                <Text style={[styles.toolPillText, minRatingFilter > 0 && styles.ratingToolPillTextActive]}>
+                  {minRatingFilter > 0
+                    ? `≥ ${minRatingFilter % 1 === 0 ? minRatingFilter : minRatingFilter.toFixed(1)} ★`
+                    : 'Note'}
+                </Text>
+                {minRatingFilter > 0 ? (
                   <TouchableOpacity
-                    style={styles.resetFilterPill}
-                    onPress={handleResetAllFilters}
-                    activeOpacity={0.7}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      setMinRatingFilter(0);
+                    }}
+                    hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+                    accessibilityLabel="Effacer le filtre de note"
                   >
-                    <Ionicons name="close-circle" size={13} color={colors.textSecondary} />
-                    <Text style={styles.resetFilterPillText}>Effacer filtres</Text>
+                    <Ionicons name="close-circle" size={13} color={colors.amber} />
                   </TouchableOpacity>
+                ) : (
+                  <Ionicons name="chevron-down" size={11} color={colors.textMuted} />
                 )}
-              </ScrollView>
-            </View>
+              </TouchableOpacity>
+
+              {/* Modal de Tri (labels courts et instinctifs) */}
+              <TouchableOpacity
+                style={[styles.toolPill, styles.sortToolPill]}
+                onPress={() => setIsFilterModalVisible(true)}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="swap-vertical" size={13} color={colors.textSecondary} />
+                <Text style={styles.toolPillText}>
+                  Tri : {sortBy === 'rating_desc'
+                    ? 'Note'
+                    : sortBy === 'prep_time'
+                    ? 'Temps'
+                    : sortBy === 'title'
+                    ? 'A-Z'
+                    : 'Date'}
+                </Text>
+                <Ionicons name="chevron-down" size={11} color={colors.textMuted} />
+              </TouchableOpacity>
+
+              {/* Bouton Effacer les filtres si au moins un filtre est actif */}
+              {(minRatingFilter > 0 ||
+                onlyVegetarian ||
+                (selectedCategories.length > 0 && !selectedCategories.includes('Tous'))) && (
+                <TouchableOpacity
+                  style={styles.resetFilterPill}
+                  onPress={handleResetAllFilters}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="close-circle" size={13} color={colors.textSecondary} />
+                  <Text style={styles.resetFilterPillText}>Effacer filtres</Text>
+                </TouchableOpacity>
+              )}
+            </ScrollView>
           </Animated.View>
         </View>
-
-        {/* Liste des recettes avec pagination (20 par page) et virtualisation haute performance */}
-        <FlatList
-          ref={flatListRef}
-          data={paginatedRecipes}
-          extraData={themeId}
-          keyExtractor={(item) => item.id}
-          ListHeaderComponent={listHeaderElement}
-          ListFooterComponent={listFooterElement}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          initialNumToRender={6}
-          maxToRenderPerBatch={6}
-          windowSize={5}
-          removeClippedSubviews={Platform.OS === 'android'}
-          updateCellsBatchingPeriod={50}
-          renderItem={renderRecipeItem}
-          onScroll={handleScroll}
-          scrollEventThrottle={16}
-          ListEmptyComponent={
-            selectedIngredients.length > 0 ? (
-              <EmptyState
-                title="Aucune recette avec ces restes"
-                description={`Votre carnet ne contient pas de recette avec : ${selectedIngredients.join(', ')}.\nDemandez au Chef IA d'inventer une recette originale avec exactement ces ingrédients !`}
-                actionLabel="✨ Inventer avec le Chef IA"
-                onAction={() => setIsFridgeModalVisible(true)}
-              />
-            ) : (
-              <EmptyState
-                title="Aucune recette trouvée"
-                description="Essayez de modifier vos critères de recherche ou ajoutez votre propre recette !"
-                actionLabel="Réinitialiser les filtres"
-                onAction={handleResetAllFilters}
-              />
-            )
-          }
-        />
 
         {/* Modal de Tri (labels concis et instinctifs) */}
         <Modal
@@ -1110,14 +1105,30 @@ const styles = createDynamicStyles((colors, shadows) => ({
   container: {
     flex: 1,
   },
+  contentArea: {
+    flex: 1,
+    position: 'relative',
+    overflow: 'hidden',
+  },
   fixedTopHeader: {
     backgroundColor: colors.background,
     borderBottomWidth: 1,
     borderBottomColor: colors.borderLight,
-    paddingBottom: 2,
+    paddingBottom: 4,
     zIndex: 10,
+    elevation: 4,
   },
   collapsibleFilterContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 88,
+    backgroundColor: colors.background,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
+    zIndex: 5,
+    elevation: 3,
     overflow: 'hidden',
   },
   listContent: {
@@ -1250,7 +1261,7 @@ const styles = createDynamicStyles((colors, shadows) => ({
   },
   filterToolbarScroll: {
     paddingHorizontal: 16,
-    paddingVertical: 6,
+    paddingVertical: 5,
     gap: 8,
     alignItems: 'center',
   },
@@ -1259,11 +1270,11 @@ const styles = createDynamicStyles((colors, shadows) => ({
     alignItems: 'center',
     backgroundColor: colors.cardBackground,
     paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingVertical: 4,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: colors.borderLight,
-    height: 32,
+    height: 30,
     gap: 5,
   },
   toolPillActive: {

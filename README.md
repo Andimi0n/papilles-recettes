@@ -65,7 +65,7 @@ Une application mobile moderne, soignée et intuitive pour gérer vos recettes, 
 
 ### 7. 🥗 Double Bandeau de Filtres Rétractable & Boutons Verticaux
 - **Bandeau de marque & actions verticales** : l'identité Papilles avec son logo et ses actions rapides (*Marmiton*, *Scan & IA*, *Ajouter*) sont disposées de manière ordonnée à la verticale à droite, optimisant la largeur utile.
-- **Double bandeau de filtres rétractable au scroll fluide** : la barre des catégories (*Tous, Plats, Desserts...*) et la barre des filtres secondaires (*Végé, Note minimale, Tri, Effacer*) s'effacent automatiquement lors du défilement vers le bas pour libérer l'espace d'affichage, et réapparaissent instantanément dès qu'on remonte. Moteur anti-saccades stabilisé par hystérésis directionnelle pour une fluidité sans rebond.
+- **Double bandeau de filtres rétractable au scroll fluide** : la barre des catégories (*Tous, Plats, Desserts...*) et la barre des filtres secondaires (*Végé, Note minimale, Tri, Effacer*) s'effacent automatiquement lors du défilement vers le bas pour libérer l'espace d'affichage, et réapparaissent dès qu'on remonte. Moteur haute performance exécuté sur le thread natif (`useNativeDriver: true`) avec layout de liste fixe et seuils d'hystérésis calibrés (défilement lent stabilisé sans aucun ping-pong même avec le doigt posé sur l'écran).
 - **Barre de recherche verrouillée** : la barre de recherche et le logo restent toujours accessibles en haut de l'écran.
 - **Défilement naturel du widget quotidien** : le widget *"Ce que j'ai mangé aujourd'hui"* défile avec la liste de recettes.
 - **Navigation parfaitement centrée** : intitulés des onglets (notamment *"Courses & Étagères"* sous l'icône de panier) centrés pour une lisibilité optimale.

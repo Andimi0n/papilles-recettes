@@ -59,7 +59,7 @@ export const CategoryPills: React.FC<CategoryPillsProps> = ({
 
 const styles = createDynamicStyles((colors, shadows) => ({
   container: {
-    paddingVertical: 8,
+    paddingVertical: 5,
   },
   scrollContent: {
     paddingHorizontal: 16,
@@ -67,9 +67,9 @@ const styles = createDynamicStyles((colors, shadows) => ({
   pill: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 7,
-    paddingHorizontal: 14,
-    borderRadius: 24,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 20,
     backgroundColor: colors.cardBackground,
     marginRight: 8,
     borderWidth: 1,
