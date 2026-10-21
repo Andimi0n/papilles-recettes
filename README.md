@@ -1,111 +1,148 @@
-# 🍳 Papilles — Carnet de Recettes de Cuisine
+# 🍳 Papilles — Carnet de Recettes, Planificateur & Gestion de Stocks
 
-Une application mobile Android moderne, soignée et intuitive pour gérer, noter et cuisiner vos meilleures recettes, avec une recherche intelligente basée sur les ingrédients disponibles dans votre cuisine.
+Une application mobile moderne, soignée et intuitive pour gérer vos recettes, planifier vos menus de la semaine, suivre vos repas au quotidien et garder un œil sur les stocks de vos étagères et votre liste de courses.
 
 ---
 
 ## ✨ Fonctionnalités principales
 
-1. **🎨 Design Gourmand & Élégant**
-   - Palette chaleureuse (terracotta, vert sauge, crème) et typographie soignée.
-   - Cartes de recettes avec photos culinaires haute résolution, temps de préparation, portions et niveau de difficulté.
+### 1. 🎨 Double Direction Artistique & Thèmes Dynamiques
+- **Thème Clair — *Jardin Botanique & Slow Food*** : vert forêt persistant, céladon apaisant, brume d'amande.
+- **Thème Sombre — *Table Nocturne & Sauge Céleste*** : ardoise obsidienne, émeraude culinaire lumineuse, sauge argentée et touches ambrées.
+- Bascule instantanée en 1 tap depuis l'en-tête ou synchronisation automatique avec les préférences système de votre smartphone.
 
-2. **⭐ Système de Notation Interactif**
-   - Notez vos recettes de 1 à 5 étoiles directement depuis les cartes de la liste ou depuis la fiche détaillée.
-   - Appréciation dynamique (*"Exceptionnel !"*, *"Très bon"*, *"À perfectionner"*).
-   - Espace pour ajouter vos astuces secrètes et notes de chef.
-   - Filtrez instantanément par note (ex: *4★ et +*) et triez vos recettes (*Meilleures notes en premier*).
+### 2. 📅 Suivi des Repas Quotidien & Menu de la Semaine
+- **Suivi des repas du jour** : saisie ultra-rapide en texte libre de ce que vous avez mangé le midi et le soir (restaurant, repas sur le pouce, restes ou petit plat maison).
+- **Widget Accueil** : visualisez et complétez en 1 clic les repas d'aujourd'hui directement depuis l'écran d'accueil.
+- **Journal chronologique** : historique complet de vos repas passés avec possibilité de modification à tout moment.
+- **Menu de la semaine** : planifiez vos déjeuners et dîners du lundi au dimanche, visualisez vos menus d'un coup d'œil et exportez automatiquement les ingrédients nécessaires vers la liste de courses.
 
-3. **📷 Scanner une Recette par Photo (Reconnaissance IA Multimodale)**
-   - Prenez en photo une recette (ou choisissez depuis la galerie) : l'IA analyse l'image et extrait automatiquement le titre, la description, les temps, le nombre de portions, tous les ingrédients (avec quantités et unités) ainsi que les étapes de préparation.
-   - **Support multi-photos** : capturez le **Recto** (visuel & titre) et le **Verso** (tableau d'ingrédients & instructions, comme sur les fiches Quitoque / HelloFresh).
-   - Pré-remplit directement le formulaire pour vérification et enregistrement instantané dans votre carnet.
-   - Clé d'API Google Gemini configurable en 1 clic dans l'application ou en ligne de commande.
+### 3. 🥫 Hub "Courses & Étagères" (Gestion des Stocks & Courses)
+- **Mes étagères (Stock Frigo & Placard)** :
+  - Suivi rapide et sans friction des ingrédients disponibles chez vous.
+  - **Ajout rapide en 1 clic** avec suggestions d'ingrédients essentiels (*Œufs, Beurre, Lait, Farine, Pâtes, Riz, Huile d'olive...*).
+  - **Classification automatique par rayons** (Primeur, Crémerie, Épicerie salée/sucrée, Boucherie...).
+  - **Que cuisiner aujourd'hui ?** : calcul immédiat des recettes faisables avec votre inventaire actif.
+  - Commandes verrouillées en haut d'écran pour une saisie fluide sans perte d'espace au défilement.
+- **Liste de courses catégorisée** :
+  - Regroupement automatique par rayons de supermarché pour simplifier vos achats.
+  - Cocher/décocher les articles achetés.
+  - **Passerelle intelligente** : bouton 1 tap *"Ajouter aux courses"* depuis les étagères, et *"Ranger dans mes étagères 🥫"* pour basculer vos courses achetées dans vos stocks.
 
-4. **🥗 Recherche Puissante par Ingrédients ("Mon Frigo")**
-   - Sélecteur multi-ingrédients avec suggestions rapides (tomates, ail, poulet, parmesan, crème...).
-   - Indique en un coup d'œil les ingrédients correspondants sur chaque recette.
-   - Recherche textuelle instantanée (titre, description ou ingrédient).
+### 4. 📷 Scanner de Recettes par IA (Gemini BYOK) & Import Web
+- **Scanner Photo & Texte (IA Multimodale)** :
+  - Prenez en photo une recette de magazine ou de livre (ou choisissez depuis la galerie).
+  - **Support multi-photos** : capturez le **Recto** (titre, visuel) et le **Verso** (ingrédients & étapes détaillées, idéal pour fiches HelloFresh / Quitoque).
+  - Extraction automatique par Google Gemini (`gemini-3.8-flash`) : titre, portions, temps, ingrédients structurés et étapes.
+  - Collez également du texte brut pour le transformer en fiche recette propre.
+  - Modèle **BYOK (Bring Your Own Key)** : votre clé API Google AI Studio reste stockée localement de manière chiffrée.
+- **Import Web Marmiton** : importez instantanément n'importe quelle recette Marmiton en collant son URL.
 
-4. **✍️ Création & Modification Complète (CRUD)**
-   - Formulaire d'ajout/modification intuitif : titre, catégorie, difficulté, temps, portions.
-   - Ajout d'ingrédients dynamiques avec quantités et unités.
-   - Étapes de préparation numérotées et réorganisables.
-   - Sélection de photo : depuis la galerie de votre smartphone ou parmi une sélection de visuels gourmands prédéfinis.
+### 5. ⭐ Système de Notation & Avis Détaillés
+- Notez vos recettes de 0.5 à 5.0 étoiles avec retour qualitatif dynamique (*"Coup de cœur absolu !"*, *"Délicieux"*, *"À perfectionner"...*).
+- Notes du chef et astuces personnelles mémorisées sur chaque fiche.
+- Filtres instantanés par note (*4★ et +*) et tri par meilleures notes.
 
-5. **👨‍🍳 Mode Session Cuisine Interactif**
-   - Listes d'ingrédients et étapes avec cases à cocher : cochez au fur et à mesure pendant la préparation en cuisine ou pour préparer vos courses !
-   - Partage facile de la recette (ingrédients, instructions et note) via les applications de messagerie.
-   - Gestion des recettes favorites (cœur).
+### 6. 🥗 Recherche Intelligente & Frigo
+- Moteur de recherche instantané par titre, ingrédients ou tags.
+- Filtres par catégories (Entrées, Plats, Desserts, Apéro, Végétarien...).
+- Sélecteur multi-ingrédients avec suggestions d'ingrédients populaires.
 
-6. **💾 100% Hors-Ligne & Persistant**
-   - Stockage local immédiat avec `AsyncStorage`.
-   - Livrée avec 6 délicieuses recettes de démonstration pré-remplies (Risotto crémeux, Curry de poulet coco, Carbonara traditionnelle, Moelleux au chocolat...).
+### 7. 👨‍🍳 Mode Session Cuisine Interactif
+- Liste d'ingrédients et étapes avec cases à cocher pour suivre votre avancée pas à pas sans perdre le fil.
+- Ajustement dynamique des proportions selon le nombre de convives souhaité.
+- Partage clair et formaté de la recette via messagerie ou e-mail.
+
+### 8. 💾 100% Hors-Ligne, Sécurisé & Sauvegarde
+- Aucune donnée transmise à des serveurs tiers : tout reste sur votre téléphone dans `AsyncStorage`.
+- Clé d'API sécurisée avec `expo-secure-store`.
+- **Sauvegarde & Restauration** : exportez toutes vos recettes et données au format JSON (via la feuille de partage de votre téléphone) et restaurez-les en un clic.
+- Réinitialisation possible avec le catalogue de recettes Marmiton de démonstration.
 
 ---
 
-## 🚀 Comment lancer l'application sur votre téléphone Android
+## 🚀 Lancement & Développement
 
-### Option 1 : Tester sur votre smartphone avec Expo Go (Recommandé)
-1. Installez l'application gratuite **Expo Go** depuis le [Google Play Store](https://play.google.com/store/apps/details?id=host.exp.exponent) sur votre téléphone Android.
-2. Dans le terminal de ce projet, lancez :
-   ```bash
-   npm start
-   ```
-   *(Ce script utilise désormais le mode `--tunnel` qui contourne les pare-feu, l'isolation Wi-Fi et les bridges Docker).*
-3. Scannez le **QR Code** qui s'affiche dans votre terminal avec l'application Expo Go.
-4. L'application se télécharge et s'ouvre sur votre téléphone !
+### Prérequis
+- Node.js (v18+)
+- Application mobile **Expo Go** (sur smartphone Android ou iOS)
 
-> 💡 *En cas d'utilisation purement en réseau local LAN : `npm run lan:wifi`*
-
-### Option 2 : Tester sur votre navigateur web (Aperçu direct sur PC)
+### Démarrage
 ```bash
+# Lancement avec Metro bundler (mode tunnel pour contourner l'isolation réseau/Wi-Fi)
+npm start
+
+# Mode local LAN direct
+npm run lan:wifi
+
+# Aperçu direct sur navigateur web
 npm run web
 ```
 
----
+### Vérification du code
+```bash
+# Vérification des types TypeScript
+npx tsc --noEmit
 
-## 🤖 Configuration de la Reconnaissance Photo (Clé API)
-
-Pour que l'application analyse les photos de recettes :
-1. Obtenez une clé d'API gratuite sur [Google AI Studio](https://aistudio.google.com/app/apikey) (gratuit, sans carte bancaire requise).
-2. Deux façons d'utiliser la clé :
-   - **Directement dans l'application mobile :** Cliquez sur le bouton "Scanner" puis sur l'icône de clé 🔑 en haut à droite pour coller votre clé. Elle est mémorisée sur votre appareil.
-   - **Via le script de test en ligne de commande :**
-     ```bash
-     node scripts/testExtractRecipe.mjs <VOTRE_CLE_API_GEMINI>
-     ```
-     Le script teste automatiquement l'extraction sur les photos de fiches recettes de `PhotoRecette/` et affiche le résultat JSON complet !
+# Diagnostic du projet Expo
+npx expo-doctor
+```
 
 ---
 
-## 📁 Structure du projet
+## 📁 Structure du Projet
 
 ```
 papilles-recettes/
-├── src/
-│   ├── types/
-│   │   └── recipe.ts             # Types TypeScript (Recipe, Ingredient, Step, etc.)
-│   ├── theme/
-│   │   └── colors.ts             # Palette de couleurs gourmande & ombres
-│   ├── data/
-│   │   └── initialRecipes.ts     # 6 recettes de démonstration complètes
-│   ├── services/
-│   │   └── storageService.ts     # Service de persistance locale (AsyncStorage)
-│   ├── utils/
-│   │   └── helpers.ts            # Calcul de correspondance ingrédients & formatage
-│   ├── components/
-│   │   ├── RecipeCard.tsx        # Carte recette avec badges, photo et notation rapide
-│   │   ├── StarRating.tsx        # Composant étoiles interactif (1 à 5)
-│   │   ├── SearchBar.tsx         # Barre de recherche avec raccourci Frigo
-│   │   ├── CategoryPills.tsx     # Sélecteur horizontal de catégories
-│   │   ├── IngredientChip.tsx    # Chips d'ingrédients sélectionnables/supprimables
-│   │   ├── FridgeSearchModal.tsx # Modal dédié recherche par ingrédients
-│   │   └── EmptyState.tsx        # Vue élégante si aucun résultat
-│   └── screens/
-│       ├── HomeScreen.tsx        # Écran d'accueil (recherche, filtres, tri)
-│       ├── RecipeDetailScreen.tsx# Fiche recette (cuisine interactive, notation)
-│       └── RecipeFormScreen.tsx  # Formulaire d'ajout / modification de recette
-├── App.tsx                       # Composant racine & navigation
-└── package.json
+├── App.tsx                     # Navigation racine & gestion des onglets
+├── index.ts                    # Point d'entrée Expo
+├── app.json                    # Configuration de l'application & permissions
+├── assets/                     # Icônes et écrans de démarrage
+├── scripts/
+│   ├── fetch_top_100_marmiton.py # Script de récupération des recettes Marmiton
+│   ├── import_marmiton.js        # Convertisseur de recettes de test
+│   └── testExtractRecipe.mjs     # Test CLI pour l'extraction IA Gemini
+└── src/
+    ├── types/                  # Modèles de données TypeScript
+    │   ├── recipe.ts           # Types Recettes, Ingrédients, Étapes
+    │   ├── shopping.ts         # Types Liste de courses & Rayons
+    │   ├── fridge.ts           # Types Stocks ("Mes étagères") & Rayons
+    │   ├── planner.ts          # Types Planning des repas de la semaine
+    │   └── mealLog.ts          # Types Journal de suivi des repas quotidien
+    ├── theme/                  # Moteur de styles dynamiques
+    │   ├── colors.ts           # Palettes Jardin Botanique & Table Nocturne
+    │   └── ThemeContext.tsx    # Fournisseur de thème & bascule d'apparence
+    ├── services/               # Services métier & persistance
+    │   ├── storageService.ts   # Persistance AsyncStorage, SecureStore & sauvegarde JSON
+    │   ├── recipeAiService.ts  # Service d'extraction Gemini multimodale
+    │   └── marmitonService.ts  # Analyseur et extracteur d'URL Marmiton
+    ├── utils/                  # Utilitaires & algorithmes
+    │   ├── aisleClassifier.ts  # Classification automatique par rayons de supermarché
+    │   ├── shoppingAggregator.ts # Fusion et calcul des ingrédients pour les courses
+    │   ├── searchEngine.ts     # Moteur de recherche et correspondance stocks/recettes
+    │   └── helpers.ts          # Fonctions de formatage et calculs
+    ├── data/
+    │   └── initialRecipes.ts   # Recettes de démonstration initiales
+    ├── components/             # Composants d'interface réutilisables
+    │   ├── RecipeCard.tsx      # Carte de recette avec visuel, difficulté et note
+    │   ├── StarRating.tsx      # Sélecteur d'étoiles interactif (0.5 à 5.0)
+    │   ├── SearchBar.tsx       # Barre de recherche avec raccourcis
+    │   ├── CategoryPills.tsx   # Filtre horizontal de catégories
+    │   ├── IngredientChip.tsx  # Badges d'ingrédients interactifs
+    │   ├── EmptyState.tsx      # Écran d'état vide
+    │   ├── FridgeStockView.tsx # Vue "Mes étagères" avec saisie fixe et recettes compatibles
+    │   ├── FridgeSearchModal.tsx # Modal de recherche par ingrédients disponibles
+    │   ├── CookingModeModal.tsx  # Mode cuisine pas à pas avec cases à cocher
+    │   ├── MealSlotPickerModal.tsx # Sélecteur de créneau pour le menu de la semaine
+    │   ├── ImportMarmitonModal.tsx # Dialogue d'importation web Marmiton
+    │   ├── QuickMealLogModal.tsx # Modal de saisie rapide du repas (midi / soir)
+    │   └── TodayMealWidget.tsx   # Widget accueil pour le suivi des repas du jour
+    └── screens/                # Écrans principaux
+        ├── HomeScreen.tsx      # Flux de recettes, recherche et widget repas
+        ├── RecipeDetailScreen.tsx # Fiche recette, portions ajustables et partage
+        ├── RecipeFormScreen.tsx   # Formulaire de création / édition de recette
+        ├── ScanRecipeScreen.tsx   # Scanner IA (Photo, Recto/Verso, Texte libre)
+        ├── MealPlannerScreen.tsx  # Menu de la semaine & journal de suivi des repas
+        ├── ShoppingListScreen.tsx # Hub unifié Courses & Étagères
+        └── SettingsModal.tsx      # Gestion clé API, thèmes, sauvegarde & réinitialisation
 ```
