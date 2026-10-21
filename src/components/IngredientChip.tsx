@@ -2,6 +2,7 @@ import React from 'react';
 import { Text, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, createDynamicStyles } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
 
 interface IngredientChipProps {
   label: string;
@@ -22,6 +23,8 @@ export const IngredientChip: React.FC<IngredientChipProps> = ({
   quantity,
   unit,
 }) => {
+  const { colors } = useTheme();
+
   const content = (
     <View
       style={[
@@ -31,7 +34,7 @@ export const IngredientChip: React.FC<IngredientChipProps> = ({
       ]}
     >
       {highlighted && (
-        <Ionicons name="checkmark-circle" size={14} color={Colors.secondary} style={styles.icon} />
+        <Ionicons name="checkmark-circle" size={14} color={colors.secondary} style={styles.icon} />
       )}
       <Text
         style={[
@@ -53,7 +56,7 @@ export const IngredientChip: React.FC<IngredientChipProps> = ({
           <Ionicons
             name="close-circle"
             size={16}
-            color={selected ? '#FFFFFF' : Colors.textSecondary}
+            color={selected ? '#FFFFFF' : colors.textSecondary}
           />
         </TouchableOpacity>
       )}
@@ -75,29 +78,29 @@ const styles = createDynamicStyles((colors, shadows) => ({
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.surfaceAlt,
+    backgroundColor: colors.surfaceAlt,
     borderRadius: 20,
     paddingVertical: 6,
     paddingHorizontal: 12,
     marginRight: 8,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: colors.border,
   },
   chipSelected: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   chipHighlighted: {
-    backgroundColor: Colors.secondaryLight,
-    borderColor: Colors.secondary,
+    backgroundColor: colors.secondaryLight,
+    borderColor: colors.secondary,
   },
   icon: {
     marginRight: 4,
   },
   labelText: {
     fontSize: 13,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     fontWeight: '500',
   },
   labelSelected: {
@@ -105,7 +108,7 @@ const styles = createDynamicStyles((colors, shadows) => ({
     fontWeight: '600',
   },
   labelHighlighted: {
-    color: Colors.secondary,
+    color: colors.secondary,
     fontWeight: '600',
   },
   removeBtn: {

@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, createDynamicStyles } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
 import { getRatingLabel } from '../utils/helpers';
 
 interface StarRatingProps {
@@ -25,6 +26,7 @@ export const StarRating: React.FC<StarRatingProps> = ({
   showLabel = false,
   showClear = false,
 }) => {
+  const { colors, isDark } = useTheme();
   // Arrondit au demi-point le plus proche (ex: 0.5, 1.0, 1.5, 2.0...)
   const currentRating = Math.max(0, Math.min(maxStars, Math.round((rating || 0) * 2) / 2));
 
@@ -69,7 +71,7 @@ export const StarRating: React.FC<StarRatingProps> = ({
     const isHalf = !isFull && currentRating >= i - 0.5;
 
     const iconName = isFull ? 'star' : isHalf ? 'star-half' : 'star-outline';
-    const iconColor = isFull || isHalf ? Colors.amber : Colors.border;
+    const iconColor = isFull || isHalf ? colors.amber : (isDark ? '#4A5B52' : colors.border);
 
     const starElement = (
       <Ionicons
@@ -137,7 +139,7 @@ export const StarRating: React.FC<StarRatingProps> = ({
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           accessibilityLabel="Effacer la note"
         >
-          <Ionicons name="close-circle-outline" size={Math.max(16, size * 0.7)} color={Colors.textMuted} />
+          <Ionicons name="close-circle-outline" size={Math.max(16, size * 0.7)} color={colors.textMuted} />
         </TouchableOpacity>
       )}
     </View>
@@ -180,13 +182,13 @@ const styles = createDynamicStyles((colors, shadows) => ({
   },
   scoreText: {
     fontWeight: '700',
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     marginLeft: 6,
   },
   labelText: {
     fontSize: 13,
     fontWeight: '600',
-    color: Colors.amber,
+    color: colors.amber,
     marginLeft: 8,
   },
   clearBtn: {

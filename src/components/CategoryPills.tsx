@@ -2,6 +2,7 @@ import React from 'react';
 import { ScrollView, Text, TouchableOpacity, StyleSheet, View } from 'react-native';
 import { Category } from '../types/recipe';
 import { Colors, createDynamicStyles } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
 
 interface CategoryPillsProps {
   categories: Category[];
@@ -16,6 +17,7 @@ export const CategoryPills: React.FC<CategoryPillsProps> = ({
   onToggleCategory,
   recipeCountByCategory,
 }) => {
+  const { isDark, colors } = useTheme();
   return (
     <View style={styles.container}>
       <ScrollView
@@ -68,19 +70,19 @@ const styles = createDynamicStyles((colors, shadows) => ({
     paddingVertical: 7,
     paddingHorizontal: 14,
     borderRadius: 24,
-    backgroundColor: Colors.cardBackground,
+    backgroundColor: colors.cardBackground,
     marginRight: 8,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: colors.border,
   },
   pillSelected: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   pillText: {
     fontSize: 13,
     fontWeight: '600',
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
   },
   pillTextSelected: {
     color: '#FFFFFF',
@@ -90,7 +92,7 @@ const styles = createDynamicStyles((colors, shadows) => ({
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 10,
-    backgroundColor: Colors.surfaceAlt,
+    backgroundColor: colors.surfaceAlt,
   },
   badgeSelected: {
     backgroundColor: 'rgba(255, 255, 255, 0.25)',
@@ -98,7 +100,7 @@ const styles = createDynamicStyles((colors, shadows) => ({
   badgeText: {
     fontSize: 11,
     fontWeight: '700',
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
   },
   badgeTextSelected: {
     color: '#FFFFFF',

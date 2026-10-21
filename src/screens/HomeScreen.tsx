@@ -56,7 +56,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   onQuickRate,
   onOpenSettings,
 }) => {
-  const { isDark, colors, toggleTheme } = useTheme();
+  const { isDark, colors, themeId, toggleTheme } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const flatListRef = useRef<FlatList<Recipe>>(null);
@@ -245,7 +245,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         {selectedIngredients.length > 0 && (
           <View style={styles.fridgeActiveBanner}>
             <View style={styles.fridgeActiveLeft}>
-              <Ionicons name="nutrition" size={16} color={Colors.secondary} />
+              <Ionicons name="nutrition" size={16} color={colors.secondary} />
               <Text style={styles.fridgeActiveText} numberOfLines={1}>
                 Dans votre frigo : {selectedIngredients.join(', ')}
               </Text>
@@ -254,7 +254,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               onPress={() => setSelectedIngredients([])}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <Ionicons name="close-circle" size={18} color={Colors.textSecondary} />
+              <Ionicons name="close-circle" size={18} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>
         )}
@@ -282,7 +282,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             <Ionicons
               name="leaf"
               size={13}
-              color={onlyVegetarian ? (isDark ? '#4ADE80' : '#15803D') : Colors.textSecondary}
+              color={onlyVegetarian ? (isDark ? '#4ADE80' : '#15803D') : colors.textSecondary}
             />
             <Text style={[styles.toolPillText, onlyVegetarian && styles.vegeToolPillTextActive]}>
               Végé
@@ -298,7 +298,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             <Ionicons
               name={minRatingFilter > 0 ? 'star' : 'star-outline'}
               size={13}
-              color={minRatingFilter > 0 ? Colors.amber : Colors.textSecondary}
+              color={minRatingFilter > 0 ? colors.amber : colors.textSecondary}
             />
             <Text style={[styles.toolPillText, minRatingFilter > 0 && styles.toolPillTextActive]}>
               {minRatingFilter > 0
@@ -317,13 +317,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 style={styles.pillClearBtn}
                 accessibilityLabel="Réinitialiser le filtre de note"
               >
-                <Ionicons name="close-circle" size={13} color={Colors.primary} />
+                <Ionicons name="close-circle" size={13} color={colors.primary} />
               </TouchableOpacity>
             ) : (
               <Ionicons
                 name="chevron-down"
                 size={11}
-                color={Colors.textMuted}
+                color={colors.textMuted}
               />
             )}
           </TouchableOpacity>
@@ -334,7 +334,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             onPress={() => setIsFilterModalVisible(true)}
             activeOpacity={0.7}
           >
-            <Ionicons name="swap-vertical" size={13} color={Colors.textSecondary} />
+            <Ionicons name="swap-vertical" size={13} color={colors.textSecondary} />
             <Text style={styles.toolPillText}>
               Tri : {sortBy === 'rating_desc'
                 ? 'Note'
@@ -344,7 +344,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 ? 'A-Z'
                 : 'Date'}
             </Text>
-            <Ionicons name="chevron-down" size={11} color={Colors.textMuted} />
+            <Ionicons name="chevron-down" size={11} color={colors.textMuted} />
           </TouchableOpacity>
 
           {/* Bouton Effacer les filtres si au moins un filtre est actif */}
@@ -356,7 +356,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               onPress={handleResetAllFilters}
               activeOpacity={0.7}
             >
-              <Ionicons name="close-circle" size={13} color={Colors.textSecondary} />
+              <Ionicons name="close-circle" size={13} color={colors.textSecondary} />
               <Text style={styles.resetFilterPillText}>Effacer filtres</Text>
             </TouchableOpacity>
           )}
@@ -371,7 +371,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
           {searchQuery.trim().length > 0 && (
             <View style={styles.smartBadge}>
-              <Ionicons name="sparkles" size={12} color={Colors.primary} />
+              <Ionicons name="sparkles" size={12} color={colors.primary} />
               <Text style={styles.smartBadgeText}>Recherche intelligente</Text>
             </View>
           )}
@@ -379,6 +379,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       </View>
     ),
     [
+      themeId,
+      isDark,
+      colors,
       selectedIngredients,
       selectedCategories,
       recipeCountByCategory,
@@ -452,7 +455,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         </View>
       </View>
     );
-  }, [filteredRecipes.length, totalPages, safeCurrentPage]);
+  }, [themeId, isDark, colors, filteredRecipes.length, totalPages, safeCurrentPage]);
 
   // Rendu mémoïsé de chaque carte recette
   const renderRecipeItem = useCallback(
@@ -478,7 +481,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               <View style={styles.logoRow}>
                 <Text style={styles.logoTitle}>Papilles</Text>
                 <View style={styles.chefHatBadge}>
-                  <Ionicons name="restaurant" size={13} color={Colors.primary} />
+                  <Ionicons name="restaurant" size={13} color={colors.primary} />
                 </View>
 
                 {/* Bouton discret bascule Thème (Jardin Botanique / Table Nocturne) */}
@@ -492,7 +495,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   <Ionicons
                     name={isDark ? 'sunny' : 'moon'}
                     size={15}
-                    color={isDark ? Colors.amber : Colors.textSecondary}
+                    color={isDark ? colors.amber : colors.textSecondary}
                   />
                 </TouchableOpacity>
 
@@ -505,7 +508,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                     hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
                     accessibilityLabel="Ouvrir les paramètres"
                   >
-                    <Ionicons name="settings-outline" size={15} color={Colors.textSecondary} />
+                    <Ionicons name="settings-outline" size={15} color={colors.textSecondary} />
                   </TouchableOpacity>
                 )}
               </View>
@@ -520,7 +523,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   onPress={() => setIsMarmitonModalVisible(true)}
                   activeOpacity={0.8}
                 >
-                  <Ionicons name="globe-outline" size={12} color={Colors.primary} />
+                  <Ionicons name="globe-outline" size={12} color={colors.primary} />
                   <Text style={styles.marmitonTopBtnText}>Marmiton</Text>
                 </TouchableOpacity>
 
@@ -529,7 +532,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   onPress={() => setIsAiChoiceModalVisible(true)}
                   activeOpacity={0.8}
                 >
-                  <Ionicons name="sparkles" size={12} color={Colors.primary} />
+                  <Ionicons name="sparkles" size={12} color={colors.primary} />
                   <Text style={styles.scanTopBtnText}>Scan & IA</Text>
                 </TouchableOpacity>
               </View>
@@ -561,6 +564,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         <FlatList
           ref={flatListRef}
           data={paginatedRecipes}
+          extraData={themeId}
           keyExtractor={(item) => item.id}
           ListHeaderComponent={listHeaderElement}
           ListFooterComponent={listFooterElement}
