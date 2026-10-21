@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ShoppingItem, ShoppingAisle } from '../types/shopping';
 import { StorageService } from '../services/storageService';
 import { Colors, Shadows, createDynamicStyles } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
 import { AISLE_CONFIGS, ALL_AISLES } from '../utils/aisleClassifier';
 import { groupItemsByAisle, formatShoppingListForShare } from '../utils/shoppingAggregator';
 
@@ -30,6 +31,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
   onNavigateToRecipes,
   onNavigateToPlanner,
 }) => {
+  const { isDark, colors } = useTheme();
   const [items, setItems] = useState<ShoppingItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -331,7 +333,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
         <View style={styles.shareStrip}>
           <Text style={styles.shareStripLabel}>Partager la liste :</Text>
           <TouchableOpacity
-            style={[styles.sharePill, { backgroundColor: '#E7FCE9' }]}
+            style={[styles.sharePill, { backgroundColor: isDark ? '#143823' : '#E7FCE9' }]}
             onPress={handleShareWhatsApp}
             activeOpacity={0.8}
           >
@@ -340,7 +342,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.sharePill, { backgroundColor: '#EFF6FF' }]}
+            style={[styles.sharePill, { backgroundColor: isDark ? '#162A45' : '#EFF6FF' }]}
             onPress={handleShareSMS}
             activeOpacity={0.8}
           >
@@ -409,7 +411,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
                 <View key={aisle} style={styles.aisleSection}>
                   {/* Titre du rayon avec badge et icône */}
                   <View style={styles.aisleHeaderRow}>
-                    <View style={[styles.aisleIconBox, { backgroundColor: cfg.bgColor }]}>
+                    <View style={[styles.aisleIconBox, { backgroundColor: isDark ? cfg.color + '26' : cfg.bgColor }]}>
                       <Ionicons name={cfg.iconName as any} size={16} color={cfg.color} />
                     </View>
                     <Text style={[styles.aisleTitle, { color: cfg.color }]}>
@@ -612,7 +614,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
                       setIsAislePickerVisible(false);
                     }}
                   >
-                    <View style={[styles.aisleIconBox, { backgroundColor: cfg.bgColor }]}>
+                    <View style={[styles.aisleIconBox, { backgroundColor: isDark ? cfg.color + '26' : cfg.bgColor }]}>
                       <Ionicons name={cfg.iconName as any} size={16} color={cfg.color} />
                     </View>
                     <Text style={styles.aisleModalOptionText}>{aisle}</Text>

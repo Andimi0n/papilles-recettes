@@ -9,6 +9,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Recipe } from '../types/recipe';
 import { Colors, Shadows, createDynamicStyles } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
 import { StarRating } from './StarRating';
 import { formatDuration } from '../utils/helpers';
 
@@ -26,6 +27,7 @@ const RecipeCardComponent: React.FC<RecipeCardProps> = ({
   onQuickRate,
   highlightedIngredients = [],
 }) => {
+  const { isDark, colors } = useTheme();
   const totalTime = recipe.prepTimeMinutes + recipe.cookTimeMinutes;
 
   return (
@@ -143,20 +145,20 @@ const RecipeCardComponent: React.FC<RecipeCardProps> = ({
 
 const styles = createDynamicStyles((colors, shadows) => ({
   card: {
-    backgroundColor: Colors.cardBackground,
+    backgroundColor: colors.cardBackground,
     borderRadius: 20,
     marginHorizontal: 16,
     marginBottom: 16,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: Colors.borderLight,
-    ...Shadows.medium,
+    borderColor: colors.borderLight,
+    ...shadows.medium,
   },
   imageContainer: {
     height: 190,
     width: '100%',
     position: 'relative',
-    backgroundColor: Colors.surfaceAlt,
+    backgroundColor: colors.surfaceAlt,
   },
   image: {
     width: '100%',
@@ -175,10 +177,12 @@ const styles = createDynamicStyles((colors, shadows) => ({
     gap: 6,
   },
   categoryBadge: {
-    backgroundColor: 'rgba(255, 255, 255, 0.92)',
+    backgroundColor: colors.isDark ? 'rgba(24, 31, 28, 0.90)' : 'rgba(255, 255, 255, 0.92)',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
+    borderWidth: colors.isDark ? 1 : 0,
+    borderColor: colors.border,
   },
   vegeBadge: {
     flexDirection: 'row',
@@ -199,7 +203,7 @@ const styles = createDynamicStyles((colors, shadows) => ({
   categoryText: {
     fontSize: 11,
     fontWeight: '700',
-    color: Colors.primaryDark,
+    color: colors.isDark ? colors.primary : colors.primaryDark,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
@@ -215,9 +219,9 @@ const styles = createDynamicStyles((colors, shadows) => ({
     borderRadius: 12,
   },
   ratingBadgeZero: {
-    backgroundColor: 'rgba(255, 255, 255, 0.92)',
+    backgroundColor: colors.isDark ? 'rgba(24, 31, 28, 0.90)' : 'rgba(255, 255, 255, 0.92)',
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: colors.border,
   },
   ratingBadgeText: {
     color: '#FFFFFF',
@@ -226,13 +230,13 @@ const styles = createDynamicStyles((colors, shadows) => ({
     marginLeft: 4,
   },
   ratingBadgeZeroText: {
-    color: Colors.textMuted,
+    color: colors.textMuted,
     fontWeight: '600',
   },
   noImagePlaceholder: {
     width: '100%',
     height: '100%',
-    backgroundColor: Colors.primaryLight,
+    backgroundColor: colors.primaryLight,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -242,13 +246,13 @@ const styles = createDynamicStyles((colors, shadows) => ({
   title: {
     fontSize: 17,
     fontWeight: '700',
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     lineHeight: 23,
     marginBottom: 6,
   },
   description: {
     fontSize: 13,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     lineHeight: 18,
     marginBottom: 12,
   },
@@ -256,7 +260,7 @@ const styles = createDynamicStyles((colors, shadows) => ({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: Colors.surfaceAlt,
+    backgroundColor: colors.surfaceAlt,
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 12,
@@ -265,10 +269,10 @@ const styles = createDynamicStyles((colors, shadows) => ({
   ratingLabel: {
     fontSize: 12,
     fontWeight: '600',
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
   },
   matchedSection: {
-    backgroundColor: Colors.secondaryLight,
+    backgroundColor: colors.secondaryLight,
     paddingVertical: 6,
     paddingHorizontal: 10,
     borderRadius: 10,
@@ -276,11 +280,11 @@ const styles = createDynamicStyles((colors, shadows) => ({
   },
   matchedLabel: {
     fontSize: 12,
-    color: Colors.secondary,
+    color: colors.secondary,
     fontWeight: '600',
   },
   matchedText: {
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     fontWeight: '500',
   },
   footer: {
@@ -289,7 +293,7 @@ const styles = createDynamicStyles((colors, shadows) => ({
     justifyContent: 'space-around',
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: Colors.borderLight,
+    borderTopColor: colors.borderLight,
   },
   metaItem: {
     flexDirection: 'row',
@@ -297,14 +301,14 @@ const styles = createDynamicStyles((colors, shadows) => ({
   },
   metaText: {
     fontSize: 12,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     marginLeft: 5,
     fontWeight: '500',
   },
   metaDivider: {
     width: 1,
     height: 14,
-    backgroundColor: Colors.border,
+    backgroundColor: colors.border,
   },
 }));
 

@@ -56,7 +56,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   onQuickRate,
   onOpenSettings,
 }) => {
-  const { isDark, toggleTheme } = useTheme();
+  const { isDark, colors, toggleTheme } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const flatListRef = useRef<FlatList<Recipe>>(null);
@@ -282,7 +282,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             <Ionicons
               name="leaf"
               size={13}
-              color={onlyVegetarian ? '#15803D' : Colors.textSecondary}
+              color={onlyVegetarian ? (isDark ? '#4ADE80' : '#15803D') : Colors.textSecondary}
             />
             <Text style={[styles.toolPillText, onlyVegetarian && styles.vegeToolPillTextActive]}>
               Végé
@@ -1077,19 +1077,19 @@ const styles = createDynamicStyles((colors, shadows) => ({
     borderColor: Colors.primary,
   },
   vegeToolPillActive: {
-    backgroundColor: '#DCFCE7',
-    borderColor: '#86EFAC',
+    backgroundColor: colors.isDark ? '#143823' : '#DCFCE7',
+    borderColor: colors.isDark ? '#2E7D52' : '#86EFAC',
   },
   toolPillText: {
     fontSize: 12,
     fontWeight: '600',
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
   },
   toolPillTextActive: {
-    color: Colors.primary,
+    color: colors.primary,
   },
   vegeToolPillTextActive: {
-    color: '#15803D',
+    color: colors.isDark ? '#4ADE80' : '#15803D',
     fontWeight: '700',
   },
   sortToolPill: {

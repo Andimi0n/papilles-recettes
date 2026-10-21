@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { Recipe, Category, Difficulty, Ingredient, RecipeStep } from '../types/recipe';
 import { Colors, Shadows, createDynamicStyles } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
 import { StarRating } from '../components/StarRating';
 import { generateUniqueId } from '../utils/helpers';
 
@@ -49,6 +50,7 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
   onSave,
   onCancel,
 }) => {
+  const { isDark, colors } = useTheme();
   const isEditing = !!initialRecipe;
 
   // Form states
@@ -830,24 +832,24 @@ const styles = createDynamicStyles((colors, shadows) => ({
   vegeToggleCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FAFAF8',
+    backgroundColor: colors.surfaceAlt,
     borderWidth: 1.5,
-    borderColor: '#E2E8F0',
+    borderColor: colors.border,
     borderRadius: 14,
     padding: 14,
     marginBottom: 16,
   },
   vegeToggleCardActive: {
-    backgroundColor: '#F0FDF4',
-    borderColor: '#86EFAC',
+    backgroundColor: colors.isDark ? '#143823' : '#F0FDF4',
+    borderColor: colors.isDark ? '#2E7D52' : '#86EFAC',
   },
   vegeCheckbox: {
     width: 24,
     height: 24,
     borderRadius: 6,
     borderWidth: 2,
-    borderColor: '#94A3B8',
-    backgroundColor: '#FFFFFF',
+    borderColor: colors.border,
+    backgroundColor: colors.cardBackground,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -868,13 +870,13 @@ const styles = createDynamicStyles((colors, shadows) => ({
   vegeTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
   },
   vegeTitleActive: {
-    color: '#15803D',
+    color: colors.isDark ? '#4ADE80' : '#15803D',
   },
   vegeActiveBadge: {
-    backgroundColor: '#DCFCE7',
+    backgroundColor: colors.isDark ? '#143823' : '#DCFCE7',
     paddingHorizontal: 7,
     paddingVertical: 2,
     borderRadius: 6,
@@ -882,20 +884,20 @@ const styles = createDynamicStyles((colors, shadows) => ({
   vegeActiveBadgeText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#16A34A',
+    color: colors.isDark ? '#4ADE80' : '#16A34A',
   },
   vegeSubtitle: {
     fontSize: 12,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
   },
   candidateBlock: {
     marginTop: 12,
     marginBottom: 10,
-    backgroundColor: '#FAF5EE',
+    backgroundColor: colors.surfaceAlt,
     borderRadius: 14,
     padding: 12,
     borderWidth: 1,
-    borderColor: Colors.primary + '30',
+    borderColor: colors.border,
   },
   candidateHeaderRow: {
     flexDirection: 'row',
@@ -906,11 +908,11 @@ const styles = createDynamicStyles((colors, shadows) => ({
   candidateHeaderTitle: {
     fontSize: 13,
     fontWeight: '700',
-    color: Colors.primaryDark,
+    color: colors.isDark ? colors.primary : colors.primaryDark,
   },
   candidateSubtitle: {
     fontSize: 11,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     marginBottom: 10,
   },
   candidateScroll: {
@@ -923,12 +925,12 @@ const styles = createDynamicStyles((colors, shadows) => ({
     overflow: 'hidden',
     borderWidth: 2,
     borderColor: 'transparent',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.cardBackground,
     position: 'relative',
   },
   candidateThumbSelected: {
-    borderColor: '#16A34A',
-    ...Shadows.small,
+    borderColor: colors.primary,
+    ...shadows.small,
   },
   candidateImage: {
     width: '100%',

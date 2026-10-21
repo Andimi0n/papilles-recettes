@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import { Colors, Shadows, createDynamicStyles } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
 import {
   RecipeAiService,
   ExtractedRecipeData,
@@ -84,6 +85,7 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
   onRecipeExtracted,
   initialMode = 'photo',
 }) => {
+  const { isDark, colors } = useTheme();
   const [mode, setMode] = useState<'photo' | 'text'>(initialMode);
   const [photos, setPhotos] = useState<CapturedPhoto[]>([]);
   const [rawTextInput, setRawTextInput] = useState('');
@@ -974,13 +976,13 @@ const styles = createDynamicStyles((colors, shadows) => ({
     padding: 4,
   },
   errorCard: {
-    backgroundColor: '#FEF2F2',
+    backgroundColor: colors.dangerLight,
     borderRadius: 16,
     padding: 14,
     marginBottom: 16,
     borderWidth: 1.5,
-    borderColor: '#F87171',
-    ...Shadows.small,
+    borderColor: colors.danger,
+    ...shadows.small,
   },
   errorTopRow: {
     flexDirection: 'row',
@@ -997,11 +999,11 @@ const styles = createDynamicStyles((colors, shadows) => ({
   errorTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#991B1B',
+    color: colors.danger,
   },
   errorMessage: {
     fontSize: 12,
-    color: '#B91C1C',
+    color: colors.isDark ? '#FCA5A5' : '#B91C1C',
     marginTop: 3,
     lineHeight: 16,
   },
@@ -1011,7 +1013,7 @@ const styles = createDynamicStyles((colors, shadows) => ({
     paddingTop: 4,
   },
   errorRetryBtn: {
-    backgroundColor: '#DC2626',
+    backgroundColor: colors.danger,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
@@ -1025,9 +1027,9 @@ const styles = createDynamicStyles((colors, shadows) => ({
     fontSize: 12,
   },
   errorKeyBtn: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.cardBackground,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: colors.border,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
@@ -1036,7 +1038,7 @@ const styles = createDynamicStyles((colors, shadows) => ({
     gap: 5,
   },
   errorKeyBtnText: {
-    color: Colors.primary,
+    color: colors.primary,
     fontWeight: '600',
     fontSize: 12,
   },

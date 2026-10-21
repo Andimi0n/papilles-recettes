@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Recipe } from '../types/recipe';
 import { StorageService } from '../services/storageService';
 import { Colors, Shadows, createDynamicStyles } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
 import { StarRating } from '../components/StarRating';
 import { CookingModeModal } from '../components/CookingModeModal';
 import {
@@ -56,6 +57,7 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
   onUpdateRating,
   onNavigateToShoppingList,
 }) => {
+  const { isDark, colors } = useTheme();
   // Nombre de portions ajustables dynamiquement
   const [currentServings, setCurrentServings] = useState<number>(recipe.servings || 4);
   const [isAddingToShoppingList, setIsAddingToShoppingList] = useState(false);
@@ -976,7 +978,7 @@ const styles = createDynamicStyles((colors, shadows) => ({
   chefNoteText: {
     flex: 1,
     fontSize: 13,
-    color: '#92400E',
+    color: colors.amber,
     fontStyle: 'italic',
     lineHeight: 18,
   },
@@ -1044,10 +1046,12 @@ const styles = createDynamicStyles((colors, shadows) => ({
     width: 26,
     height: 26,
     borderRadius: 13,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surfaceAlt,
     alignItems: 'center',
     justifyContent: 'center',
-    ...Shadows.small,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadows.small,
   },
   servingsCountBox: {
     flexDirection: 'row',
@@ -1392,18 +1396,20 @@ const styles = createDynamicStyles((colors, shadows) => ({
     bottom: 12,
     left: 16,
     right: 16,
-    backgroundColor: Colors.textPrimary,
+    backgroundColor: colors.isDark ? colors.surfaceAlt : colors.textPrimary,
+    borderWidth: colors.isDark ? 1 : 0,
+    borderColor: colors.border,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 16,
     gap: 10,
-    ...Shadows.medium,
+    ...shadows.medium,
   },
   floatingTimersSummaryText: {
     flex: 1,
-    color: '#FFFFFF',
+    color: colors.isDark ? colors.textPrimary : '#FFFFFF',
     fontSize: 12,
     fontWeight: '600',
   },

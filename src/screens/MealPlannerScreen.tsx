@@ -14,6 +14,7 @@ import { Recipe } from '../types/recipe';
 import { DayOfWeek, MealTime, PlannedMeal, WeeklyPlanMap } from '../types/planner';
 import { StorageService } from '../services/storageService';
 import { Colors, Shadows, createDynamicStyles } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
 import { MealSlotPickerModal } from '../components/MealSlotPickerModal';
 import { generateUniqueId } from '../utils/helpers';
 
@@ -38,6 +39,7 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
   onSelectRecipe,
   onNavigateToShoppingList,
 }) => {
+  const { isDark, colors } = useTheme();
   const [weeklyPlan, setWeeklyPlan] = useState<WeeklyPlanMap>({});
   const [activeSlot, setActiveSlot] = useState<{
     day: DayOfWeek;
@@ -721,11 +723,11 @@ const styles = createDynamicStyles((colors, shadows) => ({
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surfaceAlt,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: colors.border,
   },
   slotServingsText: {
     fontSize: 11,
