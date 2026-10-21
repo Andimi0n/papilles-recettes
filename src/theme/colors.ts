@@ -17,6 +17,7 @@ export interface ThemeColors {
 
   // Neutrals & Surfaces
   background: string;
+  backgroundSecondary: string;
   cardBackground: string;
   surfaceAlt: string;
 
@@ -26,6 +27,7 @@ export interface ThemeColors {
 
   border: string;
   borderLight: string;
+  borderMedium: string;
 
   // Feedback & Badges
   danger: string;
@@ -53,6 +55,7 @@ export const BotaniqueColors: ThemeColors = {
   amberLight: '#FEF3C7',
   
   background: '#F3F7F4',     // Brume d'amande très pâle
+  backgroundSecondary: '#E7EFEA', // Pierre claire / argile
   cardBackground: '#FFFFFF', // Blanc porcelaine
   surfaceAlt: '#E7EFEA',     // Pierre claire / argile
   
@@ -62,6 +65,7 @@ export const BotaniqueColors: ThemeColors = {
   
   border: '#D7E3DC',         // Lichen délicat
   borderLight: '#E6EFEA',
+  borderMedium: '#D7E3DC',
   
   danger: '#C53030',
   dangerLight: '#FCEBEB',
@@ -88,6 +92,7 @@ export const NocturneColors: ThemeColors = {
   amberLight: '#2C220E',     // Fond ambré discret
   
   background: '#101413',     // Ardoise obsidienne très sombre (nuance forêt subtile)
+  backgroundSecondary: '#232C28', // Surface contrastée / pierre d'ardoise
   cardBackground: '#181F1C', // Carte ardoise minérale élégante
   surfaceAlt: '#232C28',     // Surface contrastée / pierre d'ardoise
   
@@ -97,6 +102,7 @@ export const NocturneColors: ThemeColors = {
   
   border: '#28362F',         // Délimitation minérale fine
   borderLight: '#1E2923',    // Filet très discret
+  borderMedium: '#28362F',    // Filet très discret
   
   danger: '#F87171',         // Corail d'alerte vif
   dangerLight: '#321616',
@@ -128,6 +134,13 @@ export const LightShadows = {
     shadowRadius: 16,
     elevation: 8,
   },
+  card: {
+    shadowColor: '#15261D',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
+  },
 };
 
 export const DarkShadows = {
@@ -151,6 +164,13 @@ export const DarkShadows = {
     shadowOpacity: 0.6,
     shadowRadius: 16,
     elevation: 8,
+  },
+  card: {
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.45,
+    shadowRadius: 8,
+    elevation: 4,
   },
 };
 

@@ -6,6 +6,11 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1B3D2C"
+    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.andimi0n.papilles"
@@ -13,7 +18,7 @@
     "android": {
       "package": "com.andimi0n.papilles",
       "adaptiveIcon": {
-        "backgroundColor": "#FAF7F2",
+        "backgroundColor": "#1B3D2C",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
