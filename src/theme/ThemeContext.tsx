@@ -16,73 +16,87 @@ interface ThemeContextType {
   themeId: ThemeId;
   themeMode: ThemeMode;
   isDark: boolean;
+  isLoaded: boolean;
   colors: ThemeColors;
   shadows: typeof LightShadows;
   setThemeMode: (mode: ThemeMode) => Promise<void>;
   toggleTheme: () => Promise<void>;
 }
 
+const initialDeviceDark = Appearance.getColorScheme() === 'dark';
+
 const ThemeContext = createContext<ThemeContextType>({
-  themeId: 'botanique',
+  themeId: initialDeviceDark ? 'nocturne' : 'botanique',
   themeMode: 'system',
-  isDark: false,
-  colors: BotaniqueColors,
-  shadows: LightShadows,
+  isDark: initialDeviceDark,
+  isLoaded: false,
+  colors: initialDeviceDark ? NocturneColors : BotaniqueColors,
+  shadows: initialDeviceDark ? DarkShadows : LightShadows,
   setThemeMode: async () => {},
   toggleTheme: async () => {},
 });
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const deviceColorScheme = useColorScheme();
+  const [systemColorScheme, setSystemColorScheme] = useState<'light' | 'dark'>(
+    (deviceColorScheme || Appearance.getColorScheme()) === 'dark' ? 'dark' : 'light'
+  );
   const [themeMode, setThemeModeState] = useState<ThemeMode>('system');
   const [isLoaded, setIsLoaded] = useState(false);
-  const [, setRerenderVersion] = useState(0);
+
+  // Synchronise dès que le hook Expo/RN useColorScheme change
+  useEffect(() => {
+    if (deviceColorScheme) {
+      setSystemColorScheme(deviceColorScheme === 'dark' ? 'dark' : 'light');
+    }
+  }, [deviceColorScheme]);
+
+  // Écoute dynamique les changements d'apparence système via Appearance (quand l'utilisateur bascule son OS)
+  useEffect(() => {
+    const subscription = Appearance.addChangeListener(({ colorScheme }) => {
+      if (colorScheme) {
+        setSystemColorScheme(colorScheme === 'dark' ? 'dark' : 'light');
+      }
+    });
+    return () => subscription.remove();
+  }, []);
 
   // Détermine si on doit afficher le thème sombre
   const isDark = useMemo(() => {
     if (themeMode === 'dark') return true;
     if (themeMode === 'light') return false;
-    return deviceColorScheme === 'dark';
-  }, [themeMode, deviceColorScheme]);
+    return systemColorScheme === 'dark';
+  }, [themeMode, systemColorScheme]);
 
   const themeId: ThemeId = isDark ? 'nocturne' : 'botanique';
   const colors = isDark ? NocturneColors : BotaniqueColors;
   const shadows = isDark ? DarkShadows : LightShadows;
 
-  // Synchronise le singleton interne pour les proxies Colors et createDynamicStyles
-  useEffect(() => {
-    setActiveThemeInternal(themeId);
-    setRerenderVersion((v) => v + 1);
-  }, [themeId]);
+  // IMPORTANT : Synchronisation synchrone immédiate du singleton interne AVANT le rendu des composants enfants
+  setActiveThemeInternal(themeId);
 
-  // Chargement de la préférence utilisateur sauvegardée
+  // Chargement de la préférence utilisateur sauvegardée en stockage local
   useEffect(() => {
+    let isMounted = true;
     const loadStoredTheme = async () => {
       try {
         const stored = await StorageService.getThemeMode();
-        if (stored) {
+        if (isMounted && stored) {
           setThemeModeState(stored);
         }
       } catch (e) {
         console.error('Erreur chargement mode thème:', e);
       } finally {
-        setIsLoaded(true);
+        if (isMounted) {
+          setIsLoaded(true);
+        }
       }
     };
     loadStoredTheme();
+    return () => {
+      isMounted = false;
+    };
   }, []);
-
-  // Écoute dynamique les changements d'apparence système (si l'utilisateur bascule son OS)
-  useEffect(() => {
-    const subscription = Appearance.addChangeListener(({ colorScheme }) => {
-      if (themeMode === 'system') {
-        const targetId: ThemeId = colorScheme === 'dark' ? 'nocturne' : 'botanique';
-        setActiveThemeInternal(targetId);
-        setRerenderVersion((v) => v + 1);
-      }
-    });
-    return () => subscription.remove();
-  }, [themeMode]);
 
   const setThemeMode = useCallback(async (mode: ThemeMode) => {
     setThemeModeState(mode);
@@ -104,12 +118,13 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       themeId,
       themeMode,
       isDark,
+      isLoaded,
       colors,
       shadows,
       setThemeMode,
       toggleTheme,
     }),
-    [themeId, themeMode, isDark, colors, shadows, setThemeMode, toggleTheme]
+    [themeId, themeMode, isDark, isLoaded, colors, shadows, setThemeMode, toggleTheme]
   );
 
   return (

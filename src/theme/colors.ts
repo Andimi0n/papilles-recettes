@@ -1,4 +1,4 @@
-import { StyleSheet } from 'react-native';
+import { StyleSheet, Appearance } from 'react-native';
 
 export type ThemeId = 'botanique' | 'nocturne';
 export type ThemeMode = 'system' | 'light' | 'dark';
@@ -72,35 +72,36 @@ export const BotaniqueColors: ThemeColors = {
 };
 
 /**
- * Thème Sombre : « Table Nocturne & Club Gourmand »
- * Inspiré par les speakeasies, les bougies chaudes, le laiton doré et le cuir torréfié.
+ * Thème Sombre : « Table Nocturne & Sauge Céleste »
+ * Une esthétique culinaire moderne, apaisante et hautement contrastée :
+ * Ardoise minérale profonde, touches émeraude lumineuse, sauge argentée, miel doré et framboise gourmande.
  */
 export const NocturneColors: ThemeColors = {
-  primary: '#E28743',        // Caramel ambré cuivré
-  primaryLight: '#2C1E14',   // Cognac torréfié profond
-  primaryDark: '#C26724',
+  primary: '#38B27A',        // Émeraude culinaire lumineuse et raffinée
+  primaryLight: '#143325',   // Voile vert sombre délicat
+  primaryDark: '#237B50',    // Émeraude profonde
   
-  secondary: '#2E6F54',      // Émeraude nocturne feutré
-  secondaryLight: '#16281F',
+  secondary: '#5FB49C',      // Sauge & eucalyptus moderne
+  secondaryLight: '#162F27', // Brume végétale nocturne
   
-  amber: '#F59E0B',          // Lueur de bougie dorée (étoiles)
-  amberLight: '#2E220D',
+  amber: '#F59E0B',          // Éclat miel d'or / safran chaud (étoiles)
+  amberLight: '#2C220E',     // Fond ambré discret
   
-  background: '#121215',     // Noir velours espresso
-  cardBackground: '#1C1C22', // Ardoise fumée chaude
-  surfaceAlt: '#272730',     // Fonte / anthracite
+  background: '#101413',     // Ardoise obsidienne très sombre (nuance forêt subtile)
+  cardBackground: '#181F1C', // Carte ardoise minérale élégante
+  surfaceAlt: '#232C28',     // Surface contrastée / pierre d'ardoise
   
-  textPrimary: '#F5F2EB',    // Crème ivoire chaud
-  textSecondary: '#A8A39C',  // Lin fumé
-  textMuted: '#6E6A63',      // Cendres douces
+  textPrimary: '#F2F6F3',    // Ivoire doux haute lisibilité
+  textSecondary: '#A0B3A7',  // Sauge argentée douce
+  textMuted: '#687B70',      // Céladon ardoisé discret
   
-  border: '#2E2D36',         // Métal feutré sombre
-  borderLight: '#24232C',
+  border: '#28362F',         // Délimitation minérale fine
+  borderLight: '#1E2923',    // Filet très discret
   
-  danger: '#F87171',
-  dangerLight: '#341919',
-  heart: '#E28743',          // Cuivre étincelant
-  heartLight: '#2D1E16',
+  danger: '#F87171',         // Corail d'alerte vif
+  dangerLight: '#321616',
+  heart: '#E25575',          // Framboise gourmande
+  heartLight: '#341620',
   
   isDark: true,
 };
@@ -153,10 +154,11 @@ export const DarkShadows = {
   },
 };
 
-// Variable d'état interne pour le proxy et le cache
-let _activeColors: ThemeColors = BotaniqueColors;
-let _activeShadows = LightShadows;
-let _activeThemeId: ThemeId = 'botanique';
+// Initialisation synchronisée avec l'apparence système dès le chargement du module
+const _initialIsDark = Appearance.getColorScheme() === 'dark';
+let _activeColors: ThemeColors = _initialIsDark ? NocturneColors : BotaniqueColors;
+let _activeShadows = _initialIsDark ? DarkShadows : LightShadows;
+let _activeThemeId: ThemeId = _initialIsDark ? 'nocturne' : 'botanique';
 
 export function setActiveThemeInternal(id: ThemeId) {
   _activeThemeId = id;

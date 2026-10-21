@@ -25,7 +25,7 @@ import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
 type AppScreen = 'home' | 'planner' | 'shopping' | 'detail' | 'form' | 'scan';
 
 function AppContent() {
-  const { isDark, colors } = useTheme();
+  const { isDark, colors, isLoaded: isThemeLoaded } = useTheme();
   const [currentScreen, setCurrentScreen] = useState<AppScreen>('home');
   const [returnScreenAfterDetail, setReturnScreenAfterDetail] = useState<'home' | 'planner'>('home');
   const [recipes, setRecipes] = useState<Recipe[]>([]);
@@ -160,7 +160,7 @@ function AppContent() {
     }
   };
 
-  if (isLoading) {
+  if (isLoading || !isThemeLoaded) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={colors.primary} />
