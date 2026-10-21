@@ -17,6 +17,8 @@ import { Colors, Shadows, createDynamicStyles } from '../theme/colors';
 import { useTheme } from '../theme/ThemeContext';
 import { StarRating } from '../components/StarRating';
 import { generateUniqueId } from '../utils/helpers';
+import { IngredientAutocompleteInput } from '../components/IngredientAutocompleteInput';
+import { VocabularyService } from '../services/vocabularyService';
 
 
 interface RecipeFormScreenProps {
@@ -204,6 +206,13 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
       ingredients: validIngredients,
       steps: validSteps.map((s, idx) => ({ ...s, order: idx + 1 })),
     };
+
+    // Enregistrement silencieux et incrémentation de l'usage dans le vocabulaire
+    validIngredients.forEach((ing) => {
+      const clean = ing.name.trim();
+      VocabularyService.incrementUsage(clean).catch(() => {});
+      VocabularyService.add({ canonicalName: clean }).catch(() => {});
+    });
 
     onSave(recipe);
   };
@@ -470,11 +479,26 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
             </View>
 
             {ingredients.map((ing, index) => (
-              <View key={ing.id} style={styles.ingredientEditRow}>
-                <TextInput
-                  style={[styles.textInput, styles.ingNameInput]}
+              <View
+                key={ing.id}
+                style={[
+                  styles.ingredientEditRow,
+                  { zIndex: (ingredients.length - index) * 10 },
+                ]}
+              >
+                <IngredientAutocompleteInput
+                  containerStyle={{ flex: 3 }}
+                  style={[styles.textInput, { width: '100%', marginBottom: 0 }]}
                   value={ing.name}
                   onChangeText={(val) => handleUpdateIngredient(index, 'name', val)}
+                  onAutoExtractedDetails={(extracted) => {
+                    if (extracted.quantity && !ing.quantity) {
+                      handleUpdateIngredient(index, 'quantity', extracted.quantity);
+                    }
+                    if (extracted.unit && !ing.unit) {
+                      handleUpdateIngredient(index, 'unit', extracted.unit);
+                    }
+                  }}
                   placeholder="Nom (ex: Farine)"
                   placeholderTextColor={Colors.textMuted}
                 />

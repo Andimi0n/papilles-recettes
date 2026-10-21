@@ -1,0 +1,609 @@
+import { CanonicalIngredient } from '../types/vocabulary';
+import { ShoppingAisle } from '../types/shopping';
+
+interface SeedIngredientDef {
+  name: string;
+  aisle: ShoppingAisle;
+  aliases: string[];
+}
+
+const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
+  // =========================================================================
+  // 1. FRUITS & LÉGUMES
+  // =========================================================================
+  {
+    name: 'Petits pois',
+    aisle: 'Fruits & Légumes',
+    aliases: ['petit pois', 'pois', 'boite de petits pois', 'boite de petit pois', 'petits pois surgeles', 'petits pois frais'],
+  },
+  {
+    name: 'Carotte',
+    aisle: 'Fruits & Légumes',
+    aliases: ['carottes', 'carotte epluchee', 'carottes epluchees', 'carotte rapee', 'carottes rapees', 'carottes en des', 'carotte des sables'],
+  },
+  {
+    name: 'Tomate',
+    aisle: 'Fruits & Légumes',
+    aliases: ['tomates', 'tomate cerise', 'tomates cerises', 'tomate grappe', 'tomates pelees', 'tomates en des', 'tomate fraiche'],
+  },
+  {
+    name: 'Oignon',
+    aisle: 'Fruits & Légumes',
+    aliases: ['oignons', 'oignon jaune', 'oignon rouge', 'oignon blanc', 'oignons jaunes', 'oignon emince', 'oignon epluche', 'cebette', 'ciboule'],
+  },
+  {
+    name: 'Ail',
+    aisle: 'Fruits & Légumes',
+    aliases: ['gousse d ail', 'gousses d ail', 'tete d ail', 'ail epluche', 'ail hache', 'gousses ail', 'gousse ail'],
+  },
+  {
+    name: 'Échalote',
+    aisle: 'Fruits & Légumes',
+    aliases: ['echalotes', 'echalote', 'echalote epluchee', 'echalote hachee'],
+  },
+  {
+    name: 'Pomme de terre',
+    aisle: 'Fruits & Légumes',
+    aliases: ['pommes de terre', 'patate', 'patates', 'pdt', 'grenaille', 'grenailles', 'pomme de terre epluchee', 'pommes de terre epluchees'],
+  },
+  {
+    name: 'Courgette',
+    aisle: 'Fruits & Légumes',
+    aliases: ['courgettes', 'courgette epluchee', 'courgettes en des', 'courgette coupee'],
+  },
+  {
+    name: 'Aubergine',
+    aisle: 'Fruits & Légumes',
+    aliases: ['aubergines', 'aubergine coupee', 'aubergines grillees'],
+  },
+  {
+    name: 'Poivron',
+    aisle: 'Fruits & Légumes',
+    aliases: ['poivrons', 'poivron rouge', 'poivron vert', 'poivron jaune', 'poivrons rouges', 'poivron emince'],
+  },
+  {
+    name: 'Poireau',
+    aisle: 'Fruits & Légumes',
+    aliases: ['poireaux', 'blanc de poireau', 'blancs de poireaux', 'poireau emince'],
+  },
+  {
+    name: 'Champignon de Paris',
+    aisle: 'Fruits & Légumes',
+    aliases: ['champignon', 'champignons', 'champignons de paris', 'champignon de paris frais', 'champignons eminces', 'champignons frais', 'bolet', 'cepe', 'girolle'],
+  },
+  {
+    name: 'Salade',
+    aisle: 'Fruits & Légumes',
+    aliases: ['salades', 'laitue', 'roquette', 'batavia', 'mache', 'mesclun', 'feuilles de salade'],
+  },
+  {
+    name: 'Concombre',
+    aisle: 'Fruits & Légumes',
+    aliases: ['concombres', 'concombre epluche', 'tranches de concombre'],
+  },
+  {
+    name: 'Brocoli',
+    aisle: 'Fruits & Légumes',
+    aliases: ['brocolis', 'fleurettes de brocoli', 'fleurette de brocoli'],
+  },
+  {
+    name: 'Chou-fleur',
+    aisle: 'Fruits & Légumes',
+    aliases: ['chou fleur', 'choux fleur', 'fleurettes de chou fleur'],
+  },
+  {
+    name: 'Épinards',
+    aisle: 'Fruits & Légumes',
+    aliases: ['epinard', 'epinards frais', 'pousses d epinard', 'jeunes pousses epinard', 'feuilles d epinards'],
+  },
+  {
+    name: 'Avocat',
+    aisle: 'Fruits & Légumes',
+    aliases: ['avocats', 'chair d avocat', 'avocat mur'],
+  },
+  {
+    name: 'Céleri',
+    aisle: 'Fruits & Légumes',
+    aliases: ['celeri', 'branche de celeri', 'branches de celeri', 'celeri branche', 'celeri rave'],
+  },
+  {
+    name: 'Haricots verts',
+    aisle: 'Fruits & Légumes',
+    aliases: ['haricot vert', 'haricots verts frais', 'boite de haricots verts', 'haricots plats'],
+  },
+  {
+    name: 'Radis',
+    aisle: 'Fruits & Légumes',
+    aliases: ['radis rose', 'radis noir', 'botte de radis'],
+  },
+  {
+    name: 'Navet',
+    aisle: 'Fruits & Légumes',
+    aliases: ['navets', 'navet epluche'],
+  },
+  {
+    name: 'Potimarron',
+    aisle: 'Fruits & Légumes',
+    aliases: ['potimarrons', 'courge', 'butternut', 'potiron', 'courge butternut'],
+  },
+  {
+    name: 'Citron',
+    aisle: 'Fruits & Légumes',
+    aliases: ['citrons', 'jus de citron', 'zeste de citron', 'citron jaune', 'citron vert', 'lime'],
+  },
+  {
+    name: 'Pomme',
+    aisle: 'Fruits & Légumes',
+    aliases: ['pommes', 'pomme golden', 'pomme granny', 'pomme epluchee', 'quartiers de pomme'],
+  },
+  {
+    name: 'Banane',
+    aisle: 'Fruits & Légumes',
+    aliases: ['bananes', 'banane mure', 'bananes epluchees'],
+  },
+  {
+    name: 'Orange',
+    aisle: 'Fruits & Légumes',
+    aliases: ['oranges', 'jus d orange', 'zeste d orange'],
+  },
+  {
+    name: 'Fraise',
+    aisle: 'Fruits & Légumes',
+    aliases: ['fraises', 'fraises fraiches', 'barquette de fraises'],
+  },
+  {
+    name: 'Framboise',
+    aisle: 'Fruits & Légumes',
+    aliases: ['framboises', 'framboises fraiches', 'barquette de framboises'],
+  },
+  {
+    name: 'Poire',
+    aisle: 'Fruits & Légumes',
+    aliases: ['poires', 'poire epluchee'],
+  },
+
+  // =========================================================================
+  // 2. PRODUITS FRAIS & CRÈMERIE
+  // =========================================================================
+  {
+    name: 'Œufs',
+    aisle: 'Produits Frais & Crèmerie',
+    aliases: ['oeuf', 'oeufs', 'oeufs frais', 'blanc d oeuf', 'blancs d oeufs', 'jaune d oeuf', 'jaunes d oeufs'],
+  },
+  {
+    name: 'Beurre',
+    aisle: 'Produits Frais & Crèmerie',
+    aliases: ['beurres', 'beurre doux', 'beurre demi sel', 'beurre fondu', 'noix de beurre', 'margarine'],
+  },
+  {
+    name: 'Crème fraîche',
+    aisle: 'Produits Frais & Crèmerie',
+    aliases: ['creme', 'cremes', 'creme fraiche', 'creme liquide', 'creme epaisse', 'creme fleurette', 'creme entiere', 'brique de creme'],
+  },
+  {
+    name: 'Lait',
+    aisle: 'Produits Frais & Crèmerie',
+    aliases: ['laits', 'lait demi ecreme', 'lait entier', 'lait ecreme', 'bouteille de lait'],
+  },
+  {
+    name: 'Fromage râpé',
+    aisle: 'Produits Frais & Crèmerie',
+    aliases: ['fromage rape', 'emmental rape', 'gruyere rape', 'sachet de fromage rape'],
+  },
+  {
+    name: 'Parmesan',
+    aisle: 'Produits Frais & Crèmerie',
+    aliases: ['parmesan rape', 'parmigiano', 'parmigiano reggiano', 'grana padano', 'copeaux de parmesan'],
+  },
+  {
+    name: 'Mozzarella',
+    aisle: 'Produits Frais & Crèmerie',
+    aliases: ['mozza', 'boule de mozzarella', 'mozzarella di bufala', 'burrata'],
+  },
+  {
+    name: 'Emmental',
+    aisle: 'Produits Frais & Crèmerie',
+    aliases: ['gruyere', 'comte', 'beaufort', 'fromage a pate dure'],
+  },
+  {
+    name: 'Chèvre',
+    aisle: 'Produits Frais & Crèmerie',
+    aliases: ['fromage de chevre', 'buche de chevre', 'crottin de chavignol'],
+  },
+  {
+    name: 'Feta',
+    aisle: 'Produits Frais & Crèmerie',
+    aliases: ['fromage feta', 'feta grecque', 'bloc de feta'],
+  },
+  {
+    name: 'Mascarpone',
+    aisle: 'Produits Frais & Crèmerie',
+    aliases: ['pot de mascarpone'],
+  },
+  {
+    name: 'Ricotta',
+    aisle: 'Produits Frais & Crèmerie',
+    aliases: ['pot de ricotta'],
+  },
+  {
+    name: 'Yaourt',
+    aisle: 'Produits Frais & Crèmerie',
+    aliases: ['yaourts', 'yogourt', 'yaourt nature', 'yaourt grec', 'pot de yaourt'],
+  },
+  {
+    name: 'Reblochon',
+    aisle: 'Produits Frais & Crèmerie',
+    aliases: ['fromage reblochon', 'demi reblochon'],
+  },
+  {
+    name: 'Fromage à raclette',
+    aisle: 'Produits Frais & Crèmerie',
+    aliases: ['raclette', 'tranches de raclette', 'fromage raclette'],
+  },
+
+  // =========================================================================
+  // 3. BOUCHERIE & POISSONNERIE
+  // =========================================================================
+  {
+    name: 'Poulet',
+    aisle: 'Boucherie & Poissonnerie',
+    aliases: ['blanc de poulet', 'blancs de poulet', 'filet de poulet', 'filets de poulet', 'cuisse de poulet', 'cuisses de poulet', 'escalope de poulet', 'escalopes de poulet', 'morceaux de poulet', 'aiguillettes de poulet', 'poulet emince'],
+  },
+  {
+    name: 'Bœuf',
+    aisle: 'Boucherie & Poissonnerie',
+    aliases: ['boeuf', 'steak', 'steaks', 'steak hache', 'steaks haches', 'viande hachee', 'viande bovine', 'bavette', 'entrecote', 'rumsteck', 'paleron', 'bourguignon'],
+  },
+  {
+    name: 'Lardons',
+    aisle: 'Boucherie & Poissonnerie',
+    aliases: ['lardon', 'lardons fumes', 'lardons nature', 'barquette de lardons', 'poitrine fumee', 'bacon', 'pancetta'],
+  },
+  {
+    name: 'Jambon',
+    aisle: 'Boucherie & Poissonnerie',
+    aliases: ['jambons', 'jambon blanc', 'jambon de paris', 'tranches de jambon', 'tranche de jambon', 'des de jambon'],
+  },
+  {
+    name: 'Jambon cru',
+    aisle: 'Boucherie & Poissonnerie',
+    aliases: ['jambon de parme', 'jambon serrano', 'prosciutto', 'chiffonnade de jambon cru'],
+  },
+  {
+    name: 'Porc',
+    aisle: 'Boucherie & Poissonnerie',
+    aliases: ['cote de porc', 'cotes de porc', 'filet mignon', 'filet mignon de porc', 'echine de porc', 'roti de porc'],
+  },
+  {
+    name: 'Saucisse',
+    aisle: 'Boucherie & Poissonnerie',
+    aliases: ['saucisses', 'chipolata', 'chipolatas', 'merguez', 'saucisse de toulouse', 'saucisse de morteau', 'saucisse de montbeliard', 'chorizo'],
+  },
+  {
+    name: 'Veau',
+    aisle: 'Boucherie & Poissonnerie',
+    aliases: ['escalope de veau', 'escalopes de veau', 'roti de veau', 'morceaux de veau'],
+  },
+  {
+    name: 'Saumon',
+    aisle: 'Boucherie & Poissonnerie',
+    aliases: ['pave de saumon', 'paves de saumon', 'filet de saumon', 'filets de saumon', 'saumon frais', 'darne de saumon'],
+  },
+  {
+    name: 'Saumon fumé',
+    aisle: 'Boucherie & Poissonnerie',
+    aliases: ['saumon fume', 'tranches de saumon fume', 'chutes de saumon fume'],
+  },
+  {
+    name: 'Thon',
+    aisle: 'Boucherie & Poissonnerie',
+    aliases: ['thon en boite', 'boite de thon', 'thon naturel', 'thon au naturel', 'pave de thon'],
+  },
+  {
+    name: 'Cabillaud',
+    aisle: 'Boucherie & Poissonnerie',
+    aliases: ['dos de cabillaud', 'filet de cabillaud', 'filets de cabillaud', 'colin', 'merlu'],
+  },
+  {
+    name: 'Crevettes',
+    aisle: 'Boucherie & Poissonnerie',
+    aliases: ['crevette', 'crevettes roses', 'crevettes decortiquees', 'gambas', 'scampis'],
+  },
+
+  // =========================================================================
+  // 4. ÉPICERIE & CONDIMENTS
+  // =========================================================================
+  {
+    name: 'Farine',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['farines', 'farine de ble', 'farine t55', 'farine t45', 'farine fluide'],
+  },
+  {
+    name: 'Sucre',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['sucres', 'sucre en poudre', 'sucre semoule', 'sucre blanc', 'sucre roux', 'cassonade', 'sucre glace'],
+  },
+  {
+    name: 'Sel',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['sels', 'sel fin', 'gros sel', 'fleur de sel', 'pincee de sel'],
+  },
+  {
+    name: 'Poivre',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['poivres', 'poivre moulu', 'poivre du moulin', 'poivre noir', 'tours de moulin a poivre'],
+  },
+  {
+    name: 'Huile d\'olive',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['huile d olive', 'huile olive', 'huile d\'olive vierge', 'filet d huile d olive'],
+  },
+  {
+    name: 'Huile de tournesol',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['huile neutre', 'huile vegetale', 'huile de colza', 'huile de friture'],
+  },
+  {
+    name: 'Pâtes',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['pate', 'pates', 'spaghetti', 'spaghettis', 'penne', 'pennes', 'coquillette', 'coquillettes', 'tagliatelle', 'tagliatelles', 'fusilli', 'fusillis', 'macaroni', 'macaronis', 'linguine', 'linguines', 'farfalle'],
+  },
+  {
+    name: 'Riz',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['riz basmati', 'riz thai', 'riz rond', 'riz arborio', 'riz long', 'riz blanc'],
+  },
+  {
+    name: 'Muscade',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['noix de muscade', 'muscade en poudre', 'muscade rapee', 'pincee de muscade', 'noix muscade'],
+  },
+  {
+    name: 'Moutarde',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['moutarde de dijon', 'moutarde a l ancienne', 'cuillere de moutarde'],
+  },
+  {
+    name: 'Vinaigre',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['vinaigre de vin', 'vinaigre blanc', 'vinaigre de cidre', 'vinaigre balsamique'],
+  },
+  {
+    name: 'Coulis de tomate',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['sauce tomate', 'puree de tomate', 'pulpe de tomate', 'passata'],
+  },
+  {
+    name: 'Concentré de tomate',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['concentre de tomates', 'tube de concentre de tomate', 'petite boite de concentre'],
+  },
+  {
+    name: 'Levure chimique',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['sachet de levure chimique', 'poudre a lever', 'levure alsacienne'],
+  },
+  {
+    name: 'Chocolat noir',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['chocolat', 'chocolat patissier', 'tablette de chocolat', 'tablette de chocolat noir', 'chocolat en poudre'],
+  },
+  {
+    name: 'Vanille',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['gousse de vanille', 'extrait de vanille', 'arome vanille', 'sucre vanille', 'sachet de sucre vanille'],
+  },
+  {
+    name: 'Miel',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['pot de miel', 'miel de fleurs', 'miel d acacia'],
+  },
+  {
+    name: 'Thym',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['brin de thym', 'brins de thym', 'thym frais', 'thym seche'],
+  },
+  {
+    name: 'Laurier',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['feuille de laurier', 'feuilles de laurier', 'laurier sauce'],
+  },
+  {
+    name: 'Herbes de Provence',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['herbe de provence', 'melange d herbes de provence'],
+  },
+  {
+    name: 'Basilic',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['feuilles de basilic', 'feuille de basilic', 'basilic frais', 'basilic ciselet'],
+  },
+  {
+    name: 'Persil',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['persil plat', 'persil frise', 'persil frais', 'persil hache', 'brins de persil'],
+  },
+  {
+    name: 'Coriandre',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['coriandre fraiche', 'feuilles de coriandre', 'coriandre moulue'],
+  },
+  {
+    name: 'Curry',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['curry en poudre', 'poudre de curry', 'pate de curry'],
+  },
+  {
+    name: 'Cumin',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['cumin moulu', 'graines de cumin'],
+  },
+  {
+    name: 'Paprika',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['paprika doux', 'paprika fume'],
+  },
+  {
+    name: 'Cannelle',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['cannelle en poudre', 'baton de cannelle', 'batons de cannelle'],
+  },
+  {
+    name: 'Curcuma',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['curcuma en poudre'],
+  },
+  {
+    name: 'Bouillon de volaille',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['cube de bouillon de volaille', 'bouillon de poule', 'cube de volaille', 'fond de volaille'],
+  },
+  {
+    name: 'Bouillon de légumes',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['cube de bouillon de legumes', 'bouillon cube', 'cube de bouillon'],
+  },
+  {
+    name: 'Sauce soja',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['sauce soja salee', 'sauce soja sucree', 'tamari'],
+  },
+  {
+    name: 'Pois chiches',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['pois chiche', 'boite de pois chiches', 'bocal de pois chiches'],
+  },
+  {
+    name: 'Haricots rouges',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['haricot rouge', 'boite de haricots rouges'],
+  },
+  {
+    name: 'Lentilles',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['lentilles vertes', 'lentilles corail', 'lentille', 'boite de lentilles'],
+  },
+
+  // =========================================================================
+  // 5. BOULANGERIE & PÂTISSERIE
+  // =========================================================================
+  {
+    name: 'Pain',
+    aisle: 'Boulangerie & Pâtisserie',
+    aliases: ['baguette', 'pain de campagne', 'pain frais', 'tranches de pain', 'tartines de pain', 'croutons'],
+  },
+  {
+    name: 'Pain de mie',
+    aisle: 'Boulangerie & Pâtisserie',
+    aliases: ['tranches de pain de mie', 'pain burger', 'pain toast'],
+  },
+  {
+    name: 'Pâte feuilletée',
+    aisle: 'Boulangerie & Pâtisserie',
+    aliases: ['rouleau de pate feuilletee', 'pate feuilletee pur beurre'],
+  },
+  {
+    name: 'Pâte brisée',
+    aisle: 'Boulangerie & Pâtisserie',
+    aliases: ['rouleau de pate brisee'],
+  },
+  {
+    name: 'Pâte sablée',
+    aisle: 'Boulangerie & Pâtisserie',
+    aliases: ['rouleau de pate sablee'],
+  },
+  {
+    name: 'Levure boulangère',
+    aisle: 'Boulangerie & Pâtisserie',
+    aliases: ['levure de boulanger', 'cube de levure fraiche', 'levure seche'],
+  },
+  {
+    name: 'Poudre d\'amande',
+    aisle: 'Boulangerie & Pâtisserie',
+    aliases: ['poudre d amande', 'amandes en poudre', 'amande effilee', 'amandes effilees'],
+  },
+
+  // =========================================================================
+  // 6. BOISSONS
+  // =========================================================================
+  {
+    name: 'Vin blanc',
+    aisle: 'Boissons',
+    aliases: ['vin blanc sec', 'verre de vin blanc', 'bouteille de vin blanc'],
+  },
+  {
+    name: 'Vin rouge',
+    aisle: 'Boissons',
+    aliases: ['vin rouge sec', 'verre de vin rouge'],
+  },
+  {
+    name: 'Bière',
+    aisle: 'Boissons',
+    aliases: ['bieres', 'biere blonde', 'canette de biere'],
+  },
+  {
+    name: 'Lait de coco',
+    aisle: 'Boissons',
+    aliases: ['creme de coco', 'brique de lait de coco', 'boite de lait de coco'],
+  },
+  {
+    name: 'Café',
+    aisle: 'Boissons',
+    aliases: ['tasse de cafe', 'cafe expresso', 'cafe moulu', 'cafe soluble'],
+  },
+
+  // =========================================================================
+  // 7. SURGELÉS
+  // =========================================================================
+  {
+    name: 'Glace vanille',
+    aisle: 'Surgelés',
+    aliases: ['boules de glace', 'bac de glace', 'creme glacee'],
+  },
+  {
+    name: 'Légumes surgelés',
+    aisle: 'Surgelés',
+    aliases: ['poelee de legumes', 'poelee surgelee', 'legumes woks'],
+  },
+];
+
+/**
+ * Nettoie une chaîne pour indexation rapide (minuscules, sans accents)
+ */
+function normalizeForVocabIndex(str: string): string {
+  return str
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim();
+}
+
+/**
+ * Crée le jeu de données initialisé canonique complet
+ */
+export function getInitialCanonicalVocabulary(): CanonicalIngredient[] {
+  const now = '2026-01-01T00:00:00.000Z';
+  return RAW_SEED_INGREDIENTS.map((item, idx) => {
+    const id = `ing_canon_${String(idx + 1).padStart(3, '0')}`;
+    const normalizedName = normalizeForVocabIndex(item.name);
+    // Inclut le pluriel automatique comme alias de base si absent
+    const aliasSet = new Set<string>();
+    item.aliases.forEach((a) => aliasSet.add(normalizeForVocabIndex(a)));
+    aliasSet.add(normalizedName);
+    if (!normalizedName.endsWith('s')) {
+      aliasSet.add(`${normalizedName}s`);
+    }
+
+    return {
+      id,
+      canonicalName: item.name,
+      normalizedName,
+      aliases: Array.from(aliasSet),
+      defaultAisle: item.aisle,
+      isCustom: false,
+      usageCount: 0,
+      createdAt: now,
+      updatedAt: now,
+    };
+  });
+}

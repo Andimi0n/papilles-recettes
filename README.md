@@ -29,7 +29,14 @@ Une application mobile moderne, soignée et intuitive pour gérer vos recettes, 
   - Cocher/décocher les articles achetés.
   - **Passerelle intelligente** : bouton 1 tap *"Ajouter aux courses"* depuis les étagères, et *"Ranger dans mes étagères 🥫"* pour basculer vos courses achetées dans vos stocks.
 
-### 4. 📷 Scanner de Recettes par IA (Gemini BYOK) & Import Web
+### 4. 🏷️ Lexique Canonique & Normalisation Stricte des Ingrédients
+- **Élimination automatique des synonymes et contenants** : fini les doublons entre *"boîte de petits pois"* et *"petits pois"*, *"noix de muscade"* et *"muscade"*, ou *"carotte épluchée"* et *"carotte"*.
+- **Pipeline hybride intelligent** : guidage strict de l'IA (Gemini 3.8 Flash) en amont, couplé à un moteur de nettoyage déterministe local (`IngredientNormalizer`) qui résout instantanément vers le nom canonique officiel.
+- **Respect absolu des instructions** : la normalisation s'applique **exclusivement aux ingrédients** ; les étapes et instructions de préparation restent 100% fidèles et intouchées.
+- **Autocomplétion prédictive réactive** : composant de saisie avec liste déroulante suggérant les termes officiels et leurs rayons en direct lors de la création de recettes ou de l'ajout aux étagères.
+- **Gestionnaire de vocabulaire complet** : accessible dans les Paramètres pour consulter les ~350 ingrédients canoniques, rechercher par rayon, renommer, ajouter des alias personnalisés, fusionner des doublons ou réinitialiser.
+
+### 5. 📷 Scanner de Recettes par IA (Gemini BYOK) & Import Web
 - **Scanner Photo & Texte (IA Multimodale)** :
   - Prenez en photo une recette de magazine ou de livre (ou choisissez depuis la galerie).
   - **Support multi-photos** : capturez le **Recto** (titre, visuel) et le **Verso** (ingrédients & étapes détaillées, idéal pour fiches HelloFresh / Quitoque).
@@ -38,22 +45,22 @@ Une application mobile moderne, soignée et intuitive pour gérer vos recettes, 
   - Modèle **BYOK (Bring Your Own Key)** : votre clé API Google AI Studio reste stockée localement de manière chiffrée.
 - **Import Web Marmiton** : importez instantanément n'importe quelle recette Marmiton en collant son URL.
 
-### 5. ⭐ Système de Notation & Avis Détaillés
+### 6. ⭐ Système de Notation & Avis Détaillés
 - Notez vos recettes de 0.5 à 5.0 étoiles avec retour qualitatif dynamique (*"Coup de cœur absolu !"*, *"Délicieux"*, *"À perfectionner"...*).
 - Notes du chef et astuces personnelles mémorisées sur chaque fiche.
 - Filtres instantanés par note (*4★ et +*) et tri par meilleures notes.
 
-### 6. 🥗 Recherche Intelligente & Frigo
+### 7. 🥗 Recherche Intelligente & Frigo
 - Moteur de recherche instantané par titre, ingrédients ou tags.
 - Filtres par catégories (Entrées, Plats, Desserts, Apéro, Végétarien...).
 - Sélecteur multi-ingrédients avec suggestions d'ingrédients populaires.
 
-### 7. 👨‍🍳 Mode Session Cuisine Interactif
+### 8. 👨‍🍳 Mode Session Cuisine Interactif
 - Liste d'ingrédients et étapes avec cases à cocher pour suivre votre avancée pas à pas sans perdre le fil.
 - Ajustement dynamique des proportions selon le nombre de convives souhaité.
 - Partage clair et formaté de la recette via messagerie ou e-mail.
 
-### 8. 💾 100% Hors-Ligne, Sécurisé & Sauvegarde
+### 9. 💾 100% Hors-Ligne, Sécurisé & Sauvegarde
 - Aucune donnée transmise à des serveurs tiers : tout reste sur votre téléphone dans `AsyncStorage`.
 - Clé d'API sécurisée avec `expo-secure-store`.
 - **Sauvegarde & Restauration** : exportez toutes vos recettes et données au format JSON (via la feuille de partage de votre téléphone) et restaurez-les en un clic.

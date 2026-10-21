@@ -16,6 +16,8 @@ import { useTheme } from '../theme/ThemeContext';
 import { createDynamicStyles, ThemeMode } from '../theme/colors';
 import { StorageService } from '../services/storageService';
 import { RecipeAiService } from '../services/recipeAiService';
+import { VocabularyService } from '../services/vocabularyService';
+import { VocabularyManagerModal } from '../components/VocabularyManagerModal';
 import { Recipe } from '../types/recipe';
 
 interface SettingsModalProps {
@@ -47,6 +49,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [defaultServings, setDefaultServings] = useState(4);
   const [shoppingCount, setShoppingCount] = useState(0);
 
+  // Vocabulaire & Lexique Ingrédients
+  const [isVocabModalVisible, setIsVocabModalVisible] = useState(false);
+  const [vocabCount, setVocabCount] = useState(0);
+
   // Import JSON Modal/State
   const [isImportModalVisible, setIsImportModalVisible] = useState(false);
   const [importJsonText, setImportJsonText] = useState('');
@@ -69,6 +75,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
       const items = await StorageService.getShoppingList();
       setShoppingCount(items.length);
+
+      const vocabList = await VocabularyService.getAll();
+      setVocabCount(vocabList.length);
     } catch (e) {
       console.error('Erreur chargement réglages:', e);
     }
@@ -434,7 +443,33 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </View>
           </View>
 
-          {/* SECTION 4 : GESTION DES DONNÉES & SAUVEGARDE */}
+          {/* SECTION 4 : LEXIQUE & VOCABULAIRE DES INGRÉDIENTS */}
+          <View style={styles.sectionCard}>
+            <View style={styles.sectionTitleRow}>
+              <Ionicons name="book-outline" size={20} color={colors.primary} />
+              <Text style={styles.sectionTitle}>Lexique & Ingrédients Canoniques</Text>
+            </View>
+            <Text style={styles.sectionSubtitle}>
+              Standardisation stricte pour éviter les doublons et synonymes ('petits pois' vs 'boîte de petits pois', 'muscade', 'carotte'...).
+            </Text>
+
+            <TouchableOpacity
+              style={styles.dataActionBtn}
+              onPress={() => setIsVocabModalVisible(true)}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="library-outline" size={20} color={colors.primary} />
+              <View style={styles.dataActionInfo}>
+                <Text style={styles.dataActionTitle}>Gérer le vocabulaire des ingrédients</Text>
+                <Text style={styles.dataActionDesc}>
+                  {vocabCount > 0 ? `${vocabCount} ingrédients canoniques répertoriés` : 'Consulter, renommer, fusionner'}
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+            </TouchableOpacity>
+          </View>
+
+          {/* SECTION 5 : GESTION DES DONNÉES & SAUVEGARDE */}
           <View style={styles.sectionCard}>
             <View style={styles.sectionTitleRow}>
               <Ionicons name="file-tray-full-outline" size={20} color={colors.primary} />
@@ -560,6 +595,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </View>
         </View>
       </Modal>
+
+      {/* MODAL DE GESTION DU VOCABULAIRE & LEXIQUE DES INGRÉDIENTS */}
+      <VocabularyManagerModal
+        visible={isVocabModalVisible}
+        onClose={() => {
+          setIsVocabModalVisible(false);
+          loadInitialSettings();
+        }}
+      />
     </Modal>
   );
 };

@@ -19,6 +19,9 @@ import { useTheme } from '../theme/ThemeContext';
 import { AISLE_CONFIGS, ALL_AISLES } from '../utils/aisleClassifier';
 import { searchRecipes, RecipeSearchResult } from '../utils/searchEngine';
 import { normalizeString } from '../utils/helpers';
+import { normalizeIngredient } from '../utils/ingredientNormalizer';
+import { VocabularyService } from '../services/vocabularyService';
+import { IngredientAutocompleteInput } from './IngredientAutocompleteInput';
 
 interface FridgeStockViewProps {
   recipes: Recipe[];
@@ -135,12 +138,18 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
 
   // Actions utilisateur
   const handleAddItem = async (nameToAdd?: string) => {
-    const name = (nameToAdd || newItemName).trim();
-    if (!name) return;
+    const raw = (nameToAdd || newItemName).trim();
+    if (!raw) return;
+
+    // Normalisation canonique stricte pour éliminer les doublons et synonymes
+    const normalized = normalizeIngredient({ name: raw });
+    const name = normalized.name || raw;
 
     try {
       const updated = await StorageService.addFridgeItem(name, selectedAisle || undefined);
       setItems(updated);
+      VocabularyService.incrementUsage(name).catch(() => {});
+      VocabularyService.add({ canonicalName: name, defaultAisle: selectedAisle || undefined }).catch(() => {});
       if (onFridgeCountChange) {
         onFridgeCountChange(updated.length);
       }
@@ -230,14 +239,16 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
       {/* Bloc Ajouter un aliment vérouillé en haut */}
       <View style={styles.quickAddCard}>
         <View style={styles.quickAddMainRow}>
-          <TextInput
-            style={styles.nameInput}
+          <IngredientAutocompleteInput
+            containerStyle={{ flex: 1, marginRight: 8, zIndex: 99 }}
+            style={[styles.nameInput, { width: '100%', marginRight: 0 }]}
             placeholder="Ajouter un aliment (placards, frigo, épices...)"
             placeholderTextColor={colors.textMuted}
             value={newItemName}
             onChangeText={setNewItemName}
-            onSubmitEditing={() => handleAddItem()}
-            returnKeyType="done"
+            onSelectIngredient={(ing) => {
+              setSelectedAisle(ing.defaultAisle);
+            }}
           />
 
           <TouchableOpacity
@@ -653,6 +664,7 @@ const styles = createDynamicStyles((colors, shadows) => ({
     padding: 12,
     borderWidth: 1,
     borderColor: colors.borderLight,
+    zIndex: 50,
     ...shadows.small,
   },
   quickAddMainRow: {

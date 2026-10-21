@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { Recipe, Category, Difficulty } from '../types/recipe';
+import { normalizeIngredients } from '../utils/ingredientNormalizer';
 
 let SecureStore: typeof import('expo-secure-store') | null = null;
 try {
@@ -176,7 +177,7 @@ export function sanitizeExtractedRecipe(raw: any): ExtractedRecipeData {
       : 4;
 
   const rawIngredients = Array.isArray(raw.ingredients) ? raw.ingredients.slice(0, 80) : [];
-  const ingredients = rawIngredients
+  const baseIngredients = rawIngredients
     .filter(
       (ing: any) =>
         ing &&
@@ -189,6 +190,9 @@ export function sanitizeExtractedRecipe(raw: any): ExtractedRecipeData {
       quantity: ing.quantity ? String(ing.quantity).trim().slice(0, 50) : '',
       unit: ing.unit ? String(ing.unit).trim().slice(0, 50) : '',
     }));
+
+  // Normalisation stricte du vocabulaire des ingrédients UNIQUEMENT (les étapes 'steps' restent 100% intouchées)
+  const ingredients = normalizeIngredients(baseIngredients);
 
   const rawSteps = Array.isArray(raw.steps) ? raw.steps.slice(0, 50) : [];
   const steps = rawSteps
@@ -495,6 +499,7 @@ Extrais fidèlement la recette sous forme de JSON strict avec cette structure ex
 }
 
 Règles universelles :
+- VOCABULAIRE STRICT DES INGRÉDIENTS : Utilise impérativement le nom canonique élémentaire au singulier (ex: 'Petits pois' et non 'boîte de petits pois' ; 'Carotte' et non 'carotte épluchée' ou 'carottes en rondelles' ; 'Muscade' et non 'noix de muscade'). Déplace les contenants ('boîte', 'bocal', 'tranche', 'pincée') dans 'unit', et les indications de découpe ou d'épluchage ('épluchée', 'en dés', 'râpé') dans les consignes d'instructions des étapes 'steps' sans jamais alourdir 'name'.
 - Nettoie les noms d'ingrédients (sans quantité dans le nom).
 - Ne tronque pas les étapes : garde les instructions complètes.
 - Détermine avec précision si la recette est végétarienne (sans chair animale) dans 'isVegetarian'.
@@ -605,6 +610,10 @@ Extrais fidèlement la recette sous forme de JSON strict avec cette structure :
   ],
   "userNote": "Remarque rédigée par l'auteur si présente, sinon strictement \"\""
 }
+RÈGLE STRICTE SUR LE VOCABULAIRE DES INGRÉDIENTS :
+- Isole impérativement le nom de l'ingrédient à sa forme canonique simple au singulier (ex: 'Petits pois' et non 'boîte de petits pois' ; 'Carotte' et non 'carotte épluchée' ou 'carottes coupées en dés' ; 'Muscade' et non 'noix de muscade').
+- Déplace les contenants ('boîte', 'bocal', 'tranche', 'pincée') dans 'unit'.
+- Déplace les consignes d'épluchage, de râpage ou de découpe dans les 'steps', JAMAIS dans le champ 'name'.
 Réponds STRICTEMENT en JSON valide.`;
 
     const sanitizedRecipe = escapeUntrustedDelimiters(recipeContent.slice(0, 15000), 'untrusted_recipe_data');
@@ -713,6 +722,10 @@ Structure JSON attendue :
   ],
   "userNote": ""
 }
+RÈGLE STRICTE SUR LE VOCABULAIRE DES INGRÉDIENTS :
+- Normalise le nom de l'ingrédient à sa forme canonique simple au singulier (ex: 'Petits pois' et non 'boîte de petits pois' ; 'Carotte' et non 'carotte épluchée' ; 'Muscade' et non 'noix de muscade').
+- Déplace les contenants ('boîte', 'bocal', 'tranche', 'pincée') dans 'unit'.
+- Déplace les consignes d'épluchage ou de découpe dans 'steps', jamais dans 'name'.
 RÈGLE STRICTE SUR 'userNote' : Laisse STRICTEMENT "" sauf si une note personnelle explicite figurait dans le texte.`;
 
     const sanitizedInput = escapeUntrustedDelimiters(trimmedInput.slice(0, 15000), 'untrusted_recipe_input');
@@ -830,6 +843,8 @@ Ta mission de Chef :
 ${isVege ? '4. La recette DOIT être 100% végétarienne (aucune chair animale ni gélatine).' : ''}
 5. Rédige des étapes numérotées, précises et très claires avec des conseils de cuisson pour réussir le plat à coup sûr.
 6. Donne une astuce de chef personnalisée dans "userNote" (ex: tour de main, variante ou idée d'accompagnement).
+
+7. RÈGLE STRICTE SUR LE VOCABULAIRE : Utilise impérativement les dénominations canoniques brutes au singulier pour 'name' (ex: 'Petits pois', 'Carotte', 'Muscade'). Déplace les contenants dans 'unit' et les actions de découpe dans 'steps'.
 
 Structure JSON attendue STRICTE :
 {

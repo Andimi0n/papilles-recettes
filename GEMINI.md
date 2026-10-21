@@ -21,6 +21,13 @@
   - Seamless transfer: 1-tap "Ajouter aux courses" from stock items, and "Ranger dans mes étagères 🥫" when purchasing or cleaning grocery list items.
   - Smart "Que cuisiner aujourd'hui ?" matching recipes directly from the user's active pantry inventory (scrollable to preserve screen space).
   - Pinned top controls: Locked "Ajouter un aliment" bar and "Ajout rapide en 1 clic" suggestion chips stay fixed at the top of the screen, while "Que cuisiner aujourd'hui ?" and categorized pantry items scroll smoothly beneath.
+- **Strict Ingredient Vocabulary & Normalization Engine ("Lexique Canonique")**:
+  - Eliminates synonyms and noisy prefixes/qualifiers across all entry points: maps `"boîte de petits pois"` -> `"Petits pois"`, `"noix de muscade"` -> `"Muscade"`, `"carottes épluchées"` -> `"Carotte"`.
+  - Hybrid AI & deterministic local pipeline: enhanced few-shot prompting in Gemini 3.8 Flash, followed by deterministic local parsing (`IngredientNormalizer`).
+  - Applied strictly to ingredient names only; recipe steps (`steps`) remain 100% verbatim and untouched.
+  - Instant autocomplete dropdown (`IngredientAutocompleteInput`) for recipe creation/edition and pantry stock additions.
+  - Silent background learning of new ingredients and usage frequencies.
+  - Full dedicated Vocabulary Manager in Settings (`VocabularyManagerModal`) allowing users to browse, search by aisle, rename, edit aliases, merge duplicates, and reset to defaults.
 - **Categorized Shopping List**: Auto-generates items from recipes or meal plans, auto-classifying ingredients into supermarket aisles.
 - **Dual Artistic Directions & Dynamic Theming**:
   - Light: *Jardin Botanique & Slow Food* (forest evergreen, celadon, almond mist).
@@ -74,6 +81,7 @@ papilles-recettes/
     │   ├── fridge.ts           # FridgeItem, FridgeAisleGroup
     │   ├── planner.ts          # PlannedMeal, WeeklyPlanMap, DayOfWeek, MealTime
     │   ├── mealLog.ts          # MealLogEntry, MealLogMap, DayMealLogSummary
+    │   ├── vocabulary.ts       # CanonicalIngredient, NormalizationResult
     │   └── expo-secure-store.d.ts # Typings fallback for expo-secure-store
     ├── theme/                  # Theming and dynamic styling engine
     │   ├── colors.ts           # Botanique (Light) & Nocturne (Dark) palettes, createDynamicStyles
@@ -81,14 +89,17 @@ papilles-recettes/
     ├── services/               # Core business logic & persistence
     │   ├── storageService.ts   # AsyncStorage & SecureStore wrapper, sanitization, export/import
     │   ├── recipeAiService.ts  # Gemini multimodal extraction & connectivity check
+    │   ├── vocabularyService.ts # Canonical vocabulary persistence, CRUD, autocomplete index
     │   └── marmitonService.ts  # Marmiton web import parser
     ├── utils/                  # Algorithmic utilities & data helpers
     │   ├── aisleClassifier.ts  # Rule-based supermarket aisle classifier for ingredients
+    │   ├── ingredientNormalizer.ts # Rule-based container/modifier stripper & fuzzy resolver
     │   ├── shoppingAggregator.ts # Ingredient summing and unit normalization for grocery lists
     │   ├── searchEngine.ts     # In-memory recipe search, fridge matching, and sorting
     │   └── helpers.ts          # ID generation, time formatting, share text, image utils
     ├── data/
-    │   └── initialRecipes.ts   # Bundled seed recipes with ingredients and instructions
+    │   ├── initialRecipes.ts   # Bundled seed recipes with ingredients and instructions
+    │   └── canonicalVocabulary.ts # Initial seed of ~350 canonical ingredients with aliases & aisles
     ├── components/             # Reusable modular UI components
     │   ├── RecipeCard.tsx      # Recipe card with badges, difficulty, and quick rating
     │   ├── StarRating.tsx      # 0.5–5.0 star interactive selector
@@ -102,7 +113,9 @@ papilles-recettes/
     │   ├── MealSlotPickerModal.tsx # Calendar slot picker (Lunch/Dinner)
     │   ├── ImportMarmitonModal.tsx # Marmiton import input dialog
     │   ├── QuickMealLogModal.tsx # Fast modal for freeform lunch/dinner entry
-    │   └── TodayMealWidget.tsx   # Home screen widget for today's lunch/dinner tracking
+    │   ├── TodayMealWidget.tsx   # Home screen widget for today's lunch/dinner tracking
+    │   ├── IngredientAutocompleteInput.tsx # Predictive dropdown input for canonical ingredients
+    │   └── VocabularyManagerModal.tsx # Vocabulary management modal (CRUD, merge, aisles)
     └── screens/                # Main feature screens
         ├── HomeScreen.tsx      # Recipe feed, filters, search, quick theme toggle, settings button
         ├── RecipeDetailScreen.tsx # Recipe view, dynamic serving scaler, share, edit/delete
