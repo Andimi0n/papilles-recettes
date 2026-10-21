@@ -885,24 +885,24 @@ ${sanitizedInput}
       options?.onlyVegetarian ??
       isRecipeVegetarian(cleanIngredientsList.map((n) => ({ name: n })));
 
+    // Transmission de l'ensemble des recettes du carnet en envoyant strictement et uniquement leurs titres
     const existingTitles = (options?.existingRecipeTitles || [])
       .map((t) => t.trim())
-      .filter(Boolean)
-      .slice(0, 40); // 40 titres récents/phares suffisent pour l'anti-doublon sans saturer les quotas d'inférence
+      .filter(Boolean);
 
     const sanitizedExistingTitles = existingTitles.map((t) =>
-      escapeUntrustedDelimiters(t.slice(0, 80), 'untrusted_existing_recipes')
+      escapeUntrustedDelimiters(t.slice(0, 100), 'untrusted_existing_recipes')
     );
 
     const antiRedundancySection =
       sanitizedExistingTitles.length > 0
         ? `
 CONSIGNE CRUCIALE D'ANTI-REDONDANCE (NE PAS REPRODUIRE) :
-L'utilisateur possède DÉJÀ ces recettes enregistrées dans son carnet personnel :
+L'utilisateur possède DÉJÀ ces recettes dans son carnet personnel (liste des titres) :
 <untrusted_existing_recipes>
-${sanitizedExistingTitles.join(', ')}
+${sanitizedExistingTitles.map((t) => `- ${t}`).join('\n')}
 </untrusted_existing_recipes>
-RÈGLE ABSOLUE : Tu ne dois EN AUCUN CAS inventer une recette identique, redondante ou trop semblable à cette liste existante.
+RÈGLE ABSOLUE : Tu ne dois EN AUCUN CAS inventer une recette identique, redondante ou trop semblable à l'un de ces titres déjà existants.
 Ta création doit être NOUVELLE, originale et apporter une véritable bouffée d'inspiration tout en valorisant les ingrédients en stock.
 `
         : '';

@@ -52,7 +52,7 @@ Une application mobile moderne, soignée et intuitive pour gérer vos recettes, 
 - **Génération IA inédite garantie sans doublon avec le carnet existant** :
   - Le Chef IA (Gemini 3.8 Flash) imagine une recette sur-mesure pour sublimer vos restes et denrées en stock.
   - **Sélection verticale des ingrédients par rayons** : fini le défilement horizontal interminable ; vos ingrédients en stock sont regroupés par rayons (`Fruits & Légumes`, `Produits Frais`, `Épicerie`...) avec compteurs et raccourcis *"Tout cocher"* / *"Tout décocher"* par rayon.
-  - **Anti-redondance stricte & résilience réseau** : transmission ciblée de vos recettes enregistrées pour garantir une création 100% originale, avec gestion intelligente des surcharges temporaires de l'API Gemini (retry automatique avec backoff exponentiel).
+  - **Anti-redondance stricte & résilience réseau** : transmission de l'ensemble de vos recettes existantes (strictement la liste des titres, sans données superflues) pour garantir une création 100% originale, avec gestion intelligente des surcharges temporaires de l'API Gemini (retry automatique avec backoff exponentiel).
   - Configuration du nombre de portions (synchronisé avec vos préférences), option 100% végétarienne et catégorie souhaitée.
   - Pré-remplissage direct du formulaire de recette pour modification et enregistrement en 1 clic.
 

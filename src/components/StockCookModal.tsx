@@ -204,8 +204,8 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
     setIsGeneratingAi(true);
 
     try {
-      // Liste de toutes les recettes existantes pour l'anti-redondance
-      const existingTitles = recipes.map((r) => r.title);
+      // Liste de toutes les recettes existantes pour l'anti-redondance (strictement les titres uniquement)
+      const existingTitles = recipes.map((r) => r.title?.trim()).filter(Boolean);
 
       const generated = await RecipeAiService.generateRecipeFromFridge(
         selectedStockNames,
