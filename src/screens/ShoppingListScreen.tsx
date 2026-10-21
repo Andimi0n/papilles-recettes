@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,9 +10,6 @@ import {
   Platform,
   ScrollView,
   Modal,
-  NativeSyntheticEvent,
-  NativeScrollEvent,
-  LayoutAnimation,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -59,34 +56,6 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
   const [newItemUnit, setNewItemUnit] = useState('');
   const [selectedAisle, setSelectedAisle] = useState<ShoppingAisle | null>(null);
   const [isAislePickerVisible, setIsAislePickerVisible] = useState(false);
-
-  // Visibilité dynamique de la barre d'ajout rapide au scroll
-  const [isQuickAddVisible, setIsQuickAddVisible] = useState(true);
-  const lastScrollY = useRef(0);
-
-  const handleShoppingScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const currentY = event.nativeEvent.contentOffset.y;
-    const diff = currentY - lastScrollY.current;
-
-    if (currentY <= 15) {
-      if (!isQuickAddVisible) {
-        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-        setIsQuickAddVisible(true);
-      }
-    } else if (diff > 12 && currentY > 40) {
-      if (isQuickAddVisible) {
-        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-        setIsQuickAddVisible(false);
-      }
-    } else if (diff < -12) {
-      if (!isQuickAddVisible) {
-        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-        setIsQuickAddVisible(true);
-      }
-    }
-
-    lastScrollY.current = currentY;
-  };
 
   // Section des articles cochés repliée/dépliée
   const [showCompleted, setShowCompleted] = useState(false);
@@ -445,76 +414,74 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
             </View>
           )}
 
-          {/* Barre d'ajout rapide (rétractable au scroll) */}
-          {isQuickAddVisible && (
-            <View style={styles.quickAddCard}>
-              <View style={styles.quickAddMainRow}>
-                <TextInput
-                  style={styles.nameInput}
-                  placeholder="Ajouter un article (ex: Pommes, Lait...)"
-                  placeholderTextColor={colors.textMuted}
-                  value={newItemName}
-                  onChangeText={setNewItemName}
-                  onSubmitEditing={handleAddItem}
-                  returnKeyType="done"
-                />
+          {/* Barre d'ajout rapide vérouillée en haut */}
+          <View style={styles.quickAddCard}>
+            <View style={styles.quickAddMainRow}>
+              <TextInput
+                style={styles.nameInput}
+                placeholder="Ajouter un article (ex: Pommes, Lait...)"
+                placeholderTextColor={colors.textMuted}
+                value={newItemName}
+                onChangeText={setNewItemName}
+                onSubmitEditing={handleAddItem}
+                returnKeyType="done"
+              />
 
-                <TouchableOpacity
-                  style={[
-                    styles.addButton,
-                    !newItemName.trim() && styles.addButtonDisabled,
-                  ]}
-                  onPress={handleAddItem}
-                  disabled={!newItemName.trim()}
-                >
-                  <Ionicons name="add" size={24} color="#FFFFFF" />
-                </TouchableOpacity>
-              </View>
-
-              {/* Détails complémentaires : Quantité & Unité & Rayon */}
-              <View style={styles.quickAddDetailsRow}>
-                <TextInput
-                  style={styles.qtyInput}
-                  placeholder="Qté (ex: 2)"
-                  placeholderTextColor={colors.textMuted}
-                  value={newItemQuantity}
-                  onChangeText={setNewItemQuantity}
-                  keyboardType="numeric"
-                />
-                <TextInput
-                  style={styles.unitInput}
-                  placeholder="Unité (g, ml, pcs)"
-                  placeholderTextColor={colors.textMuted}
-                  value={newItemUnit}
-                  onChangeText={setNewItemUnit}
-                />
-                <TouchableOpacity
-                  style={styles.aislePickerBtn}
-                  onPress={() => setIsAislePickerVisible(true)}
-                >
-                  <Ionicons
-                    name={
-                      selectedAisle
-                        ? (AISLE_CONFIGS[selectedAisle].iconName as any)
-                        : 'funnel-outline'
-                    }
-                    size={13}
-                    color={selectedAisle ? AISLE_CONFIGS[selectedAisle].color : colors.textSecondary}
-                  />
-                  <Text
-                    style={[
-                      styles.aislePickerBtnText,
-                      selectedAisle ? { color: AISLE_CONFIGS[selectedAisle].color } : null,
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {selectedAisle || 'Rayon auto'}
-                  </Text>
-                  <Ionicons name="chevron-down" size={12} color={colors.textSecondary} />
-                </TouchableOpacity>
-              </View>
+              <TouchableOpacity
+                style={[
+                  styles.addButton,
+                  !newItemName.trim() && styles.addButtonDisabled,
+                ]}
+                onPress={handleAddItem}
+                disabled={!newItemName.trim()}
+              >
+                <Ionicons name="add" size={24} color="#FFFFFF" />
+              </TouchableOpacity>
             </View>
-          )}
+
+            {/* Détails complémentaires : Quantité & Unité & Rayon */}
+            <View style={styles.quickAddDetailsRow}>
+              <TextInput
+                style={styles.qtyInput}
+                placeholder="Qté (ex: 2)"
+                placeholderTextColor={colors.textMuted}
+                value={newItemQuantity}
+                onChangeText={setNewItemQuantity}
+                keyboardType="numeric"
+              />
+              <TextInput
+                style={styles.unitInput}
+                placeholder="Unité (g, ml, pcs)"
+                placeholderTextColor={colors.textMuted}
+                value={newItemUnit}
+                onChangeText={setNewItemUnit}
+              />
+              <TouchableOpacity
+                style={styles.aislePickerBtn}
+                onPress={() => setIsAislePickerVisible(true)}
+              >
+                <Ionicons
+                  name={
+                    selectedAisle
+                      ? (AISLE_CONFIGS[selectedAisle].iconName as any)
+                      : 'funnel-outline'
+                  }
+                  size={13}
+                  color={selectedAisle ? AISLE_CONFIGS[selectedAisle].color : colors.textSecondary}
+                />
+                <Text
+                  style={[
+                    styles.aislePickerBtnText,
+                    selectedAisle ? { color: AISLE_CONFIGS[selectedAisle].color } : null,
+                  ]}
+                  numberOfLines={1}
+                >
+                  {selectedAisle || 'Rayon auto'}
+                </Text>
+                <Ionicons name="chevron-down" size={12} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+          </View>
 
           {/* Barre de partage rapide direct */}
           {totalCount > 0 && (
@@ -560,8 +527,6 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
             style={styles.scrollArea}
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
-            onScroll={handleShoppingScroll}
-            scrollEventThrottle={16}
           >
             {totalCount === 0 ? (
               <View style={styles.emptyContainer}>

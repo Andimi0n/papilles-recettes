@@ -20,7 +20,7 @@
   - Fast, frictionless tracking of on-hand ingredients with 1-tap popular suggestions (`Œufs`, `Beurre`, `Lait`, `Farine`, `Pâtes`, `Riz`, `Huile d'olive`...) and automatic supermarket aisle classification.
   - Seamless transfer: 1-tap "Ajouter aux courses" from stock items, and "Ranger dans mes étagères 🥫" when purchasing or cleaning grocery list items.
   - Smart "Que cuisiner aujourd'hui ?" matching recipes directly from the user's active pantry inventory (scrollable to preserve screen space).
-  - Scroll-responsive collapsible quick add bar: hides when scrolling down to maximize visible list items, reappears on scroll up and at top.
+  - Pinned top controls: Locked "Ajouter un aliment" bar and "Ajout rapide en 1 clic" suggestion chips stay fixed at the top of the screen, while "Que cuisiner aujourd'hui ?" and categorized pantry items scroll smoothly beneath.
 - **Categorized Shopping List**: Auto-generates items from recipes or meal plans, auto-classifying ingredients into supermarket aisles.
 - **Dual Artistic Directions & Dynamic Theming**:
   - Light: *Jardin Botanique & Slow Food* (forest evergreen, celadon, almond mist).
