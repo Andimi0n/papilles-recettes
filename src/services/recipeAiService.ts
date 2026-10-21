@@ -47,6 +47,35 @@ const getGeminiHeaders = (apiKey: string) => {
   };
 };
 
+/**
+ * Exécute un appel POST vers Gemini avec retry automatique exponentiel
+ * en cas de surcharge temporaire des serveurs (HTTP 503 "Model overloaded" ou 429 "Too many requests").
+ */
+async function fetchGeminiWithRetry(
+  url: string,
+  options: any,
+  maxRetries = 2
+): Promise<Response> {
+  let attempt = 0;
+  while (true) {
+    attempt++;
+    const response = await fetch(url, options);
+
+    // Si succès ou erreur d'authentification/format (400, 401, 403), on ne retente pas
+    if (response.ok || (response.status !== 503 && response.status !== 429)) {
+      return response;
+    }
+
+    if (attempt > maxRetries) {
+      return response;
+    }
+
+    // Attente progressive avec backoff : 1.2s puis 2.4s
+    const delayMs = attempt * 1200;
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+  }
+}
+
 export interface ExtractedRecipeData {
   title: string;
   description: string;
@@ -859,7 +888,7 @@ ${sanitizedInput}
     const existingTitles = (options?.existingRecipeTitles || [])
       .map((t) => t.trim())
       .filter(Boolean)
-      .slice(0, 150); // jusqu'à 150 recettes existantes passées au LLM
+      .slice(0, 40); // 40 titres récents/phares suffisent pour l'anti-doublon sans saturer les quotas d'inférence
 
     const sanitizedExistingTitles = existingTitles.map((t) =>
       escapeUntrustedDelimiters(t.slice(0, 80), 'untrusted_existing_recipes')
@@ -933,7 +962,7 @@ ${sanitizedIngredients.join(', ')}
 </untrusted_fridge_ingredients>${options?.additionalPreferences ? `\nPréférences supplémentaires : ${escapeUntrustedDelimiters(options.additionalPreferences.slice(0, 200), 'untrusted_fridge_ingredients')}` : ''}`;
 
     const generateUrl = getGeminiGenerateUrl(apiKey);
-    const response = await fetch(generateUrl, {
+    const response = await fetchGeminiWithRetry(generateUrl, {
       method: 'POST',
       headers: getGeminiHeaders(apiKey),
       body: JSON.stringify({
@@ -948,7 +977,8 @@ ${sanitizedIngredients.join(', ')}
         ],
         generationConfig: {
           response_mime_type: 'application/json',
-          temperature: 0.35,
+          temperature: 0.7,
+          max_output_tokens: 2048,
         },
       }),
     });
@@ -959,7 +989,24 @@ ${sanitizedIngredients.join(', ')}
       try {
         const errJson = JSON.parse(errText);
         if (errJson?.error?.message) {
-          errorMsg = errJson.error.message;
+          const rawMsg = errJson.error.message;
+          if (
+            response.status === 503 ||
+            rawMsg.toLowerCase().includes('overloaded') ||
+            rawMsg.toLowerCase().includes('unavailable')
+          ) {
+            errorMsg =
+              "Les serveurs Google Gemini sont actuellement surchargés (modèle temporairement très sollicité). Veuillez patienter quelques secondes et retenter.";
+          } else if (
+            response.status === 429 ||
+            rawMsg.toLowerCase().includes('quota') ||
+            rawMsg.toLowerCase().includes('resource_exhausted')
+          ) {
+            errorMsg =
+              "Limite de requêtes atteinte sur votre clé API Gemini (quota temporairement dépassé). Réessayez dans une minute.";
+          } else {
+            errorMsg = rawMsg;
+          }
         }
       } catch {}
       throw new Error(errorMsg);

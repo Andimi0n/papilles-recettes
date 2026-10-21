@@ -40,7 +40,7 @@ async function main() {
   ];
 
   const preparedStock = prepareStockItems(mockStock);
-  console.log(`✓ Prepared ${preparedStock.length} stock items`);
+  console.log(`✓ Prepared ${preparedStock.items.length} stock items`);
 
   // 2. Test isIngredientInStock
   const test1 = isIngredientInStock({ id: 'i1', name: 'blanc de poulet' }, preparedStock);

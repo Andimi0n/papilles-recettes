@@ -753,8 +753,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               forceShowFilterBar();
             }}
             onOpenStockHub={() => {
-              loadStockItems();
               setIsStockModalVisible(true);
+              loadStockItems().catch(() => {});
             }}
             isStockFilterActive={onlyDoableWithStock}
             stockCount={stockItems.length}
@@ -1127,6 +1127,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           visible={isStockModalVisible}
           recipes={recipes}
           stockItems={stockItems}
+          doableCount={doableCount}
           isDoableFilterActive={onlyDoableWithStock}
           onApplyDoableFilter={(active) => setOnlyDoableWithStock(active)}
           onRecipeGenerated={(recipe) => {

@@ -123,6 +123,13 @@ function cleanRawIngredientString(raw: string): {
   };
 }
 
+// Cache mémoire pour accélérer les résolutions répétitives (O(1))
+const NORMALIZATION_CACHE = new Map<string, NormalizationResult>();
+
+export function clearNormalizationCache(): void {
+  NORMALIZATION_CACHE.clear();
+}
+
 /**
  * Normalise un nom d'ingrédient individuel par rapport au vocabulaire canonique.
  * ATTENTION : Ce moteur s'applique EXCLUSIVEMENT aux ingrédients, jamais aux étapes de recettes.
@@ -146,6 +153,20 @@ export function normalizeIngredient(raw: {
       isOptional: raw.isOptional,
     };
   }
+
+  const cacheKey = `${originalName}__${raw.quantity || ''}__${raw.unit || ''}__${raw.isPantryStaple}__${raw.isOptional}`;
+  const cached = NORMALIZATION_CACHE.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
+  const saveCache = (res: NormalizationResult): NormalizationResult => {
+    if (NORMALIZATION_CACHE.size > 2000) {
+      NORMALIZATION_CACHE.clear();
+    }
+    NORMALIZATION_CACHE.set(cacheKey, res);
+    return res;
+  };
 
   const { cleaned, extractedQuantity, extractedUnit, extractedOptional } =
     cleanRawIngredientString(originalName);
@@ -181,7 +202,7 @@ export function normalizeIngredient(raw: {
       item.aliases.includes(normalizedCleaned) ||
       stemWord(item.normalizedName) === stemmedCleaned
     ) {
-      return {
+      return saveCache({
         name: item.canonicalName,
         quantity: finalQuantity,
         unit: finalUnit,
@@ -191,7 +212,7 @@ export function normalizeIngredient(raw: {
         matchedAlias: normalizedCleaned,
         isPantryStaple: resolveStaple(item),
         isOptional: resolvedOptional,
-      };
+      });
     }
   }
 
@@ -206,7 +227,7 @@ export function normalizeIngredient(raw: {
         const minLen = Math.min(alias.length, normalizedCleaned.length);
         const maxLen = Math.max(alias.length, normalizedCleaned.length);
         if (minLen / maxLen >= 0.7) {
-          return {
+          return saveCache({
             name: item.canonicalName,
             quantity: finalQuantity,
             unit: finalUnit,
@@ -216,7 +237,7 @@ export function normalizeIngredient(raw: {
             matchedAlias: alias,
             isPantryStaple: resolveStaple(item),
             isOptional: resolvedOptional,
-          };
+          });
         }
       }
     }
@@ -238,7 +259,7 @@ export function normalizeIngredient(raw: {
   }
 
   if (bestMatch) {
-    return {
+    return saveCache({
       name: bestMatch.canonicalName,
       quantity: finalQuantity,
       unit: finalUnit,
@@ -247,7 +268,7 @@ export function normalizeIngredient(raw: {
       canonicalId: bestMatch.id,
       isPantryStaple: resolveStaple(bestMatch),
       isOptional: resolvedOptional,
-    };
+    });
   }
 
   // Étape D : Repli élégant si l'ingrédient est inconnu du lexique
@@ -256,7 +277,7 @@ export function normalizeIngredient(raw: {
     ? cleaned.charAt(0).toUpperCase() + cleaned.slice(1)
     : originalName.trim();
 
-  return {
+  return saveCache({
     name: formattedCleaned,
     quantity: finalQuantity,
     unit: finalUnit,
@@ -264,7 +285,7 @@ export function normalizeIngredient(raw: {
     wasNormalized: formattedCleaned !== originalName.trim(),
     isPantryStaple: resolveStaple(),
     isOptional: resolvedOptional,
-  };
+  });
 }
 
 /**

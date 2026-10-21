@@ -14,6 +14,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Recipe, Category } from '../types/recipe';
 import { FridgeItem } from '../types/fridge';
+import { ShoppingAisle } from '../types/shopping';
+import { AISLE_CONFIGS, ALL_AISLES } from '../utils/aisleClassifier';
 import { createDynamicStyles } from '../theme/colors';
 import { useTheme } from '../theme/ThemeContext';
 import { evaluateRecipesWithStock, RecipeStockEvaluation } from '../utils/stockMatcher';
@@ -25,6 +27,7 @@ interface StockCookModalProps {
   visible: boolean;
   recipes: Recipe[];
   stockItems: FridgeItem[];
+  doableCount?: number;
   isDoableFilterActive: boolean;
   onApplyDoableFilter: (active: boolean) => void;
   onRecipeGenerated?: (partialRecipe: Partial<Recipe>) => void;
@@ -52,6 +55,7 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
   visible,
   recipes,
   stockItems,
+  doableCount,
   isDoableFilterActive,
   onApplyDoableFilter,
   onRecipeGenerated,
@@ -105,17 +109,49 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
     };
   }, [isGeneratingAi]);
 
-  // Évaluation des recettes faisables avec le stock
-  const { doableRecipes, evaluationsMap } = useMemo(() => {
+  // Nombre de recettes faisables (réutilise doableCount déjà calculé par HomeScreen pour 0ms de latence)
+  const effectiveDoableCount = useMemo(() => {
+    if (typeof doableCount === 'number') {
+      return doableCount;
+    }
     if (stockItems.length === 0 || recipes.length === 0) {
-      return { doableRecipes: [], evaluationsMap: new Map<string, RecipeStockEvaluation>() };
+      return 0;
     }
     const map = evaluateRecipesWithStock(recipes, stockItems, {
       assumePantryStaplesAvailable: true,
     });
-    const doable = recipes.filter((r) => map.get(r.id)?.isDoable);
-    return { doableRecipes: doable, evaluationsMap: map };
-  }, [recipes, stockItems]);
+    let count = 0;
+    map.forEach((ev) => {
+      if (ev.isDoable) count++;
+    });
+    return count;
+  }, [doableCount, recipes, stockItems]);
+
+  // Groupement des aliments du stock par rayon (comme dans Mes Étagères)
+  const groupedStockByAisle = useMemo(() => {
+    const map = new Map<ShoppingAisle, FridgeItem[]>();
+    stockItems.forEach((item) => {
+      const aisle = item.aisle || 'Autre';
+      const list = map.get(aisle) || [];
+      list.push(item);
+      map.set(aisle, list);
+    });
+
+    const result: { aisle: ShoppingAisle; items: FridgeItem[] }[] = [];
+    ALL_AISLES.forEach((aisle) => {
+      const aisleItems = map.get(aisle);
+      if (aisleItems && aisleItems.length > 0) {
+        result.push({ aisle, items: aisleItems });
+      }
+    });
+
+    const otherItems = map.get('Autre');
+    if (otherItems && otherItems.length > 0 && !result.some((r) => r.aisle === 'Autre')) {
+      result.push({ aisle: 'Autre', items: otherItems });
+    }
+
+    return result;
+  }, [stockItems]);
 
   const toggleStockIngredient = (name: string) => {
     setSelectedStockNames((prev) => {
@@ -125,6 +161,16 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
         return [...prev, name];
       }
     });
+  };
+
+  const toggleAisle = (aisleItems: FridgeItem[]) => {
+    const aisleNames = aisleItems.map((i) => i.name);
+    const allAisleSelected = aisleNames.every((n) => selectedStockNames.includes(n));
+    if (allAisleSelected) {
+      setSelectedStockNames((prev) => prev.filter((n) => !aisleNames.includes(n)));
+    } else {
+      setSelectedStockNames((prev) => Array.from(new Set([...prev, ...aisleNames])));
+    }
   };
 
   const handleSelectAllStock = () => {
@@ -346,14 +392,14 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
 
                     <View style={styles.carnetStatusRow}>
                       <View style={styles.carnetStatBox}>
-                        <Text style={styles.carnetStatNumber}>{doableRecipes.length}</Text>
+                        <Text style={styles.carnetStatNumber}>{effectiveDoableCount}</Text>
                         <Text style={styles.carnetStatLabel}>
-                          {doableRecipes.length > 1 ? 'recettes prêtes' : 'recette prête'}
+                          {effectiveDoableCount > 1 ? 'recettes prêtes' : 'recette prête'}
                         </Text>
                       </View>
 
                       <View style={styles.carnetStatDescCol}>
-                        {doableRecipes.length > 0 ? (
+                        {effectiveDoableCount > 0 ? (
                           <Text style={styles.carnetStatDescText}>
                             Vous avez 100% des ingrédients requis (hors sel, poivre et huile du
                             placard) pour ces recettes !
@@ -367,7 +413,7 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
                       </View>
                     </View>
 
-                    {doableRecipes.length > 0 && (
+                    {effectiveDoableCount > 0 && (
                       <View style={styles.carnetActionRow}>
                         {isDoableFilterActive ? (
                           <TouchableOpacity
@@ -394,7 +440,7 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
                           >
                             <Ionicons name="funnel" size={16} color="#FFFFFF" />
                             <Text style={styles.carnetBtnText}>
-                              Voir mes {doableRecipes.length} recette{doableRecipes.length > 1 ? 's' : ''} faisable{doableRecipes.length > 1 ? 's' : ''}
+                              Voir mes {effectiveDoableCount} recette{effectiveDoableCount > 1 ? 's' : ''} faisable{effectiveDoableCount > 1 ? 's' : ''}
                             </Text>
                           </TouchableOpacity>
                         )}
@@ -432,40 +478,93 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
                       </View>
                     </View>
 
-                    <ScrollView
-                      horizontal
-                      showsHorizontalScrollIndicator={false}
-                      contentContainerStyle={styles.stockChipsScroll}
-                    >
-                      {stockItems.map((item) => {
-                        const isSelected = selectedStockNames.includes(item.name);
+                    {/* Liste verticale des aliments groupés par rayon */}
+                    <View style={styles.stockAislesContainer}>
+                      {groupedStockByAisle.map(({ aisle, items }) => {
+                        const config = AISLE_CONFIGS[aisle] || {
+                          iconName: 'cube-outline',
+                          color: colors.primary,
+                          aisle,
+                        };
+                        const selectedInAisle = items.filter((i) =>
+                          selectedStockNames.includes(i.name)
+                        ).length;
+                        const allAisleSelected = selectedInAisle === items.length;
+
                         return (
-                          <TouchableOpacity
-                            key={item.id}
-                            style={[
-                              styles.stockChip,
-                              isSelected && styles.stockChipSelected,
-                            ]}
-                            onPress={() => toggleStockIngredient(item.name)}
-                            activeOpacity={0.7}
-                          >
-                            <Ionicons
-                              name={isSelected ? 'checkmark-circle' : 'add-circle-outline'}
-                              size={14}
-                              color={isSelected ? '#FFFFFF' : colors.textSecondary}
-                            />
-                            <Text
-                              style={[
-                                styles.stockChipText,
-                                isSelected && styles.stockChipTextSelected,
-                              ]}
-                            >
-                              {item.name}
-                            </Text>
-                          </TouchableOpacity>
+                          <View key={aisle} style={styles.aisleGroupCard}>
+                            {/* En-tête de catégorie / rayon */}
+                            <View style={styles.aisleGroupHeader}>
+                              <View style={styles.aisleGroupTitleRow}>
+                                <View
+                                  style={[
+                                    styles.aisleIconBox,
+                                    { backgroundColor: config.color + '20' },
+                                  ]}
+                                >
+                                  <Ionicons
+                                    name={config.iconName as any}
+                                    size={14}
+                                    color={config.color}
+                                  />
+                                </View>
+                                <Text style={styles.aisleGroupTitle}>{aisle}</Text>
+                                <Text style={styles.aisleGroupCount}>
+                                  ({selectedInAisle}/{items.length})
+                                </Text>
+                              </View>
+
+                              {/* Action rapide cocher/décocher tout le rayon */}
+                              <TouchableOpacity
+                                onPress={() => toggleAisle(items)}
+                                hitSlop={{ top: 6, bottom: 6, left: 8, right: 8 }}
+                              >
+                                <Text
+                                  style={[
+                                    styles.aisleActionToggleText,
+                                    { color: config.color },
+                                  ]}
+                                >
+                                  {allAisleSelected ? 'Tout décocher' : 'Tout cocher'}
+                                </Text>
+                              </TouchableOpacity>
+                            </View>
+
+                            {/* Puces d'ingrédients du rayon disposées en grille/wrap vertical */}
+                            <View style={styles.aisleChipsWrap}>
+                              {items.map((item) => {
+                                const isSelected = selectedStockNames.includes(item.name);
+                                return (
+                                  <TouchableOpacity
+                                    key={item.id}
+                                    style={[
+                                      styles.stockChip,
+                                      isSelected && styles.stockChipSelected,
+                                    ]}
+                                    onPress={() => toggleStockIngredient(item.name)}
+                                    activeOpacity={0.7}
+                                  >
+                                    <Ionicons
+                                      name={isSelected ? 'checkmark-circle' : 'add-circle-outline'}
+                                      size={14}
+                                      color={isSelected ? '#FFFFFF' : colors.textSecondary}
+                                    />
+                                    <Text
+                                      style={[
+                                        styles.stockChipText,
+                                        isSelected && styles.stockChipTextSelected,
+                                      ]}
+                                    >
+                                      {item.name}
+                                    </Text>
+                                  </TouchableOpacity>
+                                );
+                              })}
+                            </View>
+                          </View>
                         );
                       })}
-                    </ScrollView>
+                    </View>
 
                     {/* Paramètres de l'invention IA */}
                     <View style={styles.aiParamsGrid}>
@@ -856,10 +955,56 @@ const styles = createDynamicStyles((colors, shadows) => ({
     fontSize: 10,
     color: colors.textMuted,
   },
-  stockChipsScroll: {
+  stockAislesContainer: {
+    gap: 10,
+    marginBottom: 12,
+  },
+  aisleGroupCard: {
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: 14,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  aisleGroupHeader: {
     flexDirection: 'row',
-    gap: 8,
-    paddingBottom: 12,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+    paddingBottom: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border + '60',
+  },
+  aisleGroupTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+  },
+  aisleIconBox: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  aisleGroupTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  aisleGroupCount: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  aisleActionToggleText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  aisleChipsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
   },
   stockChip: {
     flexDirection: 'row',

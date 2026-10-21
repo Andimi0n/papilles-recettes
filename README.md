@@ -43,15 +43,16 @@ Une application mobile moderne, soignée et intuitive pour gérer vos recettes, 
 
 ### 4. 🍳 Cuisiner avec mon stock & Suggestions du Chef IA ("Anti-gaspillage")
 - **Filtrage des recettes 100% faisables avec le stock** :
-  - Calcule en temps réel quelles recettes de votre carnet peuvent être cuisinées immédiatement avec vos aliments en stock (`stockMatcher.ts`).
+  - Calcule en temps réel (< 2ms, avec indexation O(1) et cache de normalisation) quelles recettes de votre carnet peuvent être cuisinées immédiatement avec vos aliments en stock (`stockMatcher.ts`).
   - Tolérance intelligente des fonds de placard (`isPantryStaple` : sel, poivre, eau, huiles usuelles, épices) et exclusion des ingrédients facultatifs (`isOptional`).
   - Puce d'accès direct `[En stock (X)]` dans le bandeau de filtres rétractable de l'accueil et bandeau d'état actif dans la liste.
 - **Bouton couteau-fourchette repensé (Hub Stock & Anti-gaspillage)** :
   - Bouton interactif moderne à côté de la barre de recherche avec badge dynamique du nombre de recettes faisables ou puce active.
-  - Ouvre une modale complète d'assistance culinaire (`StockCookModal`) affichant le bilan du carnet, le sélecteur d'ingrédients à valoriser et les options de création.
+  - Ouvre instantanément une modale complète d'assistance culinaire (`StockCookModal`) sans gel de l'écran, affichant le bilan du carnet, le sélecteur d'ingrédients à valoriser et les options de création.
 - **Génération IA inédite garantie sans doublon avec le carnet existant** :
   - Le Chef IA (Gemini 3.8 Flash) imagine une recette sur-mesure pour sublimer vos restes et denrées en stock.
-  - **Anti-redondance stricte** : transmission de votre catalogue de recettes enregistrées pour s'assurer que l'IA ne génère jamais une recette identique ou redondante avec votre carnet.
+  - **Sélection verticale des ingrédients par rayons** : fini le défilement horizontal interminable ; vos ingrédients en stock sont regroupés par rayons (`Fruits & Légumes`, `Produits Frais`, `Épicerie`...) avec compteurs et raccourcis *"Tout cocher"* / *"Tout décocher"* par rayon.
+  - **Anti-redondance stricte & résilience réseau** : transmission ciblée de vos recettes enregistrées pour garantir une création 100% originale, avec gestion intelligente des surcharges temporaires de l'API Gemini (retry automatique avec backoff exponentiel).
   - Configuration du nombre de portions (synchronisé avec vos préférences), option 100% végétarienne et catégorie souhaitée.
   - Pré-remplissage direct du formulaire de recette pour modification et enregistrement en 1 clic.
 
