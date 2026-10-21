@@ -21,6 +21,12 @@
   - Seamless transfer: 1-tap "Ajouter aux courses" from stock items, and "Ranger dans mes étagères 🥫" when purchasing or cleaning grocery list items.
   - Smart "Que cuisiner aujourd'hui ?" matching recipes directly from the user's active pantry inventory (scrollable to preserve screen space).
   - Pinned top controls: Locked "Ajouter un aliment" bar and "Ajout rapide en 1 clic" suggestion chips stay fixed at the top of the screen, while "Que cuisiner aujourd'hui ?" and categorized pantry items scroll smoothly beneath.
+- **Smart Stock Recipe Suggestions & Doable Filter ("Cuisiner avec mon stock")**:
+  - **100% Doable Recipes Filter**: High-performance matching engine (`stockMatcher.ts`) evaluating recipe feasibility against active on-hand pantry/fridge stock (`isDoable`). A recipe is doable when all non-optional ingredients are either in stock (matched via canonical IDs, exact names, stemming, aliases, and whole-word matching) or are common pantry staples (`isPantryStaple` / salt, pepper, oil, water, basic spices).
+  - **1-Tap Filter in Filter Bar & List Header**: Filter bar features a dedicated `En stock (X)` tool pill with live doable count, and an active banner in the list header to clear or toggle with 1 tap.
+  - **Modernized Stock Action Hub**: Completely replaces legacy fork-knife button next to the search bar with an interactive culinary hub button featuring dynamic doable recipe count badges, active checkmark status, and opening `StockCookModal`.
+  - **Non-Redundant AI Recipe Generator**: Gemini 3.8 Flash invents bespoke gourmet anti-waste creations tailored to selected on-hand items, receiving the user's complete catalog of existing recipe titles (`existingRecipeTitles`) with strict anti-redundancy rules to guarantee 100% novel suggestions.
+  - **Foundation for Missing Ingredient Suggestions (Need 3)**: Engine tracks `missingIngredients` and `matchPercentage` for upcoming missing-item suggestions and 1-tap shopping list additions.
 - **Strict Ingredient Vocabulary & Normalization Engine ("Lexique Canonique")**:
   - Eliminates synonyms and noisy prefixes/qualifiers across all entry points: maps `"boîte de petits pois"` -> `"Petits pois"`, `"noix de muscade"` -> `"Muscade"`, `"carottes épluchées"` -> `"Carotte"`.
   - **Deliberate Synonym Promotion & Anti-Collision Engine**: If a user explicitly chooses or types a synonym (e.g. keeps `"Noix de muscade"` instead of accepting `"Muscade"`, or creates `"Sucre glace"` independently from `"Sucre"`), the engine safely detaches this synonym and its distinct variants from the parent ingredient and promotes it into a full-fledged independent canonical ingredient with its own aliases and aisle.
@@ -120,6 +126,7 @@ papilles-recettes/
     ├── utils/                  # Algorithmic utilities & data helpers
     │   ├── aisleClassifier.ts  # Rule-based supermarket aisle classifier for ingredients
     │   ├── ingredientNormalizer.ts # Rule-based container/modifier stripper & fuzzy resolver
+    │   ├── stockMatcher.ts     # Engine determining recipe feasibility & coverage against pantry/fridge stock
     │   ├── shoppingAggregator.ts # Ingredient summing and unit normalization for grocery lists
     │   ├── searchEngine.ts     # In-memory recipe search, fridge matching, and sorting
     │   └── helpers.ts          # ID generation, time formatting, share text, image utils
@@ -129,12 +136,13 @@ papilles-recettes/
     ├── components/             # Reusable modular UI components
     │   ├── RecipeCard.tsx      # Recipe card with badges, difficulty, and quick rating
     │   ├── StarRating.tsx      # 0.5–5.0 star interactive selector
-    │   ├── SearchBar.tsx       # Text query input with fridge search shortcut
+    │   ├── SearchBar.tsx       # Text query input with stock hub action button
     │   ├── CategoryPills.tsx   # Category filter horizontal pill bar
     │   ├── IngredientChip.tsx  # Selectable ingredient badges
     │   ├── EmptyState.tsx      # Empty list placeholder view
     │   ├── FridgeStockView.tsx # "Mes étagères" pantry stock tracker, collapsible quick add & recipes
-    │   ├── FridgeSearchModal.tsx # "Mon Frigo" ingredient multi-selector modal
+    │   ├── StockCookModal.tsx  # "Cuisiner avec mon stock" & non-redundant Chef AI suggestions
+    │   ├── FridgeSearchModal.tsx # Deprecated wrapper around StockCookModal
     │   ├── CookingModeModal.tsx  # Step-by-step interactive cooking checklist
     │   ├── MealSlotPickerModal.tsx # Calendar slot picker (Lunch/Dinner)
     │   ├── ImportMarmitonModal.tsx # Marmiton import input dialog

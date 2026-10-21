@@ -13,11 +13,13 @@ import {
   Animated,
   NativeSyntheticEvent,
   NativeScrollEvent,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Recipe, Category, SortOption } from '../types/recipe';
 import { MealLogEntry } from '../types/mealLog';
 import { MealTime } from '../types/planner';
+import { FridgeItem } from '../types/fridge';
 import { StorageService } from '../services/storageService';
 import { Colors, Shadows, createDynamicStyles } from '../theme/colors';
 import { useTheme } from '../theme/ThemeContext';
@@ -26,12 +28,13 @@ import { StarRating } from '../components/StarRating';
 import { SearchBar } from '../components/SearchBar';
 import { CategoryPills } from '../components/CategoryPills';
 import { EmptyState } from '../components/EmptyState';
-import { FridgeSearchModal } from '../components/FridgeSearchModal';
+import { StockCookModal } from '../components/StockCookModal';
 import { ImportMarmitonModal } from '../components/ImportMarmitonModal';
 import { TodayMealWidget } from '../components/TodayMealWidget';
 import { QuickMealLogModal } from '../components/QuickMealLogModal';
 import { normalizeString, getLocalDateString } from '../utils/helpers';
 import { searchRecipes, RecipeSearchResult } from '../utils/searchEngine';
+import { evaluateRecipesWithStock, RecipeStockEvaluation } from '../utils/stockMatcher';
 
 const RECIPES_PER_PAGE = 20;
 
@@ -55,6 +58,7 @@ interface HomeScreenProps {
   onQuickRate: (id: string, rating: number) => void;
   onOpenSettings?: () => void;
   onNavigateToJournal?: () => void;
+  onNavigateToStock?: () => void;
 }
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({
@@ -66,6 +70,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   onQuickRate,
   onOpenSettings,
   onNavigateToJournal,
+  onNavigateToStock,
 }) => {
   const { isDark, colors, themeId } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
@@ -76,7 +81,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const [sortBy, setSortBy] = useState<SortOption>('rating_desc');
   const [minRatingFilter, setMinRatingFilter] = useState<number>(0);
   const [onlyVegetarian, setOnlyVegetarian] = useState(false);
-  const [isFridgeModalVisible, setIsFridgeModalVisible] = useState(false);
+  const [onlyDoableWithStock, setOnlyDoableWithStock] = useState(false);
+  const [stockItems, setStockItems] = useState<FridgeItem[]>([]);
+  const [isStockModalVisible, setIsStockModalVisible] = useState(false);
   const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
   const [isRatingModalVisible, setIsRatingModalVisible] = useState(false);
   const [isMarmitonModalVisible, setIsMarmitonModalVisible] = useState(false);
@@ -217,9 +224,72 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     }
   }, []);
 
+  const loadStockItems = useCallback(async () => {
+    try {
+      const items = await StorageService.getFridgeItems();
+      setStockItems(items);
+    } catch (e) {
+      console.error('Erreur chargement stock étagères:', e);
+    }
+  }, []);
+
   useEffect(() => {
     loadTodayMeals();
-  }, [loadTodayMeals]);
+    loadStockItems();
+  }, [loadTodayMeals, loadStockItems]);
+
+  // Évaluation des recettes faisables avec le stock
+  const { doableRecipesMap, doableCount } = useMemo(() => {
+    if (stockItems.length === 0 || recipes.length === 0) {
+      return { doableRecipesMap: new Map<string, RecipeStockEvaluation>(), doableCount: 0 };
+    }
+    const map = evaluateRecipesWithStock(recipes, stockItems, {
+      assumePantryStaplesAvailable: true,
+    });
+    let count = 0;
+    map.forEach((ev) => {
+      if (ev.isDoable) count++;
+    });
+    return { doableRecipesMap: map, doableCount: count };
+  }, [recipes, stockItems]);
+
+  const handleToggleDoableFilter = () => {
+    if (onlyDoableWithStock) {
+      setOnlyDoableWithStock(false);
+      return;
+    }
+    if (stockItems.length === 0) {
+      Alert.alert(
+        'Étagères vides',
+        "Vous n'avez aucun aliment enregistré dans vos étagères. Remplissez votre stock pour filtrer vos recettes !",
+        [
+          { text: 'Annuler', style: 'cancel' },
+          ...(onNavigateToStock
+            ? [{ text: 'Remplir mes étagères 🥫', onPress: onNavigateToStock }]
+            : []),
+        ]
+      );
+      return;
+    }
+    if (doableCount === 0) {
+      Alert.alert(
+        'Aucune recette prête',
+        "Aucune recette de votre carnet ne peut être cuisinée à 100% avec vos aliments actuels. Voulez-vous demander au Chef IA d'inventer une recette inédite avec votre stock ?",
+        [
+          { text: 'Annuler', style: 'cancel' },
+          {
+            text: 'Inspirer le Chef IA ✨',
+            onPress: () => {
+              loadStockItems();
+              setIsStockModalVisible(true);
+            },
+          },
+        ]
+      );
+      return;
+    }
+    setOnlyDoableWithStock(true);
+  };
 
   const handleOpenMealSlot = (slot: MealTime) => {
     const today = getLocalDateString();
@@ -313,6 +383,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       result = result.filter((r) => r.recipe.isVegetarian);
     }
 
+    // Filtrer pour n'avoir que les recettes faisables avec ce que j'ai en stock (Besoin 1)
+    if (onlyDoableWithStock) {
+      result = result.filter((r) => doableRecipesMap.get(r.recipe.id)?.isDoable);
+    }
+
     // Catégories multiples (ex: Entrée + Plat)
     if (selectedCategories.length > 0 && !selectedCategories.includes('Tous')) {
       result = result.filter((r) => selectedCategories.includes(r.recipe.category));
@@ -369,12 +444,30 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       filteredRecipes: result.map((r) => r.recipe),
       matchedIngredientsMap: ingMap,
     };
-  }, [recipes, searchQuery, selectedCategories, selectedIngredients, minRatingFilter, onlyVegetarian, sortBy]);
+  }, [
+    recipes,
+    searchQuery,
+    selectedCategories,
+    selectedIngredients,
+    minRatingFilter,
+    onlyVegetarian,
+    onlyDoableWithStock,
+    doableRecipesMap,
+    sortBy,
+  ]);
 
   // Réinitialiser la page courante à 1 dès qu'un critère de recherche ou filtre change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, selectedCategories, selectedIngredients, sortBy, minRatingFilter, onlyVegetarian]);
+  }, [
+    searchQuery,
+    selectedCategories,
+    selectedIngredients,
+    sortBy,
+    minRatingFilter,
+    onlyVegetarian,
+    onlyDoableWithStock,
+  ]);
 
   // Pagination (20 recettes par page pour une fluidité maximale)
   const totalPages = Math.max(1, Math.ceil(filteredRecipes.length / RECIPES_PER_PAGE));
@@ -401,10 +494,16 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     }
   };
 
-  // Helper pour trouver les ingrédients matchés pour chaque recette (recherche + frigo)
+  // Helper pour trouver les ingrédients matchés pour chaque recette (recherche + frigo + stock)
   const getMatchedIngredientsForRecipe = (recipe: Recipe): string[] => {
     const fromSearch = matchedIngredientsMap[recipe.id] || [];
-    if (selectedIngredients.length === 0) return fromSearch;
+    const fromDoable = onlyDoableWithStock
+      ? (doableRecipesMap.get(recipe.id)?.matchedIngredients || [])
+          .filter((m) => m.matchedBy === 'stock')
+          .map((m) => m.ingredient.name)
+      : [];
+
+    if (selectedIngredients.length === 0 && fromDoable.length === 0) return fromSearch;
 
     const normSelected = selectedIngredients.map(normalizeString);
     const fromFridge = recipe.ingredients
@@ -414,7 +513,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       })
       .map((i) => i.name);
 
-    const combined = new Set([...fromSearch, ...fromFridge]);
+    const combined = new Set([...fromSearch, ...fromFridge, ...fromDoable]);
     return Array.from(combined);
   };
 
@@ -424,6 +523,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     setSelectedIngredients([]);
     setMinRatingFilter(0);
     setOnlyVegetarian(false);
+    setOnlyDoableWithStock(false);
     setCurrentPage(1);
     forceShowFilterBar();
   };
@@ -439,6 +539,27 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           onPressSlot={handleOpenMealSlot}
           onNavigateToJournal={onNavigateToJournal}
         />
+
+        {/* Bandeau filtre Stock actif (recettes 100% faisables) */}
+        {onlyDoableWithStock && (
+          <View style={styles.stockActiveBanner}>
+            <View style={styles.stockActiveLeft}>
+              <Ionicons name="restaurant" size={16} color={colors.primary} />
+              <Text style={styles.stockActiveText} numberOfLines={1}>
+                {doableCount > 1
+                  ? `${doableCount} recettes prêtes avec votre stock`
+                  : `${doableCount} recette prête avec votre stock`}
+              </Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => setOnlyDoableWithStock(false)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityLabel="Désactiver le filtre de stock"
+            >
+              <Ionicons name="close-circle" size={18} color={colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Bandeau filtre Ingrédients / Frigo actif */}
         {selectedIngredients.length > 0 && (
@@ -477,6 +598,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     [
       todayMeals,
       selectedIngredients,
+      onlyDoableWithStock,
+      doableCount,
       filteredRecipes.length,
       safeCurrentPage,
       totalPages,
@@ -558,7 +681,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         highlightedIngredients={getMatchedIngredientsForRecipe(item)}
       />
     ),
-    [onSelectRecipe, onQuickRate, matchedIngredientsMap, selectedIngredients]
+    [onSelectRecipe, onQuickRate, matchedIngredientsMap, selectedIngredients, onlyDoableWithStock, doableRecipesMap]
   );
 
   return (
@@ -617,7 +740,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             </View>
           </View>
 
-          {/* Barre de Recherche & Bouton Frigo */}
+          {/* Barre de Recherche & Bouton Cuisiner avec mon stock */}
           <SearchBar
             value={searchQuery}
             onChangeText={(text) => {
@@ -629,7 +752,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               setSearchQuery('');
               forceShowFilterBar();
             }}
-            onOpenFridgeSearch={() => setIsFridgeModalVisible(true)}
+            onOpenStockHub={() => {
+              loadStockItems();
+              setIsStockModalVisible(true);
+            }}
+            isStockFilterActive={onlyDoableWithStock}
+            stockCount={stockItems.length}
+            doableRecipesCount={doableCount}
             activeIngredientsCount={selectedIngredients.length}
           />
         </View>
@@ -655,12 +784,25 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             onScroll={handleScroll}
             scrollEventThrottle={16}
             ListEmptyComponent={
-              selectedIngredients.length > 0 ? (
+              onlyDoableWithStock ? (
+                <EmptyState
+                  title="Aucune recette 100% en stock"
+                  description="Aucune recette de votre carnet ne correspond exactement aux ingrédients actuellement enregistrés dans vos étagères."
+                  actionLabel="✨ Inventer avec le Chef IA"
+                  onAction={() => {
+                    loadStockItems();
+                    setIsStockModalVisible(true);
+                  }}
+                />
+              ) : selectedIngredients.length > 0 ? (
                 <EmptyState
                   title="Aucune recette avec ces restes"
                   description={`Votre carnet ne contient pas de recette avec : ${selectedIngredients.join(', ')}.\nDemandez au Chef IA d'inventer une recette originale avec exactement ces ingrédients !`}
                   actionLabel="✨ Inventer avec le Chef IA"
-                  onAction={() => setIsFridgeModalVisible(true)}
+                  onAction={() => {
+                    loadStockItems();
+                    setIsStockModalVisible(true);
+                  }}
                 />
               ) : (
                 <EmptyState
@@ -724,6 +866,22 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 </Text>
               </TouchableOpacity>
 
+              {/* Mon Stock Toggle Pill (Recettes 100% faisables) */}
+              <TouchableOpacity
+                style={[styles.toolPill, onlyDoableWithStock && styles.stockToolPillActive]}
+                onPress={handleToggleDoableFilter}
+                activeOpacity={0.7}
+              >
+                <Ionicons
+                  name={onlyDoableWithStock ? 'restaurant' : 'restaurant-outline'}
+                  size={13}
+                  color={onlyDoableWithStock ? colors.primary : colors.textSecondary}
+                />
+                <Text style={[styles.toolPillText, onlyDoableWithStock && styles.stockToolPillTextActive]}>
+                  {doableCount > 0 ? `En stock (${doableCount})` : 'En stock'}
+                </Text>
+              </TouchableOpacity>
+
               {/* Bouton Filtre Note (ouvre la modale pour choisir la note minimale) */}
               <TouchableOpacity
                 style={[styles.toolPill, minRatingFilter > 0 && styles.ratingToolPillActive]}
@@ -778,6 +936,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               {/* Bouton Effacer les filtres si au moins un filtre est actif */}
               {(minRatingFilter > 0 ||
                 onlyVegetarian ||
+                onlyDoableWithStock ||
                 (selectedCategories.length > 0 && !selectedCategories.includes('Tous'))) && (
                 <TouchableOpacity
                   style={styles.resetFilterPill}
@@ -963,19 +1122,21 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           </View>
         </Modal>
 
-        {/* Modal Frigo / Recherche par Ingrédients */}
-        <FridgeSearchModal
-          visible={isFridgeModalVisible}
+        {/* Modal Cuisiner avec mon stock & suggestions Chef IA */}
+        <StockCookModal
+          visible={isStockModalVisible}
           recipes={recipes}
-          selectedIngredients={selectedIngredients}
-          onApply={(ingredients) => setSelectedIngredients(ingredients)}
-          onGenerateRecipe={(recipe) => {
-            setIsFridgeModalVisible(false);
+          stockItems={stockItems}
+          isDoableFilterActive={onlyDoableWithStock}
+          onApplyDoableFilter={(active) => setOnlyDoableWithStock(active)}
+          onRecipeGenerated={(recipe) => {
+            setIsStockModalVisible(false);
             if (onImportRecipe) {
               onImportRecipe(recipe as Recipe);
             }
           }}
-          onClose={() => setIsFridgeModalVisible(false)}
+          onNavigateToStock={onNavigateToStock}
+          onClose={() => setIsStockModalVisible(false)}
         />
 
         {/* Modal Bot Import Marmiton */}
@@ -1233,6 +1394,33 @@ const styles = createDynamicStyles((colors, shadows) => ({
     fontWeight: '800',
     fontSize: 11.5,
   },
+  stockActiveBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.primaryLight,
+    marginHorizontal: 16,
+    marginTop: 4,
+    marginBottom: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.primary + '33',
+  },
+  stockActiveLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 8,
+    gap: 6,
+  },
+  stockActiveText: {
+    fontSize: 12,
+    color: colors.primary,
+    fontWeight: '700',
+    flex: 1,
+  },
   fridgeActiveBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1285,6 +1473,10 @@ const styles = createDynamicStyles((colors, shadows) => ({
     backgroundColor: colors.isDark ? '#143823' : '#DCFCE7',
     borderColor: colors.isDark ? '#2E7D52' : '#86EFAC',
   },
+  stockToolPillActive: {
+    backgroundColor: colors.primaryLight,
+    borderColor: colors.primary,
+  },
   toolPillText: {
     fontSize: 12,
     fontWeight: '600',
@@ -1295,6 +1487,10 @@ const styles = createDynamicStyles((colors, shadows) => ({
   },
   vegeToolPillTextActive: {
     color: colors.isDark ? '#4ADE80' : '#15803D',
+    fontWeight: '700',
+  },
+  stockToolPillTextActive: {
+    color: colors.primary,
     fontWeight: '700',
   },
   sortToolPill: {

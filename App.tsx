@@ -194,6 +194,7 @@ function AppContent() {
               onQuickRate={handleUpdateRating}
               onOpenSettings={() => setCurrentScreen('settings')}
               onNavigateToJournal={navigateToJournal}
+              onNavigateToStock={() => navigateToShopping('fridge')}
             />
           )}
 

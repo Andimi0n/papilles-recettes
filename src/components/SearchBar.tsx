@@ -1,15 +1,19 @@
 import React from 'react';
-import { View, TextInput, TouchableOpacity, StyleSheet, Text } from 'react-native';
+import { View, TextInput, TouchableOpacity, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, createDynamicStyles } from '../theme/colors';
+import { createDynamicStyles } from '../theme/colors';
 import { useTheme } from '../theme/ThemeContext';
 
 interface SearchBarProps {
   value: string;
   onChangeText: (text: string) => void;
   placeholder?: string;
-  onOpenFridgeSearch: () => void;
-  activeIngredientsCount?: number;
+  onOpenStockHub?: () => void;
+  onOpenFridgeSearch?: () => void; // Compatibilité ascendante
+  isStockFilterActive?: boolean;
+  stockCount?: number;
+  doableRecipesCount?: number;
+  activeIngredientsCount?: number; // Compatibilité ascendante
   onClear: () => void;
 }
 
@@ -17,11 +21,35 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   value,
   onChangeText,
   placeholder = 'Rechercher une recette ou un ingrédient...',
+  onOpenStockHub,
   onOpenFridgeSearch,
+  isStockFilterActive = false,
+  stockCount = 0,
+  doableRecipesCount = 0,
   activeIngredientsCount = 0,
   onClear,
 }) => {
   const { isDark, colors } = useTheme();
+
+  const handleOpenStock = () => {
+    if (onOpenStockHub) {
+      onOpenStockHub();
+    } else if (onOpenFridgeSearch) {
+      onOpenFridgeSearch();
+    }
+  };
+
+  const isActive = isStockFilterActive || activeIngredientsCount > 0;
+  // Priorité d'affichage du badge :
+  // 1. Si le filtre est actif : icône checkmark
+  // 2. Sinon, si des recettes sont faisables immédiatement avec le stock : nombre de recettes faisables
+  // 3. Sinon, si des ingrédients sont en stock : petit point ou count d'ingrédients
+  const displayBadgeCount =
+    doableRecipesCount > 0
+      ? doableRecipesCount
+      : activeIngredientsCount > 0
+      ? activeIngredientsCount
+      : 0;
 
   return (
     <View style={styles.container}>
@@ -43,31 +71,43 @@ export const SearchBar: React.FC<SearchBarProps> = ({
             onPress={onClear}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             style={styles.clearBtn}
+            accessibilityLabel="Effacer la recherche"
           >
             <Ionicons name="close-circle" size={18} color={colors.textMuted} />
           </TouchableOpacity>
         )}
       </View>
 
-      {/* Bouton recherche spécifique par ingrédients (Le Frigo) */}
+      {/* Bouton Cuisiner avec mon stock / Anti-gaspillage */}
       <TouchableOpacity
         style={[
-          styles.fridgeBtn,
-          activeIngredientsCount > 0 && styles.fridgeBtnActive,
+          styles.stockHubBtn,
+          isActive && styles.stockHubBtnActive,
         ]}
-        onPress={onOpenFridgeSearch}
-        activeOpacity={0.8}
+        onPress={handleOpenStock}
+        activeOpacity={0.75}
+        accessibilityLabel="Cuisiner avec mon stock et suggestions IA"
+        accessibilityRole="button"
       >
         <Ionicons
-          name="restaurant"
-          size={18}
-          color={activeIngredientsCount > 0 ? '#FFFFFF' : colors.primary}
+          name={isActive ? 'restaurant' : 'restaurant-outline'}
+          size={19}
+          color={isActive ? '#FFFFFF' : colors.primary}
         />
-        {activeIngredientsCount > 0 && (
-          <View style={styles.activeBadge}>
-            <Text style={styles.activeBadgeText}>{activeIngredientsCount}</Text>
+
+        {isActive ? (
+          <View style={styles.activeFilterBadge}>
+            <Ionicons name="checkmark" size={10} color="#FFFFFF" />
           </View>
-        )}
+        ) : displayBadgeCount > 0 ? (
+          <View style={styles.doableBadge}>
+            <Text style={styles.doableBadgeText}>
+              {displayBadgeCount > 99 ? '99+' : displayBadgeCount}
+            </Text>
+          </View>
+        ) : stockCount > 0 ? (
+          <View style={styles.stockDotBadge} />
+        ) : null}
       </TouchableOpacity>
     </View>
   );
@@ -103,7 +143,7 @@ const styles = createDynamicStyles((colors, shadows) => ({
   clearBtn: {
     padding: 4,
   },
-  fridgeBtn: {
+  stockHubBtn: {
     marginLeft: 10,
     width: 46,
     height: 46,
@@ -112,29 +152,60 @@ const styles = createDynamicStyles((colors, shadows) => ({
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.primary + '33',
+    ...shadows.card,
   },
-  fridgeBtnActive: {
+  stockHubBtnActive: {
     backgroundColor: colors.primary,
     borderColor: colors.primary,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 6,
+    elevation: 4,
   },
-  activeBadge: {
+  activeFilterBadge: {
     position: 'absolute',
-    top: -4,
-    right: -4,
+    top: -5,
+    right: -5,
     backgroundColor: colors.secondary,
     width: 18,
     height: 18,
     borderRadius: 9,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1.5,
+    borderWidth: 2,
     borderColor: colors.cardBackground,
   },
-  activeBadgeText: {
+  doableBadge: {
+    position: 'absolute',
+    top: -5,
+    right: -5,
+    backgroundColor: colors.secondary,
+    minWidth: 19,
+    height: 19,
+    borderRadius: 9.5,
+    paddingHorizontal: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: colors.cardBackground,
+  },
+  doableBadgeText: {
     color: '#FFFFFF',
     fontSize: 10,
-    fontWeight: '700',
+    fontWeight: '800',
+  },
+  stockDotBadge: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.primary,
+    borderWidth: 1.5,
+    borderColor: colors.cardBackground,
   },
 }));

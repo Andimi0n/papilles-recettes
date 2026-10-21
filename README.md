@@ -40,7 +40,21 @@ Une application mobile moderne, soignée et intuitive pour gérer vos recettes, 
   - Cocher/décocher les articles achetés.
   - **Passerelle intelligente** : bouton 1 tap *"Ajouter aux courses"* depuis les étagères, et *"Ranger dans mes étagères 🥫"* pour basculer vos courses achetées dans vos stocks.
 
-### 4. 🏷️ Lexique Canonique & Normalisation Stricte des Ingrédients
+### 4. 🍳 Cuisiner avec mon stock & Suggestions du Chef IA ("Anti-gaspillage")
+- **Filtrage des recettes 100% faisables avec le stock** :
+  - Calcule en temps réel quelles recettes de votre carnet peuvent être cuisinées immédiatement avec vos aliments en stock (`stockMatcher.ts`).
+  - Tolérance intelligente des fonds de placard (`isPantryStaple` : sel, poivre, eau, huiles usuelles, épices) et exclusion des ingrédients facultatifs (`isOptional`).
+  - Puce d'accès direct `[En stock (X)]` dans le bandeau de filtres rétractable de l'accueil et bandeau d'état actif dans la liste.
+- **Bouton couteau-fourchette repensé (Hub Stock & Anti-gaspillage)** :
+  - Bouton interactif moderne à côté de la barre de recherche avec badge dynamique du nombre de recettes faisables ou puce active.
+  - Ouvre une modale complète d'assistance culinaire (`StockCookModal`) affichant le bilan du carnet, le sélecteur d'ingrédients à valoriser et les options de création.
+- **Génération IA inédite garantie sans doublon avec le carnet existant** :
+  - Le Chef IA (Gemini 3.8 Flash) imagine une recette sur-mesure pour sublimer vos restes et denrées en stock.
+  - **Anti-redondance stricte** : transmission de votre catalogue de recettes enregistrées pour s'assurer que l'IA ne génère jamais une recette identique ou redondante avec votre carnet.
+  - Configuration du nombre de portions (synchronisé avec vos préférences), option 100% végétarienne et catégorie souhaitée.
+  - Pré-remplissage direct du formulaire de recette pour modification et enregistrement en 1 clic.
+
+### 5. 🏷️ Lexique Canonique & Normalisation Stricte des Ingrédients
 - **Élimination automatique des synonymes et contenants** : fini les doublons entre *"boîte de petits pois"* et *"petits pois"*, *"noix de muscade"* et *"muscade"*, ou *"carotte épluchée"* et *"carotte"*.
 - **Création délibérée d'ingrédients distincts & détachement sécurisé sans conflit** : si vous choisissez délibérément de saisir un terme qui était enregistré comme synonyme (ex: conserver *"Noix de muscade"* au lieu d'accepter *"Muscade"*, ou dissocier *"Sucre glace"* de *"Sucre"*), l'application détache proprement cet alias du parent sans jamais capturer le nom de base du parent en synonyme.
 - **Auto-assainissement anti-conflits (Self-Healing)** : le système vérifie et assainit en tâche de fond le lexique pour empêcher qu'un ingrédient ne vole ou ne partage les alias d'un autre terme canonique.
@@ -50,7 +64,7 @@ Une application mobile moderne, soignée et intuitive pour gérer vos recettes, 
 - **Harmonisation en 1 clic ("Normaliser tous les ingrédients")** : bouton disponible dans les Paramètres permettant d'analyser et de standardiser rétroactivement l'ensemble de vos recettes, listes de courses et étagères avec compte-rendu précis.
 - **Gestionnaire de vocabulaire complet & Placard personnalisable** : accessible dans les Paramètres pour consulter les ~350 ingrédients canoniques, rechercher par rayon ou par filtre rapide `📦 Dans les placards`, définir d'un clic si un ingrédient est habituellement en placard, renommer, ajouter des alias, détacher des synonymes, fusionner des doublons ou réinitialiser.
 
-### 5. 📖 Structure "Livre de Chef", Placard & Ajout Intelligent aux Courses
+### 6. 📖 Structure "Livre de Chef", Placard & Ajout Intelligent aux Courses
 - **Organisation culinaire par sections (Zéro badge bruyant)** :
   - **Ingrédients principaux** : les denrées principales nécessaires au plat (sans descriptif parasite).
   - **Assaisonnements & condiments** : huiles, vinaigres, assaisonnements et épices usuelles réputées déjà à la maison (descriptif placé sous le titre).
@@ -64,7 +78,7 @@ Une application mobile moderne, soignée et intuitive pour gérer vos recettes, 
   - **Puces d'organisation** : associez un ingrédient à `En placard` ou `En finition (au goût)` d'un simple clic lors de la création ou modification d'une recette.
 - **Classification IA native (Gemini 3.8 Flash)** : les scans photo, textes bruts et créations de recettes par l'IA qualifient automatiquement et avec précision le statut de chaque ingrédient.
 
-### 6. 📷 Scanner de Recettes par IA (Gemini BYOK) & Import Web
+### 7. 📷 Scanner de Recettes par IA (Gemini BYOK) & Import Web
 - **Scanner Photo & Texte (IA Multimodale)** :
   - Prenez en photo une recette de magazine ou de livre (ou choisissez depuis la galerie).
   - **Support multi-photos** : capturez le **Recto** (titre, visuel) et le **Verso** (ingrédients & étapes détaillées, idéal pour fiches HelloFresh / Quitoque).
@@ -73,12 +87,12 @@ Une application mobile moderne, soignée et intuitive pour gérer vos recettes, 
   - Modèle **BYOK (Bring Your Own Key)** : votre clé API Google AI Studio reste stockée localement de manière chiffrée.
 - **Import Web Marmiton** : importez instantanément n'importe quelle recette Marmiton en collant son URL.
 
-### 6. ⭐ Système de Notation & Filtre par Étoiles
+### 8. ⭐ Système de Notation & Filtre par Étoiles
 - Notez vos recettes de 0.5 à 5.0 étoiles de façon épurée et immédiate (les étoiles et la note chiffrée suffisent, sans qualificatifs textuels superflus).
 - Astuces secrètes et notes personnelles mémorisées sur chaque fiche recette.
 - **Filtre par note minimale en fenêtre modale** : bouton dédié dans la barre d'outils secondaire (`Note` ou `≥ 4 ★` avec bouton `(x)` d'effacement rapide) ouvrant une fenêtre harmonisée avec la modale de tri, combinant un sélecteur interactif 5 étoiles et des choix rapides (Toutes les notes, ≥ 4.5, ≥ 4.0, ≥ 3.5, ≥ 3.0).
 
-### 7. 🥗 Double Bandeau de Filtres Rétractable & Boutons Verticaux
+### 9. 🥗 Double Bandeau de Filtres Rétractable & Boutons Verticaux
 - **Bandeau de marque & actions verticales** : l'identité Papilles avec son logo et ses actions rapides (*Marmiton*, *Scan & IA*, *Ajouter*) sont disposées de manière ordonnée à la verticale à droite, optimisant la largeur utile.
 - **Double bandeau de filtres rétractable au scroll fluide** : la barre des catégories (*Tous, Plats, Desserts...*) et la barre des filtres secondaires (*Végé, Note minimale, Tri, Effacer*) s'effacent automatiquement lors du défilement vers le bas pour libérer l'espace d'affichage, et réapparaissent dès qu'on remonte. Moteur haute performance exécuté sur le thread natif (`useNativeDriver: true`) avec layout de liste fixe et seuils d'hystérésis calibrés (défilement lent stabilisé sans aucun ping-pong même avec le doigt posé sur l'écran).
 - **Barre de recherche verrouillée** : la barre de recherche et le logo restent toujours accessibles en haut de l'écran.
