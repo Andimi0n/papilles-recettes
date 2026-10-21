@@ -14,7 +14,7 @@
 - **Categorized Shopping List**: Auto-generates items from recipes or meal plans, auto-classifying ingredients into supermarket aisles.
 - **Dual Artistic Directions & Dynamic Theming**:
   - Light: *Jardin Botanique & Slow Food* (forest evergreen, celadon, almond mist).
-  - Dark: *Table Nocturne & Club Gourmand* (velvet espresso, warm slate, spiced caramel).
+  - Dark: *Table Nocturne & Sauge Céleste* (obsidian slate, luminous culinary emerald, silver sage, honey amber).
   - Supports system auto-switch, discrete one-tap header toggle, and manual setting.
 - **100% Offline-First Architecture & BYOK**:
   - No backend server.

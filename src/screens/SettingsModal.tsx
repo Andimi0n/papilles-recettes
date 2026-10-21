@@ -256,7 +256,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 onPress={() => setThemeMode('dark')}
                 activeOpacity={0.8}
               >
-                <Text style={styles.themeEmoji}>🍷</Text>
+                <Text style={styles.themeEmoji}>🌙</Text>
                 <Text
                   style={[
                     styles.themeOptionText,
@@ -274,7 +274,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <Text style={styles.swatchTitle}>
                 Palette active :{' '}
                 <Text style={{ fontWeight: '700', color: colors.primary }}>
-                  {themeId === 'botanique' ? 'Jardin Botanique' : 'Table Nocturne'}
+                  {themeId === 'botanique' ? 'Jardin Botanique' : 'Table Nocturne (Émeraude & Ardoise)'}
                 </Text>
               </Text>
               <View style={styles.swatchRow}>
