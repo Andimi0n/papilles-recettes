@@ -70,7 +70,7 @@ export const VocabularyManagerModal: React.FC<VocabularyManagerModalProps> = ({
       let matchAisle = false;
       if (selectedAisle === 'Tous') {
         matchAisle = true;
-      } else if (selectedAisle === '🧂 Fond de placard') {
+      } else if (selectedAisle === '📦 Dans les placards') {
         matchAisle = Boolean(item.isPantryStaple);
       } else {
         matchAisle = item.defaultAisle === selectedAisle;
@@ -255,7 +255,7 @@ export const VocabularyManagerModal: React.FC<VocabularyManagerModalProps> = ({
     ).slice(0, 10);
   }, [items, mergeSource, mergeTargetSearch]);
 
-  const aisleOptions = ['Tous', '🧂 Fond de placard', ...ALL_AISLES];
+  const aisleOptions = ['Tous', '📦 Dans les placards', ...ALL_AISLES];
 
   return (
     <Modal visible={visible} animationType="slide" transparent={false} onRequestClose={onClose}>
@@ -353,13 +353,19 @@ export const VocabularyManagerModal: React.FC<VocabularyManagerModalProps> = ({
                           onPress={() => handleToggleStaple(item)}
                           activeOpacity={0.7}
                         >
+                          <Ionicons
+                            name="archive-outline"
+                            size={10}
+                            color={item.isPantryStaple ? colors.primary : colors.textMuted}
+                            style={{ marginRight: 3 }}
+                          />
                           <Text
                             style={[
                               styles.stapleToggleBadgeText,
                               item.isPantryStaple && styles.stapleToggleBadgeTextActive,
                             ]}
                           >
-                            {item.isPantryStaple ? '🧂 De base' : '🧂 +De base'}
+                            {item.isPantryStaple ? 'En placard' : '+ Placard'}
                           </Text>
                         </TouchableOpacity>
                       </View>
@@ -499,7 +505,7 @@ export const VocabularyManagerModal: React.FC<VocabularyManagerModalProps> = ({
                   multiline
                 />
 
-                {/* Option Fond de placard / Ingrédient de base */}
+                {/* Option Dans les placards */}
                 <TouchableOpacity
                   style={[
                     styles.dialogToggleRow,
@@ -509,9 +515,9 @@ export const VocabularyManagerModal: React.FC<VocabularyManagerModalProps> = ({
                   activeOpacity={0.8}
                 >
                   <View style={styles.dialogToggleLeft}>
-                    <Text style={styles.dialogToggleTitle}>🧂 Ingrédient de base / Fond de placard</Text>
+                    <Text style={styles.dialogToggleTitle}>📦 Ingrédient de placard / Assaisonnement</Text>
                     <Text style={styles.dialogToggleSubtitle}>
-                      Considéré toujours en stock (ex: sel, poivre, huile, épices). Ne s'ajoute pas d'office aux courses.
+                      Considéré présent par défaut en cuisine (sel, poivre, huiles, épices). Placé dans la section "Dans vos placards" des recettes.
                     </Text>
                   </View>
                   <View style={[styles.switchCircle, formIsPantryStaple && styles.switchCircleActive]}>

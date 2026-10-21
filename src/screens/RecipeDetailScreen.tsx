@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -72,6 +72,55 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
   // Checklists locales pour la session de cuisine
   const [checkedIngredients, setCheckedIngredients] = useState<Record<string, boolean>>({});
   const [checkedSteps, setCheckedSteps] = useState<Record<string, boolean>>({});
+
+  // Regroupement culinaire par sections ("Livre de Chef")
+  const ingredientGroups = useMemo(() => {
+    const main = (recipe.ingredients || []).filter((i) => !i.isPantryStaple && !i.isOptional);
+    const pantry = (recipe.ingredients || []).filter((i) => Boolean(i.isPantryStaple) && !i.isOptional);
+    const optional = (recipe.ingredients || []).filter((i) => Boolean(i.isOptional));
+
+    const hasSubsections = pantry.length > 0 || optional.length > 0;
+
+    const list: {
+      key: 'main' | 'pantry' | 'optional';
+      title: string;
+      subtitle?: string;
+      iconName?: string;
+      items: typeof recipe.ingredients;
+    }[] = [];
+
+    if (main.length > 0) {
+      list.push({
+        key: 'main',
+        title: hasSubsections ? 'Ingrédients du marché & frais' : '',
+        subtitle: hasSubsections ? 'À prévoir pour la recette' : undefined,
+        iconName: 'basket-outline',
+        items: main,
+      });
+    }
+
+    if (pantry.length > 0) {
+      list.push({
+        key: 'pantry',
+        title: 'Dans vos placards',
+        subtitle: 'Huiles, assaisonnements & épices usuelles',
+        iconName: 'archive-outline',
+        items: pantry,
+      });
+    }
+
+    if (optional.length > 0) {
+      list.push({
+        key: 'optional',
+        title: 'En finition & au goût',
+        subtitle: 'Touches facultatives ou décoratives',
+        iconName: 'sparkles-outline',
+        items: optional,
+      });
+    }
+
+    return { groups: list, hasSubsections };
+  }, [recipe.ingredients]);
 
   // Minuteurs interactifs autonomes pour chaque étape
   const [inlineTimers, setInlineTimers] = useState<Record<string, InlineStepTimer>>({});
@@ -605,58 +654,70 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
               </Text>
             </TouchableOpacity>
 
-            {recipe.ingredients.map((ing) => {
-              const isChecked = !!checkedIngredients[ing.id];
-              const scaledQty = scaleQuantity(ing.quantity, recipe.servings || 4, currentServings);
-              const isScaled = currentServings !== recipe.servings && !!ing.quantity;
-
-              return (
-                <TouchableOpacity
-                  key={ing.id}
-                  style={[styles.ingredientRow, isChecked && styles.rowChecked]}
-                  onPress={() => toggleIngredientCheck(ing.id)}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons
-                    name={isChecked ? 'checkmark-circle' : 'ellipse-outline'}
-                    size={22}
-                    color={isChecked ? Colors.secondary : Colors.border}
-                    style={styles.checkIcon}
-                  />
-                  <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
-                    <Text
-                      style={[
-                        styles.ingredientName,
-                        isChecked && styles.textChecked,
-                      ]}
-                    >
-                      {ing.name}
-                    </Text>
-                    {ing.isPantryStaple && (
-                      <View style={styles.stapleMiniBadge}>
-                        <Text style={styles.stapleMiniBadgeText}>🧂 De base</Text>
-                      </View>
-                    )}
-                    {ing.isOptional && (
-                      <View style={styles.optionalMiniBadge}>
-                        <Text style={styles.optionalMiniBadgeText}>🌱 Facultatif</Text>
-                      </View>
-                    )}
+            {ingredientGroups.groups.map((group) => (
+              <View key={`ing_group_${group.key}`} style={styles.ingredientGroupBlock}>
+                {group.title ? (
+                  <View style={styles.ingredientGroupHeader}>
+                    <View style={styles.ingredientGroupHeaderLeft}>
+                      {group.iconName && (
+                        <Ionicons
+                          name={group.iconName as any}
+                          size={13}
+                          color={colors.primary}
+                          style={{ marginRight: 6 }}
+                        />
+                      )}
+                      <Text style={styles.ingredientGroupTitle}>{group.title}</Text>
+                    </View>
+                    {group.subtitle ? (
+                      <Text style={styles.ingredientGroupSubtitle}>{group.subtitle}</Text>
+                    ) : null}
                   </View>
-                  {scaledQty ? (
-                    <Text
-                      style={[
-                        styles.ingredientQty,
-                        isScaled && styles.ingredientQtyScaled,
-                        isChecked && styles.textChecked,
-                      ]}
+                ) : null}
+
+                {group.items.map((ing) => {
+                  const isChecked = !!checkedIngredients[ing.id];
+                  const scaledQty = scaleQuantity(ing.quantity, recipe.servings || 4, currentServings);
+                  const isScaled = currentServings !== recipe.servings && !!ing.quantity;
+
+                  return (
+                    <TouchableOpacity
+                      key={ing.id}
+                      style={[styles.ingredientRow, isChecked && styles.rowChecked]}
+                      onPress={() => toggleIngredientCheck(ing.id)}
+                      activeOpacity={0.7}
                     >
-                      {scaledQty} {ing.unit || ''}
-                    </Text>
-                  ) : null}
-                </TouchableOpacity>
-              );
-            })}
+                      <Ionicons
+                        name={isChecked ? 'checkmark-circle' : 'ellipse-outline'}
+                        size={22}
+                        color={isChecked ? Colors.secondary : Colors.border}
+                        style={styles.checkIcon}
+                      />
+                      <Text
+                        style={[
+                          styles.ingredientName,
+                          isChecked && styles.textChecked,
+                          group.key === 'pantry' && styles.ingredientNamePantry,
+                        ]}
+                      >
+                        {ing.name}
+                      </Text>
+                      {scaledQty ? (
+                        <Text
+                          style={[
+                            styles.ingredientQty,
+                            isScaled && styles.ingredientQtyScaled,
+                            isChecked && styles.textChecked,
+                          ]}
+                        >
+                          {scaledQty} {ing.unit || ''}
+                        </Text>
+                      ) : null}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            ))}
           </View>
 
           {/* Steps Section */}
@@ -939,48 +1000,67 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
                 </TouchableOpacity>
               </View>
 
-              {/* Liste des ingrédients */}
+              {/* Liste des ingrédients organisée en sous-sections Livre de Chef */}
               <ScrollView style={styles.shoppingListScroll} showsVerticalScrollIndicator={true}>
-                {recipe.ingredients.map((ing) => {
-                  const isChecked = !!shoppingSelection[ing.id];
-                  const scaledQty = scaleQuantity(ing.quantity, recipe.servings || 4, currentServings);
-
-                  return (
-                    <TouchableOpacity
-                      key={`shop_item_${ing.id}`}
-                      style={[styles.shoppingItemRow, isChecked && styles.shoppingItemRowChecked]}
-                      onPress={() => handleToggleShoppingItem(ing.id)}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons
-                        name={isChecked ? 'checkbox' : 'square-outline'}
-                        size={20}
-                        color={isChecked ? colors.primary : colors.textMuted}
-                        style={{ marginRight: 10 }}
-                      />
-                      <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
-                        <Text style={[styles.shoppingItemName, !isChecked && styles.shoppingItemNameMuted]}>
-                          {ing.name}
+                {ingredientGroups.groups.map((group) => (
+                  <View key={`shop_group_${group.key}`} style={styles.shoppingGroupBlock}>
+                    <View style={styles.shoppingGroupHeader}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <Ionicons
+                          name={
+                            group.key === 'main'
+                              ? 'basket-outline'
+                              : group.key === 'pantry'
+                              ? 'archive-outline'
+                              : 'sparkles-outline'
+                          }
+                          size={13}
+                          color={group.key === 'main' ? colors.primary : colors.textSecondary}
+                          style={{ marginRight: 6 }}
+                        />
+                        <Text style={styles.shoppingGroupTitle}>
+                          {group.key === 'main'
+                            ? 'À ACHETER (INDISPENSABLES)'
+                            : group.key === 'pantry'
+                            ? 'DANS VOS PLACARDS (SOUS LA MAIN)'
+                            : 'EN FINITION (AU GOÛT)'}
                         </Text>
-                        {ing.isPantryStaple && (
-                          <View style={styles.stapleMiniBadge}>
-                            <Text style={styles.stapleMiniBadgeText}>🧂 De base</Text>
-                          </View>
-                        )}
-                        {ing.isOptional && (
-                          <View style={styles.optionalMiniBadge}>
-                            <Text style={styles.optionalMiniBadgeText}>🌱 Facultatif</Text>
-                          </View>
-                        )}
                       </View>
-                      {scaledQty ? (
-                        <Text style={[styles.shoppingItemQty, !isChecked && styles.shoppingItemNameMuted]}>
-                          {scaledQty} {ing.unit || ''}
-                        </Text>
-                      ) : null}
-                    </TouchableOpacity>
-                  );
-                })}
+                      <Text style={styles.shoppingGroupHint}>
+                        {group.key === 'main' ? 'Cochés par défaut' : 'Cochez si vous en manquez'}
+                      </Text>
+                    </View>
+
+                    {group.items.map((ing) => {
+                      const isChecked = !!shoppingSelection[ing.id];
+                      const scaledQty = scaleQuantity(ing.quantity, recipe.servings || 4, currentServings);
+
+                      return (
+                        <TouchableOpacity
+                          key={`shop_item_${ing.id}`}
+                          style={[styles.shoppingItemRow, isChecked && styles.shoppingItemRowChecked]}
+                          onPress={() => handleToggleShoppingItem(ing.id)}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons
+                            name={isChecked ? 'checkbox' : 'square-outline'}
+                            size={20}
+                            color={isChecked ? colors.primary : colors.textMuted}
+                            style={{ marginRight: 10 }}
+                          />
+                          <Text style={[styles.shoppingItemName, !isChecked && styles.shoppingItemNameMuted]}>
+                            {ing.name}
+                          </Text>
+                          {scaledQty ? (
+                            <Text style={[styles.shoppingItemQty, !isChecked && styles.shoppingItemNameMuted]}>
+                              {scaledQty} {ing.unit || ''}
+                            </Text>
+                          ) : null}
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                ))}
               </ScrollView>
 
               {/* Footer avec action */}
@@ -1318,6 +1398,39 @@ const styles = createDynamicStyles((colors, shadows) => ({
     fontSize: 11,
     fontWeight: '600',
     color: Colors.primary,
+  },
+  ingredientGroupBlock: {
+    marginBottom: 6,
+  },
+  ingredientGroupHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 12,
+    paddingBottom: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
+    marginTop: 4,
+    marginBottom: 2,
+  },
+  ingredientGroupHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  ingredientGroupTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.primary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  ingredientGroupSubtitle: {
+    fontSize: 11,
+    color: colors.textMuted,
+    fontStyle: 'italic',
+  },
+  ingredientNamePantry: {
+    color: colors.textSecondary,
   },
   ingredientRow: {
     flexDirection: 'row',
@@ -1734,7 +1847,31 @@ const styles = createDynamicStyles((colors, shadows) => ({
     color: colors.textSecondary,
   },
   shoppingListScroll: {
-    maxHeight: 320,
+    maxHeight: 340,
+  },
+  shoppingGroupBlock: {
+    marginBottom: 12,
+  },
+  shoppingGroupHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
+    marginBottom: 4,
+  },
+  shoppingGroupTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.primary,
+    letterSpacing: 0.5,
+  },
+  shoppingGroupHint: {
+    fontSize: 10,
+    color: colors.textMuted,
+    fontStyle: 'italic',
   },
   shoppingItemRow: {
     flexDirection: 'row',

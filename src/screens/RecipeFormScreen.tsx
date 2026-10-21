@@ -561,7 +561,7 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
                   </TouchableOpacity>
                 </View>
 
-                {/* Badges Fond de placard & Facultatif */}
+                {/* Organisation par sections (Livre de Chef) */}
                 <View style={styles.ingredientFlagsRow}>
                   <TouchableOpacity
                     style={[
@@ -571,13 +571,18 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
                     onPress={() => handleToggleIngredientStaple(index)}
                     activeOpacity={0.7}
                   >
+                    <Ionicons
+                      name="archive-outline"
+                      size={12}
+                      color={ing.isPantryStaple ? colors.primary : colors.textMuted}
+                    />
                     <Text
                       style={[
                         styles.flagChipText,
                         ing.isPantryStaple && styles.flagChipTextActiveStaple,
                       ]}
                     >
-                      {ing.isPantryStaple ? '🧂 Fond de placard' : '🧂 +Fond de placard'}
+                      {ing.isPantryStaple ? 'Dans vos placards' : '+ Dans vos placards'}
                     </Text>
                   </TouchableOpacity>
 
@@ -589,13 +594,18 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
                     onPress={() => handleToggleIngredientOptional(index)}
                     activeOpacity={0.7}
                   >
+                    <Ionicons
+                      name="sparkles-outline"
+                      size={12}
+                      color={ing.isOptional ? '#D97706' : colors.textMuted}
+                    />
                     <Text
                       style={[
                         styles.flagChipText,
                         ing.isOptional && styles.flagChipTextActiveOptional,
                       ]}
                     >
-                      {ing.isOptional ? '🌱 Facultatif' : '🌱 +Facultatif'}
+                      {ing.isOptional ? 'En finition (au goût)' : '+ En finition'}
                     </Text>
                   </TouchableOpacity>
                 </View>

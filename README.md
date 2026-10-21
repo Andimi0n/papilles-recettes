@@ -47,15 +47,16 @@ Une application mobile moderne, soignée et intuitive pour gérer vos recettes, 
 - **Respect absolu des instructions** : la normalisation s'applique **exclusivement aux ingrédients** ; les étapes et instructions de préparation restent 100% fidèles et intouchées.
 - **Autocomplétion prédictive réactive** : composant de saisie avec liste déroulante suggérant les termes officiels et permettant de choisir en 1 clic de conserver un ingrédient distinct.
 - **Harmonisation en 1 clic ("Normaliser tous les ingrédients")** : bouton disponible dans les Paramètres permettant d'analyser et de standardiser rétroactivement l'ensemble de vos recettes, listes de courses et étagères avec compte-rendu précis.
-- **Gestionnaire de vocabulaire complet & Fonds de placard personnalisables** : accessible dans les Paramètres pour consulter les ~350 ingrédients canoniques, rechercher par rayon ou par filtre rapide `🧂 Fond de placard`, définir d'un clic si un ingrédient est de base, renommer, ajouter des alias, détacher des synonymes, fusionner des doublons ou réinitialiser.
+- **Gestionnaire de vocabulaire complet & Placard personnalisable** : accessible dans les Paramètres pour consulter les ~350 ingrédients canoniques, rechercher par rayon ou par filtre rapide `📦 Dans les placards`, définir d'un clic si un ingrédient est habituellement en placard, renommer, ajouter des alias, détacher des synonymes, fusionner des doublons ou réinitialiser.
 
-### 5. 🧂 Fonds de Placard, Ingrédients Facultatifs & Ajout Intelligent aux Courses
-- **Distinction claire indispensable vs fond de placard vs optionnel** :
-  - **Fonds de placard (`isPantryStaple`)** : sel, poivre, huiles de cuisson courantes, vinaigre, eau, herbes aromatiques et épices sèches de base.
-  - **Facultatif (`isOptional`)** : garnitures décoratives, assaisonnements au choix ou mentions *(facultatif)*.
-- **Fenêtre de validation avant ajout aux courses ("Ne plus noyer la liste")** : au clic sur *"Ajouter à ma liste de courses"*, une modale intuitive s'ouvre avec les ingrédients indispensables cochés par défaut, et les fonds de placard / facultatifs décochés par défaut avec un badge visuel distinctif (`🧂 De base`, `🌱 Facultatif`).
-- **Raccourcis rapides** : boutons *"Indispensables uniquement"*, *"Tout cocher"* et *"Tout décocher"* pour ajouter exactement ce dont vous avez besoin en un éclair.
-- **Badges interactifs dans le formulaire de recette** : activez ou désactivez le statut `🧂 Fond de placard` et `🌱 Facultatif` en un tapotement lors de la création ou modification d'une recette.
+### 5. 📖 Structure "Livre de Chef", Placard & Ajout Intelligent aux Courses
+- **Organisation culinaire par sections (Zéro badge bruyant)** :
+  - **Ingrédients du marché & frais** : les denrées principales et fraîches nécessaires au plat.
+  - **Dans vos placards** : huiles, vinaigres, assaisonnements et épices usuelles réputées déjà à la maison.
+  - **En finition & au goût** : herbes fraîches de dressage, graines, épices au goût ou touches facultatives.
+- **Fenêtre de validation avant ajout aux courses ("Ne plus noyer la liste")** : au clic sur *"Ajouter à ma liste de courses"*, une modale intuitive s'ouvre organisée sous ces mêmes sections culinaires. Les ingrédients à acheter sont **cochés par défaut** ; ceux déjà dans vos placards sont **décochés par défaut** (il suffit d'un tap si vous en manquez).
+- **Raccourcis rapides** : boutons *"Indispensables uniquement"*, *"Tout cocher"* et *"Tout décocher"* pour ajuster votre panier en un éclair.
+- **Puces d'organisation dans le formulaire de recette** : associez un ingrédient à `Dans vos placards` ou `En finition (au goût)` d'un simple clic lors de la création ou modification d'une recette.
 - **Classification IA native (Gemini 3.8 Flash)** : les scans photo, textes bruts et créations de recettes par l'IA qualifient automatiquement et avec précision le statut de chaque ingrédient.
 
 ### 6. 📷 Scanner de Recettes par IA (Gemini BYOK) & Import Web
