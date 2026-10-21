@@ -15,6 +15,11 @@
   - Quick home widget for one-tap daily logging.
   - Multi-day chronological history with editable past entries.
   - Weekly planner to schedule lunch and dinner across the week, view planned menus, and aggregate required ingredients.
+- **Fridge Inventory & Shopping List Hub ("Courses & Frigo")**:
+  - Unified tab housing both **Mon Frigo** (fridge inventory) and **Liste de courses**.
+  - Fast, frictionless tracking of on-hand ingredients with 1-tap popular suggestions (`Œufs`, `Beurre`, `Lait`, `Fromage`...) and automatic supermarket aisle classification.
+  - Seamless transfer: 1-tap "Ajouter aux courses" from fridge items, and "Ranger au frigo ❄️" when purchasing or cleaning grocery list items.
+  - Smart "Que cuisiner aujourd'hui ?" matching recipes directly from the user's active fridge inventory.
 - **Categorized Shopping List**: Auto-generates items from recipes or meal plans, auto-classifying ingredients into supermarket aisles.
 - **Dual Artistic Directions & Dynamic Theming**:
   - Light: *Jardin Botanique & Slow Food* (forest evergreen, celadon, almond mist).
@@ -65,6 +70,7 @@ papilles-recettes/
     ├── types/                  # TypeScript interface definitions
     │   ├── recipe.ts           # Recipe, Ingredient, RecipeStep, Category, Difficulty, Filters
     │   ├── shopping.ts         # ShoppingItem, ShoppingAisle, AisleConfig
+    │   ├── fridge.ts           # FridgeItem, FridgeAisleGroup
     │   ├── planner.ts          # PlannedMeal, WeeklyPlanMap, DayOfWeek, MealTime
     │   ├── mealLog.ts          # MealLogEntry, MealLogMap, DayMealLogSummary
     │   └── expo-secure-store.d.ts # Typings fallback for expo-secure-store
@@ -89,6 +95,7 @@ papilles-recettes/
     │   ├── CategoryPills.tsx   # Category filter horizontal pill bar
     │   ├── IngredientChip.tsx  # Selectable ingredient badges
     │   ├── EmptyState.tsx      # Empty list placeholder view
+    │   ├── FridgeStockView.tsx # "Dans mon frigo" stock tracker, quick suggestions & recipes
     │   ├── FridgeSearchModal.tsx # "Mon Frigo" ingredient multi-selector modal
     │   ├── CookingModeModal.tsx  # Step-by-step interactive cooking checklist
     │   ├── MealSlotPickerModal.tsx # Calendar slot picker (Lunch/Dinner)
@@ -100,8 +107,8 @@ papilles-recettes/
         ├── RecipeDetailScreen.tsx # Recipe view, dynamic serving scaler, share, edit/delete
         ├── RecipeFormScreen.tsx   # Recipe creator & editor (manual or pre-filled from AI)
         ├── ScanRecipeScreen.tsx   # AI recipe scanner (Camera, Multi-photo, Paste Text)
-        ├── MealPlannerScreen.tsx  # Weekly calendar meal scheduler
-        ├── ShoppingListScreen.tsx # Aisle-categorized grocery checklist
+        ├── MealPlannerScreen.tsx  # Weekly calendar meal scheduler & meal tracking journal
+        ├── ShoppingListScreen.tsx # Unified Courses & Frigo screen with segmented switcher
         └── SettingsModal.tsx      # API key manager, live ping check, theme picker, data backup
 ```
 

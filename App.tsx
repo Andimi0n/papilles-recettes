@@ -27,7 +27,7 @@ type AppScreen = 'home' | 'planner' | 'shopping' | 'detail' | 'form' | 'scan';
 function AppContent() {
   const { isDark, colors, isLoaded: isThemeLoaded } = useTheme();
   const [currentScreen, setCurrentScreen] = useState<AppScreen>('home');
-  const [returnScreenAfterDetail, setReturnScreenAfterDetail] = useState<'home' | 'planner'>('home');
+  const [returnScreenAfterDetail, setReturnScreenAfterDetail] = useState<'home' | 'planner' | 'shopping'>('home');
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [selectedRecipeId, setSelectedRecipeId] = useState<string | null>(null);
   const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
@@ -84,7 +84,7 @@ function AppContent() {
   const [scanInitialMode, setScanInitialMode] = useState<'photo' | 'text'>('photo');
 
   // Actions de navigation
-  const navigateToDetail = (recipe: Recipe, fromScreen: 'home' | 'planner' = 'home') => {
+  const navigateToDetail = (recipe: Recipe, fromScreen: 'home' | 'planner' | 'shopping' = 'home') => {
     setSelectedRecipeId(recipe.id);
     setReturnScreenAfterDetail(fromScreen);
     setCurrentScreen('detail');
@@ -117,8 +117,10 @@ function AppContent() {
   };
 
   const [plannerInitialTab, setPlannerInitialTab] = useState<'journal' | 'planner'>('journal');
+  const [shoppingInitialTab, setShoppingInitialTab] = useState<'shopping' | 'fridge'>('fridge');
 
-  const navigateToShopping = () => {
+  const navigateToShopping = (tab: 'shopping' | 'fridge' = 'fridge') => {
+    setShoppingInitialTab(tab);
     setCurrentScreen('shopping');
     setSelectedRecipeId(null);
     setEditingRecipe(null);
@@ -200,7 +202,7 @@ function AppContent() {
             <MealPlannerScreen
               recipes={recipes}
               onSelectRecipe={(r) => navigateToDetail(r, 'planner')}
-              onNavigateToShoppingList={navigateToShopping}
+              onNavigateToShoppingList={() => navigateToShopping('shopping')}
               initialTab={plannerInitialTab}
             />
           )}
@@ -209,6 +211,9 @@ function AppContent() {
             <ShoppingListScreen
               onNavigateToRecipes={navigateToHome}
               onNavigateToPlanner={navigateToPlanner}
+              initialTab={shoppingInitialTab}
+              recipes={recipes}
+              onSelectRecipe={(r) => navigateToDetail(r, 'shopping')}
             />
           )}
 
@@ -231,7 +236,7 @@ function AppContent() {
               onEdit={navigateToEdit}
               onDelete={handleDeleteRecipe}
               onUpdateRating={handleUpdateRating}
-              onNavigateToShoppingList={navigateToShopping}
+              onNavigateToShoppingList={() => navigateToShopping('shopping')}
             />
           )}
 
@@ -295,7 +300,7 @@ function AppContent() {
 
             <TouchableOpacity
               style={styles.tabItem}
-              onPress={navigateToShopping}
+              onPress={() => navigateToShopping('fridge')}
               activeOpacity={0.7}
             >
               <View style={styles.tabIconWrapper}>
@@ -318,7 +323,7 @@ function AppContent() {
                   currentScreen === 'shopping' && styles.tabLabelActive,
                 ]}
               >
-                Courses
+                Courses & Frigo
               </Text>
             </TouchableOpacity>
           </View>

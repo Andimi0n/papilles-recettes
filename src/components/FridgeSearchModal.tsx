@@ -17,6 +17,7 @@ import { Colors, Shadows, createDynamicStyles } from '../theme/colors';
 import { IngredientChip } from './IngredientChip';
 import { extractUniqueIngredientNames, normalizeString, generateUniqueId } from '../utils/helpers';
 import { RecipeAiService } from '../services/recipeAiService';
+import { StorageService } from '../services/storageService';
 
 interface FridgeSearchModalProps {
   visible: boolean;
@@ -114,6 +115,21 @@ export const FridgeSearchModal: React.FC<FridgeSearchModalProps> = ({
 
   const handleClearAll = () => {
     setLocalSelected([]);
+  };
+
+  const handleLoadFridgeStock = async () => {
+    try {
+      const fridge = await StorageService.getFridgeItems();
+      if (fridge.length === 0) {
+        Alert.alert('Frigo vide', "Vous n'avez pas encore d'aliments enregistrés dans l'onglet 'Courses & Frigo'.");
+        return;
+      }
+      const names = fridge.map((f) => f.name);
+      const combined = Array.from(new Set([...localSelected, ...names]));
+      setLocalSelected(combined);
+    } catch (e) {
+      console.error('Erreur chargement stock frigo:', e);
+    }
   };
 
   const handleApply = () => {
@@ -274,6 +290,18 @@ export const FridgeSearchModal: React.FC<FridgeSearchModalProps> = ({
                 </TouchableOpacity>
               )}
             </View>
+
+            {/* Raccourci pour charger directement son frigo */}
+            <TouchableOpacity
+              style={styles.importFridgeBtn}
+              onPress={handleLoadFridgeStock}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="snow-outline" size={15} color={Colors.primary} />
+              <Text style={styles.importFridgeBtnText}>
+                Importer mes aliments enregistrés au frigo
+              </Text>
+            </TouchableOpacity>
 
             {/* Ingrédients actuellement sélectionnés */}
             {localSelected.length > 0 && (
@@ -555,6 +583,24 @@ const styles = createDynamicStyles((colors, shadows) => ({
     borderWidth: 1,
     borderColor: Colors.border,
     ...Shadows.small,
+  },
+  importFridgeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: Colors.primaryLight,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    marginBottom: 6,
+    borderWidth: 1,
+    borderColor: Colors.primary + '30',
+  },
+  importFridgeBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.primary,
   },
   inputIcon: {
     marginRight: 8,

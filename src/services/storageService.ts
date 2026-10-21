@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Recipe } from '../types/recipe';
 import { ShoppingItem, ShoppingAisle } from '../types/shopping';
+import { FridgeItem } from '../types/fridge';
 import { WeeklyPlanMap, PlannedMeal, DayOfWeek, MealTime } from '../types/planner';
 import { MealLogEntry, MealLogMap, DayMealLogSummary } from '../types/mealLog';
 import { INITIAL_RECIPES } from '../data/initialRecipes';
@@ -18,6 +19,7 @@ const RECIPES_STORAGE_KEY = '@papilles_recipes_v4';
 const SCHEMA_VERSION_KEY = '@papilles_schema_version';
 const CURRENT_SCHEMA_VERSION = 'v4';
 const SHOPPING_LIST_KEY = '@papilles_shopping_list_v1';
+const FRIDGE_ITEMS_KEY = '@papilles_fridge_items_v1';
 const WEEKLY_PLAN_KEY = '@papilles_weekly_plan_v1';
 const MEAL_LOG_KEY = '@papilles_meal_log_v1';
 const THEME_MODE_KEY = '@papilles_theme_mode_v1';
@@ -103,6 +105,25 @@ function sanitizeMealLogEntry(e: any): MealLogEntry | null {
     note: typeof e.note === 'string' && e.note.trim() ? e.note.trim().slice(0, 500) : undefined,
     createdAt: typeof e.createdAt === 'string' ? e.createdAt : new Date().toISOString(),
     updatedAt: typeof e.updatedAt === 'string' ? e.updatedAt : new Date().toISOString(),
+  };
+}
+
+/**
+ * Assainit un ingrédient ou aliment du frigo pour garantir la robustesse des données.
+ */
+function sanitizeFridgeItem(item: any): FridgeItem | null {
+  if (!item || typeof item !== 'object' || typeof item.name !== 'string') return null;
+  const name = item.name.trim().slice(0, 150);
+  if (!name) return null;
+  const aisle: ShoppingAisle = (typeof item.aisle === 'string' && item.aisle)
+    ? item.aisle
+    : classifyIngredientAisle(name);
+
+  return {
+    id: typeof item.id === 'string' && item.id ? item.id.slice(0, 80) : generateUniqueId('fridge'),
+    name,
+    aisle,
+    createdAt: typeof item.createdAt === 'string' ? item.createdAt : new Date().toISOString(),
   };
 }
 
@@ -414,6 +435,170 @@ export const StorageService = {
   },
 
   // ==========================================
+  // GESTION DU FRIGO (INVENTAIRE & STOCK)
+  // ==========================================
+
+  /**
+   * Récupère la liste des aliments actuellement présents dans le frigo
+   */
+  async getFridgeItems(): Promise<FridgeItem[]> {
+    try {
+      const data = await AsyncStorage.getItem(FRIDGE_ITEMS_KEY);
+      if (!data) return [];
+      const parsed = JSON.parse(data);
+      if (!Array.isArray(parsed)) return [];
+      return parsed.map(sanitizeFridgeItem).filter((i): i is FridgeItem => i !== null);
+    } catch (e) {
+      console.error('Erreur lecture aliments frigo:', e);
+      return [];
+    }
+  },
+
+  /**
+   * Sauvegarde la liste complète des aliments du frigo
+   */
+  async saveFridgeItems(items: FridgeItem[]): Promise<FridgeItem[]> {
+    try {
+      const sanitized = items.map(sanitizeFridgeItem).filter((i): i is FridgeItem => i !== null);
+      await AsyncStorage.setItem(FRIDGE_ITEMS_KEY, JSON.stringify(sanitized));
+      return sanitized;
+    } catch (e) {
+      console.error('Erreur sauvegarde aliments frigo:', e);
+      throw e;
+    }
+  },
+
+  /**
+   * Ajoute un nouvel aliment au frigo avec catégorisation automatique par rayon
+   */
+  async addFridgeItem(name: string, aisle?: ShoppingAisle): Promise<FridgeItem[]> {
+    try {
+      const trimmed = name.trim();
+      if (!trimmed) return await this.getFridgeItems();
+
+      const currentItems = await this.getFridgeItems();
+      const normNew = trimmed.toLowerCase();
+      const existing = currentItems.find((i) => i.name.trim().toLowerCase() === normNew);
+      if (existing) {
+        return currentItems;
+      }
+
+      const assignedAisle = aisle || classifyIngredientAisle(trimmed);
+      const newItem: FridgeItem = {
+        id: generateUniqueId('fridge'),
+        name: trimmed,
+        aisle: assignedAisle,
+        createdAt: new Date().toISOString(),
+      };
+
+      const updated = [newItem, ...currentItems];
+      await this.saveFridgeItems(updated);
+      return updated;
+    } catch (e) {
+      console.error('Erreur ajout aliment frigo:', e);
+      throw e;
+    }
+  },
+
+  /**
+   * Ajoute plusieurs aliments au frigo (ex: depuis suggestions rapides)
+   */
+  async addMultipleFridgeItems(names: string[]): Promise<FridgeItem[]> {
+    try {
+      const currentItems = await this.getFridgeItems();
+      const existingNames = new Set(currentItems.map((i) => i.name.trim().toLowerCase()));
+      const toAdd: FridgeItem[] = [];
+
+      names.forEach((name) => {
+        const trimmed = name.trim();
+        if (trimmed && !existingNames.has(trimmed.toLowerCase())) {
+          existingNames.add(trimmed.toLowerCase());
+          toAdd.push({
+            id: generateUniqueId('fridge'),
+            name: trimmed,
+            aisle: classifyIngredientAisle(trimmed),
+            createdAt: new Date().toISOString(),
+          });
+        }
+      });
+
+      if (toAdd.length === 0) return currentItems;
+      const updated = [...toAdd, ...currentItems];
+      await this.saveFridgeItems(updated);
+      return updated;
+    } catch (e) {
+      console.error('Erreur ajout multiple frigo:', e);
+      throw e;
+    }
+  },
+
+  /**
+   * Supprime un aliment du frigo
+   */
+  async removeFridgeItem(id: string): Promise<FridgeItem[]> {
+    try {
+      const currentItems = await this.getFridgeItems();
+      const updated = currentItems.filter((i) => i.id !== id);
+      await this.saveFridgeItems(updated);
+      return updated;
+    } catch (e) {
+      console.error('Erreur suppression aliment frigo:', e);
+      throw e;
+    }
+  },
+
+  /**
+   * Vide l'intégralité du frigo
+   */
+  async clearFridge(): Promise<FridgeItem[]> {
+    try {
+      await AsyncStorage.setItem(FRIDGE_ITEMS_KEY, JSON.stringify([]));
+      return [];
+    } catch (e) {
+      console.error('Erreur vidage frigo:', e);
+      throw e;
+    }
+  },
+
+  /**
+   * Déplace un article acheté de la liste de courses vers le frigo
+   */
+  async moveShoppingItemToFridge(shoppingItemId: string): Promise<{ shoppingList: ShoppingItem[]; fridgeItems: FridgeItem[] }> {
+    try {
+      const shoppingList = await this.getShoppingList();
+      const targetItem = shoppingList.find((i) => i.id === shoppingItemId);
+      if (!targetItem) {
+        const fridgeItems = await this.getFridgeItems();
+        return { shoppingList, fridgeItems };
+      }
+
+      // Ajout au frigo
+      const updatedFridge = await this.addFridgeItem(targetItem.name, targetItem.aisle);
+
+      // Suppression de la liste de courses
+      const updatedShopping = shoppingList.filter((i) => i.id !== shoppingItemId);
+      await this.saveShoppingList(updatedShopping);
+
+      return { shoppingList: updatedShopping, fridgeItems: updatedFridge };
+    } catch (e) {
+      console.error('Erreur déplacement courses vers frigo:', e);
+      throw e;
+    }
+  },
+
+  /**
+   * Copie un aliment du frigo vers la liste de courses (ex: quand on en a plus)
+   */
+  async copyFridgeItemToShopping(fridgeItem: FridgeItem): Promise<ShoppingItem[]> {
+    try {
+      return await this.addCustomShoppingItem(fridgeItem.name, undefined, undefined, fridgeItem.aisle);
+    } catch (e) {
+      console.error('Erreur copie aliment vers courses:', e);
+      throw e;
+    }
+  },
+
+  // ==========================================
   // GESTION DU MENU DE LA SEMAINE (PLANNING)
   // ==========================================
 
@@ -715,21 +900,23 @@ export const StorageService = {
   },
 
   /**
-   * Exporte l'intégralité des données sous forme de chaîne JSON formatée (recettes, courses, planning, suivi)
+   * Exporte l'intégralité des données sous forme de chaîne JSON formatée (recettes, courses, planning, suivi, frigo)
    */
   async exportAllData(): Promise<string> {
     const recipes = await this.getRecipes();
     const shoppingList = await this.getShoppingList();
     const weeklyPlan = await this.getWeeklyPlan();
     const mealLogs = await this.getMealLogs();
+    const fridgeItems = await this.getFridgeItems();
     return JSON.stringify(
       {
-        version: '1.1.0',
+        version: '1.2.0',
         exportedAt: new Date().toISOString(),
         recipes,
         shoppingList,
         weeklyPlan,
         mealLogs,
+        fridgeItems,
       },
       null,
       2
@@ -748,7 +935,11 @@ export const StorageService = {
         ? parsed.recipes
         : [];
 
-      if (incomingRecipes.length === 0 && (!parsed.mealLogs || typeof parsed.mealLogs !== 'object')) {
+      if (
+        incomingRecipes.length === 0 &&
+        (!parsed.mealLogs || typeof parsed.mealLogs !== 'object') &&
+        (!parsed.fridgeItems || !Array.isArray(parsed.fridgeItems))
+      ) {
         return { success: false, count: 0, error: 'Aucune recette ou donnée valide détectée dans le fichier.' };
       }
 
@@ -779,6 +970,21 @@ export const StorageService = {
           }
         });
         await this.saveMealLogs(mergedLogs);
+      }
+
+      // Restauration facultative des aliments du frigo
+      if (parsed.fridgeItems && Array.isArray(parsed.fridgeItems)) {
+        const incomingFridge = parsed.fridgeItems
+          .map((raw: any) => sanitizeFridgeItem(raw))
+          .filter((i: any): i is FridgeItem => i !== null);
+        if (incomingFridge.length > 0) {
+          const currentFridge = await this.getFridgeItems();
+          const existingNames = new Set(currentFridge.map((i) => i.name.trim().toLowerCase()));
+          const toAdd = incomingFridge.filter((i: FridgeItem) => !existingNames.has(i.name.trim().toLowerCase()));
+          if (toAdd.length > 0) {
+            await this.saveFridgeItems([...currentFridge, ...toAdd]);
+          }
+        }
       }
 
       return { success: true, count: addedOrUpdated };
