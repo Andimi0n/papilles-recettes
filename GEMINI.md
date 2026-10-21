@@ -17,7 +17,8 @@
   - Weekly planner to schedule lunch and dinner across the week, view planned menus, and aggregate required ingredients.
 - **Pantry Stock Management & Shopping List Hub ("Courses & Étagères")**:
   - Unified tab housing both **Mes étagères** (global pantry & fridge stock) and **Liste de courses**.
-  - Fast, frictionless tracking of on-hand ingredients with 1-tap popular suggestions (`Œufs`, `Beurre`, `Lait`, `Farine`, `Pâtes`, `Riz`, `Huile d'olive`...) and automatic supermarket aisle classification.
+  - **Canonical Quick-Add & 1-Tap Suggestions**: Quick suggestions 100% aligned with the canonical vocabulary (`CANONICAL_QUICK_SUGGESTIONS` / `Œufs`, `Beurre`, `Lait`, `Farine`, `Pâtes`, `Riz`, `Huile d'olive`, `Tomate`, `Oignon`, `Ail`, `Carotte`, `Courgette`...) with automatic aisle assignment, deduplication (singular/plural aware), and dynamic surfacing of the user's most frequent ingredients.
+  - **Fluid Predictive Shelf Ingestion**: Tapping an autocomplete suggestion in the locked top bar immediately adds the item to the shelves with its canonical name and aisle, clears the text input, and keeps focus for effortless chain-typing of ingredients.
   - Seamless transfer: 1-tap "Ajouter aux courses" from stock items, and "Ranger dans mes étagères 🥫" when purchasing or cleaning grocery list items.
   - Smart "Que cuisiner aujourd'hui ?" matching recipes directly from the user's active pantry inventory (scrollable to preserve screen space).
   - Pinned top controls: Locked "Ajouter un aliment" bar and "Ajout rapide en 1 clic" suggestion chips stay fixed at the top of the screen, while "Que cuisiner aujourd'hui ?" and categorized pantry items scroll smoothly beneath.

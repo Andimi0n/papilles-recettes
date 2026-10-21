@@ -10,6 +10,7 @@ import {
   getLocalDateString,
   formatMealLogDateFrench,
   getDayOfWeekFromDateString,
+  normalizeString,
 } from '../utils/helpers';
 import { isRecipeVegetarian } from './recipeAiService';
 import { createShoppingItemFromIngredient, mergeShoppingItems } from '../utils/shoppingAggregator';
@@ -624,8 +625,15 @@ export const StorageService = {
       if (!trimmed) return await this.getFridgeItems();
 
       const currentItems = await this.getFridgeItems();
-      const normNew = trimmed.toLowerCase();
-      const existing = currentItems.find((i) => i.name.trim().toLowerCase() === normNew);
+      const normNew = normalizeString(trimmed);
+      const existing = currentItems.find((i) => {
+        const normItem = normalizeString(i.name);
+        return (
+          normItem === normNew ||
+          (normNew.endsWith('s') && normItem === normNew.slice(0, -1)) ||
+          (!normNew.endsWith('s') && `${normItem}s` === normNew)
+        );
+      });
       if (existing) {
         return currentItems;
       }

@@ -13,10 +13,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { FridgeItem } from '../types/fridge';
 import { ShoppingAisle } from '../types/shopping';
 import { Recipe } from '../types/recipe';
+import { CanonicalIngredient } from '../types/vocabulary';
 import { StorageService } from '../services/storageService';
 import { createDynamicStyles } from '../theme/colors';
 import { useTheme } from '../theme/ThemeContext';
-import { AISLE_CONFIGS, ALL_AISLES } from '../utils/aisleClassifier';
+import { AISLE_CONFIGS, ALL_AISLES, classifyIngredientAisle } from '../utils/aisleClassifier';
 import { searchRecipes, RecipeSearchResult } from '../utils/searchEngine';
 import { normalizeString } from '../utils/helpers';
 import { normalizeIngredient } from '../utils/ingredientNormalizer';
@@ -31,7 +32,7 @@ interface FridgeStockViewProps {
   onFridgeCountChange?: (count: number) => void;
 }
 
-const POPULAR_PANTRY_SUGGESTIONS = [
+const CANONICAL_QUICK_SUGGESTIONS = [
   'Œufs',
   'Beurre',
   'Lait',
@@ -41,17 +42,22 @@ const POPULAR_PANTRY_SUGGESTIONS = [
   'Huile d\'olive',
   'Crème fraîche',
   'Fromage râpé',
-  'Tomates',
-  'Oignons',
+  'Tomate',
+  'Oignon',
   'Ail',
-  'Carottes',
-  'Courgettes',
+  'Carotte',
+  'Courgette',
+  'Pomme de terre',
   'Poulet',
-  'Thon en boîte',
-  'Sel & Poivre',
+  'Thon',
+  'Sel',
+  'Poivre',
   'Sucre',
   'Moutarde',
-  'Chocolat',
+  'Chocolat noir',
+  'Jambon',
+  'Lardons',
+  'Échalote',
 ];
 
 export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
@@ -69,6 +75,16 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
   const [isAislePickerVisible, setIsAislePickerVisible] = useState(false);
   const [isMatchingModalVisible, setIsMatchingModalVisible] = useState(false);
   const [justCopiedId, setJustCopiedId] = useState<string | null>(null);
+  const [canonicalVocabulary, setCanonicalVocabulary] = useState<CanonicalIngredient[]>(() =>
+    VocabularyService.getSyncList()
+  );
+
+  // Chargement et synchronisation du vocabulaire canonique
+  useEffect(() => {
+    VocabularyService.getAll().then((vocab) => {
+      setCanonicalVocabulary(vocab);
+    });
+  }, []);
 
   // Chargement du stock des étagères
   const loadStock = useCallback(async () => {
@@ -130,30 +146,72 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
     return results.filter((res) => res.matchedIngredients && res.matchedIngredients.length > 0);
   }, [recipes, stockIngredientNames]);
 
-  // Suggestions rapides d'indispensables non encore ajoutés
-  const availableSuggestions = useMemo(() => {
+  // Suggestions rapides d'indispensables non encore ajoutés au stock (100% raccord avec le lexique canonique)
+  const availableSuggestions: CanonicalIngredient[] = useMemo(() => {
     const existingNorm = new Set(items.map((i) => normalizeString(i.name)));
-    return POPULAR_PANTRY_SUGGESTIONS.filter((sug) => !existingNorm.has(normalizeString(sug)));
-  }, [items]);
+
+    const isAlreadyInStock = (norm: string) => {
+      if (existingNorm.has(norm)) return true;
+      if (norm.endsWith('s') && existingNorm.has(norm.slice(0, -1))) return true;
+      if (!norm.endsWith('s') && existingNorm.has(`${norm}s`)) return true;
+      return false;
+    };
+
+    const vocabMap = new Map<string, CanonicalIngredient>();
+    canonicalVocabulary.forEach((ing) => {
+      vocabMap.set(ing.normalizedName, ing);
+    });
+
+    const suggestions: CanonicalIngredient[] = [];
+    const addedIds = new Set<string>();
+
+    // 1. Indispensables du quotidien issus du lexique canonique
+    for (const name of CANONICAL_QUICK_SUGGESTIONS) {
+      const norm = normalizeString(name);
+      if (isAlreadyInStock(norm)) continue;
+
+      const ing = vocabMap.get(norm);
+      if (ing && !addedIds.has(ing.id)) {
+        addedIds.add(ing.id);
+        suggestions.push(ing);
+      }
+    }
+
+    // 2. Ingrédients fréquents ou personnalisés de l'utilisateur
+    const frequentItems = [...canonicalVocabulary]
+      .filter((ing) => (ing.usageCount > 1 || ing.isCustom) && !addedIds.has(ing.id))
+      .sort((a, b) => b.usageCount - a.usageCount);
+
+    for (const freq of frequentItems) {
+      if (!isAlreadyInStock(freq.normalizedName) && !addedIds.has(freq.id)) {
+        addedIds.add(freq.id);
+        suggestions.push(freq);
+      }
+    }
+
+    return suggestions;
+  }, [items, canonicalVocabulary]);
 
   // Actions utilisateur
-  const handleAddItem = async (nameToAdd?: string) => {
+  const handleAddItem = async (nameToAdd?: string, aisleToAdd?: ShoppingAisle) => {
     const raw = (nameToAdd || newItemName).trim();
     if (!raw) return;
 
-    let name = raw.charAt(0).toUpperCase() + raw.slice(1);
-    // Si l'utilisateur a incorporé un contenant (ex: "boîte de petits pois"), on nettoie le contenant
+    // Normalisation de l'ingrédient
     const normalized = normalizeIngredient({ name: raw });
-    if (normalized.unit || normalized.quantity) {
-      name = normalized.name || name;
-    }
+    const name = normalized.name || (raw.charAt(0).toUpperCase() + raw.slice(1));
+    const resolvedAisle =
+      aisleToAdd ||
+      selectedAisle ||
+      (normalized.canonicalId
+        ? canonicalVocabulary.find((c) => c.id === normalized.canonicalId)?.defaultAisle
+        : undefined) ||
+      classifyIngredientAisle(name);
 
     try {
-      // Si ce nom correspondait à un synonyme existant, on le promeut délibérément
-      await VocabularyService.promoteAliasToCanonical(name, selectedAisle || undefined);
-      const updated = await StorageService.addFridgeItem(name, selectedAisle || undefined);
+      const updated = await StorageService.addFridgeItem(name, resolvedAisle);
       setItems(updated);
-      VocabularyService.incrementUsage(name).catch(() => {});
+      VocabularyService.incrementUsage(normalized.canonicalId || name).catch(() => {});
       if (onFridgeCountChange) {
         onFridgeCountChange(updated.length);
       }
@@ -250,8 +308,12 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
             placeholderTextColor={colors.textMuted}
             value={newItemName}
             onChangeText={setNewItemName}
+            clearOnSelect
+            keepFocusOnSelect
+            returnKeyType="done"
+            onSubmitEditing={() => handleAddItem()}
             onSelectIngredient={(ing) => {
-              setSelectedAisle(ing.defaultAisle);
+              handleAddItem(ing.canonicalName, ing.defaultAisle);
             }}
           />
 
@@ -301,15 +363,15 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.suggestionsScroll}
           >
-            {availableSuggestions.slice(0, 12).map((sug) => (
+            {availableSuggestions.slice(0, 15).map((sug) => (
               <TouchableOpacity
-                key={sug}
+                key={sug.id}
                 style={styles.suggestionChip}
-                onPress={() => handleAddItem(sug)}
+                onPress={() => handleAddItem(sug.canonicalName, sug.defaultAisle)}
                 activeOpacity={0.7}
               >
                 <Ionicons name="add-circle" size={14} color={colors.primary} />
-                <Text style={styles.suggestionChipText}>{sug}</Text>
+                <Text style={styles.suggestionChipText}>{sug.canonicalName}</Text>
               </TouchableOpacity>
             ))}
           </ScrollView>

@@ -31,7 +31,8 @@ Une application mobile moderne, soignée et intuitive pour gérer vos recettes, 
 ### 3. 🥫 Hub "Courses & Étagères" (Gestion des Stocks & Courses)
 - **Mes étagères (Stock Frigo & Placard)** :
   - Suivi rapide et sans friction des ingrédients disponibles chez vous.
-  - **Ajout rapide en 1 clic** avec suggestions d'ingrédients essentiels (*Œufs, Beurre, Lait, Farine, Pâtes, Riz, Huile d'olive...*).
+  - **Ajout rapide en 1 clic 100% raccord avec le lexique canonique** : suggestions basées sur les noms canoniques réels (*Œufs, Beurre, Lait, Farine, Pâtes, Riz, Huile d'olive, Tomate, Oignon, Ail, Carotte, Courgette...*), avec masquage intelligent des articles déjà en stock (tolérant singulier/pluriel) et mise en avant de vos ingrédients fréquents.
+  - **Saisie prédictive instantanée à la chaîne** : cliquer sur une suggestion d'autocomplétion ajoute immédiatement l'ingrédient au stock, efface le champ de recherche et maintient le focus pour enchaîner plusieurs ajouts sans friction.
   - **Classification automatique par rayons** (Primeur, Crémerie, Épicerie salée/sucrée, Boucherie...).
   - **Que cuisiner aujourd'hui ?** : calcul immédiat des recettes faisables avec votre inventaire actif.
   - Commandes verrouillées en haut d'écran pour une saisie fluide sans perte d'espace au défilement.
