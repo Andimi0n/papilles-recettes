@@ -42,7 +42,8 @@ Une application mobile moderne, soignée et intuitive pour gérer vos recettes, 
 
 ### 4. 🏷️ Lexique Canonique & Normalisation Stricte des Ingrédients
 - **Élimination automatique des synonymes et contenants** : fini les doublons entre *"boîte de petits pois"* et *"petits pois"*, *"noix de muscade"* et *"muscade"*, ou *"carotte épluchée"* et *"carotte"*.
-- **Création délibérée d'ingrédients distincts & détachement de synonymes** : si vous choisissez délibérément de saisir un terme qui était enregistré comme synonyme (ex: conserver *"Noix de muscade"* au lieu d'accepter *"Muscade"*), l'application détache automatiquement cet alias et ses variantes proches du parent et le promeut en ingrédient canonique à part entière avec ses propres synonymes.
+- **Création délibérée d'ingrédients distincts & détachement sécurisé sans conflit** : si vous choisissez délibérément de saisir un terme qui était enregistré comme synonyme (ex: conserver *"Noix de muscade"* au lieu d'accepter *"Muscade"*, ou dissocier *"Sucre glace"* de *"Sucre"*), l'application détache proprement cet alias du parent sans jamais capturer le nom de base du parent en synonyme.
+- **Auto-assainissement anti-conflits (Self-Healing)** : le système vérifie et assainit en tâche de fond le lexique pour empêcher qu'un ingrédient ne vole ou ne partage les alias d'un autre terme canonique.
 - **Pipeline hybride intelligent** : guidage strict de l'IA (Gemini 3.8 Flash) en amont, couplé à un moteur de nettoyage déterministe local (`IngredientNormalizer`) qui résout instantanément vers le nom canonique officiel.
 - **Respect absolu des instructions** : la normalisation s'applique **exclusivement aux ingrédients** ; les étapes et instructions de préparation restent 100% fidèles et intouchées.
 - **Autocomplétion prédictive réactive** : composant de saisie avec liste déroulante suggérant les termes officiels et permettant de choisir en 1 clic de conserver un ingrédient distinct.

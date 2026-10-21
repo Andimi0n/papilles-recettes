@@ -322,7 +322,12 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
   {
     name: 'Sucre',
     aisle: 'Épicerie & Condiments',
-    aliases: ['sucres', 'sucre en poudre', 'sucre semoule', 'sucre blanc', 'sucre roux', 'cassonade', 'sucre glace'],
+    aliases: ['sucres', 'sucre en poudre', 'sucre semoule', 'sucre blanc', 'sucre roux', 'cassonade'],
+  },
+  {
+    name: 'Sucre glace',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['sucre glace', 'sucres glaces', 'sucre impalpable'],
   },
   {
     name: 'Sel',

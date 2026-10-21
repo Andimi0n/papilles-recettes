@@ -31,21 +31,106 @@ export const VocabularyService = {
         if (storedJson) {
           const parsed: CanonicalIngredient[] = JSON.parse(storedJson);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            let hadMissingStaple = false;
-            const migrated = parsed.map((item) => {
-              if (item.isPantryStaple === undefined) {
-                hadMissingStaple = true;
+            let hadChanges = false;
+
+            // Répertoire de tous les noms canoniques normalisés
+            const canonicalMap = new Map<string, string>(); // normName -> id
+            parsed.forEach((item) => {
+              canonicalMap.set(item.normalizedName, item.id);
+            });
+
+            const sanitized = parsed.map((item) => {
+              let itemUpdated = false;
+              let isPantryStaple = item.isPantryStaple;
+
+              if (isPantryStaple === undefined) {
+                isPantryStaple = isKnownDefaultPantryStaple(item.canonicalName);
+                itemUpdated = true;
+              }
+
+              // Nettoyage anti-conflits des alias :
+              // Un ingrédient ne doit JAMAIS posséder comme alias le nom canonique d'un AUTRE ingrédient
+              const cleanedAliases: string[] = [];
+              const seen = new Set<string>();
+
+              // S'assurer que le nom canonique et son pluriel font partie des alias
+              seen.add(item.normalizedName);
+              cleanedAliases.push(item.normalizedName);
+              if (!item.normalizedName.endsWith('s')) {
+                const plural = `${item.normalizedName}s`;
+                seen.add(plural);
+                cleanedAliases.push(plural);
+              }
+
+              (item.aliases || []).forEach((a) => {
+                const cleanA = normalizeString(a);
+                if (!cleanA) return;
+
+                // Si cet alias est exactement le nom canonique d'un AUTRE ingrédient
+                const ownerId = canonicalMap.get(cleanA);
+                if (ownerId && ownerId !== item.id) {
+                  // Conflit détecté (ex: "sucre" dans les alias de "Sucre glace") -> on l'élimine !
+                  itemUpdated = true;
+                  return;
+                }
+
+                // Vérifier aussi pour le pluriel d'un autre ingrédient
+                if (cleanA.endsWith('s')) {
+                  const singular = cleanA.slice(0, -1);
+                  const singularOwnerId = canonicalMap.get(singular);
+                  if (singularOwnerId && singularOwnerId !== item.id) {
+                    itemUpdated = true;
+                    return;
+                  }
+                }
+
+                if (!seen.has(cleanA)) {
+                  seen.add(cleanA);
+                  cleanedAliases.push(cleanA);
+                }
+              });
+
+              if (cleanedAliases.length !== (item.aliases || []).length) {
+                itemUpdated = true;
+              }
+
+              if (itemUpdated) {
+                hadChanges = true;
                 return {
                   ...item,
-                  isPantryStaple: isKnownDefaultPantryStaple(item.canonicalName),
+                  isPantryStaple,
+                  aliases: cleanedAliases,
+                  updatedAt: new Date().toISOString(),
                 };
               }
+
               return item;
             });
-            if (hadMissingStaple) {
-              AsyncStorage.setItem(VOCABULARY_STORAGE_KEY, JSON.stringify(migrated)).catch(() => {});
+
+            // S'assurer que "Sucre glace" est répertorié de façon autonome
+            const hasSucreGlace = sanitized.some((i) => i.normalizedName === 'sucre glace');
+            let finalList = sanitized;
+            if (!hasSucreGlace) {
+              const newEntry: CanonicalIngredient = {
+                id: 'ing_canon_sucre_glace',
+                canonicalName: 'Sucre glace',
+                normalizedName: 'sucre glace',
+                aliases: ['sucre glace', 'sucre glaces', 'sucre impalpable'],
+                defaultAisle: 'Épicerie & Condiments',
+                isCustom: false,
+                isPantryStaple: false,
+                usageCount: 0,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+              };
+              finalList = [newEntry, ...sanitized];
+              hadChanges = true;
             }
-            memoryCache = migrated;
+
+            if (hadChanges) {
+              AsyncStorage.setItem(VOCABULARY_STORAGE_KEY, JSON.stringify(finalList)).catch(() => {});
+            }
+            memoryCache = finalList;
             return memoryCache;
           }
         }
@@ -114,12 +199,21 @@ export const VocabularyService = {
     // Si ce terme était un alias d'un autre ingrédient, le promouvoir en ingrédient canonique distinct
     const isAliasOfAnother = list.some((i) => i.aliases.includes(norm));
     if (isAliasOfAnother) {
-      return await this.promoteAliasToCanonical(cleanName, item.defaultAisle);
+      return await this.promoteAliasToCanonical(
+        cleanName,
+        item.defaultAisle,
+        item.aliases,
+        item.isPantryStaple
+      );
     }
 
     const now = new Date().toISOString();
     const uniqueId = `ing_custom_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
     const aisle = item.defaultAisle || classifyIngredientAisle(cleanName);
+
+    // Collecter les noms canoniques des autres ingrédients pour interdire tout conflit
+    const otherCanonicalNames = new Set(list.map((i) => i.normalizedName));
+    list.forEach((i) => otherCanonicalNames.add(`${i.normalizedName}s`));
 
     const aliasSet = new Set<string>();
     aliasSet.add(norm);
@@ -128,7 +222,9 @@ export const VocabularyService = {
     }
     (item.aliases || []).forEach((a) => {
       const cleanAlias = normalizeString(a);
-      if (cleanAlias) aliasSet.add(cleanAlias);
+      if (cleanAlias && !otherCanonicalNames.has(cleanAlias)) {
+        aliasSet.add(cleanAlias);
+      }
     });
 
     const isPantryStaple =
@@ -159,10 +255,13 @@ export const VocabularyService = {
    * Si ce terme (ou une variante proche) appartenait aux alias d'un ingrédient existant,
    * cet alias et ceux qui s'en rapprochent sont retirés de l'ingrédient d'origine,
    * et le nouvel ingrédient est créé avec ses propres synonymes.
+   * Règle anti-conflit stricte : le nom de base du parent ne peut JAMAIS être transféré.
    */
   async promoteAliasToCanonical(
     rawName: string,
-    defaultAisle?: ShoppingAisle
+    defaultAisle?: ShoppingAisle,
+    initialCustomAliases?: string[],
+    isPantryStaple?: boolean
   ): Promise<CanonicalIngredient> {
     const list = await this.getAll();
     const cleanName = rawName.trim();
@@ -187,13 +286,13 @@ export const VocabularyService = {
     // Parcourir le lexique et détacher le synonyme et ses variantes proches
     const updatedList = list.map((item) => {
       const parentTokens = item.normalizedName.split(/\s+/).filter((t) => t.length > 1);
-      // Mots spécifiques au terme promu qui n'appartiennent pas au parent canonique (ex: ["noix"])
+      // Mots spécifiques au terme promu qui n'appartiennent pas au parent canonique (ex: ["glace"] pour "sucre glace", ["noix"] pour "noix de muscade")
       const distinctiveTokens = normTokens.filter((t) => !parentTokens.includes(t));
 
       // Vérifier si cet ingrédient contient norm ou un alias qui lui est lié
       const hasMatchingAlias = item.aliases.some((a) => {
         if (a === norm || a === `${norm}s` || norm === `${a}s`) return true;
-        if (a.includes(norm) || norm.includes(a)) return true;
+        if (a.includes(norm)) return true;
         if (distinctiveTokens.length > 0 && distinctiveTokens.every((dt) => a.includes(dt))) return true;
         return false;
       });
@@ -209,20 +308,31 @@ export const VocabularyService = {
       const keptAliases: string[] = [];
 
       item.aliases.forEach((a) => {
+        // RÈGLE ABSOLUE 1 : Le nom canonique du parent et son pluriel ne sont JAMAIS détachés
+        if (a === item.normalizedName || a === `${item.normalizedName}s`) {
+          keptAliases.push(a);
+          return;
+        }
+
         const isExactOrPlural = a === norm || a === `${norm}s` || norm === `${a}s`;
-        const isSubstring = (a.includes(norm) || norm.includes(a)) && a.length >= 3;
+        // Un alias est lié au terme promu s'il CONTIENT le terme promu (ex: "sucre glace vanillé" contient "sucre glace")
+        // En AUCUN CAS l'inverse (norm.includes(a)) car sinon "sucre glace" détacherait "sucre" !
+        const isSuperstringOfNorm = a.includes(norm);
         const matchesDistinctive =
           distinctiveTokens.length > 0 &&
-          distinctiveTokens.every((dt) => a.includes(dt)) &&
-          // S'assurer de ne pas toucher au nom canonique du parent lui-même
-          a !== item.normalizedName;
+          distinctiveTokens.every((dt) => a.includes(dt));
 
-        if (isExactOrPlural || isSubstring || matchesDistinctive) {
+        if (isExactOrPlural || isSuperstringOfNorm || matchesDistinctive) {
           detachedAliases.push(a);
         } else {
           keptAliases.push(a);
         }
       });
+
+      // S'assurer que le parent conserve toujours son propre nom canonique
+      if (!keptAliases.includes(item.normalizedName)) {
+        keptAliases.push(item.normalizedName);
+      }
 
       return {
         ...item,
@@ -231,21 +341,45 @@ export const VocabularyService = {
       };
     });
 
+    // Collecter les noms canoniques des autres ingrédients pour interdire tout conflit
+    const otherCanonicalNorms = new Set(updatedList.map((i) => i.normalizedName));
+    updatedList.forEach((i) => otherCanonicalNorms.add(`${i.normalizedName}s`));
+
     // Construire le jeu d'alias pour le nouvel ingrédient
     const newAliasSet = new Set<string>();
     newAliasSet.add(norm);
     if (!norm.endsWith('s')) {
       newAliasSet.add(`${norm}s`);
     }
+
     detachedAliases.forEach((a) => {
-      newAliasSet.add(a);
-      if (!a.endsWith('s')) {
-        newAliasSet.add(`${a}s`);
+      if (!otherCanonicalNorms.has(a)) {
+        newAliasSet.add(a);
+        if (!a.endsWith('s') && !otherCanonicalNorms.has(`${a}s`)) {
+          newAliasSet.add(`${a}s`);
+        }
       }
     });
 
+    if (initialCustomAliases && Array.isArray(initialCustomAliases)) {
+      initialCustomAliases.forEach((ca) => {
+        const cleanAlias = normalizeString(ca);
+        if (cleanAlias && !otherCanonicalNorms.has(cleanAlias)) {
+          newAliasSet.add(cleanAlias);
+          if (!cleanAlias.endsWith('s') && !otherCanonicalNorms.has(`${cleanAlias}s`)) {
+            newAliasSet.add(`${cleanAlias}s`);
+          }
+        }
+      });
+    }
+
     const aisle = defaultAisle || sourceAisle || classifyIngredientAisle(cleanName);
     const formattedName = cleanName.charAt(0).toUpperCase() + cleanName.slice(1);
+
+    const isStaple =
+      typeof isPantryStaple === 'boolean'
+        ? isPantryStaple
+        : isKnownDefaultPantryStaple(cleanName);
 
     const newEntry: CanonicalIngredient = {
       id: `ing_custom_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
@@ -254,6 +388,7 @@ export const VocabularyService = {
       aliases: Array.from(newAliasSet),
       defaultAisle: aisle,
       isCustom: true,
+      isPantryStaple: isStaple,
       usageCount: 1,
       createdAt: now,
       updatedAt: now,
@@ -282,12 +417,28 @@ export const VocabularyService = {
       : current.canonicalName;
     const newNormalized = normalizeString(newCanonicalName);
 
+    // Collecter les noms canoniques des AUTRES ingrédients pour interdire tout conflit
+    const otherCanonicalNames = new Set(
+      list.filter((i) => i.id !== id).map((i) => i.normalizedName)
+    );
+    list.filter((i) => i.id !== id).forEach((i) => {
+      otherCanonicalNames.add(`${i.normalizedName}s`);
+    });
+
     // Mettre à jour les alias
-    const aliasSet = new Set<string>(updates.aliases ? updates.aliases.map(normalizeString) : current.aliases);
+    const rawAliases = updates.aliases ? updates.aliases.map(normalizeString) : current.aliases;
+    const aliasSet = new Set<string>();
     aliasSet.add(newNormalized);
     if (!newNormalized.endsWith('s')) {
       aliasSet.add(`${newNormalized}s`);
     }
+
+    rawAliases.forEach((a) => {
+      const cleanA = normalizeString(a);
+      if (cleanA && !otherCanonicalNames.has(cleanA)) {
+        aliasSet.add(cleanA);
+      }
+    });
 
     const updatedItem: CanonicalIngredient = {
       ...current,
