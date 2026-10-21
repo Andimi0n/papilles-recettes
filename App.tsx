@@ -116,6 +116,8 @@ function AppContent() {
     setEditingRecipe(null);
   };
 
+  const [plannerInitialTab, setPlannerInitialTab] = useState<'journal' | 'planner'>('journal');
+
   const navigateToShopping = () => {
     setCurrentScreen('shopping');
     setSelectedRecipeId(null);
@@ -123,10 +125,15 @@ function AppContent() {
     refreshShoppingBadge();
   };
 
-  const navigateToPlanner = () => {
+  const navigateToPlanner = (tab: 'journal' | 'planner' = 'journal') => {
+    setPlannerInitialTab(tab);
     setCurrentScreen('planner');
     setSelectedRecipeId(null);
     setEditingRecipe(null);
+  };
+
+  const navigateToJournal = () => {
+    navigateToPlanner('journal');
   };
 
   // Actions de gestion des données
@@ -185,6 +192,7 @@ function AppContent() {
               onImportRecipe={handleRecipeExtracted}
               onQuickRate={handleUpdateRating}
               onOpenSettings={() => setIsSettingsOpen(true)}
+              onNavigateToJournal={navigateToJournal}
             />
           )}
 
@@ -193,6 +201,7 @@ function AppContent() {
               recipes={recipes}
               onSelectRecipe={(r) => navigateToDetail(r, 'planner')}
               onNavigateToShoppingList={navigateToShopping}
+              initialTab={plannerInitialTab}
             />
           )}
 
@@ -266,7 +275,7 @@ function AppContent() {
 
             <TouchableOpacity
               style={styles.tabItem}
-              onPress={navigateToPlanner}
+              onPress={() => navigateToPlanner('journal')}
               activeOpacity={0.7}
             >
               <Ionicons
@@ -280,7 +289,7 @@ function AppContent() {
                   currentScreen === 'planner' && styles.tabLabelActive,
                 ]}
               >
-                Planning
+                Repas
               </Text>
             </TouchableOpacity>
 

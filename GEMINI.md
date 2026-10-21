@@ -10,7 +10,11 @@
 - **Multimodal AI Recipe Scanner**: Extract recipes from camera captures, gallery photos (single/multi-photo recto & verso), or raw text using Google Gemini (`gemini-3.8-flash`) via a Bring-Your-Own-Key (BYOK) model.
 - **Smart Fridge Search ("Mon Frigo")**: In-memory matching engine that scores and surfaces recipes matching on-hand ingredients.
 - **Interactive Cooking Mode**: Step-by-step hands-free cooking assistant with checkboxes for ingredients and instructions.
-- **Weekly Meal Planner**: Schedule lunch and dinner across the week, view planned menus, and aggregate required ingredients.
+- **Weekly Meal Planner & Daily Meal Tracking ("Suivi des repas")**:
+  - Daily log of lunch & dinner with freeform text input (e.g. restaurant meals, takeout, leftovers, or home-cooked).
+  - Quick home widget for one-tap daily logging.
+  - Multi-day chronological history with editable past entries.
+  - Weekly planner to schedule lunch and dinner across the week, view planned menus, and aggregate required ingredients.
 - **Categorized Shopping List**: Auto-generates items from recipes or meal plans, auto-classifying ingredients into supermarket aisles.
 - **Dual Artistic Directions & Dynamic Theming**:
   - Light: *Jardin Botanique & Slow Food* (forest evergreen, celadon, almond mist).
@@ -62,6 +66,7 @@ papilles-recettes/
     │   ├── recipe.ts           # Recipe, Ingredient, RecipeStep, Category, Difficulty, Filters
     │   ├── shopping.ts         # ShoppingItem, ShoppingAisle, AisleConfig
     │   ├── planner.ts          # PlannedMeal, WeeklyPlanMap, DayOfWeek, MealTime
+    │   ├── mealLog.ts          # MealLogEntry, MealLogMap, DayMealLogSummary
     │   └── expo-secure-store.d.ts # Typings fallback for expo-secure-store
     ├── theme/                  # Theming and dynamic styling engine
     │   ├── colors.ts           # Botanique (Light) & Nocturne (Dark) palettes, createDynamicStyles
@@ -87,7 +92,9 @@ papilles-recettes/
     │   ├── FridgeSearchModal.tsx # "Mon Frigo" ingredient multi-selector modal
     │   ├── CookingModeModal.tsx  # Step-by-step interactive cooking checklist
     │   ├── MealSlotPickerModal.tsx # Calendar slot picker (Lunch/Dinner)
-    │   └── ImportMarmitonModal.tsx # Marmiton import input dialog
+    │   ├── ImportMarmitonModal.tsx # Marmiton import input dialog
+    │   ├── QuickMealLogModal.tsx # Fast modal for freeform lunch/dinner entry
+    │   └── TodayMealWidget.tsx   # Home screen widget for today's lunch/dinner tracking
     └── screens/                # Main feature screens
         ├── HomeScreen.tsx      # Recipe feed, filters, search, quick theme toggle, settings button
         ├── RecipeDetailScreen.tsx # Recipe view, dynamic serving scaler, share, edit/delete

@@ -2,8 +2,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Recipe } from '../types/recipe';
 import { ShoppingItem, ShoppingAisle } from '../types/shopping';
 import { WeeklyPlanMap, PlannedMeal, DayOfWeek, MealTime } from '../types/planner';
+import { MealLogEntry, MealLogMap, DayMealLogSummary } from '../types/mealLog';
 import { INITIAL_RECIPES } from '../data/initialRecipes';
-import { generateUniqueId } from '../utils/helpers';
+import {
+  generateUniqueId,
+  getLocalDateString,
+  formatMealLogDateFrench,
+  getDayOfWeekFromDateString,
+} from '../utils/helpers';
 import { isRecipeVegetarian } from './recipeAiService';
 import { createShoppingItemFromIngredient, mergeShoppingItems } from '../utils/shoppingAggregator';
 import { classifyIngredientAisle } from '../utils/aisleClassifier';
@@ -13,6 +19,7 @@ const SCHEMA_VERSION_KEY = '@papilles_schema_version';
 const CURRENT_SCHEMA_VERSION = 'v4';
 const SHOPPING_LIST_KEY = '@papilles_shopping_list_v1';
 const WEEKLY_PLAN_KEY = '@papilles_weekly_plan_v1';
+const MEAL_LOG_KEY = '@papilles_meal_log_v1';
 const THEME_MODE_KEY = '@papilles_theme_mode_v1';
 const DEFAULT_SERVINGS_KEY = '@papilles_default_servings_v1';
 
@@ -76,6 +83,26 @@ function sanitizeStoredRecipe(r: any): Recipe {
           instruction: typeof st.instruction === 'string' ? st.instruction.slice(0, 2500) : '',
         }))
       : [],
+  };
+}
+
+/**
+ * Assainit une entrée du journal des repas pour garantir la cohérence des données.
+ */
+function sanitizeMealLogEntry(e: any): MealLogEntry | null {
+  if (!e || typeof e !== 'object' || typeof e.title !== 'string') return null;
+  const title = e.title.trim().slice(0, 200);
+  if (!title) return null;
+  return {
+    id: typeof e.id === 'string' && e.id ? e.id.slice(0, 80) : generateUniqueId('mlog'),
+    date: typeof e.date === 'string' && e.date ? e.date.slice(0, 20) : getLocalDateString(),
+    mealTime: e.mealTime === 'dinner' ? 'dinner' : 'lunch',
+    title,
+    recipeId: typeof e.recipeId === 'string' && e.recipeId ? e.recipeId.slice(0, 100) : undefined,
+    recipeImageUrl: sanitizeImageUrl(e.recipeImageUrl),
+    note: typeof e.note === 'string' && e.note.trim() ? e.note.trim().slice(0, 500) : undefined,
+    createdAt: typeof e.createdAt === 'string' ? e.createdAt : new Date().toISOString(),
+    updatedAt: typeof e.updatedAt === 'string' ? e.updatedAt : new Date().toISOString(),
   };
 }
 
@@ -505,6 +532,135 @@ export const StorageService = {
   },
 
   /**
+   * Charge l'ensemble du journal des repas (ce qui a été mangé)
+   */
+  async getMealLogs(): Promise<MealLogMap> {
+    try {
+      const data = await AsyncStorage.getItem(MEAL_LOG_KEY);
+      if (!data) return {};
+      const parsed = JSON.parse(data);
+      if (!parsed || typeof parsed !== 'object') return {};
+
+      const sanitized: MealLogMap = {};
+      Object.entries(parsed).forEach(([key, val]) => {
+        const item = sanitizeMealLogEntry(val);
+        if (item) {
+          sanitized[key] = item;
+        }
+      });
+      return sanitized;
+    } catch (e) {
+      console.error('Erreur lecture suivi repas:', e);
+      return {};
+    }
+  },
+
+  /**
+   * Sauvegarde le dictionnaire complet du suivi des repas
+   */
+  async saveMealLogs(logs: MealLogMap): Promise<MealLogMap> {
+    try {
+      await AsyncStorage.setItem(MEAL_LOG_KEY, JSON.stringify(logs));
+      return logs;
+    } catch (e) {
+      console.error('Erreur sauvegarde suivi repas:', e);
+      throw e;
+    }
+  },
+
+  /**
+   * Enregistre ou supprime un plat mangé pour une date ("YYYY-MM-DD") et un créneau (midi ou soir)
+   */
+  async setMealLog(
+    date: string,
+    mealTime: MealTime,
+    entry: {
+      title: string;
+      recipeId?: string;
+      recipeImageUrl?: string;
+      note?: string;
+    } | null
+  ): Promise<MealLogMap> {
+    try {
+      const currentLogs = await this.getMealLogs();
+      const slotKey = `${date}_${mealTime}`;
+      const nextLogs = { ...currentLogs };
+
+      if (entry && entry.title.trim()) {
+        const existing = nextLogs[slotKey];
+        nextLogs[slotKey] = {
+          id: existing?.id || generateUniqueId('mlog'),
+          date,
+          mealTime,
+          title: entry.title.trim().slice(0, 200),
+          recipeId: entry.recipeId,
+          recipeImageUrl: sanitizeImageUrl(entry.recipeImageUrl),
+          note: entry.note?.trim(),
+          createdAt: existing?.createdAt || new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+      } else {
+        delete nextLogs[slotKey];
+      }
+
+      await this.saveMealLogs(nextLogs);
+      return nextLogs;
+    } catch (e) {
+      console.error('Erreur enregistrement plat suivi repas:', e);
+      throw e;
+    }
+  },
+
+  /**
+   * Récupère rapidement ce qui a été mangé aujourd'hui (midi et soir)
+   */
+  async getTodayMeals(): Promise<{ lunch?: MealLogEntry; dinner?: MealLogEntry }> {
+    try {
+      const todayStr = getLocalDateString();
+      const logs = await this.getMealLogs();
+      return {
+        lunch: logs[`${todayStr}_lunch`],
+        dinner: logs[`${todayStr}_dinner`],
+      };
+    } catch (e) {
+      console.error('Erreur lecture repas aujourd’hui:', e);
+      return {};
+    }
+  },
+
+  /**
+   * Récupère la liste chronologique résumée des derniers jours pour l'historique
+   */
+  async getRecentDaysMealLogs(daysCount: number = 14): Promise<DayMealLogSummary[]> {
+    try {
+      const logs = await this.getMealLogs();
+      const today = new Date();
+      const results: DayMealLogSummary[] = [];
+
+      for (let i = 0; i < daysCount; i++) {
+        const d = new Date(today);
+        d.setDate(today.getDate() - i);
+        const dateStr = getLocalDateString(d);
+        const dayOfWeek = getDayOfWeekFromDateString(dateStr);
+        const dateLabel = formatMealLogDateFrench(dateStr);
+
+        results.push({
+          date: dateStr,
+          dateLabel,
+          dayOfWeek,
+          lunch: logs[`${dateStr}_lunch`],
+          dinner: logs[`${dateStr}_dinner`],
+        });
+      }
+
+      return results;
+    } catch (e) {
+      console.error('Erreur lecture historique repas:', e);
+      return [];
+    }
+  },
+
+  /**
    * Récupère le mode de thème sauvegardé ('system' | 'light' | 'dark')
    */
   async getThemeMode(): Promise<'system' | 'light' | 'dark'> {
@@ -559,19 +715,21 @@ export const StorageService = {
   },
 
   /**
-   * Exporte l'intégralité des recettes sous forme de chaîne JSON formatée
+   * Exporte l'intégralité des données sous forme de chaîne JSON formatée (recettes, courses, planning, suivi)
    */
   async exportAllData(): Promise<string> {
     const recipes = await this.getRecipes();
     const shoppingList = await this.getShoppingList();
     const weeklyPlan = await this.getWeeklyPlan();
+    const mealLogs = await this.getMealLogs();
     return JSON.stringify(
       {
-        version: '1.0.0',
+        version: '1.1.0',
         exportedAt: new Date().toISOString(),
         recipes,
         shoppingList,
         weeklyPlan,
+        mealLogs,
       },
       null,
       2
@@ -579,7 +737,7 @@ export const StorageService = {
   },
 
   /**
-   * Importe des recettes depuis un fichier JSON en préservant l'intégrité
+   * Importe des données depuis un fichier JSON en préservant l'intégrité
    */
   async importRecipes(recipesJson: string): Promise<{ success: boolean; count: number; error?: string }> {
     try {
@@ -590,23 +748,39 @@ export const StorageService = {
         ? parsed.recipes
         : [];
 
-      if (incomingRecipes.length === 0) {
-        return { success: false, count: 0, error: 'Aucune recette valide détectée dans le fichier.' };
+      if (incomingRecipes.length === 0 && (!parsed.mealLogs || typeof parsed.mealLogs !== 'object')) {
+        return { success: false, count: 0, error: 'Aucune recette ou donnée valide détectée dans le fichier.' };
       }
 
-      const sanitizedIncoming = incomingRecipes.map(sanitizeStoredRecipe);
-      const current = await this.getRecipes();
-      const currentMap = new Map<string, Recipe>();
-      current.forEach((r) => currentMap.set(r.id, r));
-
       let addedOrUpdated = 0;
-      sanitizedIncoming.forEach((newRec) => {
-        currentMap.set(newRec.id, newRec);
-        addedOrUpdated++;
-      });
+      if (incomingRecipes.length > 0) {
+        const sanitizedIncoming = incomingRecipes.map(sanitizeStoredRecipe);
+        const current = await this.getRecipes();
+        const currentMap = new Map<string, Recipe>();
+        current.forEach((r) => currentMap.set(r.id, r));
 
-      const merged = Array.from(currentMap.values());
-      await AsyncStorage.setItem(RECIPES_STORAGE_KEY, JSON.stringify(merged));
+        sanitizedIncoming.forEach((newRec) => {
+          currentMap.set(newRec.id, newRec);
+          addedOrUpdated++;
+        });
+
+        const merged = Array.from(currentMap.values());
+        await AsyncStorage.setItem(RECIPES_STORAGE_KEY, JSON.stringify(merged));
+      }
+
+      // Restauration facultative des entrées du journal des repas si présentes dans le backup
+      if (parsed.mealLogs && typeof parsed.mealLogs === 'object') {
+        const currentLogs = await this.getMealLogs();
+        const mergedLogs = { ...currentLogs };
+        Object.entries(parsed.mealLogs).forEach(([key, val]) => {
+          const item = sanitizeMealLogEntry(val);
+          if (item) {
+            mergedLogs[key] = item;
+          }
+        });
+        await this.saveMealLogs(mergedLogs);
+      }
+
       return { success: true, count: addedOrUpdated };
     } catch (err: any) {
       return { success: false, count: 0, error: err?.message || 'Format JSON invalide.' };

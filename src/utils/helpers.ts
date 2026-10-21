@@ -1,4 +1,5 @@
 import { Recipe, Ingredient } from '../types/recipe';
+import { DayOfWeek } from '../types/planner';
 
 /**
  * Nettoie une chaîne de caractères (minuscule, sans accents, sans espaces superflus)
@@ -338,4 +339,76 @@ export function formatTimerSeconds(seconds: number): string {
   }
   return `${mm}:${ss}`;
 }
+
+/**
+ * Retourne la date locale au format ISO "YYYY-MM-DD"
+ */
+export function getLocalDateString(date: Date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+/**
+ * Décale une date "YYYY-MM-DD" d'un nombre de jours (+1 ou -1)
+ */
+export function addDaysToDateString(dateStr: string, days: number): string {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const date = new Date(y, m - 1, d);
+  date.setDate(date.getDate() + days);
+  return getLocalDateString(date);
+}
+
+/**
+ * Retourne le jour de la semaine ('Lundi' ... 'Dimanche') correspondant à une date
+ */
+export function getDayOfWeekFromDateString(dateStr: string): DayOfWeek {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const date = new Date(y, m - 1, d);
+  const mapping: DayOfWeek[] = [
+    'Dimanche',
+    'Lundi',
+    'Mardi',
+    'Mercredi',
+    'Jeudi',
+    'Vendredi',
+    'Samedi',
+  ];
+  return mapping[date.getDay()];
+}
+
+/**
+ * Formate une date "YYYY-MM-DD" pour un affichage convivial en français
+ */
+export function formatMealLogDateFrench(dateStr: string): string {
+  const todayStr = getLocalDateString(new Date());
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayStr = getLocalDateString(yesterday);
+
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowStr = getLocalDateString(tomorrow);
+
+  if (dateStr === todayStr) {
+    return "Aujourd'hui";
+  }
+  if (dateStr === yesterdayStr) {
+    return 'Hier';
+  }
+  if (dateStr === tomorrowStr) {
+    return 'Demain';
+  }
+
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const dateObj = new Date(y, m - 1, d);
+  const days = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+  const months = [
+    'janvier', 'février', 'mars', 'avril', 'mai', 'juin',
+    'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'
+  ];
+  return `${days[dateObj.getDay()]} ${d} ${months[m - 1]}`;
+}
+
 

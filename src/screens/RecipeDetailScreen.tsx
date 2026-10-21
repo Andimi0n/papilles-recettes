@@ -27,6 +27,7 @@ import {
   scaleQuantity,
   extractTimersFromText,
   formatTimerSeconds,
+  getLocalDateString,
 } from '../utils/helpers';
 
 interface InlineStepTimer {
@@ -297,6 +298,48 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
     }
   };
 
+  const handleMarkAsEatenToday = () => {
+    Alert.alert(
+      '🍽️ Noter dans mon suivi',
+      `À quel moment avez-vous mangé « ${recipe.title} » aujourd'hui ?`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: '☀️ Ce midi',
+          onPress: async () => {
+            try {
+              const todayStr = getLocalDateString();
+              await StorageService.setMealLog(todayStr, 'lunch', {
+                title: recipe.title,
+                recipeId: recipe.id,
+                recipeImageUrl: recipe.imageUrl,
+              });
+              Alert.alert('✅ Enregistré', `Ce plat a été noté pour votre déjeuner de ce midi !`);
+            } catch (e) {
+              Alert.alert('Erreur', "Impossible d'enregistrer le repas.");
+            }
+          },
+        },
+        {
+          text: '🌙 Ce soir',
+          onPress: async () => {
+            try {
+              const todayStr = getLocalDateString();
+              await StorageService.setMealLog(todayStr, 'dinner', {
+                title: recipe.title,
+                recipeId: recipe.id,
+                recipeImageUrl: recipe.imageUrl,
+              });
+              Alert.alert('✅ Enregistré', `Ce plat a été noté pour votre dîner de ce soir !`);
+            } catch (e) {
+              Alert.alert('Erreur', "Impossible d'enregistrer le repas.");
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const totalTime = recipe.prepTimeMinutes + recipe.cookTimeMinutes;
 
   return (
@@ -308,6 +351,13 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
             <Ionicons name="arrow-back" size={22} color={Colors.textPrimary} />
           </TouchableOpacity>
           <View style={styles.navRight}>
+            <TouchableOpacity
+              onPress={handleMarkAsEatenToday}
+              style={styles.navBtn}
+              accessibilityLabel="Marquer comme mangé aujourd'hui"
+            >
+              <Ionicons name="restaurant-outline" size={20} color={colors.primary} />
+            </TouchableOpacity>
             <TouchableOpacity
               onPress={handleAddToShoppingList}
               style={styles.navBtn}

@@ -12,6 +12,9 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Recipe, Category, SortOption } from '../types/recipe';
+import { MealLogEntry } from '../types/mealLog';
+import { MealTime } from '../types/planner';
+import { StorageService } from '../services/storageService';
 import { Colors, Shadows, createDynamicStyles } from '../theme/colors';
 import { useTheme } from '../theme/ThemeContext';
 import { RecipeCard } from '../components/RecipeCard';
@@ -21,7 +24,9 @@ import { CategoryPills } from '../components/CategoryPills';
 import { EmptyState } from '../components/EmptyState';
 import { FridgeSearchModal } from '../components/FridgeSearchModal';
 import { ImportMarmitonModal } from '../components/ImportMarmitonModal';
-import { normalizeString } from '../utils/helpers';
+import { TodayMealWidget } from '../components/TodayMealWidget';
+import { QuickMealLogModal } from '../components/QuickMealLogModal';
+import { normalizeString, getLocalDateString } from '../utils/helpers';
 import { searchRecipes, RecipeSearchResult } from '../utils/searchEngine';
 
 const RECIPES_PER_PAGE = 20;
@@ -45,6 +50,7 @@ interface HomeScreenProps {
   onToggleFavorite?: (id: string) => void;
   onQuickRate: (id: string, rating: number) => void;
   onOpenSettings?: () => void;
+  onNavigateToJournal?: () => void;
 }
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({
@@ -55,6 +61,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   onImportRecipe,
   onQuickRate,
   onOpenSettings,
+  onNavigateToJournal,
 }) => {
   const { isDark, colors, themeId, toggleTheme } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
@@ -70,6 +77,71 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const [isRatingModalVisible, setIsRatingModalVisible] = useState(false);
   const [isMarmitonModalVisible, setIsMarmitonModalVisible] = useState(false);
   const [isAiChoiceModalVisible, setIsAiChoiceModalVisible] = useState(false);
+
+  // État du suivi des repas du jour (midi et soir)
+  const [todayMeals, setTodayMeals] = useState<{ lunch?: MealLogEntry; dinner?: MealLogEntry }>({});
+  const [quickLogModal, setQuickLogModal] = useState<{
+    visible: boolean;
+    date: string;
+    mealTime: MealTime;
+    entry?: MealLogEntry | null;
+  }>({
+    visible: false,
+    date: getLocalDateString(),
+    mealTime: 'lunch',
+    entry: null,
+  });
+
+  const loadTodayMeals = useCallback(async () => {
+    try {
+      const data = await StorageService.getTodayMeals();
+      setTodayMeals(data);
+    } catch (e) {
+      console.error('Erreur chargement repas du jour:', e);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadTodayMeals();
+  }, [loadTodayMeals]);
+
+  const handleOpenMealSlot = (slot: MealTime) => {
+    const today = getLocalDateString();
+    setQuickLogModal({
+      visible: true,
+      date: today,
+      mealTime: slot,
+      entry: slot === 'lunch' ? todayMeals.lunch : todayMeals.dinner,
+    });
+  };
+
+  const handleSaveQuickMeal = async (
+    title: string,
+    recipeId?: string,
+    recipeImageUrl?: string,
+    note?: string
+  ) => {
+    try {
+      await StorageService.setMealLog(quickLogModal.date, quickLogModal.mealTime, {
+        title,
+        recipeId,
+        recipeImageUrl,
+        note,
+      });
+      await loadTodayMeals();
+    } catch (e) {
+      console.error('Erreur enregistrement repas rapide:', e);
+    }
+  };
+
+  const handleDeleteQuickMeal = async () => {
+    try {
+      await StorageService.setMealLog(quickLogModal.date, quickLogModal.mealTime, null);
+      await loadTodayMeals();
+    } catch (e) {
+      console.error('Erreur suppression repas rapide:', e);
+    }
+  };
 
   // Category counts
   const recipeCountByCategory = useMemo(() => {
@@ -241,6 +313,14 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const listHeaderElement = useMemo(
     () => (
       <View style={styles.listHeaderContainer}>
+        {/* Widget Suivi des Repas du Jour */}
+        <TodayMealWidget
+          todayLunch={todayMeals.lunch}
+          todayDinner={todayMeals.dinner}
+          onPressSlot={handleOpenMealSlot}
+          onNavigateToJournal={onNavigateToJournal}
+        />
+
         {/* Bandeau filtre Ingrédients / Frigo actif */}
         {selectedIngredients.length > 0 && (
           <View style={styles.fridgeActiveBanner}>
@@ -392,6 +472,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       searchQuery,
       safeCurrentPage,
       totalPages,
+      todayMeals,
+      onNavigateToJournal,
     ]
   );
 
@@ -902,6 +984,20 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             </View>
           </View>
         </Modal>
+
+        {/* Modal Saisie Rapide Libre pour le suivi des repas du jour */}
+        <QuickMealLogModal
+          visible={quickLogModal.visible}
+          date={quickLogModal.date}
+          mealTime={quickLogModal.mealTime}
+          currentEntry={quickLogModal.entry}
+          recipes={recipes}
+          onSave={handleSaveQuickMeal}
+          onDelete={quickLogModal.entry ? handleDeleteQuickMeal : undefined}
+          onClose={() =>
+            setQuickLogModal((prev) => ({ ...prev, visible: false, entry: null }))
+          }
+        />
       </View>
     </SafeAreaView>
   );

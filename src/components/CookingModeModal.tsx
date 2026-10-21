@@ -15,12 +15,15 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useKeepAwake } from 'expo-keep-awake';
 import { Recipe, Ingredient } from '../types/recipe';
+import { StorageService } from '../services/storageService';
 import { Colors, Shadows, createDynamicStyles } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
 import {
   extractTimersFromText,
   formatTimerSeconds,
   scaleQuantity,
   DetectedTimer,
+  getLocalDateString,
 } from '../utils/helpers';
 import { StarRating } from './StarRating';
 
@@ -50,6 +53,7 @@ export const CookingModeModal: React.FC<CookingModeModalProps> = ({
 }) => {
   // Maintient l'écran du smartphone allumé pendant toute la session de cuisine
   useKeepAwake();
+  const { colors } = useTheme();
 
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [checkedIngredients, setCheckedIngredients] = useState<Record<string, boolean>>({});
@@ -214,6 +218,25 @@ export const CookingModeModal: React.FC<CookingModeModalProps> = ({
     setUserRating(newRating);
     if (onQuickRate) {
       onQuickRate(newRating);
+    }
+  };
+
+  const handleLogCookedMeal = async (slot: 'lunch' | 'dinner') => {
+    try {
+      const todayStr = getLocalDateString();
+      await StorageService.setMealLog(todayStr, slot, {
+        title: recipe.title,
+        recipeId: recipe.id,
+        recipeImageUrl: recipe.imageUrl,
+      });
+      setIsCompletedModalVisible(false);
+      onClose();
+      Alert.alert(
+        '✅ Noté dans vos repas !',
+        `« ${recipe.title} » a été ajouté à votre suivi de ce ${slot === 'lunch' ? 'midi' : 'soir'}. Bon appétit !`
+      );
+    } catch (e) {
+      console.error('Erreur enregistrement repas cuisiné:', e);
     }
   };
 
@@ -592,6 +615,29 @@ export const CookingModeModal: React.FC<CookingModeModalProps> = ({
                   interactive={true}
                   onRatingChange={handleRatingChange}
                 />
+              </View>
+
+              {/* Raccourci Suivi des Repas */}
+              <View style={styles.completeMealLogSection}>
+                <Text style={styles.completeMealLogTitle}>Noter dans mon suivi du jour :</Text>
+                <View style={styles.completeMealLogBtnsRow}>
+                  <TouchableOpacity
+                    style={styles.completeMealLogBtn}
+                    onPress={() => handleLogCookedMeal('lunch')}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="sunny" size={14} color={colors.primary} />
+                    <Text style={styles.completeMealLogBtnText}>Ce midi</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.completeMealLogBtn}
+                    onPress={() => handleLogCookedMeal('dinner')}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="moon" size={14} color={colors.primary} />
+                    <Text style={styles.completeMealLogBtnText}>Ce soir</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
 
               <TouchableOpacity
@@ -1086,6 +1132,39 @@ const styles = createDynamicStyles((colors, shadows) => ({
     fontWeight: '600',
     color: Colors.textSecondary,
     marginBottom: 10,
+  },
+  completeMealLogSection: {
+    width: '100%',
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  completeMealLogTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    marginBottom: 8,
+  },
+  completeMealLogBtnsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    width: '100%',
+  },
+  completeMealLogBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: colors.backgroundSecondary,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  completeMealLogBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.textPrimary,
   },
   completeFinishBtn: {
     flexDirection: 'row',
