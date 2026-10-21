@@ -41,6 +41,7 @@ export const VocabularyManagerModal: React.FC<VocabularyManagerModalProps> = ({
   const [formName, setFormName] = useState('');
   const [formAisle, setFormAisle] = useState<ShoppingAisle>('Épicerie & Condiments');
   const [formAliases, setFormAliases] = useState('');
+  const [formIsPantryStaple, setFormIsPantryStaple] = useState(false);
 
   // État du modal de fusion
   const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
@@ -66,7 +67,14 @@ export const VocabularyManagerModal: React.FC<VocabularyManagerModalProps> = ({
   const filteredItems = useMemo(() => {
     const q = normalizeString(searchQuery);
     return items.filter((item) => {
-      const matchAisle = selectedAisle === 'Tous' || item.defaultAisle === selectedAisle;
+      let matchAisle = false;
+      if (selectedAisle === 'Tous') {
+        matchAisle = true;
+      } else if (selectedAisle === '🧂 Fond de placard') {
+        matchAisle = Boolean(item.isPantryStaple);
+      } else {
+        matchAisle = item.defaultAisle === selectedAisle;
+      }
       if (!matchAisle) return false;
 
       if (!q) return true;
@@ -83,6 +91,7 @@ export const VocabularyManagerModal: React.FC<VocabularyManagerModalProps> = ({
     setFormName('');
     setFormAisle('Épicerie & Condiments');
     setFormAliases('');
+    setFormIsPantryStaple(false);
     setIsEditModalOpen(true);
   };
 
@@ -91,7 +100,17 @@ export const VocabularyManagerModal: React.FC<VocabularyManagerModalProps> = ({
     setFormName(item.canonicalName);
     setFormAisle(item.defaultAisle);
     setFormAliases(item.aliases.filter((a) => a !== item.normalizedName).join(', '));
+    setFormIsPantryStaple(Boolean(item.isPantryStaple));
     setIsEditModalOpen(true);
+  };
+
+  const handleToggleStaple = async (item: CanonicalIngredient) => {
+    try {
+      await VocabularyService.togglePantryStaple(item.id);
+      await loadData();
+    } catch (e) {
+      Alert.alert('Erreur', 'Impossible de modifier cet ingrédient.');
+    }
   };
 
   const handleSaveItem = async () => {
@@ -112,6 +131,7 @@ export const VocabularyManagerModal: React.FC<VocabularyManagerModalProps> = ({
           canonicalName: cleanName,
           defaultAisle: formAisle,
           aliases: aliasesArray,
+          isPantryStaple: formIsPantryStaple,
         });
       } else {
         await VocabularyService.add({
@@ -119,6 +139,7 @@ export const VocabularyManagerModal: React.FC<VocabularyManagerModalProps> = ({
           defaultAisle: formAisle,
           aliases: aliasesArray,
           isCustom: true,
+          isPantryStaple: formIsPantryStaple,
         });
       }
 
@@ -234,7 +255,7 @@ export const VocabularyManagerModal: React.FC<VocabularyManagerModalProps> = ({
     ).slice(0, 10);
   }, [items, mergeSource, mergeTargetSearch]);
 
-  const aisleOptions = ['Tous', ...ALL_AISLES];
+  const aisleOptions = ['Tous', '🧂 Fond de placard', ...ALL_AISLES];
 
   return (
     <Modal visible={visible} animationType="slide" transparent={false} onRequestClose={onClose}>
@@ -317,13 +338,30 @@ export const VocabularyManagerModal: React.FC<VocabularyManagerModalProps> = ({
                     </View>
 
                     <View style={styles.itemTitleCol}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                         <Text style={styles.itemCanonicalName}>{item.canonicalName}</Text>
                         {item.isCustom && (
                           <View style={styles.customBadge}>
                             <Text style={styles.customBadgeText}>Perso</Text>
                           </View>
                         )}
+                        <TouchableOpacity
+                          style={[
+                            styles.stapleToggleBadge,
+                            item.isPantryStaple && styles.stapleToggleBadgeActive,
+                          ]}
+                          onPress={() => handleToggleStaple(item)}
+                          activeOpacity={0.7}
+                        >
+                          <Text
+                            style={[
+                              styles.stapleToggleBadgeText,
+                              item.isPantryStaple && styles.stapleToggleBadgeTextActive,
+                            ]}
+                          >
+                            {item.isPantryStaple ? '🧂 De base' : '🧂 +De base'}
+                          </Text>
+                        </TouchableOpacity>
                       </View>
                       <Text style={styles.itemAisleName}>{item.defaultAisle}</Text>
                     </View>
@@ -460,6 +498,26 @@ export const VocabularyManagerModal: React.FC<VocabularyManagerModalProps> = ({
                   placeholderTextColor={colors.textMuted}
                   multiline
                 />
+
+                {/* Option Fond de placard / Ingrédient de base */}
+                <TouchableOpacity
+                  style={[
+                    styles.dialogToggleRow,
+                    formIsPantryStaple && styles.dialogToggleRowActive,
+                  ]}
+                  onPress={() => setFormIsPantryStaple(!formIsPantryStaple)}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.dialogToggleLeft}>
+                    <Text style={styles.dialogToggleTitle}>🧂 Ingrédient de base / Fond de placard</Text>
+                    <Text style={styles.dialogToggleSubtitle}>
+                      Considéré toujours en stock (ex: sel, poivre, huile, épices). Ne s'ajoute pas d'office aux courses.
+                    </Text>
+                  </View>
+                  <View style={[styles.switchCircle, formIsPantryStaple && styles.switchCircleActive]}>
+                    {formIsPantryStaple && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
+                  </View>
+                </TouchableOpacity>
 
                 <View style={styles.dialogBtnRow}>
                   <TouchableOpacity
@@ -659,6 +717,27 @@ const styles = createDynamicStyles((colors, shadows) => ({
     color: colors.secondary,
     textTransform: 'uppercase',
   },
+  stapleToggleBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    backgroundColor: colors.background,
+  },
+  stapleToggleBadgeActive: {
+    backgroundColor: colors.primary + '20',
+    borderColor: colors.primary,
+  },
+  stapleToggleBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: colors.textMuted,
+  },
+  stapleToggleBadgeTextActive: {
+    color: colors.primary,
+    fontWeight: '700',
+  },
   itemAisleName: {
     fontSize: 11,
     color: colors.textSecondary,
@@ -812,6 +891,48 @@ const styles = createDynamicStyles((colors, shadows) => ({
   dialogAislePillTextActive: {
     color: '#FFFFFF',
     fontWeight: '600',
+  },
+  dialogToggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    backgroundColor: colors.background,
+    marginTop: 12,
+  },
+  dialogToggleRowActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primary + '10',
+  },
+  dialogToggleLeft: {
+    flex: 1,
+    marginRight: 10,
+  },
+  dialogToggleTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  dialogToggleSubtitle: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  switchCircle: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 1.5,
+    borderColor: colors.textMuted,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  switchCircleActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   dialogBtnRow: {
     flexDirection: 'row',

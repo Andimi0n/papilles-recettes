@@ -16,9 +16,10 @@ import { Recipe, Category, Difficulty, Ingredient, RecipeStep } from '../types/r
 import { Colors, Shadows, createDynamicStyles } from '../theme/colors';
 import { useTheme } from '../theme/ThemeContext';
 import { StarRating } from '../components/StarRating';
-import { generateUniqueId } from '../utils/helpers';
+import { generateUniqueId, normalizeString } from '../utils/helpers';
 import { IngredientAutocompleteInput } from '../components/IngredientAutocompleteInput';
 import { VocabularyService } from '../services/vocabularyService';
+import { isKnownDefaultPantryStaple } from '../data/canonicalVocabulary';
 
 
 interface RecipeFormScreenProps {
@@ -128,9 +129,44 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
     ]);
   };
 
-  const handleUpdateIngredient = (index: number, field: keyof Ingredient, value: string) => {
+  const handleUpdateIngredient = (index: number, field: keyof Ingredient, value: any) => {
     const updated = [...ingredients];
     updated[index] = { ...updated[index], [field]: value };
+
+    // Si on modifie le nom et que le statut staple n'a pas été explicitement défini
+    if (field === 'name' && typeof value === 'string' && value.trim()) {
+      if (updated[index].isPantryStaple === undefined) {
+        const vocabList = VocabularyService.getSyncList();
+        const norm = normalizeString(value);
+        const match = vocabList.find(
+          (v) => v.normalizedName === norm || v.aliases.includes(norm)
+        );
+        if (match && match.isPantryStaple) {
+          updated[index].isPantryStaple = true;
+        } else if (isKnownDefaultPantryStaple(value)) {
+          updated[index].isPantryStaple = true;
+        }
+      }
+    }
+
+    setIngredients(updated);
+  };
+
+  const handleToggleIngredientStaple = (index: number) => {
+    const updated = [...ingredients];
+    updated[index] = {
+      ...updated[index],
+      isPantryStaple: !updated[index].isPantryStaple,
+    };
+    setIngredients(updated);
+  };
+
+  const handleToggleIngredientOptional = (index: number) => {
+    const updated = [...ingredients];
+    updated[index] = {
+      ...updated[index],
+      isOptional: !updated[index].isOptional,
+    };
     setIngredients(updated);
   };
 
@@ -482,46 +518,87 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
               <View
                 key={ing.id}
                 style={[
-                  styles.ingredientEditRow,
+                  styles.ingredientCard,
                   { zIndex: (ingredients.length - index) * 10 },
                 ]}
               >
-                <IngredientAutocompleteInput
-                  containerStyle={{ flex: 3 }}
-                  style={[styles.textInput, { width: '100%', marginBottom: 0 }]}
-                  value={ing.name}
-                  onChangeText={(val) => handleUpdateIngredient(index, 'name', val)}
-                  onAutoExtractedDetails={(extracted) => {
-                    if (extracted.quantity && !ing.quantity) {
-                      handleUpdateIngredient(index, 'quantity', extracted.quantity);
-                    }
-                    if (extracted.unit && !ing.unit) {
-                      handleUpdateIngredient(index, 'unit', extracted.unit);
-                    }
-                  }}
-                  placeholder="Nom (ex: Farine)"
-                  placeholderTextColor={Colors.textMuted}
-                />
-                <TextInput
-                  style={[styles.textInput, styles.ingQtyInput]}
-                  value={ing.quantity}
-                  onChangeText={(val) => handleUpdateIngredient(index, 'quantity', val)}
-                  placeholder="Qté (ex: 200)"
-                  placeholderTextColor={Colors.textMuted}
-                />
-                <TextInput
-                  style={[styles.textInput, styles.ingUnitInput]}
-                  value={ing.unit}
-                  onChangeText={(val) => handleUpdateIngredient(index, 'unit', val)}
-                  placeholder="Unité (g, ml)"
-                  placeholderTextColor={Colors.textMuted}
-                />
-                <TouchableOpacity
-                  onPress={() => handleRemoveIngredient(index)}
-                  style={styles.deleteRowBtn}
-                >
-                  <Ionicons name="trash-outline" size={18} color={Colors.danger} />
-                </TouchableOpacity>
+                <View style={styles.ingredientEditRow}>
+                  <IngredientAutocompleteInput
+                    containerStyle={{ flex: 3 }}
+                    style={[styles.textInput, { width: '100%', marginBottom: 0 }]}
+                    value={ing.name}
+                    onChangeText={(val) => handleUpdateIngredient(index, 'name', val)}
+                    onAutoExtractedDetails={(extracted) => {
+                      if (extracted.quantity && !ing.quantity) {
+                        handleUpdateIngredient(index, 'quantity', extracted.quantity);
+                      }
+                      if (extracted.unit && !ing.unit) {
+                        handleUpdateIngredient(index, 'unit', extracted.unit);
+                      }
+                    }}
+                    placeholder="Nom (ex: Farine)"
+                    placeholderTextColor={Colors.textMuted}
+                  />
+                  <TextInput
+                    style={[styles.textInput, styles.ingQtyInput, { marginBottom: 0 }]}
+                    value={ing.quantity}
+                    onChangeText={(val) => handleUpdateIngredient(index, 'quantity', val)}
+                    placeholder="Qté (ex: 200)"
+                    placeholderTextColor={Colors.textMuted}
+                  />
+                  <TextInput
+                    style={[styles.textInput, styles.ingUnitInput, { marginBottom: 0 }]}
+                    value={ing.unit}
+                    onChangeText={(val) => handleUpdateIngredient(index, 'unit', val)}
+                    placeholder="Unité (g, ml)"
+                    placeholderTextColor={Colors.textMuted}
+                  />
+                  <TouchableOpacity
+                    onPress={() => handleRemoveIngredient(index)}
+                    style={styles.deleteRowBtn}
+                  >
+                    <Ionicons name="trash-outline" size={18} color={Colors.danger} />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Badges Fond de placard & Facultatif */}
+                <View style={styles.ingredientFlagsRow}>
+                  <TouchableOpacity
+                    style={[
+                      styles.flagChip,
+                      ing.isPantryStaple && styles.flagChipActiveStaple,
+                    ]}
+                    onPress={() => handleToggleIngredientStaple(index)}
+                    activeOpacity={0.7}
+                  >
+                    <Text
+                      style={[
+                        styles.flagChipText,
+                        ing.isPantryStaple && styles.flagChipTextActiveStaple,
+                      ]}
+                    >
+                      {ing.isPantryStaple ? '🧂 Fond de placard' : '🧂 +Fond de placard'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.flagChip,
+                      ing.isOptional && styles.flagChipActiveOptional,
+                    ]}
+                    onPress={() => handleToggleIngredientOptional(index)}
+                    activeOpacity={0.7}
+                  >
+                    <Text
+                      style={[
+                        styles.flagChipText,
+                        ing.isOptional && styles.flagChipTextActiveOptional,
+                      ]}
+                    >
+                      {ing.isOptional ? '🌱 Facultatif' : '🌱 +Facultatif'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             ))}
           </View>
@@ -810,11 +887,56 @@ const styles = createDynamicStyles((colors, shadows) => ({
     fontWeight: '600',
     fontSize: 13,
   },
+  ingredientCard: {
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    padding: 8,
+    marginBottom: 8,
+  },
   ingredientEditRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
     gap: 6,
+  },
+  ingredientFlagsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 6,
+    paddingLeft: 2,
+  },
+  flagChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.cardBackground,
+  },
+  flagChipActiveStaple: {
+    backgroundColor: colors.primary + '18',
+    borderColor: colors.primary,
+  },
+  flagChipActiveOptional: {
+    backgroundColor: '#D9770620',
+    borderColor: '#D97706',
+  },
+  flagChipText: {
+    fontSize: 11,
+    color: colors.textMuted,
+    fontWeight: '500',
+  },
+  flagChipTextActiveStaple: {
+    color: colors.primary,
+    fontWeight: '700',
+  },
+  flagChipTextActiveOptional: {
+    color: '#D97706',
+    fontWeight: '700',
   },
   ingNameInput: {
     flex: 3,

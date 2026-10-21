@@ -5,6 +5,7 @@ interface SeedIngredientDef {
   name: string;
   aisle: ShoppingAisle;
   aliases: string[];
+  isPantryStaple?: boolean;
 }
 
 const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
@@ -327,21 +328,25 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
     name: 'Sel',
     aisle: 'Épicerie & Condiments',
     aliases: ['sels', 'sel fin', 'gros sel', 'fleur de sel', 'pincee de sel'],
+    isPantryStaple: true,
   },
   {
     name: 'Poivre',
     aisle: 'Épicerie & Condiments',
     aliases: ['poivres', 'poivre moulu', 'poivre du moulin', 'poivre noir', 'tours de moulin a poivre'],
+    isPantryStaple: true,
   },
   {
     name: 'Huile d\'olive',
     aisle: 'Épicerie & Condiments',
     aliases: ['huile d olive', 'huile olive', 'huile d\'olive vierge', 'filet d huile d olive'],
+    isPantryStaple: true,
   },
   {
     name: 'Huile de tournesol',
     aisle: 'Épicerie & Condiments',
     aliases: ['huile neutre', 'huile vegetale', 'huile de colza', 'huile de friture'],
+    isPantryStaple: true,
   },
   {
     name: 'Pâtes',
@@ -357,6 +362,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
     name: 'Muscade',
     aisle: 'Épicerie & Condiments',
     aliases: ['noix de muscade', 'muscade en poudre', 'muscade rapee', 'pincee de muscade', 'noix muscade'],
+    isPantryStaple: true,
   },
   {
     name: 'Moutarde',
@@ -367,6 +373,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
     name: 'Vinaigre',
     aisle: 'Épicerie & Condiments',
     aliases: ['vinaigre de vin', 'vinaigre blanc', 'vinaigre de cidre', 'vinaigre balsamique'],
+    isPantryStaple: true,
   },
   {
     name: 'Coulis de tomate',
@@ -402,16 +409,19 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
     name: 'Thym',
     aisle: 'Épicerie & Condiments',
     aliases: ['brin de thym', 'brins de thym', 'thym frais', 'thym seche'],
+    isPantryStaple: true,
   },
   {
     name: 'Laurier',
     aisle: 'Épicerie & Condiments',
     aliases: ['feuille de laurier', 'feuilles de laurier', 'laurier sauce'],
+    isPantryStaple: true,
   },
   {
     name: 'Herbes de Provence',
     aisle: 'Épicerie & Condiments',
     aliases: ['herbe de provence', 'melange d herbes de provence'],
+    isPantryStaple: true,
   },
   {
     name: 'Basilic',
@@ -432,26 +442,31 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
     name: 'Curry',
     aisle: 'Épicerie & Condiments',
     aliases: ['curry en poudre', 'poudre de curry', 'pate de curry'],
+    isPantryStaple: true,
   },
   {
     name: 'Cumin',
     aisle: 'Épicerie & Condiments',
     aliases: ['cumin moulu', 'graines de cumin'],
+    isPantryStaple: true,
   },
   {
     name: 'Paprika',
     aisle: 'Épicerie & Condiments',
     aliases: ['paprika doux', 'paprika fume'],
+    isPantryStaple: true,
   },
   {
     name: 'Cannelle',
     aisle: 'Épicerie & Condiments',
     aliases: ['cannelle en poudre', 'baton de cannelle', 'batons de cannelle'],
+    isPantryStaple: true,
   },
   {
     name: 'Curcuma',
     aisle: 'Épicerie & Condiments',
     aliases: ['curcuma en poudre'],
+    isPantryStaple: true,
   },
   {
     name: 'Bouillon de volaille',
@@ -601,9 +616,67 @@ export function getInitialCanonicalVocabulary(): CanonicalIngredient[] {
       aliases: Array.from(aliasSet),
       defaultAisle: item.aisle,
       isCustom: false,
+      isPantryStaple: Boolean(item.isPantryStaple),
       usageCount: 0,
       createdAt: now,
       updatedAt: now,
     };
   });
+}
+
+// Ensemble pré-compilé des termes normalisés considérés par défaut comme fonds de placard
+const DEFAULT_PANTRY_STAPLES_SET = new Set<string>([
+  'sel',
+  'sels',
+  'sel fin',
+  'gros sel',
+  'fleur de sel',
+  'poivre',
+  'poivres',
+  'poivre noir',
+  'poivre blanc',
+  'poivre moulu',
+  'huile d olive',
+  'huile dolive',
+  'huile de tournesol',
+  'huile neutre',
+  'huile de colza',
+  'huile de friture',
+  'huile vegetale',
+  'vinaigre',
+  'vinaigre de vin',
+  'vinaigre blanc',
+  'vinaigre de cidre',
+  'vinaigre balsamique',
+  'muscade',
+  'noix de muscade',
+  'curry',
+  'cumin',
+  'paprika',
+  'cannelle',
+  'curcuma',
+  'thym',
+  'laurier',
+  'herbes de provence',
+  'origan',
+  'clou de girofle',
+  'piment',
+  'piment d espelette',
+  'piment doux',
+  'eau',
+]);
+
+/**
+ * Détermine si un nom d'ingrédient correspond à un fond de placard usuel par défaut
+ */
+export function isKnownDefaultPantryStaple(name: string): boolean {
+  if (!name) return false;
+  const clean = normalizeForVocabIndex(name);
+  if (DEFAULT_PANTRY_STAPLES_SET.has(clean)) return true;
+  for (const staple of DEFAULT_PANTRY_STAPLES_SET) {
+    if (clean === staple || clean.startsWith(`${staple} `) || clean.endsWith(` ${staple}`)) {
+      return true;
+    }
+  }
+  return false;
 }

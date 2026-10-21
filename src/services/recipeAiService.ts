@@ -55,7 +55,13 @@ export interface ExtractedRecipeData {
   prepTimeMinutes: number;
   cookTimeMinutes: number;
   servings: number;
-  ingredients: { name: string; quantity?: string; unit?: string }[];
+  ingredients: {
+    name: string;
+    quantity?: string;
+    unit?: string;
+    isPantryStaple?: boolean;
+    isOptional?: boolean;
+  }[];
   steps: { order: number; instruction: string }[];
   userNote?: string;
   isVegetarian?: boolean;
@@ -189,6 +195,8 @@ export function sanitizeExtractedRecipe(raw: any): ExtractedRecipeData {
       name: String(ing.name).trim().slice(0, 150),
       quantity: ing.quantity ? String(ing.quantity).trim().slice(0, 50) : '',
       unit: ing.unit ? String(ing.unit).trim().slice(0, 50) : '',
+      isPantryStaple: typeof ing.isPantryStaple === 'boolean' ? ing.isPantryStaple : undefined,
+      isOptional: typeof ing.isOptional === 'boolean' ? ing.isOptional : undefined,
     }));
 
   // Normalisation stricte du vocabulaire des ingrédients UNIQUEMENT (les étapes 'steps' restent 100% intouchées)
@@ -486,7 +494,9 @@ Extrais fidèlement la recette sous forme de JSON strict avec cette structure ex
     {
       "name": "Nom de l'ingrédient",
       "quantity": "Quantité (ex: '200', '1/2', '2')",
-      "unit": "Unité normalisée (ex: 'g', 'kg', 'ml', 'cl', 'l', 'c. à soupe', 'c. à café', 'pincée', ou vide)"
+      "unit": "Unité normalisée (ex: 'g', 'kg', 'ml', 'cl', 'l', 'c. à soupe', 'c. à café', 'pincée', ou vide)",
+      "isPantryStaple": false,
+      "isOptional": false
     }
   ],
   "steps": [
@@ -500,6 +510,9 @@ Extrais fidèlement la recette sous forme de JSON strict avec cette structure ex
 
 Règles universelles :
 - VOCABULAIRE STRICT DES INGRÉDIENTS : Utilise impérativement le nom canonique élémentaire au singulier (ex: 'Petits pois' et non 'boîte de petits pois' ; 'Carotte' et non 'carotte épluchée' ou 'carottes en rondelles' ; 'Muscade' et non 'noix de muscade'). Déplace les contenants ('boîte', 'bocal', 'tranche', 'pincée') dans 'unit', et les indications de découpe ou d'épluchage ('épluchée', 'en dés', 'râpé') dans les consignes d'instructions des étapes 'steps' sans jamais alourdir 'name'.
+- FONDS DE PLACARD & FACULTATIF :
+  * 'isPantryStaple': true impérativement pour le sel, poivre, huiles de cuisson courantes, vinaigre, eau, herbes aromatiques de base et épices sèches. Tous les légumes, viandes, poissons, féculents, crèmes et sauces ont strictement 'isPantryStaple': false.
+  * 'isOptional': true si la recette indique une garniture facultative, de dressage ou au choix (ex: "coriandre (facultatif)").
 - Nettoie les noms d'ingrédients (sans quantité dans le nom).
 - Ne tronque pas les étapes : garde les instructions complètes.
 - Détermine avec précision si la recette est végétarienne (sans chair animale) dans 'isVegetarian'.
@@ -599,7 +612,9 @@ Extrais fidèlement la recette sous forme de JSON strict avec cette structure :
     {
       "name": "Nom de l'ingrédient nettoyé",
       "quantity": "Quantité (ex: '200', '1/2')",
-      "unit": "Unité normalisée (ex: 'g', 'kg', 'ml', 'cl', 'l', 'c. à soupe', 'pincée')"
+      "unit": "Unité normalisée (ex: 'g', 'kg', 'ml', 'cl', 'l', 'c. à soupe', 'pincée')",
+      "isPantryStaple": false,
+      "isOptional": false
     }
   ],
   "steps": [
@@ -614,6 +629,9 @@ RÈGLE STRICTE SUR LE VOCABULAIRE DES INGRÉDIENTS :
 - Isole impérativement le nom de l'ingrédient à sa forme canonique simple au singulier (ex: 'Petits pois' et non 'boîte de petits pois' ; 'Carotte' et non 'carotte épluchée' ou 'carottes coupées en dés' ; 'Muscade' et non 'noix de muscade').
 - Déplace les contenants ('boîte', 'bocal', 'tranche', 'pincée') dans 'unit'.
 - Déplace les consignes d'épluchage, de râpage ou de découpe dans les 'steps', JAMAIS dans le champ 'name'.
+- FONDS DE PLACARD & FACULTATIF :
+  * 'isPantryStaple': true pour sel, poivre, huiles de cuisson courantes, vinaigre, eau, herbes de base et épices sèches. False pour tous les autres ingrédients.
+  * 'isOptional': true si mentionné comme facultatif ou au choix.
 Réponds STRICTEMENT en JSON valide.`;
 
     const sanitizedRecipe = escapeUntrustedDelimiters(recipeContent.slice(0, 15000), 'untrusted_recipe_data');
@@ -715,7 +733,7 @@ Structure JSON attendue :
   "servings": 4,
   "isVegetarian": false,
   "ingredients": [
-    { "name": "Nom", "quantity": "Quantité", "unit": "Unité" }
+    { "name": "Nom", "quantity": "Quantité", "unit": "Unité", "isPantryStaple": false, "isOptional": false }
   ],
   "steps": [
     { "order": 1, "instruction": "Consigne complète" }
@@ -726,6 +744,9 @@ RÈGLE STRICTE SUR LE VOCABULAIRE DES INGRÉDIENTS :
 - Normalise le nom de l'ingrédient à sa forme canonique simple au singulier (ex: 'Petits pois' et non 'boîte de petits pois' ; 'Carotte' et non 'carotte épluchée' ; 'Muscade' et non 'noix de muscade').
 - Déplace les contenants ('boîte', 'bocal', 'tranche', 'pincée') dans 'unit'.
 - Déplace les consignes d'épluchage ou de découpe dans 'steps', jamais dans 'name'.
+- FONDS DE PLACARD & FACULTATIF :
+  * 'isPantryStaple': true pour sel, poivre, huiles de cuisson courantes, vinaigre, eau, herbes aromatiques de base et épices sèches. False sinon.
+  * 'isOptional': true si expressément indiqué comme facultatif ou au choix.
 RÈGLE STRICTE SUR 'userNote' : Laisse STRICTEMENT "" sauf si une note personnelle explicite figurait dans le texte.`;
 
     const sanitizedInput = escapeUntrustedDelimiters(trimmedInput.slice(0, 15000), 'untrusted_recipe_input');
@@ -857,13 +878,23 @@ Structure JSON attendue STRICTE :
   "servings": ${servings},
   "isVegetarian": ${isVege},
   "ingredients": [
-    { "name": "Nom de l'ingrédient", "quantity": "Quantité (ex: '200', '2')", "unit": "Unité (ex: 'g', 'ml', 'c. à soupe')" }
+    {
+      "name": "Nom de l'ingrédient",
+      "quantity": "Quantité (ex: '200', '2')",
+      "unit": "Unité (ex: 'g', 'ml', 'c. à soupe')",
+      "isPantryStaple": false,
+      "isOptional": false
+    }
   ],
   "steps": [
     { "order": 1, "instruction": "Consigne complète et détaillée de l'étape 1" }
   ],
   "userNote": "L'astuce anti-gaspillage ou le secret du Chef pour ce plat"
 }
+RÈGLE SUR LES INGRÉDIENTS DE BASE :
+- 'isPantryStaple': true pour les éléments de base ajoutés (sel, poivre, huiles usuelles, vinaigre, eau, herbes et épices de base).
+- 'isPantryStaple': false pour tous les ingrédients principaux provenant du frigo.
+- 'isOptional': true pour toute touche finale décorative ou au goût.
 Réponds STRICTEMENT en JSON valide.`;
 
     const sanitizedIngredients = cleanIngredientsList.map((i) =>

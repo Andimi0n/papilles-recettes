@@ -15,6 +15,7 @@ import { isRecipeVegetarian } from './recipeAiService';
 import { createShoppingItemFromIngredient, mergeShoppingItems } from '../utils/shoppingAggregator';
 import { classifyIngredientAisle } from '../utils/aisleClassifier';
 import { normalizeIngredient } from '../utils/ingredientNormalizer';
+import { isKnownDefaultPantryStaple } from '../data/canonicalVocabulary';
 
 const RECIPES_STORAGE_KEY = '@papilles_recipes_v4';
 const SCHEMA_VERSION_KEY = '@papilles_schema_version';
@@ -78,6 +79,13 @@ function sanitizeStoredRecipe(r: any): Recipe {
           name: typeof ing.name === 'string' ? ing.name.slice(0, 150) : '',
           quantity: ing.quantity ? String(ing.quantity).slice(0, 50) : '',
           unit: ing.unit ? String(ing.unit).slice(0, 50) : '',
+          isPantryStaple:
+            typeof ing.isPantryStaple === 'boolean'
+              ? ing.isPantryStaple
+              : isKnownDefaultPantryStaple(ing.name)
+              ? true
+              : undefined,
+          isOptional: typeof ing.isOptional === 'boolean' ? ing.isOptional : undefined,
         }))
       : [],
     steps: Array.isArray(r.steps)
@@ -446,17 +454,23 @@ export const StorageService = {
   },
 
   /**
-   * Ajoute tous les ingrédients d'une recette avec mise à l'échelle des portions
+   * Ajoute les ingrédients d'une recette avec mise à l'échelle des portions.
+   * Peut recevoir une sélection d'identifiants d'ingrédients pour exclure les fonds de placard / facultatifs.
    */
   async addRecipeToShoppingList(
     recipe: Recipe,
-    targetServings: number
+    targetServings: number,
+    selectedIngredientIds?: string[]
   ): Promise<{ updatedList: ShoppingItem[]; addedCount: number }> {
     try {
       const currentList = await this.getShoppingList();
       const baseServings = recipe.servings || 4;
 
-      const newItems: ShoppingItem[] = recipe.ingredients.map((ing) =>
+      const ingredientsToAdd = selectedIngredientIds && selectedIngredientIds.length > 0
+        ? recipe.ingredients.filter((ing) => selectedIngredientIds.includes(ing.id))
+        : recipe.ingredients;
+
+      const newItems: ShoppingItem[] = ingredientsToAdd.map((ing) =>
         createShoppingItemFromIngredient(
           ing,
           baseServings,
@@ -828,6 +842,9 @@ export const StorageService = {
         const baseServings = recipe.servings || 4;
 
         recipe.ingredients.forEach((ing) => {
+          // Ne pas encombrer la liste de courses avec les ingrédients de base / fonds de placard
+          if (ing.isPantryStaple) return;
+
           newItemsToMerge.push(
             createShoppingItemFromIngredient(
               ing,

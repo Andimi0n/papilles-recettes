@@ -1,7 +1,11 @@
 import { NormalizationResult, CanonicalIngredient } from '../types/vocabulary';
 import { VocabularyService } from '../services/vocabularyService';
+import { isKnownDefaultPantryStaple } from '../data/canonicalVocabulary';
 import { normalizeString } from './helpers';
 import { stemWord, levenshteinDistance } from './searchEngine';
+
+// Expressions indiquant un ingrédient facultatif ou décoratif
+const OPTIONAL_REGEX = /\b(?:facultatif|facultative|optionnel|optionnelle|au choix|selon les go[uû]ts?|selon votre go[uû]t|pour d[eé]corer|pour servir)\b/i;
 
 // Contenants et unités incorporés fréquemment dans le nom de l'ingrédient
 const CONTAINER_PREFIXES: { regex: RegExp; unitLabel: string }[] = [
@@ -69,10 +73,18 @@ function cleanRawIngredientString(raw: string): {
   cleaned: string;
   extractedQuantity?: string;
   extractedUnit?: string;
+  extractedOptional?: boolean;
 } {
   let str = raw.trim();
   let extractedQuantity: string | undefined;
   let extractedUnit: string | undefined;
+  let extractedOptional: boolean | undefined;
+
+  // 0. Détecter si l'ingrédient est mentionné comme facultatif ou décoratif (avant suppression des parenthèses)
+  if (OPTIONAL_REGEX.test(str)) {
+    extractedOptional = true;
+    str = str.replace(OPTIONAL_REGEX, ' ');
+  }
 
   // 1. Extraire un éventuel nombre en tête (ex: "2 carottes")
   const leadMatch = str.match(LEADING_QUANTITY_REGEX);
@@ -107,6 +119,7 @@ function cleanRawIngredientString(raw: string): {
     cleaned: str,
     extractedQuantity,
     extractedUnit,
+    extractedOptional,
   };
 }
 
@@ -118,6 +131,8 @@ export function normalizeIngredient(raw: {
   name: string;
   quantity?: string;
   unit?: string;
+  isPantryStaple?: boolean;
+  isOptional?: boolean;
 }): NormalizationResult {
   const originalName = raw.name || '';
   if (!originalName.trim()) {
@@ -127,12 +142,33 @@ export function normalizeIngredient(raw: {
       unit: raw.unit,
       originalName,
       wasNormalized: false,
+      isPantryStaple: raw.isPantryStaple,
+      isOptional: raw.isOptional,
     };
   }
 
-  const { cleaned, extractedQuantity, extractedUnit } = cleanRawIngredientString(originalName);
+  const { cleaned, extractedQuantity, extractedUnit, extractedOptional } =
+    cleanRawIngredientString(originalName);
   const finalQuantity = raw.quantity?.trim() || extractedQuantity;
   const finalUnit = raw.unit?.trim() || extractedUnit;
+
+  const resolvedOptional =
+    typeof raw.isOptional === 'boolean'
+      ? raw.isOptional
+      : Boolean(
+          extractedOptional ||
+          (raw.unit && OPTIONAL_REGEX.test(raw.unit))
+        );
+
+  const resolveStaple = (item?: CanonicalIngredient) => {
+    if (typeof raw.isPantryStaple === 'boolean') {
+      return raw.isPantryStaple;
+    }
+    if (item && typeof item.isPantryStaple === 'boolean') {
+      return item.isPantryStaple;
+    }
+    return isKnownDefaultPantryStaple(item ? item.canonicalName : (cleaned || originalName));
+  };
 
   const vocabList = VocabularyService.getSyncList();
   const normalizedCleaned = normalizeString(cleaned);
@@ -153,6 +189,8 @@ export function normalizeIngredient(raw: {
         wasNormalized: item.canonicalName !== originalName.trim(),
         canonicalId: item.id,
         matchedAlias: normalizedCleaned,
+        isPantryStaple: resolveStaple(item),
+        isOptional: resolvedOptional,
       };
     }
   }
@@ -176,6 +214,8 @@ export function normalizeIngredient(raw: {
             wasNormalized: true,
             canonicalId: item.id,
             matchedAlias: alias,
+            isPantryStaple: resolveStaple(item),
+            isOptional: resolvedOptional,
           };
         }
       }
@@ -205,6 +245,8 @@ export function normalizeIngredient(raw: {
       originalName,
       wasNormalized: true,
       canonicalId: bestMatch.id,
+      isPantryStaple: resolveStaple(bestMatch),
+      isOptional: resolvedOptional,
     };
   }
 
@@ -220,6 +262,8 @@ export function normalizeIngredient(raw: {
     unit: finalUnit,
     originalName,
     wasNormalized: formattedCleaned !== originalName.trim(),
+    isPantryStaple: resolveStaple(),
+    isOptional: resolvedOptional,
   };
 }
 
@@ -227,9 +271,15 @@ export function normalizeIngredient(raw: {
  * Normalise un tableau d'ingrédients complet (ex: résultat d'extraction IA, scan ou Marmiton).
  * Ne modifie que les ingrédients. Les étapes de préparation restent 100% intouchées.
  */
-export function normalizeIngredients<T extends { name: string; quantity?: string; unit?: string }>(
-  ingredients: T[]
-): T[] {
+export function normalizeIngredients<
+  T extends {
+    name: string;
+    quantity?: string;
+    unit?: string;
+    isPantryStaple?: boolean;
+    isOptional?: boolean;
+  }
+>(ingredients: T[]): T[] {
   if (!Array.isArray(ingredients)) return [];
 
   return ingredients.map((ing) => {
@@ -239,6 +289,8 @@ export function normalizeIngredients<T extends { name: string; quantity?: string
       name: res.name,
       quantity: res.quantity || '',
       unit: res.unit || '',
+      isPantryStaple: res.isPantryStaple,
+      isOptional: res.isOptional,
     };
   });
 }

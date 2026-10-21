@@ -7,6 +7,7 @@ export interface CanonicalIngredient {
   aliases: string[];        // Alias, synonymes ou variantes (ex: ["carottes", "carotte epluchee", "carotte rapee"])
   defaultAisle: ShoppingAisle; // Rayon de supermarché associé par défaut
   isCustom?: boolean;       // Vrai si créé manuellement par l'utilisateur ou auto-appris
+  isPantryStaple?: boolean; // Vrai si ingrédient de base / fond de placard (sel, poivre, huile, épices...)
   usageCount: number;       // Compteur d'utilisation pour ordonner les suggestions d'autocomplétion
   createdAt: string;
   updatedAt: string;
@@ -20,4 +21,6 @@ export interface NormalizationResult {
   wasNormalized: boolean;   // Indique si le terme a été modifié/standardisé
   canonicalId?: string;     // Identifiant de l'ingrédient dans le référentiel s'il a été matché
   matchedAlias?: string;    // L'alias qui a permis la correspondance
+  isPantryStaple?: boolean; // Vrai si ingrédient de base / fond de placard
+  isOptional?: boolean;     // Vrai si facultatif / optionnel
 }

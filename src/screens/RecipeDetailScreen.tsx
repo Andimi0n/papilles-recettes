@@ -61,6 +61,8 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
   // Nombre de portions ajustables dynamiquement
   const [currentServings, setCurrentServings] = useState<number>(recipe.servings || 4);
   const [isAddingToShoppingList, setIsAddingToShoppingList] = useState(false);
+  const [isShoppingModalVisible, setIsShoppingModalVisible] = useState(false);
+  const [shoppingSelection, setShoppingSelection] = useState<Record<string, boolean>>({});
 
   // Synchronise lorsque la recette change
   React.useEffect(() => {
@@ -267,13 +269,57 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
     setIsNoteModalVisible(false);
   };
 
-  const handleAddToShoppingList = async () => {
+  const handleOpenShoppingModal = () => {
+    // Les ingrédients essentiels sont cochés par défaut.
+    // Les fonds de placard (sel, poivre, huile...) et les ingrédients optionnels sont décochés !
+    const initialSel: Record<string, boolean> = {};
+    recipe.ingredients.forEach((ing) => {
+      const isStaple = Boolean(ing.isPantryStaple);
+      const isOpt = Boolean(ing.isOptional);
+      initialSel[ing.id] = !isStaple && !isOpt;
+    });
+    setShoppingSelection(initialSel);
+    setIsShoppingModalVisible(true);
+  };
+
+  const handleToggleShoppingItem = (id: string) => {
+    setShoppingSelection((prev) => ({
+      ...prev,
+      [id]: !prev[id],
+    }));
+  };
+
+  const handleSelectAllShopping = (select: boolean) => {
+    const updated: Record<string, boolean> = {};
+    recipe.ingredients.forEach((ing) => {
+      updated[ing.id] = select;
+    });
+    setShoppingSelection(updated);
+  };
+
+  const handleSelectEssentialsOnly = () => {
+    const updated: Record<string, boolean> = {};
+    recipe.ingredients.forEach((ing) => {
+      updated[ing.id] = !ing.isPantryStaple && !ing.isOptional;
+    });
+    setShoppingSelection(updated);
+  };
+
+  const handleConfirmAddToShopping = async () => {
+    const selectedIds = Object.keys(shoppingSelection).filter((id) => shoppingSelection[id]);
+    if (selectedIds.length === 0) {
+      Alert.alert('Aucun ingrédient', 'Veuillez sélectionner au moins un ingrédient à ajouter.');
+      return;
+    }
+
     setIsAddingToShoppingList(true);
     try {
       const { addedCount } = await StorageService.addRecipeToShoppingList(
         recipe,
-        currentServings
+        currentServings,
+        selectedIds
       );
+      setIsShoppingModalVisible(false);
       Alert.alert(
         '🛒 Ajouté à la liste de courses',
         `${addedCount} ingrédient${addedCount > 1 ? 's ajoutés' : ' ajouté'} pour ${currentServings} personne${currentServings > 1 ? 's' : ''} (rayons triés automatiquement) !`,
@@ -358,7 +404,7 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
               <Ionicons name="restaurant-outline" size={20} color={colors.primary} />
             </TouchableOpacity>
             <TouchableOpacity
-              onPress={handleAddToShoppingList}
+              onPress={handleOpenShoppingModal}
               style={styles.navBtn}
               accessibilityLabel="Ajouter à ma liste de courses"
             >
@@ -549,7 +595,7 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
             {/* Bouton 1 clic : Ajouter à ma liste de courses */}
             <TouchableOpacity
               style={styles.addToShoppingBtn}
-              onPress={handleAddToShoppingList}
+              onPress={handleOpenShoppingModal}
               activeOpacity={0.85}
               disabled={isAddingToShoppingList}
             >
@@ -577,14 +623,26 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
                     color={isChecked ? Colors.secondary : Colors.border}
                     style={styles.checkIcon}
                   />
-                  <Text
-                    style={[
-                      styles.ingredientName,
-                      isChecked && styles.textChecked,
-                    ]}
-                  >
-                    {ing.name}
-                  </Text>
+                  <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+                    <Text
+                      style={[
+                        styles.ingredientName,
+                        isChecked && styles.textChecked,
+                      ]}
+                    >
+                      {ing.name}
+                    </Text>
+                    {ing.isPantryStaple && (
+                      <View style={styles.stapleMiniBadge}>
+                        <Text style={styles.stapleMiniBadgeText}>🧂 De base</Text>
+                      </View>
+                    )}
+                    {ing.isOptional && (
+                      <View style={styles.optionalMiniBadge}>
+                        <Text style={styles.optionalMiniBadgeText}>🌱 Facultatif</Text>
+                      </View>
+                    )}
+                  </View>
                   {scaledQty ? (
                     <Text
                       style={[
@@ -826,6 +884,125 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
                   onPress={handleSaveNote}
                 >
                   <Text style={styles.modalSaveText}>Enregistrer</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Modal de sélection avant ajout à la liste de courses */}
+        <Modal
+          visible={isShoppingModalVisible}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setIsShoppingModalVisible(false)}
+        >
+          <View style={styles.modalBackdrop}>
+            <View style={styles.shoppingDialogCard}>
+              <View style={styles.shoppingDialogHeader}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.shoppingDialogTitle}>Ajouter aux courses</Text>
+                  <Text style={styles.shoppingDialogSubtitle}>
+                    {recipe.title} • {currentServings} pers.
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => setIsShoppingModalVisible(false)}
+                  style={styles.shoppingDialogCloseBtn}
+                >
+                  <Ionicons name="close" size={20} color={colors.textSecondary} />
+                </TouchableOpacity>
+              </View>
+
+              {/* Raccourcis de sélection */}
+              <View style={styles.shoppingQuickBtnsRow}>
+                <TouchableOpacity
+                  style={styles.shoppingQuickBtn}
+                  onPress={handleSelectEssentialsOnly}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.shoppingQuickBtnText}>Indispensables uniquement</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.shoppingQuickBtn}
+                  onPress={() => handleSelectAllShopping(true)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.shoppingQuickBtnText}>Tout cocher</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.shoppingQuickBtn}
+                  onPress={() => handleSelectAllShopping(false)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.shoppingQuickBtnText}>Tout décocher</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Liste des ingrédients */}
+              <ScrollView style={styles.shoppingListScroll} showsVerticalScrollIndicator={true}>
+                {recipe.ingredients.map((ing) => {
+                  const isChecked = !!shoppingSelection[ing.id];
+                  const scaledQty = scaleQuantity(ing.quantity, recipe.servings || 4, currentServings);
+
+                  return (
+                    <TouchableOpacity
+                      key={`shop_item_${ing.id}`}
+                      style={[styles.shoppingItemRow, isChecked && styles.shoppingItemRowChecked]}
+                      onPress={() => handleToggleShoppingItem(ing.id)}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons
+                        name={isChecked ? 'checkbox' : 'square-outline'}
+                        size={20}
+                        color={isChecked ? colors.primary : colors.textMuted}
+                        style={{ marginRight: 10 }}
+                      />
+                      <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+                        <Text style={[styles.shoppingItemName, !isChecked && styles.shoppingItemNameMuted]}>
+                          {ing.name}
+                        </Text>
+                        {ing.isPantryStaple && (
+                          <View style={styles.stapleMiniBadge}>
+                            <Text style={styles.stapleMiniBadgeText}>🧂 De base</Text>
+                          </View>
+                        )}
+                        {ing.isOptional && (
+                          <View style={styles.optionalMiniBadge}>
+                            <Text style={styles.optionalMiniBadgeText}>🌱 Facultatif</Text>
+                          </View>
+                        )}
+                      </View>
+                      {scaledQty ? (
+                        <Text style={[styles.shoppingItemQty, !isChecked && styles.shoppingItemNameMuted]}>
+                          {scaledQty} {ing.unit || ''}
+                        </Text>
+                      ) : null}
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+
+              {/* Footer avec action */}
+              <View style={styles.shoppingDialogFooter}>
+                <TouchableOpacity
+                  style={styles.shoppingCancelBtn}
+                  onPress={() => setIsShoppingModalVisible(false)}
+                >
+                  <Text style={styles.shoppingCancelBtnText}>Annuler</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.shoppingConfirmBtn,
+                    Object.values(shoppingSelection).filter(Boolean).length === 0 && styles.shoppingConfirmBtnDisabled,
+                  ]}
+                  onPress={handleConfirmAddToShopping}
+                  disabled={isAddingToShoppingList || Object.values(shoppingSelection).filter(Boolean).length === 0}
+                >
+                  <Ionicons name="cart" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
+                  <Text style={styles.shoppingConfirmBtnText}>
+                    Ajouter ({Object.values(shoppingSelection).filter(Boolean).length})
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -1174,6 +1351,32 @@ const styles = createDynamicStyles((colors, shadows) => ({
     textDecorationLine: 'line-through',
     color: Colors.textMuted,
   },
+  stapleMiniBadge: {
+    backgroundColor: colors.primary + '18',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 0.5,
+    borderColor: colors.primary + '40',
+  },
+  stapleMiniBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  optionalMiniBadge: {
+    backgroundColor: '#D9770618',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 0.5,
+    borderColor: '#D9770640',
+  },
+  optionalMiniBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#D97706',
+  },
   stepRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -1478,5 +1681,121 @@ const styles = createDynamicStyles((colors, shadows) => ({
     color: '#FFFFFF',
     fontSize: 13,
     fontWeight: '700',
+  },
+  shoppingDialogCard: {
+    width: '92%',
+    maxHeight: '82%',
+    backgroundColor: colors.cardBackground,
+    borderRadius: 20,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    ...shadows.card,
+  },
+  shoppingDialogHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  shoppingDialogTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  shoppingDialogSubtitle: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  shoppingDialogCloseBtn: {
+    padding: 4,
+  },
+  shoppingQuickBtnsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 10,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
+  },
+  shoppingQuickBtn: {
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  shoppingQuickBtnText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  shoppingListScroll: {
+    maxHeight: 320,
+  },
+  shoppingItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 9,
+    paddingHorizontal: 6,
+    borderBottomWidth: 0.5,
+    borderBottomColor: colors.borderLight,
+    borderRadius: 8,
+  },
+  shoppingItemRowChecked: {
+    backgroundColor: colors.primary + '08',
+  },
+  shoppingItemName: {
+    fontSize: 14,
+    color: colors.textPrimary,
+    fontWeight: '500',
+  },
+  shoppingItemNameMuted: {
+    color: colors.textMuted,
+  },
+  shoppingItemQty: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.primary,
+    marginLeft: 8,
+  },
+  shoppingDialogFooter: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderLight,
+  },
+  shoppingCancelBtn: {
+    paddingVertical: 9,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+  },
+  shoppingCancelBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  shoppingConfirmBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primary,
+    paddingVertical: 9,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+  },
+  shoppingConfirmBtnDisabled: {
+    opacity: 0.4,
+  },
+  shoppingConfirmBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 }));

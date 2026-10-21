@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CanonicalIngredient } from '../types/vocabulary';
 import { ShoppingAisle } from '../types/shopping';
-import { getInitialCanonicalVocabulary } from '../data/canonicalVocabulary';
+import { getInitialCanonicalVocabulary, isKnownDefaultPantryStaple } from '../data/canonicalVocabulary';
 import { normalizeString } from '../utils/helpers';
 import { classifyIngredientAisle } from '../utils/aisleClassifier';
 
@@ -31,7 +31,21 @@ export const VocabularyService = {
         if (storedJson) {
           const parsed: CanonicalIngredient[] = JSON.parse(storedJson);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            memoryCache = parsed;
+            let hadMissingStaple = false;
+            const migrated = parsed.map((item) => {
+              if (item.isPantryStaple === undefined) {
+                hadMissingStaple = true;
+                return {
+                  ...item,
+                  isPantryStaple: isKnownDefaultPantryStaple(item.canonicalName),
+                };
+              }
+              return item;
+            });
+            if (hadMissingStaple) {
+              AsyncStorage.setItem(VOCABULARY_STORAGE_KEY, JSON.stringify(migrated)).catch(() => {});
+            }
+            memoryCache = migrated;
             return memoryCache;
           }
         }
@@ -82,6 +96,7 @@ export const VocabularyService = {
     defaultAisle?: ShoppingAisle;
     aliases?: string[];
     isCustom?: boolean;
+    isPantryStaple?: boolean;
   }): Promise<CanonicalIngredient> {
     const list = await this.getAll();
     const cleanName = item.canonicalName.trim();
@@ -116,6 +131,11 @@ export const VocabularyService = {
       if (cleanAlias) aliasSet.add(cleanAlias);
     });
 
+    const isPantryStaple =
+      typeof item.isPantryStaple === 'boolean'
+        ? item.isPantryStaple
+        : isKnownDefaultPantryStaple(cleanName);
+
     const newEntry: CanonicalIngredient = {
       id: uniqueId,
       canonicalName: cleanName.charAt(0).toUpperCase() + cleanName.slice(1),
@@ -123,6 +143,7 @@ export const VocabularyService = {
       aliases: Array.from(aliasSet),
       defaultAisle: aisle,
       isCustom: item.isCustom ?? true,
+      isPantryStaple,
       usageCount: 1,
       createdAt: now,
       updatedAt: now,
@@ -281,6 +302,18 @@ export const VocabularyService = {
     nextList[idx] = updatedItem;
     await this.saveAll(nextList);
     return updatedItem;
+  },
+
+  /**
+   * Bascule l'état "fond de placard / ingrédient de base" d'un ingrédient canonique
+   */
+  async togglePantryStaple(id: string): Promise<CanonicalIngredient> {
+    const list = await this.getAll();
+    const item = list.find((i) => i.id === id);
+    if (!item) {
+      throw new Error('Ingrédient introuvable.');
+    }
+    return this.update(id, { isPantryStaple: !item.isPantryStaple });
   },
 
   /**

@@ -30,6 +30,12 @@
   - Silent background learning of new ingredients and usage frequencies.
   - Full dedicated Vocabulary Manager in Settings (`VocabularyManagerModal`) allowing users to browse, search by aisle, rename, edit aliases, detach aliases into distinct ingredients with 1 tap, merge duplicates, and reset to defaults.
   - **1-Click Global Normalization**: Dedicated on-demand button in Settings ("Normaliser tous les ingrédients") allowing users to retrofit and standardize all saved recipes, grocery list items, and shelf ingredients at any time.
+- **Pantry Staples & Optional Ingredients Engine ("Fonds de placard & Ingrédients facultatifs")**:
+  - Distinguishes essential ingredients from pantry staples (`isPantryStaple`: salt, pepper, common oils, vinegar, water, standard dry spices) and optional garnishes (`isOptional`: dressings, optional garnishes, "selon les goûts").
+  - **Multimodal AI Classification**: Gemini 3.8 Flash categorizes `isPantryStaple` and `isOptional` across photo scans, text extraction, and recipe generation.
+  - **Deterministic Local Rules & Customization**: Rule-based detection in `IngredientNormalizer` with automatic extraction of optional cues (`(facultatif)`). Fully customizable in Settings via the Vocabulary Manager with a dedicated filter pill (`🧂 Fond de placard`), 1-tap toggle on item cards, and toggle in the creation/edition dialog.
+  - **Smart Shopping List Addition Dialog**: When tapping "Ajouter à ma liste de courses" in `RecipeDetailScreen`, opens an interactive modal pre-selecting only essential ingredients (pantry staples and optional items are unchecked by default to avoid flooding the grocery list), with quick filters ("Indispensables uniquement", "Tout cocher", "Tout décocher").
+  - **Visual Badges**: Ingredients in recipe view and recipe editor feature clean interactive badges (`🧂 De base`, `🌱 Facultatif`).
 - **HomeScreen Top Section & Scroll-Reactive Collapsible Double Filter Bar**:
   - Pinned top section: Brand row with logo and vertically stacked quick action buttons (Marmiton, Scan & IA, Ajouter) on the right, alongside the persistent search bar.
   - Collapsible double filter bar: The double filter bar (categories pill bar + secondary tools: Végé toggle, Star Rating modal button, Sort, Reset) smoothly collapses and disappears when scrolling down, and reappears when scrolling up or returning to top.

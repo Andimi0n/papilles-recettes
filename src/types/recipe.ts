@@ -14,6 +14,8 @@ export interface Ingredient {
   name: string;
   quantity?: string; // ex: "200", "2", "1/2"
   unit?: string;     // ex: "g", "ml", "c. à soupe", "pièces"
+  isPantryStaple?: boolean; // Ingrédient de base / fond de placard (sel, poivre, huile, épices...)
+  isOptional?: boolean;     // Ingrédient facultatif / de finition
 }
 
 export interface RecipeStep {
