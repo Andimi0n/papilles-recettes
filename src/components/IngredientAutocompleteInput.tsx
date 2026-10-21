@@ -11,6 +11,7 @@ import {
   TextStyle,
   Platform,
   useWindowDimensions,
+  ReturnKeyTypeOptions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { CanonicalIngredient } from '../types/vocabulary';
@@ -33,6 +34,10 @@ interface IngredientAutocompleteInputProps {
   autoFocus?: boolean;
   onFocus?: () => void;
   onBlur?: () => void;
+  clearOnSelect?: boolean;
+  keepFocusOnSelect?: boolean;
+  onSubmitEditing?: () => void;
+  returnKeyType?: ReturnKeyTypeOptions;
 }
 
 export const IngredientAutocompleteInput: React.FC<IngredientAutocompleteInputProps> = ({
@@ -48,12 +53,19 @@ export const IngredientAutocompleteInput: React.FC<IngredientAutocompleteInputPr
   autoFocus = false,
   onFocus,
   onBlur,
+  clearOnSelect = false,
+  keepFocusOnSelect = false,
+  onSubmitEditing,
+  returnKeyType,
 }) => {
   const { colors, isDark } = useTheme();
   const { width: windowWidth } = useWindowDimensions();
 
   const [isFocused, setIsFocused] = useState(false);
   const [suggestions, setSuggestions] = useState<CanonicalIngredient[]>([]);
+  const inputRef = useRef<TextInput>(null);
+  const blurTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isSelectingRef = useRef(false);
 
   // Calcul d'une largeur généreuse pour le dongle / menu flottant de suggestions
   // Évite d'être contraint à la largeur étroite du champ nom
@@ -71,11 +83,33 @@ export const IngredientAutocompleteInput: React.FC<IngredientAutocompleteInputPr
   }, [value, isFocused]);
 
   const handleSelect = (item: CanonicalIngredient) => {
-    onChangeText(item.canonicalName);
+    isSelectingRef.current = true;
+    if (blurTimeoutRef.current) {
+      clearTimeout(blurTimeoutRef.current);
+      blurTimeoutRef.current = null;
+    }
+
+    if (clearOnSelect) {
+      onChangeText('');
+    } else {
+      onChangeText(item.canonicalName);
+    }
     VocabularyService.incrementUsage(item.id).catch(() => {});
     setSuggestions([]);
     if (onSelectIngredient) {
       onSelectIngredient(item);
+    }
+
+    if (keepFocusOnSelect) {
+      setIsFocused(true);
+      setTimeout(() => {
+        inputRef.current?.focus();
+        isSelectingRef.current = false;
+      }, 50);
+    } else {
+      setTimeout(() => {
+        isSelectingRef.current = false;
+      }, 100);
     }
   };
 
@@ -83,26 +117,58 @@ export const IngredientAutocompleteInput: React.FC<IngredientAutocompleteInputPr
     const trimmed = name.trim();
     if (!trimmed) return;
     const formatted = trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
-    onChangeText(formatted);
+
+    isSelectingRef.current = true;
+    if (blurTimeoutRef.current) {
+      clearTimeout(blurTimeoutRef.current);
+      blurTimeoutRef.current = null;
+    }
+
+    if (clearOnSelect) {
+      onChangeText('');
+    } else {
+      onChangeText(formatted);
+    }
     setSuggestions([]);
     try {
       const created = await VocabularyService.promoteAliasToCanonical(formatted);
       if (onSelectIngredient) {
         onSelectIngredient(created);
       }
+      if (keepFocusOnSelect) {
+        setIsFocused(true);
+        setTimeout(() => {
+          inputRef.current?.focus();
+          isSelectingRef.current = false;
+        }, 50);
+      } else {
+        setTimeout(() => {
+          isSelectingRef.current = false;
+        }, 100);
+      }
     } catch (e) {
       console.error('Erreur promotion alias canonique:', e);
+      isSelectingRef.current = false;
     }
   };
 
   const handleFocus = () => {
+    if (blurTimeoutRef.current) {
+      clearTimeout(blurTimeoutRef.current);
+      blurTimeoutRef.current = null;
+    }
     setIsFocused(true);
     onFocus?.();
   };
 
   const handleBlur = () => {
-    // Petit délai pour permettre au tap sur une suggestion d'être enregistré
-    setTimeout(() => {
+    if (blurTimeoutRef.current) {
+      clearTimeout(blurTimeoutRef.current);
+    }
+    blurTimeoutRef.current = setTimeout(() => {
+      if (isSelectingRef.current) {
+        return;
+      }
       setIsFocused(false);
       setSuggestions([]);
       onBlur?.();
@@ -133,6 +199,7 @@ export const IngredientAutocompleteInput: React.FC<IngredientAutocompleteInputPr
   return (
     <View style={[styles.container, containerStyle]}>
       <TextInput
+        ref={inputRef}
         style={[styles.input, style]}
         value={value}
         onChangeText={onChangeText}
@@ -143,6 +210,8 @@ export const IngredientAutocompleteInput: React.FC<IngredientAutocompleteInputPr
         autoFocus={autoFocus}
         autoCapitalize="sentences"
         autoCorrect={false}
+        onSubmitEditing={onSubmitEditing}
+        returnKeyType={returnKeyType}
       />
 
       {isFocused && suggestions.length > 0 && (
