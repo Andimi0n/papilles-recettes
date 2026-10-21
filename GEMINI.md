@@ -37,7 +37,11 @@
   - **Multimodal AI Classification**: Gemini 3.8 Flash categorizes `isPantryStaple` and `isOptional` across photo scans, text extraction, and recipe generation.
   - **Deterministic Local Rules & Customization**: Rule-based detection in `IngredientNormalizer` with automatic extraction of optional cues (`(facultatif)`). Fully customizable in Settings via the Vocabulary Manager with a dedicated filter pill (`📦 Dans les placards`), 1-tap toggle on item cards (`En placard` / `+ Placard`), and toggle in the creation/edition dialog.
   - **Smart Shopping List Addition Dialog**: When tapping "Ajouter à ma liste de courses" in `RecipeDetailScreen`, opens an interactive modal structured in culinary sections pre-selecting only essential ingredients (pantry staples and optional items are unchecked by default to avoid flooding the grocery list), with quick filters ("Indispensables uniquement", "Tout cocher", "Tout décocher").
-  - **Recipe Form Integration**: Clean toggle chips in the recipe editor (`En placard`, `En finition (au goût)`) with automatic pre-selection from the vocabulary index.
+  - **Recipe Form Integration & Table Layout**:
+    - **Colonnes structurées (Nom, Quantité, Unité)** : remplacement des descriptifs répétitifs dans les champs par de véritables en-têtes de colonnes alignés au pixel près.
+    - **Proportions optimisées** : élargissement significatif du champ "Nom", conservation d'un espace confortable pour la "Quantité", et champ "Unité" resserré et centré pour un confort de saisie maximal sur mobile.
+    - **Dongle de suggestions élargi ("Vocabulaire suggéré")** : menu flottant de l'`IngredientAutocompleteInput` élargi de manière responsive (jusqu'à 380px) et découplé de la largeur étroite du champ Nom, avec gestion du défilement interne et priorité d'élévation (`zIndex` et `elevation`) sur la carte active.
+    - **Puces de sections** : puces compactes `En placard` et `En finition (au goût)` avec présélection automatique d'après le lexique canonique.
 - **HomeScreen Top Section & Scroll-Reactive Collapsible Double Filter Bar**:
   - Pinned top section: Brand row with logo and vertically stacked quick action buttons (Marmiton, Scan & IA, Ajouter) on the right, alongside the persistent search bar.
   - Collapsible double filter bar: The double filter bar (categories pill bar + secondary tools: Végé toggle, Star Rating modal button, Sort, Reset) smoothly collapses and disappears when scrolling down, and reappears when scrolling up or returning to top.

@@ -57,7 +57,11 @@ Une application mobile moderne, soignée et intuitive pour gérer vos recettes, 
   - **En finition & au goût** : herbes fraîches de dressage, graines, épices au goût ou touches facultatives (descriptif placé sous le titre).
 - **Fenêtre de validation avant ajout aux courses ("Ne plus noyer la liste")** : au clic sur *"Ajouter à ma liste de courses"*, une modale intuitive s'ouvre organisée sous ces mêmes sections culinaires. Les ingrédients principaux sont **cochés par défaut** ; les assaisonnements/condiments et finitions sont **décochés par défaut** (il suffit d'un tap si vous en manquez).
 - **Raccourcis rapides** : boutons *"Indispensables uniquement"*, *"Tout cocher"* et *"Tout décocher"* pour ajuster votre panier en un éclair.
-- **Puces d'organisation dans le formulaire de recette** : associez un ingrédient à `En placard` ou `En finition (au goût)` d'un simple clic lors de la création ou modification d'une recette.
+- **Formulaire de recette optimisé (Création & Édition)** :
+  - **Véritables colonnes Nom, Quantité, Unité** : en-têtes clairs et distincts au-dessus des lignes plutôt que des descriptifs encombrants répétés dans chaque champ.
+  - **Tailles proportionnées intelligentes** : plus de largeur allouée au nom de l'ingrédient, espace préservé pour la quantité et champ unité resserré et centré.
+  - **Menu de suggestions de vocabulaire élargi** : la fenêtre déroulante d'autocomplétion s'ouvre désormais en pleine largeur (jusqu'à 380px) et passe au-dessus des autres champs avec défilement fluide, garantissant une lisibilité parfaite des suggestions et du bouton de création d'ingrédient distinct.
+  - **Puces d'organisation** : associez un ingrédient à `En placard` ou `En finition (au goût)` d'un simple clic lors de la création ou modification d'une recette.
 - **Classification IA native (Gemini 3.8 Flash)** : les scans photo, textes bruts et créations de recettes par l'IA qualifient automatiquement et avec précision le statut de chaque ingrédient.
 
 ### 6. 📷 Scanner de Recettes par IA (Gemini BYOK) & Import Web

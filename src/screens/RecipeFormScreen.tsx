@@ -87,6 +87,8 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
       { id: 'ing_1', name: '', quantity: '', unit: '' },
     ]
   );
+  // Focus actif pour élévation prioritaire du dongle de suggestions
+  const [activeIngIndex, setActiveIngIndex] = useState<number | null>(null);
 
   // Steps state
   const [steps, setSteps] = useState<RecipeStep[]>(
@@ -514,18 +516,31 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
               </TouchableOpacity>
             </View>
 
+            {/* En-têtes de colonnes Nom | Quantité | Unité */}
+            {ingredients.length > 0 && (
+              <View style={styles.ingredientColumnsHeader}>
+                <Text style={[styles.columnHeaderLabel, styles.colNomHeader]}>Nom</Text>
+                <Text style={[styles.columnHeaderLabel, styles.colQtyHeader]}>Quantité</Text>
+                <Text style={[styles.columnHeaderLabel, styles.colUnitHeader]}>Unité</Text>
+                <View style={styles.colActionSpacer} />
+              </View>
+            )}
+
             {ingredients.map((ing, index) => (
               <View
                 key={ing.id}
                 style={[
                   styles.ingredientCard,
-                  { zIndex: (ingredients.length - index) * 10 },
+                  {
+                    zIndex: activeIngIndex === index ? 9999 : (ingredients.length - index) * 10,
+                    elevation: activeIngIndex === index ? 20 : (ingredients.length - index),
+                  },
                 ]}
               >
                 <View style={styles.ingredientEditRow}>
                   <IngredientAutocompleteInput
-                    containerStyle={{ flex: 3 }}
-                    style={[styles.textInput, { width: '100%', marginBottom: 0 }]}
+                    containerStyle={styles.ingNameContainer}
+                    style={[styles.textInput, styles.ingNameInput]}
                     value={ing.name}
                     onChangeText={(val) => handleUpdateIngredient(index, 'name', val)}
                     onAutoExtractedDetails={(extracted) => {
@@ -536,28 +551,33 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
                         handleUpdateIngredient(index, 'unit', extracted.unit);
                       }
                     }}
-                    placeholder="Nom (ex: Farine)"
-                    placeholderTextColor={Colors.textMuted}
+                    placeholder="Ex: Farine"
+                    placeholderTextColor={colors.textMuted}
+                    onFocus={() => setActiveIngIndex(index)}
+                    onBlur={() => setActiveIngIndex(null)}
                   />
                   <TextInput
-                    style={[styles.textInput, styles.ingQtyInput, { marginBottom: 0 }]}
+                    style={[styles.textInput, styles.ingQtyInput]}
                     value={ing.quantity}
                     onChangeText={(val) => handleUpdateIngredient(index, 'quantity', val)}
-                    placeholder="Qté (ex: 200)"
-                    placeholderTextColor={Colors.textMuted}
+                    placeholder="200"
+                    placeholderTextColor={colors.textMuted}
+                    keyboardType="numeric"
                   />
                   <TextInput
-                    style={[styles.textInput, styles.ingUnitInput, { marginBottom: 0 }]}
+                    style={[styles.textInput, styles.ingUnitInput]}
                     value={ing.unit}
                     onChangeText={(val) => handleUpdateIngredient(index, 'unit', val)}
-                    placeholder="Unité (g, ml)"
-                    placeholderTextColor={Colors.textMuted}
+                    placeholder="g"
+                    placeholderTextColor={colors.textMuted}
+                    autoCapitalize="none"
                   />
                   <TouchableOpacity
                     onPress={() => handleRemoveIngredient(index)}
                     style={styles.deleteRowBtn}
+                    accessibilityLabel="Supprimer cet ingrédient"
                   >
-                    <Ionicons name="trash-outline" size={18} color={Colors.danger} />
+                    <Ionicons name="trash-outline" size={18} color={colors.danger} />
                   </TouchableOpacity>
                 </View>
 
@@ -948,17 +968,60 @@ const styles = createDynamicStyles((colors, shadows) => ({
     color: '#D97706',
     fontWeight: '700',
   },
+  ingredientColumnsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 9,
+    marginBottom: 6,
+  },
+  columnHeaderLabel: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  colNomHeader: {
+    flex: 5,
+    textAlign: 'left',
+    paddingLeft: 4,
+  },
+  colQtyHeader: {
+    flex: 1.8,
+    textAlign: 'center',
+  },
+  colUnitHeader: {
+    flex: 1.2,
+    textAlign: 'center',
+  },
+  colActionSpacer: {
+    width: 34,
+  },
+  ingNameContainer: {
+    flex: 5,
+  },
   ingNameInput: {
-    flex: 3,
+    width: '100%',
+    marginBottom: 0,
   },
   ingQtyInput: {
-    flex: 1.5,
+    flex: 1.8,
+    marginBottom: 0,
+    textAlign: 'center',
+    paddingHorizontal: 6,
   },
   ingUnitInput: {
-    flex: 1.5,
+    flex: 1.2,
+    marginBottom: 0,
+    textAlign: 'center',
+    paddingHorizontal: 4,
   },
   deleteRowBtn: {
-    padding: 8,
+    width: 34,
+    height: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   stepEditRow: {
     flexDirection: 'row',
