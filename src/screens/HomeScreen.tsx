@@ -78,37 +78,69 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const [onlyVegetarian, setOnlyVegetarian] = useState(false);
   const [isFridgeModalVisible, setIsFridgeModalVisible] = useState(false);
   const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
+  const [isRatingModalVisible, setIsRatingModalVisible] = useState(false);
   const [isMarmitonModalVisible, setIsMarmitonModalVisible] = useState(false);
   const [isAiChoiceModalVisible, setIsAiChoiceModalVisible] = useState(false);
 
-  // Double bandeau de filtres rétractable au défilement (disparaît vers le bas, réapparaît vers le haut)
+  // Double bandeau de filtres rétractable au défilement avec hystérésis et verrou anti-saccades
   const filterBarAnim = useRef(new Animated.Value(1)).current;
   const isFilterBarVisibleRef = useRef(true);
   const [isFilterBarVisible, setIsFilterBarVisible] = useState(true);
   const [filterBarHeight, setFilterBarHeight] = useState(92);
+
+  const isAnimatingRef = useRef(false);
   const prevScrollY = useRef(0);
+  const scrollDeltaAcc = useRef(0);
+  const lastAnimTimestamp = useRef(0);
 
   const showFilterBar = useCallback(() => {
-    if (!isFilterBarVisibleRef.current) {
+    if (!isFilterBarVisibleRef.current && !isAnimatingRef.current) {
       isFilterBarVisibleRef.current = true;
       setIsFilterBarVisible(true);
+      isAnimatingRef.current = true;
+      lastAnimTimestamp.current = Date.now();
       Animated.timing(filterBarAnim, {
         toValue: 1,
-        duration: 200,
+        duration: 220,
         useNativeDriver: false,
-      }).start();
+      }).start(() => {
+        isAnimatingRef.current = false;
+        scrollDeltaAcc.current = 0;
+      });
+    }
+  }, [filterBarAnim]);
+
+  const forceShowFilterBar = useCallback(() => {
+    if (!isFilterBarVisibleRef.current || isAnimatingRef.current) {
+      isFilterBarVisibleRef.current = true;
+      setIsFilterBarVisible(true);
+      isAnimatingRef.current = false;
+      filterBarAnim.stopAnimation();
+      Animated.timing(filterBarAnim, {
+        toValue: 1,
+        duration: 180,
+        useNativeDriver: false,
+      }).start(() => {
+        isAnimatingRef.current = false;
+        scrollDeltaAcc.current = 0;
+      });
     }
   }, [filterBarAnim]);
 
   const hideFilterBar = useCallback(() => {
-    if (isFilterBarVisibleRef.current) {
+    if (isFilterBarVisibleRef.current && !isAnimatingRef.current) {
       isFilterBarVisibleRef.current = false;
-      setIsFilterBarVisible(false);
+      isAnimatingRef.current = true;
+      lastAnimTimestamp.current = Date.now();
       Animated.timing(filterBarAnim, {
         toValue: 0,
         duration: 200,
         useNativeDriver: false,
-      }).start();
+      }).start(() => {
+        isAnimatingRef.current = false;
+        setIsFilterBarVisible(false);
+        scrollDeltaAcc.current = 0;
+      });
     }
   }, [filterBarAnim]);
 
@@ -116,21 +148,47 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
       const currentY = event.nativeEvent.contentOffset.y;
       const diff = currentY - prevScrollY.current;
+      prevScrollY.current = currentY;
 
-      // Toujours afficher le bandeau quand on est tout en haut de la liste
+      // Tout en haut de la liste : toujours afficher et réinitialiser
       if (currentY <= 15) {
-        showFilterBar();
-      } else if (diff > 12 && currentY > 50) {
-        // Défilement vers le bas : masquer uniquement le double bandeau de filtres
-        hideFilterBar();
-      } else if (diff < -12) {
-        // Défilement vers le haut : faire réapparaître le double bandeau de filtres
-        showFilterBar();
+        scrollDeltaAcc.current = 0;
+        if (!isFilterBarVisibleRef.current) {
+          forceShowFilterBar();
+        }
+        return;
       }
 
-      prevScrollY.current = currentY;
+      // Si une animation est en cours ou vient de se terminer (cooldown de 100ms),
+      // ignorer les à-coups et réajustements de layout internes de React Native
+      if (isAnimatingRef.current || Date.now() - lastAnimTimestamp.current < 100) {
+        return;
+      }
+
+      // Accumulation de défilement directionnel (hystérésis)
+      // Si la direction de défilement s'inverse, on remet l'accumulateur à zéro
+      if ((diff > 0 && scrollDeltaAcc.current < 0) || (diff < 0 && scrollDeltaAcc.current > 0)) {
+        scrollDeltaAcc.current = 0;
+      }
+      scrollDeltaAcc.current += diff;
+
+      // Seuils de défilement continu requis :
+      // - Défilement vers le bas soutenu d'au moins 35px pour masquer
+      // - Défilement vers le haut soutenu d'au moins 30px pour réafficher
+      const HIDE_THRESHOLD = 35;
+      const SHOW_THRESHOLD = -30;
+
+      if (scrollDeltaAcc.current > HIDE_THRESHOLD && currentY > 60) {
+        if (isFilterBarVisibleRef.current) {
+          hideFilterBar();
+        }
+      } else if (scrollDeltaAcc.current < SHOW_THRESHOLD) {
+        if (!isFilterBarVisibleRef.current) {
+          showFilterBar();
+        }
+      }
     },
-    [showFilterBar, hideFilterBar]
+    [forceShowFilterBar, hideFilterBar, showFilterBar]
   );
 
   // État du suivi des repas du jour (midi et soir)
@@ -327,7 +385,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const handleNextPage = () => {
     if (safeCurrentPage < totalPages) {
       setCurrentPage((prev) => prev + 1);
-      showFilterBar();
+      forceShowFilterBar();
       flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
     }
   };
@@ -335,7 +393,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const handlePrevPage = () => {
     if (safeCurrentPage > 1) {
       setCurrentPage((prev) => prev - 1);
-      showFilterBar();
+      forceShowFilterBar();
       flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
     }
   };
@@ -364,7 +422,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     setMinRatingFilter(0);
     setOnlyVegetarian(false);
     setCurrentPage(1);
-    showFilterBar();
+    forceShowFilterBar();
   };
 
   // En-tête de la liste défilante : "Ce que j'ai mangé aujourd'hui" (scrollable avec la liste), bandeau frigo et résumé des résultats
@@ -561,12 +619,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             value={searchQuery}
             onChangeText={(text) => {
               setSearchQuery(text);
-              showFilterBar();
+              forceShowFilterBar();
             }}
             placeholder="Rechercher ingrédients, plats, synonymes..."
             onClear={() => {
               setSearchQuery('');
-              showFilterBar();
+              forceShowFilterBar();
             }}
             onOpenFridgeSearch={() => setIsFridgeModalVisible(true)}
             activeIngredientsCount={selectedIngredients.length}
@@ -632,30 +690,37 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   </Text>
                 </TouchableOpacity>
 
-                {/* Filtre Note 5 étoiles interactif avec valeur écrite */}
-                <View style={[styles.ratingFilterBar, minRatingFilter > 0 && styles.ratingFilterBarActive]}>
-                  <StarRating
-                    rating={minRatingFilter}
-                    size={16}
-                    interactive={true}
-                    onRatingChange={(newVal) => setMinRatingFilter(newVal)}
-                    showScore={false}
-                    showClear={false}
+                {/* Bouton Filtre Note (ouvre la modale pour choisir la note minimale) */}
+                <TouchableOpacity
+                  style={[styles.toolPill, minRatingFilter > 0 && styles.ratingToolPillActive]}
+                  onPress={() => setIsRatingModalVisible(true)}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons
+                    name={minRatingFilter > 0 ? 'star' : 'star-outline'}
+                    size={13}
+                    color={minRatingFilter > 0 ? colors.amber : colors.textSecondary}
                   />
-                  <Text style={[styles.ratingFilterBarText, minRatingFilter > 0 && styles.ratingFilterBarTextActive]}>
-                    {minRatingFilter > 0 ? `≥ ${minRatingFilter.toFixed(1)}` : 'Toutes'}
+                  <Text style={[styles.toolPillText, minRatingFilter > 0 && styles.ratingToolPillTextActive]}>
+                    {minRatingFilter > 0
+                      ? `≥ ${minRatingFilter % 1 === 0 ? minRatingFilter : minRatingFilter.toFixed(1)} ★`
+                      : 'Note'}
                   </Text>
-                  {minRatingFilter > 0 && (
+                  {minRatingFilter > 0 ? (
                     <TouchableOpacity
-                      onPress={() => setMinRatingFilter(0)}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        setMinRatingFilter(0);
+                      }}
                       hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
-                      style={styles.ratingFilterBarClearBtn}
                       accessibilityLabel="Effacer le filtre de note"
                     >
-                      <Ionicons name="close-circle" size={14} color={colors.primary} />
+                      <Ionicons name="close-circle" size={13} color={colors.amber} />
                     </TouchableOpacity>
+                  ) : (
+                    <Ionicons name="chevron-down" size={11} color={colors.textMuted} />
                   )}
-                </View>
+                </TouchableOpacity>
 
                 {/* Modal de Tri (labels courts et instinctifs) */}
                 <TouchableOpacity
@@ -773,7 +838,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                     <Ionicons
                       name={option.icon as any}
                       size={18}
-                      color={sortBy === option.id ? Colors.primary : Colors.textSecondary}
+                      color={sortBy === option.id ? colors.primary : colors.textSecondary}
                     />
                     <Text
                       style={[
@@ -785,7 +850,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                     </Text>
                   </View>
                   {sortBy === option.id && (
-                    <Ionicons name="checkmark" size={18} color={Colors.primary} />
+                    <Ionicons name="checkmark" size={18} color={colors.primary} />
                   )}
                 </TouchableOpacity>
               ))}
@@ -793,6 +858,109 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               <TouchableOpacity
                 style={styles.closeSortModalBtn}
                 onPress={() => setIsFilterModalVisible(false)}
+              >
+                <Text style={styles.closeSortModalText}>Fermer</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Modal Choix de la Note minimale (style harmonisé avec la modale de Tri) */}
+        <Modal
+          visible={isRatingModalVisible}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setIsRatingModalVisible(false)}
+        >
+          <View style={styles.modalBackdrop}>
+            <View style={styles.sortModalBox}>
+              <View style={styles.modalHeaderRow}>
+                <View style={styles.modalTitleWithIcon}>
+                  <Ionicons name="star" size={20} color={colors.amber} />
+                  <Text style={styles.sortModalTitle}>Filtrer par note</Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => setIsRatingModalVisible(false)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons name="close" size={20} color={colors.textSecondary} />
+                </TouchableOpacity>
+              </View>
+
+              {/* Sélecteur d'étoiles interactif au centre avec feedback numérique */}
+              <View style={styles.ratingModalInteractiveBox}>
+                <StarRating
+                  rating={minRatingFilter}
+                  size={28}
+                  interactive={true}
+                  onRatingChange={(newVal) => setMinRatingFilter(newVal)}
+                  showScore={false}
+                  showClear={false}
+                />
+                <Text style={styles.ratingModalScoreText}>
+                  {minRatingFilter > 0
+                    ? `≥ ${minRatingFilter % 1 === 0 ? minRatingFilter : minRatingFilter.toFixed(1)} étoiles`
+                    : 'Toutes les notes (aucun filtre)'}
+                </Text>
+              </View>
+
+              {/* Options rapides pré-définies */}
+              {[
+                { value: 0, label: 'Toutes les notes' },
+                { value: 4.5, label: '4,5 étoiles et plus' },
+                { value: 4.0, label: '4,0 étoiles et plus' },
+                { value: 3.5, label: '3,5 étoiles et plus' },
+                { value: 3.0, label: '3,0 étoiles et plus' },
+              ].map((option) => {
+                const isSelected = minRatingFilter === option.value;
+                return (
+                  <TouchableOpacity
+                    key={option.value}
+                    style={[
+                      styles.sortOptionRow,
+                      isSelected && styles.sortOptionSelected,
+                    ]}
+                    onPress={() => {
+                      setMinRatingFilter(option.value);
+                      setIsRatingModalVisible(false);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.sortOptionLeft}>
+                      {option.value > 0 ? (
+                        <StarRating
+                          rating={option.value}
+                          size={14}
+                          interactive={false}
+                          showScore={false}
+                          showClear={false}
+                        />
+                      ) : (
+                        <Ionicons
+                          name="apps-outline"
+                          size={16}
+                          color={isSelected ? colors.primary : colors.textSecondary}
+                        />
+                      )}
+                      <Text
+                        style={[
+                          styles.sortOptionText,
+                          isSelected && styles.sortOptionTextActive,
+                        ]}
+                      >
+                        {option.label}
+                      </Text>
+                    </View>
+                    {isSelected && (
+                      <Ionicons name="checkmark" size={18} color={colors.primary} />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+
+              <TouchableOpacity
+                style={styles.closeSortModalBtn}
+                onPress={() => setIsRatingModalVisible(false)}
               >
                 <Text style={styles.closeSortModalText}>Fermer</Text>
               </TouchableOpacity>
@@ -1174,10 +1342,10 @@ const styles = createDynamicStyles((colors, shadows) => ({
     padding: 24,
   },
   sortModalBox: {
-    backgroundColor: Colors.cardBackground,
+    backgroundColor: colors.cardBackground,
     borderRadius: 20,
     padding: 20,
-    ...Shadows.large,
+    ...shadows.large,
   },
   modalHeaderRow: {
     flexDirection: 'row',
@@ -1185,10 +1353,15 @@ const styles = createDynamicStyles((colors, shadows) => ({
     alignItems: 'center',
     marginBottom: 16,
   },
+  modalTitleWithIcon: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   sortModalTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
   },
   sortOptionRow: {
     flexDirection: 'row',
@@ -1205,15 +1378,15 @@ const styles = createDynamicStyles((colors, shadows) => ({
     gap: 10,
   },
   sortOptionSelected: {
-    backgroundColor: Colors.primaryLight,
+    backgroundColor: colors.primaryLight,
   },
   sortOptionText: {
     fontSize: 14,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     fontWeight: '500',
   },
   sortOptionTextActive: {
-    color: Colors.primary,
+    color: colors.primary,
     fontWeight: '700',
   },
   closeSortModalBtn: {
@@ -1222,40 +1395,34 @@ const styles = createDynamicStyles((colors, shadows) => ({
     paddingVertical: 10,
   },
   closeSortModalText: {
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     fontWeight: '600',
     fontSize: 14,
   },
-  ratingFilterBar: {
-    flexDirection: 'row',
+  ratingToolPillActive: {
+    backgroundColor: colors.amberLight,
+    borderColor: colors.amber + '60',
+  },
+  ratingToolPillTextActive: {
+    color: colors.amber,
+    fontWeight: '700',
+  },
+  ratingModalInteractiveBox: {
     alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: colors.surfaceAlt,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     borderRadius: 16,
+    marginBottom: 12,
     borderWidth: 1,
     borderColor: colors.borderLight,
-    height: 32,
-    gap: 6,
   },
-  ratingFilterBarActive: {
-    backgroundColor: colors.primaryLight,
-    borderColor: colors.primary + '50',
-  },
-  ratingFilterBarText: {
-    fontSize: 11.5,
+  ratingModalScoreText: {
+    fontSize: 14,
     fontWeight: '700',
-    color: colors.textSecondary,
-    minWidth: 32,
-  },
-  ratingFilterBarTextActive: {
-    color: colors.primary,
-  },
-  ratingFilterBarClearBtn: {
-    marginLeft: -2,
-    padding: 2,
-    justifyContent: 'center',
-    alignItems: 'center',
+    color: colors.textPrimary,
+    marginTop: 8,
   },
   aiModalBackdrop: {
     flex: 1,

@@ -61,11 +61,11 @@ Une application mobile moderne, soignée et intuitive pour gérer vos recettes, 
 ### 6. ⭐ Système de Notation & Filtre par Étoiles
 - Notez vos recettes de 0.5 à 5.0 étoiles de façon épurée et immédiate (les étoiles et la note chiffrée suffisent, sans qualificatifs textuels superflus).
 - Astuces secrètes et notes personnelles mémorisées sur chaque fiche recette.
-- **Filtre par note interactif en 5 étoiles** : bandeau d'étoiles interactif directement intégré dans la barre d'outils supérieure, avec affichage de la valeur chiffrée (ex: `≥ 3.5`) et bouton d'effacement rapide.
+- **Filtre par note minimale en fenêtre modale** : bouton dédié dans la barre d'outils secondaire (`Note` ou `≥ 4 ★` avec bouton `(x)` d'effacement rapide) ouvrant une fenêtre harmonisée avec la modale de tri, combinant un sélecteur interactif 5 étoiles et des choix rapides (Toutes les notes, ≥ 4.5, ≥ 4.0, ≥ 3.5, ≥ 3.0).
 
 ### 7. 🥗 Double Bandeau de Filtres Rétractable & Boutons Verticaux
 - **Bandeau de marque & actions verticales** : l'identité Papilles avec son logo et ses actions rapides (*Marmiton*, *Scan & IA*, *Ajouter*) sont disposées de manière ordonnée à la verticale à droite, optimisant la largeur utile.
-- **Double bandeau de filtres rétractable au scroll** : la barre des catégories (*Tous, Plats, Desserts...*) et la barre des filtres secondaires (*Végé, Note interactive 5 étoiles, Tri, Effacer*) s'effacent automatiquement lors du défilement vers le bas pour libérer l'espace d'affichage, et réapparaissent instantanément dès qu'on remonte.
+- **Double bandeau de filtres rétractable au scroll fluide** : la barre des catégories (*Tous, Plats, Desserts...*) et la barre des filtres secondaires (*Végé, Note minimale, Tri, Effacer*) s'effacent automatiquement lors du défilement vers le bas pour libérer l'espace d'affichage, et réapparaissent instantanément dès qu'on remonte. Moteur anti-saccades stabilisé par hystérésis directionnelle pour une fluidité sans rebond.
 - **Barre de recherche verrouillée** : la barre de recherche et le logo restent toujours accessibles en haut de l'écran.
 - **Défilement naturel du widget quotidien** : le widget *"Ce que j'ai mangé aujourd'hui"* défile avec la liste de recettes.
 - **Navigation parfaitement centrée** : intitulés des onglets (notamment *"Courses & Étagères"* sous l'icône de panier) centrés pour une lisibilité optimale.

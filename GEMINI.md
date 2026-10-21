@@ -32,9 +32,10 @@
   - **1-Click Global Normalization**: Dedicated on-demand button in Settings ("Normaliser tous les ingrédients") allowing users to retrofit and standardize all saved recipes, grocery list items, and shelf ingredients at any time.
 - **HomeScreen Top Section & Scroll-Reactive Collapsible Double Filter Bar**:
   - Pinned top section: Brand row with logo and vertically stacked quick action buttons (Marmiton, Scan & IA, Ajouter) on the right, alongside the persistent search bar.
-  - Collapsible double filter bar: The double filter bar (categories pill bar + secondary tools: Végé toggle, inline interactive 5-star rating band with score, Sort, Reset) smoothly collapses and disappears when scrolling down, and reappears when scrolling up or returning to top.
+  - Collapsible double filter bar: The double filter bar (categories pill bar + secondary tools: Végé toggle, Star Rating modal button, Sort, Reset) smoothly collapses and disappears when scrolling down, and reappears when scrolling up or returning to top.
+  - Stabilized anti-jitter scroll engine: Uses directional hysteresis accumulation (sustained 35px threshold) and transition locks to eliminate layout oscillation loops ("descendre-remonter") across both Expo Go and production APK builds.
   - The daily meal tracking widget ("Ce que j'ai mangé aujourd'hui") and results summary remain scrollable alongside the recipe cards.
-  - The rating filter is operated directly from an inline 5-star bar supporting half-stars, with instant numeric feedback (e.g. `≥ 3.5`) and one-tap reset.
+  - Star Rating Filter Modal: Triggered from a compact toolbar pill (`Note` / `≥ 4 ★`), opening a dedicated dialog with an interactive 5-star rating preview and quick-choice presets (Toutes les notes, ≥ 4.5, ≥ 4.0, ≥ 3.5, ≥ 3.0) with checkmarks, matching the Sort modal UX.
   - Bottom Tab Bar: Centered labels across all tabs (notably "Courses & Étagères" beneath the basket icon).
 - **Settings Visual Ambiance Swatches**:
   - Active color swatches are arranged cleanly in a row directly beneath the active palette name instead of squeezed to its right.
