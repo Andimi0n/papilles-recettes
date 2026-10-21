@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '../theme/colors';
+import { Colors, createDynamicStyles } from '../theme/colors';
 
 interface EmptyStateProps {
   title: string;
@@ -34,7 +34,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const styles = createDynamicStyles((colors, shadows) => ({
   container: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -75,4 +75,4 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 14,
   },
-});
+}));

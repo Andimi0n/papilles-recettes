@@ -13,7 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Recipe, Category } from '../types/recipe';
 import { DayOfWeek, MealTime, PlannedMeal } from '../types/planner';
-import { Colors, Shadows } from '../theme/colors';
+import { Colors, Shadows, createDynamicStyles } from '../theme/colors';
 import { normalizeString } from '../utils/helpers';
 
 interface MealSlotPickerModalProps {
@@ -324,7 +324,7 @@ export const MealSlotPickerModal: React.FC<MealSlotPickerModalProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const styles = createDynamicStyles((colors, shadows) => ({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
@@ -621,4 +621,4 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.danger,
   },
-});
+}));

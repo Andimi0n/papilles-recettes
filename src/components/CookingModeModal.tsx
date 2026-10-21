@@ -15,7 +15,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useKeepAwake } from 'expo-keep-awake';
 import { Recipe, Ingredient } from '../types/recipe';
-import { Colors, Shadows } from '../theme/colors';
+import { Colors, Shadows, createDynamicStyles } from '../theme/colors';
 import {
   extractTimersFromText,
   formatTimerSeconds,
@@ -613,10 +613,10 @@ export const CookingModeModal: React.FC<CookingModeModalProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const styles = createDynamicStyles((colors, shadows) => ({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FAF8F5',
+    backgroundColor: colors.background,
   },
   container: {
     flex: 1,
@@ -1104,4 +1104,4 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     fontSize: 15,
   },
-});
+}));

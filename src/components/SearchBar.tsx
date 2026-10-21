@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, TextInput, TouchableOpacity, StyleSheet, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '../theme/colors';
+import { Colors, createDynamicStyles } from '../theme/colors';
 
 interface SearchBarProps {
   value: string;
@@ -70,7 +70,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const styles = createDynamicStyles((colors, shadows) => ({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -134,4 +134,4 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
   },
-});
+}));

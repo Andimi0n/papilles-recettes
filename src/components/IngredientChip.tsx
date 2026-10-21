@@ -1,7 +1,7 @@
 import React from 'react';
 import { Text, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '../theme/colors';
+import { Colors, createDynamicStyles } from '../theme/colors';
 
 interface IngredientChipProps {
   label: string;
@@ -71,7 +71,7 @@ export const IngredientChip: React.FC<IngredientChipProps> = ({
   return content;
 };
 
-const styles = StyleSheet.create({
+const styles = createDynamicStyles((colors, shadows) => ({
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -111,4 +111,4 @@ const styles = StyleSheet.create({
   removeBtn: {
     marginLeft: 6,
   },
-});
+}));

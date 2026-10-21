@@ -13,7 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { Recipe, Category, Difficulty, Ingredient, RecipeStep } from '../types/recipe';
-import { Colors, Shadows } from '../theme/colors';
+import { Colors, Shadows, createDynamicStyles } from '../theme/colors';
 import { StarRating } from '../components/StarRating';
 import { generateUniqueId } from '../utils/helpers';
 
@@ -438,7 +438,9 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
                 size={28}
                 interactive={true}
                 onRatingChange={setRating}
+                showScore={true}
                 showLabel={true}
+                showClear={rating > 0}
               />
             </View>
 
@@ -536,7 +538,7 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const styles = createDynamicStyles((colors, shadows) => ({
   safeArea: {
     flex: 1,
     backgroundColor: Colors.background,
@@ -957,4 +959,4 @@ const styles = StyleSheet.create({
     color: '#16A34A',
     fontWeight: '700',
   },
-});
+}));

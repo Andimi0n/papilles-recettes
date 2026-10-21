@@ -15,7 +15,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
-import { Colors, Shadows } from '../theme/colors';
+import { Colors, Shadows, createDynamicStyles } from '../theme/colors';
 import {
   RecipeAiService,
   ExtractedRecipeData,
@@ -777,7 +777,7 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const styles = createDynamicStyles((colors, shadows) => ({
   safeArea: {
     flex: 1,
     backgroundColor: Colors.background,
@@ -1307,4 +1307,4 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 14,
   },
-});
+}));

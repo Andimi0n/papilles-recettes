@@ -1,7 +1,7 @@
 import React from 'react';
 import { ScrollView, Text, TouchableOpacity, StyleSheet, View } from 'react-native';
 import { Category } from '../types/recipe';
-import { Colors } from '../theme/colors';
+import { Colors, createDynamicStyles } from '../theme/colors';
 
 interface CategoryPillsProps {
   categories: Category[];
@@ -55,7 +55,7 @@ export const CategoryPills: React.FC<CategoryPillsProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const styles = createDynamicStyles((colors, shadows) => ({
   container: {
     paddingVertical: 8,
   },
@@ -103,4 +103,4 @@ const styles = StyleSheet.create({
   badgeTextSelected: {
     color: '#FFFFFF',
   },
-});
+}));

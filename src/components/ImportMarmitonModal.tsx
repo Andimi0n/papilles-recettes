@@ -13,7 +13,7 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Shadows } from '../theme/colors';
+import { Colors, Shadows, createDynamicStyles } from '../theme/colors';
 import { MarmitonService, MarmitonSearchResult } from '../services/marmitonService';
 import { Recipe } from '../types/recipe';
 
@@ -327,7 +327,7 @@ export const ImportMarmitonModal: React.FC<ImportMarmitonModalProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const styles = createDynamicStyles((colors, shadows) => ({
   backdrop: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -599,4 +599,4 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingHorizontal: 20,
   },
-});
+}));

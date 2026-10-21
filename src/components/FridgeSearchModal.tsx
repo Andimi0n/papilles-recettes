@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Recipe } from '../types/recipe';
-import { Colors, Shadows } from '../theme/colors';
+import { Colors, Shadows, createDynamicStyles } from '../theme/colors';
 import { IngredientChip } from './IngredientChip';
 import { extractUniqueIngredientNames, normalizeString, generateUniqueId } from '../utils/helpers';
 import { RecipeAiService } from '../services/recipeAiService';
@@ -495,7 +495,7 @@ export const FridgeSearchModal: React.FC<FridgeSearchModalProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const styles = createDynamicStyles((colors, shadows) => ({
   safeArea: {
     flex: 1,
     backgroundColor: Colors.background,
@@ -805,4 +805,4 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
   },
-});
+}));

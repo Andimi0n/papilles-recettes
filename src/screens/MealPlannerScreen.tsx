@@ -13,7 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Recipe } from '../types/recipe';
 import { DayOfWeek, MealTime, PlannedMeal, WeeklyPlanMap } from '../types/planner';
 import { StorageService } from '../services/storageService';
-import { Colors, Shadows } from '../theme/colors';
+import { Colors, Shadows, createDynamicStyles } from '../theme/colors';
 import { MealSlotPickerModal } from '../components/MealSlotPickerModal';
 import { generateUniqueId } from '../utils/helpers';
 
@@ -509,7 +509,7 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const styles = createDynamicStyles((colors, shadows) => ({
   safeArea: {
     flex: 1,
     backgroundColor: Colors.background,
@@ -760,4 +760,4 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.primary,
   },
-});
+}));

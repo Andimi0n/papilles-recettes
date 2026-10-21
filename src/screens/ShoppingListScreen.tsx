@@ -17,7 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { ShoppingItem, ShoppingAisle } from '../types/shopping';
 import { StorageService } from '../services/storageService';
-import { Colors, Shadows } from '../theme/colors';
+import { Colors, Shadows, createDynamicStyles } from '../theme/colors';
 import { AISLE_CONFIGS, ALL_AISLES } from '../utils/aisleClassifier';
 import { groupItemsByAisle, formatShoppingListForShare } from '../utils/shoppingAggregator';
 
@@ -637,7 +637,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const styles = createDynamicStyles((colors, shadows) => ({
   safeArea: {
     flex: 1,
     backgroundColor: Colors.background,
@@ -1038,4 +1038,4 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: Colors.textPrimary,
   },
-});
+}));
