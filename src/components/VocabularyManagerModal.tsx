@@ -151,6 +151,27 @@ export const VocabularyManagerModal: React.FC<VocabularyManagerModalProps> = ({
     );
   };
 
+  const handlePromoteAlias = (alias: string, parent: CanonicalIngredient) => {
+    Alert.alert(
+      'Créer un ingrédient distinct',
+      `Souhaitez-vous détacher "${alias}" de "${parent.canonicalName}" et l'enregistrer comme ingrédient canonique à part entière avec ses propres synonymes ?`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Détacher & Créer',
+          onPress: async () => {
+            try {
+              await VocabularyService.promoteAliasToCanonical(alias, parent.defaultAisle);
+              await loadData();
+            } catch (e: any) {
+              Alert.alert('Erreur', e?.message || 'Impossible de détacher ce synonyme.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const handleOpenMerge = (source: CanonicalIngredient) => {
     setMergeSource(source);
     setMergeTargetSearch('');
@@ -339,14 +360,24 @@ export const VocabularyManagerModal: React.FC<VocabularyManagerModalProps> = ({
                       <Text style={styles.aliasLabel}>Synonymes reconnus :</Text>
                       <View style={styles.aliasTagsRow}>
                         {displayedAliases.slice(0, 4).map((alias) => (
-                          <View key={alias} style={styles.aliasTag}>
+                          <TouchableOpacity
+                            key={alias}
+                            style={styles.aliasTag}
+                            onPress={() => handlePromoteAlias(alias, item)}
+                            activeOpacity={0.7}
+                          >
                             <Text style={styles.aliasTagText}>{alias}</Text>
-                          </View>
+                            <Ionicons name="sparkles-outline" size={10} color={colors.primary} style={{ marginLeft: 3 }} />
+                          </TouchableOpacity>
                         ))}
                         {displayedAliases.length > 4 && (
-                          <View style={styles.aliasMoreTag}>
+                          <TouchableOpacity
+                            style={styles.aliasMoreTag}
+                            onPress={() => handleOpenEdit(item)}
+                            activeOpacity={0.7}
+                          >
                             <Text style={styles.aliasMoreText}>+{displayedAliases.length - 4}</Text>
-                          </View>
+                          </TouchableOpacity>
                         )}
                       </View>
                     </View>
@@ -661,6 +692,8 @@ const styles = createDynamicStyles((colors, shadows) => ({
     gap: 6,
   },
   aliasTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: colors.background,
     paddingHorizontal: 8,
     paddingVertical: 3,

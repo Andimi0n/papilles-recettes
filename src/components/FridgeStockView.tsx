@@ -141,15 +141,19 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
     const raw = (nameToAdd || newItemName).trim();
     if (!raw) return;
 
-    // Normalisation canonique stricte pour éliminer les doublons et synonymes
+    let name = raw.charAt(0).toUpperCase() + raw.slice(1);
+    // Si l'utilisateur a incorporé un contenant (ex: "boîte de petits pois"), on nettoie le contenant
     const normalized = normalizeIngredient({ name: raw });
-    const name = normalized.name || raw;
+    if (normalized.unit || normalized.quantity) {
+      name = normalized.name || name;
+    }
 
     try {
+      // Si ce nom correspondait à un synonyme existant, on le promeut délibérément
+      await VocabularyService.promoteAliasToCanonical(name, selectedAisle || undefined);
       const updated = await StorageService.addFridgeItem(name, selectedAisle || undefined);
       setItems(updated);
       VocabularyService.incrementUsage(name).catch(() => {});
-      VocabularyService.add({ canonicalName: name, defaultAisle: selectedAisle || undefined }).catch(() => {});
       if (onFridgeCountChange) {
         onFridgeCountChange(updated.length);
       }

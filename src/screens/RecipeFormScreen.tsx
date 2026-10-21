@@ -208,10 +208,11 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
     };
 
     // Enregistrement silencieux et incrémentation de l'usage dans le vocabulaire
+    // Si un ingrédient était un synonyme d'un autre, il est promu délibérément en ingrédient canonique distinct
     validIngredients.forEach((ing) => {
       const clean = ing.name.trim();
       VocabularyService.incrementUsage(clean).catch(() => {});
-      VocabularyService.add({ canonicalName: clean }).catch(() => {});
+      VocabularyService.promoteAliasToCanonical(clean).catch(() => {});
     });
 
     onSave(recipe);
@@ -450,7 +451,6 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
                 interactive={true}
                 onRatingChange={setRating}
                 showScore={true}
-                showLabel={true}
                 showClear={rating > 0}
               />
             </View>

@@ -42,11 +42,12 @@ Une application mobile moderne, soignée et intuitive pour gérer vos recettes, 
 
 ### 4. 🏷️ Lexique Canonique & Normalisation Stricte des Ingrédients
 - **Élimination automatique des synonymes et contenants** : fini les doublons entre *"boîte de petits pois"* et *"petits pois"*, *"noix de muscade"* et *"muscade"*, ou *"carotte épluchée"* et *"carotte"*.
+- **Création délibérée d'ingrédients distincts & détachement de synonymes** : si vous choisissez délibérément de saisir un terme qui était enregistré comme synonyme (ex: conserver *"Noix de muscade"* au lieu d'accepter *"Muscade"*), l'application détache automatiquement cet alias et ses variantes proches du parent et le promeut en ingrédient canonique à part entière avec ses propres synonymes.
 - **Pipeline hybride intelligent** : guidage strict de l'IA (Gemini 3.8 Flash) en amont, couplé à un moteur de nettoyage déterministe local (`IngredientNormalizer`) qui résout instantanément vers le nom canonique officiel.
 - **Respect absolu des instructions** : la normalisation s'applique **exclusivement aux ingrédients** ; les étapes et instructions de préparation restent 100% fidèles et intouchées.
-- **Autocomplétion prédictive réactive** : composant de saisie avec liste déroulante suggérant les termes officiels et leurs rayons en direct lors de la création de recettes ou de l'ajout aux étagères.
+- **Autocomplétion prédictive réactive** : composant de saisie avec liste déroulante suggérant les termes officiels et permettant de choisir en 1 clic de conserver un ingrédient distinct.
 - **Harmonisation en 1 clic ("Normaliser tous les ingrédients")** : bouton disponible dans les Paramètres permettant d'analyser et de standardiser rétroactivement l'ensemble de vos recettes, listes de courses et étagères avec compte-rendu précis.
-- **Gestionnaire de vocabulaire complet** : accessible dans les Paramètres pour consulter les ~350 ingrédients canoniques, rechercher par rayon, renommer, ajouter des alias personnalisés, fusionner des doublons ou réinitialiser.
+- **Gestionnaire de vocabulaire complet** : accessible dans les Paramètres pour consulter les ~350 ingrédients canoniques, rechercher par rayon, renommer, ajouter des alias personnalisés, détacher des synonymes en 1 clic, fusionner des doublons ou réinitialiser.
 
 ### 5. 📷 Scanner de Recettes par IA (Gemini BYOK) & Import Web
 - **Scanner Photo & Texte (IA Multimodale)** :
@@ -57,19 +58,19 @@ Une application mobile moderne, soignée et intuitive pour gérer vos recettes, 
   - Modèle **BYOK (Bring Your Own Key)** : votre clé API Google AI Studio reste stockée localement de manière chiffrée.
 - **Import Web Marmiton** : importez instantanément n'importe quelle recette Marmiton en collant son URL.
 
-### 6. ⭐ Système de Notation & Avis Détaillés
-- Notez vos recettes de 0.5 à 5.0 étoiles avec retour qualitatif dynamique (*"Coup de cœur absolu !"*, *"Délicieux"*, *"À perfectionner"...*).
-- Notes du chef et astuces personnelles mémorisées sur chaque fiche.
-- Filtres instantanés par note (*4★ et +*) et tri par meilleures notes.
+### 6. ⭐ Système de Notation & Filtre par Étoiles
+- Notez vos recettes de 0.5 à 5.0 étoiles de façon épurée et immédiate (les étoiles et la note chiffrée suffisent, sans qualificatifs textuels superflus).
+- Astuces secrètes et notes personnelles mémorisées sur chaque fiche recette.
+- **Filtre par note interactif en 5 étoiles** : bandeau d'étoiles interactif directement intégré dans la barre d'outils supérieure, avec affichage de la valeur chiffrée (ex: `≥ 3.5`) et bouton d'effacement rapide.
 
-### 7. 🥗 Recherche Intelligente & Frigo
-- Moteur de recherche instantané par titre, ingrédients ou tags.
-- Filtres par catégories (Entrées, Plats, Desserts, Apéro, Végétarien...).
-- Sélecteur multi-ingrédients avec suggestions d'ingrédients populaires.
+### 7. 🥗 Double Bandeau de Filtres Verrouillé & Défilement Naturel
+- **Bandeau de commandes fixe en haut d'écran** : la barre de recherche, la barre des catégories (*Tous, Plats, Desserts...*) et la barre des filtres (*Végé, Note interactive 5 étoiles, Tri, Réinitialisation*) restent toujours verrouillées au sommet de l'écran lors du défilement.
+- **Défilement naturel du widget quotidien** : le widget *"Ce que j'ai mangé aujourd'hui"* défile avec la liste de recettes pour préserver l'espace visuel.
+- Sélecteur multi-ingrédients avec suggestions d'ingrédients populaires pour le frigo.
 
 ### 8. 👨‍🍳 Mode Session Cuisine Interactif
 - Liste d'ingrédients et étapes avec cases à cocher pour suivre votre avancée pas à pas sans perdre le fil.
-- Ajustement dynamique des proportions selon le nombre de convives souhaité.
+- Ajustement dynamique des proportions selon le nombre de convives souhaité (avec réglage des convives par défaut via un sélecteur +/- précis dans les paramètres).
 - Partage clair et formaté de la recette via messagerie ou e-mail.
 
 ### 9. 💾 100% Hors-Ligne, Sécurisé & Sauvegarde

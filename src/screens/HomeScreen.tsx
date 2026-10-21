@@ -75,7 +75,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const [onlyVegetarian, setOnlyVegetarian] = useState(false);
   const [isFridgeModalVisible, setIsFridgeModalVisible] = useState(false);
   const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
-  const [isRatingModalVisible, setIsRatingModalVisible] = useState(false);
   const [isMarmitonModalVisible, setIsMarmitonModalVisible] = useState(false);
   const [isAiChoiceModalVisible, setIsAiChoiceModalVisible] = useState(false);
 
@@ -310,11 +309,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     setCurrentPage(1);
   };
 
-  // En-tête de la liste (filtres, catégories, résultats) - mémorisé pour éviter tout re-render intempestif
+  // En-tête de la liste défilante : "Ce que j'ai mangé aujourd'hui" (scrollable avec la liste), bandeau frigo et résumé des résultats
   const listHeaderElement = useMemo(
     () => (
       <View style={styles.listHeaderContainer}>
-        {/* Widget Suivi des Repas du Jour */}
+        {/* Widget Suivi des Repas du Jour (défile avec les cartes de recettes) */}
         <TodayMealWidget
           todayLunch={todayMeals.lunch}
           todayDinner={todayMeals.dinner}
@@ -340,109 +339,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           </View>
         )}
 
-        {/* Catégories Pills (Multi-sélection activable / désactivable en 1 tap) */}
-        <CategoryPills
-          categories={CATEGORIES}
-          selectedCategories={selectedCategories}
-          onToggleCategory={handleToggleCategory}
-          recipeCountByCategory={recipeCountByCategory}
-        />
-
-        {/* Barre d'outils secondaire scrollable horizontalement (Végé, Note, Tri, Reset) */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filterToolbarScroll}
-        >
-          {/* Végétarien Toggle Pill */}
-          <TouchableOpacity
-            style={[styles.toolPill, onlyVegetarian && styles.vegeToolPillActive]}
-            onPress={() => setOnlyVegetarian(!onlyVegetarian)}
-            activeOpacity={0.7}
-          >
-            <Ionicons
-              name="leaf"
-              size={13}
-              color={onlyVegetarian ? (isDark ? '#4ADE80' : '#15803D') : colors.textSecondary}
-            />
-            <Text style={[styles.toolPillText, onlyVegetarian && styles.vegeToolPillTextActive]}>
-              Végé
-            </Text>
-          </TouchableOpacity>
-
-          {/* Filtre Note minimale (0.5★+, 1★+, 2★+, etc.) */}
-          <TouchableOpacity
-            style={[styles.toolPill, minRatingFilter > 0 && styles.toolPillActive]}
-            onPress={() => setIsRatingModalVisible(true)}
-            activeOpacity={0.7}
-          >
-            <Ionicons
-              name={minRatingFilter > 0 ? 'star' : 'star-outline'}
-              size={13}
-              color={minRatingFilter > 0 ? colors.amber : colors.textSecondary}
-            />
-            <Text style={[styles.toolPillText, minRatingFilter > 0 && styles.toolPillTextActive]}>
-              {minRatingFilter > 0
-                ? minRatingFilter === 0.5
-                  ? 'Notées (0.5★+)'
-                  : `${minRatingFilter}★ et +`
-                : 'Toutes notes'}
-            </Text>
-            {minRatingFilter > 0 ? (
-              <TouchableOpacity
-                onPress={(e) => {
-                  e.stopPropagation();
-                  setMinRatingFilter(0);
-                }}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                style={styles.pillClearBtn}
-                accessibilityLabel="Réinitialiser le filtre de note"
-              >
-                <Ionicons name="close-circle" size={13} color={colors.primary} />
-              </TouchableOpacity>
-            ) : (
-              <Ionicons
-                name="chevron-down"
-                size={11}
-                color={colors.textMuted}
-              />
-            )}
-          </TouchableOpacity>
-
-          {/* Modal de Tri (labels courts et instinctifs) */}
-          <TouchableOpacity
-            style={[styles.toolPill, styles.sortToolPill]}
-            onPress={() => setIsFilterModalVisible(true)}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="swap-vertical" size={13} color={colors.textSecondary} />
-            <Text style={styles.toolPillText}>
-              Tri : {sortBy === 'rating_desc'
-                ? 'Note'
-                : sortBy === 'prep_time'
-                ? 'Temps'
-                : sortBy === 'title'
-                ? 'A-Z'
-                : 'Date'}
-            </Text>
-            <Ionicons name="chevron-down" size={11} color={colors.textMuted} />
-          </TouchableOpacity>
-
-          {/* Bouton Effacer les filtres si au moins un filtre est actif */}
-          {(minRatingFilter > 0 ||
-            onlyVegetarian ||
-            (selectedCategories.length > 0 && !selectedCategories.includes('Tous'))) && (
-            <TouchableOpacity
-              style={styles.resetFilterPill}
-              onPress={handleResetAllFilters}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="close-circle" size={13} color={colors.textSecondary} />
-              <Text style={styles.resetFilterPillText}>Effacer filtres</Text>
-            </TouchableOpacity>
-          )}
-        </ScrollView>
-
         {/* Résumé des résultats & indicateur recherche intelligente */}
         <View style={styles.resultsCountRow}>
           <Text style={styles.resultsCountText}>
@@ -460,20 +356,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       </View>
     ),
     [
-      themeId,
-      isDark,
-      colors,
+      todayMeals,
       selectedIngredients,
-      selectedCategories,
-      recipeCountByCategory,
-      onlyVegetarian,
-      minRatingFilter,
-      sortBy,
       filteredRecipes.length,
-      searchQuery,
       safeCurrentPage,
       totalPages,
-      todayMeals,
+      searchQuery,
+      colors,
       onNavigateToJournal,
     ]
   );
@@ -618,6 +507,96 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             onOpenFridgeSearch={() => setIsFridgeModalVisible(true)}
             activeIngredientsCount={selectedIngredients.length}
           />
+
+          {/* Double bandeau de filtres vérouillé à l'écran sous la recherche */}
+          {/* Bandeau 1 : Catégories (Tous, Entrées, Plats, Desserts...) */}
+          <CategoryPills
+            categories={CATEGORIES}
+            selectedCategories={selectedCategories}
+            onToggleCategory={handleToggleCategory}
+            recipeCountByCategory={recipeCountByCategory}
+          />
+
+          {/* Bandeau 2 : Filtres secondaires vérouillés (Végé, Note interactive 5 étoiles, Tri, Reset) */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filterToolbarScroll}
+          >
+            {/* Végétarien Toggle Pill */}
+            <TouchableOpacity
+              style={[styles.toolPill, onlyVegetarian && styles.vegeToolPillActive]}
+              onPress={() => setOnlyVegetarian(!onlyVegetarian)}
+              activeOpacity={0.7}
+            >
+              <Ionicons
+                name="leaf"
+                size={13}
+                color={onlyVegetarian ? (isDark ? '#4ADE80' : '#15803D') : colors.textSecondary}
+              />
+              <Text style={[styles.toolPillText, onlyVegetarian && styles.vegeToolPillTextActive]}>
+                Végé
+              </Text>
+            </TouchableOpacity>
+
+            {/* Filtre Note 5 étoiles interactif avec valeur écrite */}
+            <View style={[styles.ratingFilterBar, minRatingFilter > 0 && styles.ratingFilterBarActive]}>
+              <StarRating
+                rating={minRatingFilter}
+                size={16}
+                interactive={true}
+                onRatingChange={(newVal) => setMinRatingFilter(newVal)}
+                showScore={false}
+                showClear={false}
+              />
+              <Text style={[styles.ratingFilterBarText, minRatingFilter > 0 && styles.ratingFilterBarTextActive]}>
+                {minRatingFilter > 0 ? `≥ ${minRatingFilter.toFixed(1)}` : 'Toutes'}
+              </Text>
+              {minRatingFilter > 0 && (
+                <TouchableOpacity
+                  onPress={() => setMinRatingFilter(0)}
+                  hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+                  style={styles.ratingFilterBarClearBtn}
+                  accessibilityLabel="Effacer le filtre de note"
+                >
+                  <Ionicons name="close-circle" size={14} color={colors.primary} />
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* Modal de Tri (labels courts et instinctifs) */}
+            <TouchableOpacity
+              style={[styles.toolPill, styles.sortToolPill]}
+              onPress={() => setIsFilterModalVisible(true)}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="swap-vertical" size={13} color={colors.textSecondary} />
+              <Text style={styles.toolPillText}>
+                Tri : {sortBy === 'rating_desc'
+                  ? 'Note'
+                  : sortBy === 'prep_time'
+                  ? 'Temps'
+                  : sortBy === 'title'
+                  ? 'A-Z'
+                  : 'Date'}
+              </Text>
+              <Ionicons name="chevron-down" size={11} color={colors.textMuted} />
+            </TouchableOpacity>
+
+            {/* Bouton Effacer les filtres si au moins un filtre est actif */}
+            {(minRatingFilter > 0 ||
+              onlyVegetarian ||
+              (selectedCategories.length > 0 && !selectedCategories.includes('Tous'))) && (
+              <TouchableOpacity
+                style={styles.resetFilterPill}
+                onPress={handleResetAllFilters}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="close-circle" size={13} color={colors.textSecondary} />
+                <Text style={styles.resetFilterPillText}>Effacer filtres</Text>
+              </TouchableOpacity>
+            )}
+          </ScrollView>
         </View>
 
         {/* Liste des recettes avec pagination (20 par page) et virtualisation haute performance */}
@@ -720,129 +699,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               >
                 <Text style={styles.closeSortModalText}>Fermer</Text>
               </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
-
-        {/* Modal Filtre par Note minimale */}
-        <Modal
-          visible={isRatingModalVisible}
-          transparent={true}
-          animationType="fade"
-          onRequestClose={() => setIsRatingModalVisible(false)}
-        >
-          <View style={styles.modalBackdrop}>
-            <View style={styles.sortModalBox}>
-              <View style={styles.modalHeaderRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.sortModalTitle}>Filtrer par note</Text>
-                  <Text style={styles.ratingModalSubtitle}>
-                    {minRatingFilter > 0
-                      ? minRatingFilter === 0.5
-                        ? 'Afficher les recettes notées (au moins 0.5★)'
-                        : `Recettes avec au moins ${minRatingFilter}★`
-                      : 'Toutes les recettes (sans filtre)'}
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  onPress={() => setIsRatingModalVisible(false)}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  <Ionicons name="close" size={20} color={Colors.textSecondary} />
-                </TouchableOpacity>
-              </View>
-
-              {/* Sélecteur d'étoiles interactif direct */}
-              <View style={styles.ratingFilterInteractiveCard}>
-                <Text style={styles.ratingFilterInteractiveTitle}>
-                  Touchez les étoiles pour choisir la note minimale :
-                </Text>
-                <View style={styles.ratingFilterStarsContainer}>
-                  <StarRating
-                    rating={minRatingFilter}
-                    size={32}
-                    interactive={true}
-                    showScore={true}
-                    showClear={minRatingFilter > 0}
-                    onRatingChange={(newVal) => setMinRatingFilter(newVal)}
-                  />
-                </View>
-                <Text style={styles.ratingFilterInteractiveHint}>
-                  Astuce : touchez la gauche d'une étoile pour 0.5★ ou tapotez 2 fois.
-                </Text>
-              </View>
-
-              {/* Options prédéfinies rapides */}
-              <ScrollView style={{ maxHeight: 240 }} showsVerticalScrollIndicator={false}>
-                {[
-                  { min: 0, label: 'Toutes les notes', subtitle: 'Tout afficher, y compris non notées', icon: 'star-outline' },
-                  { min: 0.5, label: 'Notées uniquement (0.5★ et +)', subtitle: 'Toutes les recettes avec avis (remplace les favoris)', icon: 'star-half' },
-                  { min: 1, label: '1★ et +', icon: 'star' },
-                  { min: 2, label: '2★ et +', icon: 'star' },
-                  { min: 3, label: '3★ et +', subtitle: 'Bonnes recettes', icon: 'star' },
-                  { min: 3.5, label: '3.5★ et +', subtitle: 'Très bonnes recettes', icon: 'star-half' },
-                  { min: 4, label: '4★ et +', subtitle: 'Excellentes recettes', icon: 'star' },
-                  { min: 4.5, label: '4.5★ et +', subtitle: 'Recettes remarquables', icon: 'star' },
-                  { min: 5, label: '5★ (Coups de cœur)', subtitle: 'La perfection culinaire', icon: 'star' },
-                ].map((opt) => (
-                  <TouchableOpacity
-                    key={opt.min}
-                    style={[
-                      styles.sortOptionRow,
-                      minRatingFilter === opt.min && styles.sortOptionSelected,
-                    ]}
-                    onPress={() => {
-                      setMinRatingFilter(opt.min);
-                      setIsRatingModalVisible(false);
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    <View style={styles.sortOptionLeft}>
-                      <Ionicons
-                        name={opt.icon as any}
-                        size={18}
-                        color={minRatingFilter === opt.min ? Colors.amber : Colors.textSecondary}
-                      />
-                      <View style={{ flex: 1 }}>
-                        <Text
-                          style={[
-                            styles.sortOptionText,
-                            minRatingFilter === opt.min && styles.sortOptionTextActive,
-                          ]}
-                        >
-                          {opt.label}
-                        </Text>
-                        {opt.subtitle ? (
-                          <Text style={styles.ratingOptionSubtitle}>{opt.subtitle}</Text>
-                        ) : null}
-                      </View>
-                    </View>
-                    {minRatingFilter === opt.min && (
-                      <Ionicons name="checkmark" size={18} color={Colors.primary} />
-                    )}
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-
-              <View style={styles.ratingModalActions}>
-                {minRatingFilter > 0 ? (
-                  <TouchableOpacity
-                    style={styles.ratingResetBtn}
-                    onPress={() => {
-                      setMinRatingFilter(0);
-                      setIsRatingModalVisible(false);
-                    }}
-                  >
-                    <Text style={styles.ratingResetBtnText}>Réinitialiser</Text>
-                  </TouchableOpacity>
-                ) : null}
-                <TouchableOpacity
-                  style={[styles.ratingApplyBtn, minRatingFilter === 0 && { width: '100%' }]}
-                  onPress={() => setIsRatingModalVisible(false)}
-                >
-                  <Text style={styles.ratingApplyBtnText}>Fermer</Text>
-                </TouchableOpacity>
-              </View>
             </View>
           </View>
         </Modal>
@@ -984,7 +840,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 const styles = createDynamicStyles((colors, shadows) => ({
   safeArea: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: colors.background,
   },
   container: {
     flex: 1,
@@ -993,7 +849,7 @@ const styles = createDynamicStyles((colors, shadows) => ({
     backgroundColor: colors.background,
     borderBottomWidth: 1,
     borderBottomColor: colors.borderLight,
-    paddingBottom: 4,
+    paddingBottom: 6,
     zIndex: 10,
   },
   listContent: {
@@ -1131,17 +987,18 @@ const styles = createDynamicStyles((colors, shadows) => ({
   toolPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.cardBackground,
+    backgroundColor: colors.cardBackground,
     paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingVertical: 5,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: colors.borderLight,
+    height: 32,
     gap: 5,
   },
   toolPillActive: {
-    backgroundColor: Colors.primaryLight,
-    borderColor: Colors.primary,
+    backgroundColor: colors.primaryLight,
+    borderColor: colors.primary,
   },
   vegeToolPillActive: {
     backgroundColor: colors.isDark ? '#143823' : '#DCFCE7',
@@ -1165,18 +1022,19 @@ const styles = createDynamicStyles((colors, shadows) => ({
   resetFilterPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.surfaceAlt,
+    backgroundColor: colors.surfaceAlt,
     paddingHorizontal: 9,
-    paddingVertical: 6,
+    paddingVertical: 5,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: colors.borderLight,
+    height: 32,
     gap: 4,
   },
   resetFilterPillText: {
     fontSize: 12,
     fontWeight: '600',
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
   },
   resultsCountRow: {
     flexDirection: 'row',
@@ -1266,72 +1124,36 @@ const styles = createDynamicStyles((colors, shadows) => ({
     fontWeight: '600',
     fontSize: 14,
   },
-  ratingModalSubtitle: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-    marginTop: 2,
-  },
-  ratingFilterInteractiveCard: {
-    backgroundColor: Colors.surfaceAlt,
-    borderRadius: 14,
-    padding: 12,
-    marginBottom: 12,
-    alignItems: 'center',
-  },
-  ratingFilterInteractiveTitle: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: Colors.textSecondary,
-    marginBottom: 8,
-  },
-  ratingFilterStarsContainer: {
-    paddingVertical: 4,
-  },
-  ratingFilterInteractiveHint: {
-    fontSize: 11,
-    color: Colors.textMuted,
-    marginTop: 6,
-    textAlign: 'center',
-    fontStyle: 'italic',
-  },
-  ratingOptionSubtitle: {
-    fontSize: 11,
-    color: Colors.textMuted,
-    marginTop: 1,
-  },
-  ratingModalActions: {
+  ratingFilterBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    marginTop: 14,
+    backgroundColor: colors.surfaceAlt,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    height: 32,
+    gap: 6,
   },
-  ratingResetBtn: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 12,
-    backgroundColor: Colors.surfaceAlt,
-    alignItems: 'center',
+  ratingFilterBarActive: {
+    backgroundColor: colors.primaryLight,
+    borderColor: colors.primary + '50',
   },
-  ratingResetBtnText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: Colors.danger,
-  },
-  ratingApplyBtn: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 12,
-    backgroundColor: Colors.primary,
-    alignItems: 'center',
-  },
-  ratingApplyBtnText: {
-    fontSize: 13,
+  ratingFilterBarText: {
+    fontSize: 11.5,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.textSecondary,
+    minWidth: 32,
   },
-  pillClearBtn: {
-    marginLeft: 4,
+  ratingFilterBarTextActive: {
+    color: colors.primary,
+  },
+  ratingFilterBarClearBtn: {
+    marginLeft: -2,
     padding: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   aiModalBackdrop: {
     flex: 1,

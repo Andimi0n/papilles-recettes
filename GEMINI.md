@@ -6,7 +6,7 @@
 
 ### Core Capabilities
 - **Recipe Management (CRUD)**: Create, edit, and organize recipes with ingredients, scaled servings, preparation steps, tags, and photos.
-- **Interactive Rating System**: 0.5 to 5.0 star rating system with qualitative feedback labels and quick filtering/sorting.
+- **Interactive Rating System**: 0.5 to 5.0 star rating system (stars only, without redundant verbal labels) with inline interactive star filtering and instant sorting.
 - **Multimodal AI Recipe Scanner**: Extract recipes from camera captures, gallery photos (single/multi-photo recto & verso), or raw text using Google Gemini (`gemini-3.8-flash`) via a Bring-Your-Own-Key (BYOK) model.
 - **Smart Fridge Search ("Mon Frigo")**: In-memory matching engine that scores and surfaces recipes matching on-hand ingredients.
 - **Interactive Cooking Mode**: Step-by-step hands-free cooking assistant with checkboxes for ingredients and instructions.
@@ -23,12 +23,19 @@
   - Pinned top controls: Locked "Ajouter un aliment" bar and "Ajout rapide en 1 clic" suggestion chips stay fixed at the top of the screen, while "Que cuisiner aujourd'hui ?" and categorized pantry items scroll smoothly beneath.
 - **Strict Ingredient Vocabulary & Normalization Engine ("Lexique Canonique")**:
   - Eliminates synonyms and noisy prefixes/qualifiers across all entry points: maps `"boîte de petits pois"` -> `"Petits pois"`, `"noix de muscade"` -> `"Muscade"`, `"carottes épluchées"` -> `"Carotte"`.
+  - **Deliberate Synonym Promotion**: If a user explicitly chooses or types a synonym (e.g. keeps `"Noix de muscade"` instead of accepting `"Muscade"`), the engine automatically detaches this synonym and all closely related variants from the parent ingredient and promotes it into a full-fledged independent canonical ingredient with its own aliases and aisle.
   - Hybrid AI & deterministic local pipeline: enhanced few-shot prompting in Gemini 3.8 Flash, followed by deterministic local parsing (`IngredientNormalizer`).
   - Applied strictly to ingredient names only; recipe steps (`steps`) remain 100% verbatim and untouched.
-  - Instant autocomplete dropdown (`IngredientAutocompleteInput`) for recipe creation/edition and pantry stock additions.
+  - Instant autocomplete dropdown (`IngredientAutocompleteInput`) proposing normalized matches as well as a 1-tap option to keep and create deliberate synonyms as distinct ingredients.
   - Silent background learning of new ingredients and usage frequencies.
-  - Full dedicated Vocabulary Manager in Settings (`VocabularyManagerModal`) allowing users to browse, search by aisle, rename, edit aliases, merge duplicates, and reset to defaults.
+  - Full dedicated Vocabulary Manager in Settings (`VocabularyManagerModal`) allowing users to browse, search by aisle, rename, edit aliases, detach aliases into distinct ingredients with 1 tap, merge duplicates, and reset to defaults.
   - **1-Click Global Normalization**: Dedicated on-demand button in Settings ("Normaliser tous les ingrédients") allowing users to retrofit and standardize all saved recipes, grocery list items, and shelf ingredients at any time.
+- **HomeScreen Pinned Double Filter Bar & Inline Star Filter**:
+  - Pinned top section: Brand row, search bar, and the double filter bar (categories pill bar + secondary tools: Végé toggle, inline interactive 5-star rating band with score, Sort, Reset) remain locked at the top of the screen during scrolling.
+  - The daily meal tracking widget ("Ce que j'ai mangé aujourd'hui") and results summary remain scrollable alongside the recipe cards.
+  - The rating filter is operated directly from an inline 5-star bar supporting half-stars, with instant numeric feedback (e.g. `≥ 3.5`) and one-tap reset.
+- **Culinary Preferences & Default Servings Stepper**:
+  - User-configurable default servings managed via an intuitive `[-]` / `[+]` stepper in Settings (1 to 50 persons).
 - **Categorized Shopping List**: Auto-generates items from recipes or meal plans, auto-classifying ingredients into supermarket aisles.
 - **Dual Artistic Directions & Dynamic Theming**:
   - Light: *Jardin Botanique & Slow Food* (forest evergreen, celadon, almond mist).

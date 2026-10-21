@@ -3,7 +3,6 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, createDynamicStyles } from '../theme/colors';
 import { useTheme } from '../theme/ThemeContext';
-import { getRatingLabel } from '../utils/helpers';
 
 interface StarRatingProps {
   rating: number; // 0 à 5 (par pas de 0.5)
@@ -123,12 +122,6 @@ export const StarRating: React.FC<StarRatingProps> = ({
       {showScore && (
         <Text style={[styles.scoreText, { fontSize: Math.max(12, size * 0.65) }]}>
           {currentRating > 0 ? currentRating.toFixed(1) : '-'}
-        </Text>
-      )}
-
-      {showLabel && (
-        <Text style={styles.labelText}>
-          {getRatingLabel(currentRating)}
         </Text>
       )}
 

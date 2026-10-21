@@ -446,27 +446,47 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
               Nombre de convives par défaut pour les nouvelles recettes et le calcul des portions.
             </Text>
 
-            <View style={styles.servingsRow}>
-              {[1, 2, 4, 6, 8].map((s) => (
-                <TouchableOpacity
-                  key={s}
-                  style={[
-                    styles.servingPill,
-                    defaultServings === s && styles.servingPillActive,
-                  ]}
-                  onPress={() => handleSelectServings(s)}
-                  activeOpacity={0.7}
-                >
-                  <Text
-                    style={[
-                      styles.servingPillText,
-                      defaultServings === s && styles.servingPillTextActive,
-                    ]}
-                  >
-                    {s} {s === 1 ? 'pers.' : 'pers.'}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+            <View style={styles.servingsStepperRow}>
+              <TouchableOpacity
+                style={[
+                  styles.stepperBtn,
+                  defaultServings <= 1 && styles.stepperBtnDisabled,
+                ]}
+                onPress={() => handleSelectServings(Math.max(1, defaultServings - 1))}
+                disabled={defaultServings <= 1}
+                activeOpacity={0.7}
+                accessibilityLabel="Diminuer le nombre de convives"
+              >
+                <Ionicons
+                  name="remove"
+                  size={20}
+                  color={defaultServings <= 1 ? colors.textMuted : colors.textPrimary}
+                />
+              </TouchableOpacity>
+
+              <View style={styles.stepperValueContainer}>
+                <Ionicons name="people" size={18} color={colors.primary} />
+                <Text style={styles.stepperValueText}>
+                  {defaultServings} {defaultServings > 1 ? 'personnes' : 'personne'}
+                </Text>
+              </View>
+
+              <TouchableOpacity
+                style={[
+                  styles.stepperBtn,
+                  defaultServings >= 50 && styles.stepperBtnDisabled,
+                ]}
+                onPress={() => handleSelectServings(Math.min(50, defaultServings + 1))}
+                disabled={defaultServings >= 50}
+                activeOpacity={0.7}
+                accessibilityLabel="Augmenter le nombre de convives"
+              >
+                <Ionicons
+                  name="add"
+                  size={20}
+                  color={colors.textPrimary}
+                />
+              </TouchableOpacity>
             </View>
           </View>
 
@@ -879,32 +899,44 @@ const styles = createDynamicStyles((colors, shadows) => ({
     color: colors.textSecondary,
     lineHeight: 17,
   },
-  servingsRow: {
+  servingsStepperRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 8,
-  },
-  servingPill: {
-    flex: 1,
-    paddingVertical: 10,
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: 12,
     alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: colors.borderLight,
+    padding: 6,
   },
-  servingPillActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+  stepperBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 11,
+    backgroundColor: colors.cardBackground,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    ...shadows.small,
   },
-  servingPillText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textSecondary,
+  stepperBtnDisabled: {
+    opacity: 0.35,
+    backgroundColor: colors.surfaceAlt,
+    elevation: 0,
+    shadowOpacity: 0,
   },
-  servingPillTextActive: {
-    color: '#FFFFFF',
+  stepperValueContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  stepperValueText: {
+    fontSize: 16,
     fontWeight: '700',
+    color: colors.textPrimary,
   },
   statsRow: {
     flexDirection: 'row',

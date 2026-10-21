@@ -66,26 +66,42 @@ export const IngredientAutocompleteInput: React.FC<IngredientAutocompleteInputPr
     }
   };
 
+  const handleSelectDistinct = async (name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    const formatted = trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+    onChangeText(formatted);
+    setSuggestions([]);
+    try {
+      const created = await VocabularyService.promoteAliasToCanonical(formatted);
+      if (onSelectIngredient) {
+        onSelectIngredient(created);
+      }
+    } catch (e) {
+      console.error('Erreur promotion alias canonique:', e);
+    }
+  };
+
   const handleBlur = () => {
     // Petit délai pour permettre au tap sur une suggestion d'être enregistré
     setTimeout(() => {
       setIsFocused(false);
       setSuggestions([]);
 
-      // Si l'utilisateur a tapé une chaîne brute non normalisée (ex: "boite de petits pois"),
-      // on tente une normalisation automatique discrète à la perte de focus
+      // Si l'utilisateur a tapé une chaîne avec contenants incorporés (ex: "1 boîte de petits pois"),
+      // on extrait discrètement la quantité et le contenant, sans forcer un remplacement de synonyme délibéré.
       if (value && value.trim().length > 0) {
         const result = normalizeIngredient({ name: value });
-        if (result.wasNormalized && result.name && result.name !== value.trim()) {
-          onChangeText(result.name);
-          if (
-            (result.quantity || result.unit) &&
-            onAutoExtractedDetails
-          ) {
+        // Si la normalisation a extrait un contenant/quantité (ex: boîte de...), on applique
+        if (result.quantity || result.unit) {
+          if (onAutoExtractedDetails) {
             onAutoExtractedDetails({
               quantity: result.quantity,
               unit: result.unit,
             });
+          }
+          if (result.name && result.name !== value.trim()) {
+            onChangeText(result.name);
           }
           if (result.canonicalId) {
             VocabularyService.incrementUsage(result.canonicalId).catch(() => {});
@@ -140,6 +156,30 @@ export const IngredientAutocompleteInput: React.FC<IngredientAutocompleteInputPr
               </TouchableOpacity>
             );
           })}
+
+          {value.trim().length >= 2 &&
+            !suggestions.some(
+              (s) => s.canonicalName.toLowerCase() === value.trim().toLowerCase()
+            ) && (
+              <TouchableOpacity
+                style={styles.distinctSuggestionRow}
+                onPress={() => handleSelectDistinct(value.trim())}
+                activeOpacity={0.7}
+              >
+                <View style={styles.distinctIconBadge}>
+                  <Ionicons name="sparkles" size={13} color={colors.amber} />
+                </View>
+                <View style={styles.textColumn}>
+                  <Text style={styles.distinctSuggestionName} numberOfLines={1}>
+                    Garder "{value.trim()}" (ingrédient distinct)
+                  </Text>
+                  <Text style={styles.distinctSuggestionSubtitle} numberOfLines={1}>
+                    Créer à part entière sans fusionner
+                  </Text>
+                </View>
+                <Ionicons name="add" size={16} color={colors.primary} />
+              </TouchableOpacity>
+            )}
         </View>
       )}
     </View>
@@ -215,6 +255,36 @@ const styles = createDynamicStyles((colors) => ({
     color: colors.textPrimary,
   },
   suggestionAisle: {
+    fontSize: 10,
+    color: colors.textSecondary,
+    marginTop: 1,
+  },
+  distinctSuggestionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 9,
+    paddingHorizontal: 10,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderLight,
+    backgroundColor: colors.surfaceAlt,
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 12,
+  },
+  distinctIconBadge: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    backgroundColor: colors.amber + '25',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+  },
+  distinctSuggestionName: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  distinctSuggestionSubtitle: {
     fontSize: 10,
     color: colors.textSecondary,
     marginTop: 1,

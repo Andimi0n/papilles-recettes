@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ShoppingItem, ShoppingAisle } from '../types/shopping';
 import { Recipe } from '../types/recipe';
 import { StorageService } from '../services/storageService';
+import { VocabularyService } from '../services/vocabularyService';
 import { createDynamicStyles } from '../theme/colors';
 import { useTheme } from '../theme/ThemeContext';
 import { AISLE_CONFIGS, ALL_AISLES } from '../utils/aisleClassifier';
@@ -122,6 +123,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
     if (!trimmedName) return;
 
     try {
+      VocabularyService.promoteAliasToCanonical(trimmedName, selectedAisle || undefined).catch(() => {});
       const updated = await StorageService.addCustomShoppingItem(
         trimmedName,
         newItemQuantity.trim() || undefined,

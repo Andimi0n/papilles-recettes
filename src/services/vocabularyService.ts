@@ -96,6 +96,12 @@ export const VocabularyService = {
       return existing;
     }
 
+    // Si ce terme était un alias d'un autre ingrédient, le promouvoir en ingrédient canonique distinct
+    const isAliasOfAnother = list.some((i) => i.aliases.includes(norm));
+    if (isAliasOfAnother) {
+      return await this.promoteAliasToCanonical(cleanName, item.defaultAisle);
+    }
+
     const now = new Date().toISOString();
     const uniqueId = `ing_custom_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
     const aisle = item.defaultAisle || classifyIngredientAisle(cleanName);
@@ -124,6 +130,116 @@ export const VocabularyService = {
 
     const updated = [newEntry, ...list];
     await this.saveAll(updated);
+    return newEntry;
+  },
+
+  /**
+   * Promeut délibérément un synonyme ou alias en un ingrédient canonique à part entière.
+   * Si ce terme (ou une variante proche) appartenait aux alias d'un ingrédient existant,
+   * cet alias et ceux qui s'en rapprochent sont retirés de l'ingrédient d'origine,
+   * et le nouvel ingrédient est créé avec ses propres synonymes.
+   */
+  async promoteAliasToCanonical(
+    rawName: string,
+    defaultAisle?: ShoppingAisle
+  ): Promise<CanonicalIngredient> {
+    const list = await this.getAll();
+    const cleanName = rawName.trim();
+    if (!cleanName) {
+      throw new Error("Le nom de l'ingrédient ne peut pas être vide.");
+    }
+
+    const norm = normalizeString(cleanName);
+    // Si l'ingrédient existe déjà exactement en tant que nom canonique, on le renvoie
+    const existingCanonical = list.find((i) => i.normalizedName === norm);
+    if (existingCanonical) {
+      return existingCanonical;
+    }
+
+    const now = new Date().toISOString();
+    let sourceAisle: ShoppingAisle | undefined;
+    const detachedAliases: string[] = [];
+
+    // Mots composants le terme promu (ex: ["noix", "de", "muscade"])
+    const normTokens = norm.split(/\s+/).filter((t) => t.length > 1);
+
+    // Parcourir le lexique et détacher le synonyme et ses variantes proches
+    const updatedList = list.map((item) => {
+      const parentTokens = item.normalizedName.split(/\s+/).filter((t) => t.length > 1);
+      // Mots spécifiques au terme promu qui n'appartiennent pas au parent canonique (ex: ["noix"])
+      const distinctiveTokens = normTokens.filter((t) => !parentTokens.includes(t));
+
+      // Vérifier si cet ingrédient contient norm ou un alias qui lui est lié
+      const hasMatchingAlias = item.aliases.some((a) => {
+        if (a === norm || a === `${norm}s` || norm === `${a}s`) return true;
+        if (a.includes(norm) || norm.includes(a)) return true;
+        if (distinctiveTokens.length > 0 && distinctiveTokens.every((dt) => a.includes(dt))) return true;
+        return false;
+      });
+
+      if (!hasMatchingAlias) {
+        return item;
+      }
+
+      if (!sourceAisle) {
+        sourceAisle = item.defaultAisle;
+      }
+
+      const keptAliases: string[] = [];
+
+      item.aliases.forEach((a) => {
+        const isExactOrPlural = a === norm || a === `${norm}s` || norm === `${a}s`;
+        const isSubstring = (a.includes(norm) || norm.includes(a)) && a.length >= 3;
+        const matchesDistinctive =
+          distinctiveTokens.length > 0 &&
+          distinctiveTokens.every((dt) => a.includes(dt)) &&
+          // S'assurer de ne pas toucher au nom canonique du parent lui-même
+          a !== item.normalizedName;
+
+        if (isExactOrPlural || isSubstring || matchesDistinctive) {
+          detachedAliases.push(a);
+        } else {
+          keptAliases.push(a);
+        }
+      });
+
+      return {
+        ...item,
+        aliases: keptAliases,
+        updatedAt: now,
+      };
+    });
+
+    // Construire le jeu d'alias pour le nouvel ingrédient
+    const newAliasSet = new Set<string>();
+    newAliasSet.add(norm);
+    if (!norm.endsWith('s')) {
+      newAliasSet.add(`${norm}s`);
+    }
+    detachedAliases.forEach((a) => {
+      newAliasSet.add(a);
+      if (!a.endsWith('s')) {
+        newAliasSet.add(`${a}s`);
+      }
+    });
+
+    const aisle = defaultAisle || sourceAisle || classifyIngredientAisle(cleanName);
+    const formattedName = cleanName.charAt(0).toUpperCase() + cleanName.slice(1);
+
+    const newEntry: CanonicalIngredient = {
+      id: `ing_custom_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      canonicalName: formattedName,
+      normalizedName: norm,
+      aliases: Array.from(newAliasSet),
+      defaultAisle: aisle,
+      isCustom: true,
+      usageCount: 1,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    const finalList = [newEntry, ...updatedList];
+    await this.saveAll(finalList);
     return newEntry;
   },
 

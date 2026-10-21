@@ -23,7 +23,6 @@ import { StarRating } from '../components/StarRating';
 import { CookingModeModal } from '../components/CookingModeModal';
 import {
   formatDuration,
-  getRatingLabel,
   scaleQuantity,
   extractTimersFromText,
   formatTimerSeconds,
@@ -418,7 +417,7 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
               <View>
                 <Text style={styles.ratingCardTitle}>Évaluation & Note</Text>
                 <Text style={styles.ratingCardSubtitle}>
-                  {getRatingLabel(recipe.rating)} ({recipe.rating > 0 ? recipe.rating.toFixed(1) : '0'}/5)
+                  {recipe.rating > 0 ? `${recipe.rating.toFixed(1)} / 5` : 'Non notée'}
                 </Text>
               </View>
               <TouchableOpacity
@@ -436,7 +435,6 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
                 size={32}
                 interactive={true}
                 showScore={true}
-                showLabel={true}
                 showClear={recipe.rating > 0}
                 onRatingChange={(newRating) => onUpdateRating(recipe.id, newRating)}
               />
