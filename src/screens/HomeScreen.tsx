@@ -9,6 +9,7 @@ import {
   Modal,
   ScrollView,
   Platform,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Recipe, Category, SortOption } from '../types/recipe';
@@ -63,7 +64,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   onOpenSettings,
   onNavigateToJournal,
 }) => {
-  const { isDark, colors, themeId, toggleTheme } = useTheme();
+  const { isDark, colors, themeId } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const flatListRef = useRef<FlatList<Recipe>>(null);
@@ -557,76 +558,53 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       <View style={styles.container}>
         {/* En-tête supérieur FIXE (reste en haut lors du défilement, NE perd jamais le focus pendant la frappe) */}
         <View style={styles.fixedTopHeader}>
-          {/* Top Brand Bar avec Marmiton et Scan & IA empilés pour ne jamais être tronqués */}
+          {/* Top Brand Bar : Identité culinaire avec logo à gauche & Actions sur le même plan à droite */}
           <View style={styles.topBrandRow}>
-            <View style={styles.brandTitleCol}>
-              <View style={styles.logoRow}>
-                <Text style={styles.logoTitle}>Papilles</Text>
-                <View style={styles.chefHatBadge}>
-                  <Ionicons name="restaurant" size={13} color={colors.primary} />
-                </View>
-
-                {/* Bouton bascule Thème (Jardin Botanique / Table Nocturne) */}
-                <TouchableOpacity
-                  style={styles.headerIconBtn}
-                  onPress={toggleTheme}
-                  activeOpacity={0.7}
-                  hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
-                  accessibilityLabel="Changer de thème"
-                >
-                  <Ionicons
-                    name={isDark ? 'sunny' : 'moon'}
-                    size={17}
-                    color={isDark ? colors.amber : colors.textSecondary}
-                  />
-                </TouchableOpacity>
-
-                {/* Bouton Paramètres (Réglages & Lexique) */}
-                {onOpenSettings && (
-                  <TouchableOpacity
-                    style={styles.headerIconBtn}
-                    onPress={onOpenSettings}
-                    activeOpacity={0.7}
-                    hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
-                    accessibilityLabel="Ouvrir les paramètres"
-                  >
-                    <Ionicons name="settings-outline" size={17} color={colors.textPrimary} />
-                  </TouchableOpacity>
-                )}
+            {/* Identité / Marque */}
+            <View style={styles.brandContainer}>
+              <Image
+                source={require('../../assets/icon.png')}
+                style={styles.brandLogo}
+                resizeMode="cover"
+              />
+              <View style={styles.brandTitleCol}>
+                <Text style={styles.brandTitle}>Papilles</Text>
+                <Text style={styles.brandSubtitle} numberOfLines={1}>
+                  Carnet & inspirations
+                </Text>
               </View>
-              <Text style={styles.logoSubtitle}>Votre carnet de cuisine inspiré</Text>
             </View>
 
+            {/* Actions rapides alignées sur le même plan horizontal */}
             <View style={styles.topActionsRow}>
-              {/* Colonne empilée : Marmiton en haut, Scan & IA en dessous */}
-              <View style={styles.stackedButtonsCol}>
-                <TouchableOpacity
-                  style={styles.marmitonTopBtn}
-                  onPress={() => setIsMarmitonModalVisible(true)}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="globe-outline" size={12} color={colors.primary} />
-                  <Text style={styles.marmitonTopBtnText}>Marmiton</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.scanTopBtn}
-                  onPress={() => setIsAiChoiceModalVisible(true)}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="sparkles" size={12} color={colors.primary} />
-                  <Text style={styles.scanTopBtnText}>Scan & IA</Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* Bouton Ajouter sur toute la hauteur */}
+              {/* Marmiton */}
               <TouchableOpacity
-                style={styles.addTopBtn}
+                style={styles.marmitonBtn}
+                onPress={() => setIsMarmitonModalVisible(true)}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="globe-outline" size={13} color={colors.primary} />
+                <Text style={styles.marmitonBtnText}>Marmiton</Text>
+              </TouchableOpacity>
+
+              {/* Scan & IA */}
+              <TouchableOpacity
+                style={styles.scanBtn}
+                onPress={() => setIsAiChoiceModalVisible(true)}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="sparkles" size={13} color={colors.primary} />
+                <Text style={styles.scanBtnText}>Scan & IA</Text>
+              </TouchableOpacity>
+
+              {/* Ajouter */}
+              <TouchableOpacity
+                style={styles.addBtn}
                 onPress={onAddNewRecipe}
                 activeOpacity={0.8}
               >
-                <Ionicons name="add" size={18} color="#FFFFFF" />
-                <Text style={styles.addTopBtnText}>Ajouter</Text>
+                <Ionicons name="add" size={16} color="#FFFFFF" />
+                <Text style={styles.addBtnText}>Ajouter</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -1011,21 +989,10 @@ const styles = createDynamicStyles((colors, shadows) => ({
   container: {
     flex: 1,
   },
-  headerIconBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: Colors.surfaceAlt,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: 6,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
-  },
   fixedTopHeader: {
-    backgroundColor: Colors.background,
+    backgroundColor: colors.background,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border + '60',
+    borderBottomColor: colors.borderLight,
     paddingBottom: 4,
     zIndex: 10,
   },
@@ -1040,94 +1007,94 @@ const styles = createDynamicStyles((colors, shadows) => ({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 4,
+    paddingHorizontal: 14,
+    paddingTop: 8,
+    paddingBottom: 6,
   },
-  logoRow: {
+  brandContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
+    marginRight: 6,
   },
-  logoTitle: {
-    fontSize: 26,
-    fontWeight: '900',
-    color: Colors.primary,
-    letterSpacing: -0.5,
-  },
-  chefHatBadge: {
-    backgroundColor: Colors.primaryLight,
-    padding: 4,
-    borderRadius: 8,
-    marginLeft: 6,
-  },
-  logoSubtitle: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-    marginTop: 2,
+  brandLogo: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    marginRight: 8,
   },
   brandTitleCol: {
     flex: 1,
-    marginRight: 8,
+    justifyContent: 'center',
+  },
+  brandTitle: {
+    fontSize: 21,
+    fontWeight: '900',
+    color: colors.primary,
+    letterSpacing: -0.4,
+  },
+  brandSubtitle: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    fontWeight: '500',
+    marginTop: 0.5,
   },
   topActionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
   },
-  stackedButtonsCol: {
-    flexDirection: 'column',
-    gap: 4,
-  },
-  marmitonTopBtn: {
-    backgroundColor: Colors.primaryLight,
+  marmitonBtn: {
+    height: 34,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: colors.primaryLight,
     paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: 8,
+    borderRadius: 9,
     gap: 4,
     borderWidth: 1,
-    borderColor: Colors.primary + '33',
+    borderColor: colors.primary + '30',
   },
-  marmitonTopBtnText: {
-    color: Colors.primary,
+  marmitonBtnText: {
+    color: colors.primary,
     fontWeight: '700',
     fontSize: 11,
   },
-  scanTopBtn: {
-    backgroundColor: Colors.primaryLight,
+  scanBtn: {
+    height: 34,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: colors.primaryLight,
     paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: 8,
+    borderRadius: 9,
     gap: 4,
     borderWidth: 1,
-    borderColor: Colors.primary + '33',
+    borderColor: colors.primary + '30',
   },
-  scanTopBtnText: {
-    color: Colors.primary,
+  scanBtnText: {
+    color: colors.primary,
     fontWeight: '700',
     fontSize: 11,
   },
-  addTopBtn: {
-    backgroundColor: Colors.primary,
+  addBtn: {
+    height: 34,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 11,
-    paddingVertical: 8,
-    borderRadius: 10,
-    minHeight: 52,
-    gap: 4,
-    ...Shadows.small,
+    backgroundColor: colors.primary,
+    paddingHorizontal: 10,
+    borderRadius: 9,
+    gap: 3,
+    ...shadows.small,
   },
-  addTopBtnText: {
+  addBtnText: {
     color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 12,
+    fontWeight: '800',
+    fontSize: 11.5,
   },
   fridgeActiveBanner: {
     flexDirection: 'row',

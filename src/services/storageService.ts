@@ -283,19 +283,22 @@ export const StorageService = {
   },
 
   /**
-   * Migration transparente à chaud de toutes les données existantes de l'utilisateur
+   * Migration ou harmonisation des données de l'utilisateur
    * (recettes personnelles, liste de courses et étagères du placard/frigo)
    * pour normaliser les ingrédients selon le lexique canonique strict.
+   * Si force=true, réexécute l'harmonisation même si elle a déjà été jouée.
    */
-  async runCanonicalVocabularyMigration(): Promise<{
+  async runCanonicalVocabularyMigration(force: boolean = false): Promise<{
     recipesUpdated: number;
     shoppingUpdated: number;
     fridgeUpdated: number;
   }> {
     try {
-      const alreadyDone = await AsyncStorage.getItem(CANONICAL_MIGRATION_KEY);
-      if (alreadyDone === 'done') {
-        return { recipesUpdated: 0, shoppingUpdated: 0, fridgeUpdated: 0 };
+      if (!force) {
+        const alreadyDone = await AsyncStorage.getItem(CANONICAL_MIGRATION_KEY);
+        if (alreadyDone === 'done') {
+          return { recipesUpdated: 0, shoppingUpdated: 0, fridgeUpdated: 0 };
+        }
       }
 
       let recipesUpdated = 0;

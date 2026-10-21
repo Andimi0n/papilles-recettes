@@ -28,11 +28,12 @@
   - Instant autocomplete dropdown (`IngredientAutocompleteInput`) for recipe creation/edition and pantry stock additions.
   - Silent background learning of new ingredients and usage frequencies.
   - Full dedicated Vocabulary Manager in Settings (`VocabularyManagerModal`) allowing users to browse, search by aisle, rename, edit aliases, merge duplicates, and reset to defaults.
+  - **1-Click Global Normalization**: Dedicated on-demand button in Settings ("Normaliser tous les ingrédients") allowing users to retrofit and standardize all saved recipes, grocery list items, and shelf ingredients at any time.
 - **Categorized Shopping List**: Auto-generates items from recipes or meal plans, auto-classifying ingredients into supermarket aisles.
 - **Dual Artistic Directions & Dynamic Theming**:
   - Light: *Jardin Botanique & Slow Food* (forest evergreen, celadon, almond mist).
   - Dark: *Table Nocturne & Sauge Céleste* (obsidian slate, luminous culinary emerald, silver sage, honey amber).
-  - Supports system auto-switch, discrete one-tap header toggle, and manual setting.
+  - Configurable directly in the Settings tab (auto-switch, light, dark).
 - **100% Offline-First Architecture & BYOK**:
   - No backend server.
   - Data stored locally in `AsyncStorage`.
@@ -118,13 +119,14 @@ papilles-recettes/
     │   ├── IngredientAutocompleteInput.tsx # Predictive dropdown input for canonical ingredients
     │   └── VocabularyManagerModal.tsx # Vocabulary management modal (CRUD, merge, aisles)
     └── screens/                # Main feature screens
-        ├── HomeScreen.tsx      # Recipe feed, filters, search, quick theme toggle, settings button
+        ├── HomeScreen.tsx      # Recipe feed, unified brand top bar (logo + Marmiton/Scan/Add), filters & search
         ├── RecipeDetailScreen.tsx # Recipe view, dynamic serving scaler, share, edit/delete
         ├── RecipeFormScreen.tsx   # Recipe creator & editor (manual or pre-filled from AI)
         ├── ScanRecipeScreen.tsx   # AI recipe scanner (Camera, Multi-photo, Paste Text)
         ├── MealPlannerScreen.tsx  # Weekly calendar meal scheduler & meal tracking journal
         ├── ShoppingListScreen.tsx # Unified Courses & Étagères screen with segmented switcher
-        └── SettingsModal.tsx      # API key manager, live ping check, theme picker, data backup
+        ├── SettingsScreen.tsx     # Full Settings page (theme, Gemini API key, servings, 1-click normalization, backup)
+        └── SettingsModal.tsx      # Modal wrapper for backward compatibility
 ```
 
 ---
@@ -218,9 +220,14 @@ node scripts/testExtractRecipe.mjs <GEMINI_API_KEY>
 - **Network Boundaries**: Outbound HTTP traffic is strictly limited to Google Generative Language API and Marmiton URL fetching. `usesCleartextTraffic: false` is enforced in `app.json`.
 
 ### Navigation Pattern
-- Navigation is currently handled via the root state in `App.tsx` (`currentScreen: AppScreen`).
+- Navigation is handled via the root state in `App.tsx` (`currentScreen: AppScreen`).
+- Persistent bottom tab bar hosts 4 primary navigation tabs:
+  1. **Recettes** (`'home'`)
+  2. **Repas** (`'planner'`)
+  3. **Courses & Étagères** (`'shopping'`)
+  4. **Paramètres** (`'settings'`)
 - When navigating between screens, pass state callbacks or update `currentScreen`.
-- Detail screens maintain a return route (`returnScreenAfterDetail`) so users return seamlessly to either `HomeScreen` or `MealPlannerScreen`.
+- Detail screens maintain a return route (`returnScreenAfterDetail`) so users return seamlessly to either `HomeScreen`, `MealPlannerScreen`, `ShoppingListScreen` or `SettingsScreen`.
 
 ### Git Workflow & Documentation Discipline
 - **Contrôle de version systématique (Git & GitHub)** :

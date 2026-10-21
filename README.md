@@ -9,7 +9,18 @@ Une application mobile moderne, soignée et intuitive pour gérer vos recettes, 
 ### 1. 🎨 Double Direction Artistique & Thèmes Dynamiques
 - **Thème Clair — *Jardin Botanique & Slow Food*** : vert forêt persistant, céladon apaisant, brume d'amande.
 - **Thème Sombre — *Table Nocturne & Sauge Céleste*** : ardoise obsidienne, émeraude culinaire lumineuse, sauge argentée et touches ambrées.
-- Bascule instantanée en 1 tap depuis l'en-tête ou synchronisation automatique avec les préférences système de votre smartphone.
+- Choix intuitif dans l'onglet **Paramètres** (mode Système auto, Jardin Botanique ou Table Nocturne) avec prévisualisation des palettes.
+
+### 2. 📱 Navigation Fluide & Bandeau d'Accueil Repensé
+- **Bandeau supérieur unifié** : identité visuelle complète avec le logo officiel de Papilles, titre soigné, description culinaire et accès direct aux actions clés sur un seul plan horizontal fluide :
+  - **Marmiton** (importation web immédiate par URL)
+  - **Scan & IA** (scanner photo, recto-verso et saisie texte)
+  - **Ajouter** (création manuelle d'une recette)
+- **Barre de navigation inférieure à 4 onglets** :
+  - **Recettes** : carnet complet, recherche intelligente, filtres et widget du jour.
+  - **Repas** : journal des repas du midi/soir et planification hebdomadaire.
+  - **Courses & Étagères** : stocks du frigo/placard et liste de courses avec badge des articles restants.
+  - **Paramètres** : ambiance visuelle, clé IA, portions, lexique canonique et sauvegarde.
 
 ### 2. 📅 Suivi des Repas Quotidien & Menu de la Semaine
 - **Suivi des repas du jour** : saisie ultra-rapide en texte libre de ce que vous avez mangé le midi et le soir (restaurant, repas sur le pouce, restes ou petit plat maison).
@@ -34,6 +45,7 @@ Une application mobile moderne, soignée et intuitive pour gérer vos recettes, 
 - **Pipeline hybride intelligent** : guidage strict de l'IA (Gemini 3.8 Flash) en amont, couplé à un moteur de nettoyage déterministe local (`IngredientNormalizer`) qui résout instantanément vers le nom canonique officiel.
 - **Respect absolu des instructions** : la normalisation s'applique **exclusivement aux ingrédients** ; les étapes et instructions de préparation restent 100% fidèles et intouchées.
 - **Autocomplétion prédictive réactive** : composant de saisie avec liste déroulante suggérant les termes officiels et leurs rayons en direct lors de la création de recettes ou de l'ajout aux étagères.
+- **Harmonisation en 1 clic ("Normaliser tous les ingrédients")** : bouton disponible dans les Paramètres permettant d'analyser et de standardiser rétroactivement l'ensemble de vos recettes, listes de courses et étagères avec compte-rendu précis.
 - **Gestionnaire de vocabulaire complet** : accessible dans les Paramètres pour consulter les ~350 ingrédients canoniques, rechercher par rayon, renommer, ajouter des alias personnalisés, fusionner des doublons ou réinitialiser.
 
 ### 5. 📷 Scanner de Recettes par IA (Gemini BYOK) & Import Web
@@ -145,11 +157,12 @@ papilles-recettes/
     │   ├── QuickMealLogModal.tsx # Modal de saisie rapide du repas (midi / soir)
     │   └── TodayMealWidget.tsx   # Widget accueil pour le suivi des repas du jour
     └── screens/                # Écrans principaux
-        ├── HomeScreen.tsx      # Flux de recettes, recherche et widget repas
+        ├── HomeScreen.tsx      # Flux de recettes, bandeau unifié et recherche intelligente
         ├── RecipeDetailScreen.tsx # Fiche recette, portions ajustables et partage
         ├── RecipeFormScreen.tsx   # Formulaire de création / édition de recette
         ├── ScanRecipeScreen.tsx   # Scanner IA (Photo, Recto/Verso, Texte libre)
         ├── MealPlannerScreen.tsx  # Menu de la semaine & journal de suivi des repas
         ├── ShoppingListScreen.tsx # Hub unifié Courses & Étagères
-        └── SettingsModal.tsx      # Gestion clé API, thèmes, sauvegarde & réinitialisation
+        ├── SettingsScreen.tsx     # Page dédiée Paramètres, IA, thèmes, normalisation & sauvegarde
+        └── SettingsModal.tsx      # Wrapper modal pour rétro-compatibilité
 ```

@@ -18,22 +18,21 @@ import { RecipeFormScreen } from './src/screens/RecipeFormScreen';
 import { ScanRecipeScreen } from './src/screens/ScanRecipeScreen';
 import { ShoppingListScreen } from './src/screens/ShoppingListScreen';
 import { MealPlannerScreen } from './src/screens/MealPlannerScreen';
-import { SettingsModal } from './src/screens/SettingsModal';
+import { SettingsScreen } from './src/screens/SettingsScreen';
 import { Colors, Shadows, createDynamicStyles } from './src/theme/colors';
 import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
 
-type AppScreen = 'home' | 'planner' | 'shopping' | 'detail' | 'form' | 'scan';
+type AppScreen = 'home' | 'planner' | 'shopping' | 'settings' | 'detail' | 'form' | 'scan';
 
 function AppContent() {
   const { isDark, colors, isLoaded: isThemeLoaded } = useTheme();
   const [currentScreen, setCurrentScreen] = useState<AppScreen>('home');
-  const [returnScreenAfterDetail, setReturnScreenAfterDetail] = useState<'home' | 'planner' | 'shopping'>('home');
+  const [returnScreenAfterDetail, setReturnScreenAfterDetail] = useState<'home' | 'planner' | 'shopping' | 'settings'>('home');
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [selectedRecipeId, setSelectedRecipeId] = useState<string | null>(null);
   const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [shoppingBadgeCount, setShoppingBadgeCount] = useState(0);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // Met à jour le compteur d'articles de courses restants pour le badge
   const refreshShoppingBadge = useCallback(async () => {
@@ -60,9 +59,6 @@ function AppContent() {
   useEffect(() => {
     const loadInitialData = async () => {
       try {
-        // Migration transparente à chaud vers le vocabulaire canonique (recettes perso, courses, étagères)
-        await StorageService.runCanonicalVocabularyMigration();
-
         const loaded = await StorageService.getRecipes();
         setRecipes(loaded);
         await refreshShoppingBadge();
@@ -180,7 +176,7 @@ function AppContent() {
     );
   }
 
-  const isMainTab = ['home', 'planner', 'shopping'].includes(currentScreen);
+  const isMainTab = ['home', 'planner', 'shopping', 'settings'].includes(currentScreen);
 
   return (
     <SafeAreaProvider>
@@ -196,7 +192,7 @@ function AppContent() {
               onScanRecipe={navigateToScan}
               onImportRecipe={handleRecipeExtracted}
               onQuickRate={handleUpdateRating}
-              onOpenSettings={() => setIsSettingsOpen(true)}
+              onOpenSettings={() => setCurrentScreen('settings')}
               onNavigateToJournal={navigateToJournal}
             />
           )}
@@ -217,6 +213,13 @@ function AppContent() {
               initialTab={shoppingInitialTab}
               recipes={recipes}
               onSelectRecipe={(r) => navigateToDetail(r, 'shopping')}
+            />
+          )}
+
+          {currentScreen === 'settings' && (
+            <SettingsScreen
+              recipes={recipes}
+              onRecipesReloadNeeded={reloadRecipes}
             />
           )}
 
@@ -329,16 +332,32 @@ function AppContent() {
                 Courses & Étagères
               </Text>
             </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.tabItem}
+              onPress={() => {
+                setCurrentScreen('settings');
+                setSelectedRecipeId(null);
+                setEditingRecipe(null);
+              }}
+              activeOpacity={0.7}
+            >
+              <Ionicons
+                name={currentScreen === 'settings' ? 'settings' : 'settings-outline'}
+                size={22}
+                color={currentScreen === 'settings' ? colors.primary : colors.textSecondary}
+              />
+              <Text
+                style={[
+                  styles.tabLabel,
+                  currentScreen === 'settings' && styles.tabLabelActive,
+                ]}
+              >
+                Paramètres
+              </Text>
+            </TouchableOpacity>
           </View>
         )}
-
-        {/* Modal de Réglages & Paramètres */}
-        <SettingsModal
-          visible={isSettingsOpen}
-          onClose={() => setIsSettingsOpen(false)}
-          recipes={recipes}
-          onRecipesReloadNeeded={reloadRecipes}
-        />
       </View>
     </SafeAreaProvider>
   );
