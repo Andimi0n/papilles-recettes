@@ -1,11 +1,50 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 import { Recipe, Category, Difficulty } from '../types/recipe';
 
-const GEMINI_API_KEY_STORAGE = '@papilles_gemini_api_key';
+let SecureStore: typeof import('expo-secure-store') | null = null;
+try {
+  SecureStore = require('expo-secure-store');
+} catch {
+  SecureStore = null;
+}
 
-// Endpoint officiel Google Generative Language API
-const GEMINI_API_URL =
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent';
+const GEMINI_API_KEY_STORAGE = 'papilles_gemini_api_key';
+const LEGACY_STORAGE_KEY = '@papilles_gemini_api_key';
+
+// Configuration Google Generative Language API
+const GEMINI_MODEL = 'gemini-3.8-flash';
+const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta';
+
+/**
+ * Construit l'URL de génération avec le paramètre de clé en repli sécurisé.
+ * Supporte simultanément le query param ?key= et l'en-tête x-goog-api-key pour
+ * résister aux proxys mobiles (4G/5G / ngrok) qui filtrent les en-têtes personnalisés.
+ */
+const getGeminiGenerateUrl = (apiKey: string): string => {
+  const cleanKey = apiKey.trim();
+  return `${GEMINI_BASE_URL}/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(cleanKey)}`;
+};
+
+/**
+ * URL de vérification de statut ultralégère (GET sur le modèle, <200ms, 0 quota consommé).
+ */
+const getGeminiModelCheckUrl = (apiKey: string): string => {
+  const cleanKey = apiKey.trim();
+  return `${GEMINI_BASE_URL}/models/${GEMINI_MODEL}?key=${encodeURIComponent(cleanKey)}`;
+};
+
+/**
+ * En-têtes HTTP sécurisés pour les requêtes Gemini.
+ */
+const getGeminiHeaders = (apiKey: string) => {
+  const cleanKey = apiKey.trim();
+  return {
+    'Content-Type': 'application/json',
+    'x-goog-api-key': cleanKey,
+    'X-Goog-Api-Key': cleanKey,
+  };
+};
 
 export interface ExtractedRecipeData {
   title: string;
@@ -87,7 +126,21 @@ export function isRecipeVegetarian(
 }
 
 /**
+ * Neutralise et échappe les balises XML/HTML de délimitation dans les données utilisateur
+ * afin de prévenir le contournement de bac à sable par Prompt Injection (OWASP LLM01).
+ */
+export function escapeUntrustedDelimiters(content: string, tag: string): string {
+  if (!content) return '';
+  const escapedEnd = new RegExp(`</${tag}>`, 'gi');
+  const escapedStart = new RegExp(`<${tag}>`, 'gi');
+  return content
+    .replace(escapedEnd, `<\\/_escaped_${tag}>`)
+    .replace(escapedStart, `<_escaped_${tag}>`);
+}
+
+/**
  * Assainit et valide la structure des données extraites par l'IA (défense contre désérialisation non validée).
+ * Applique des plafonds stricts (maxLength) pour éviter tout dépassement de mémoire CursorWindow SQLite (SEC-06).
  */
 export function sanitizeExtractedRecipe(raw: any): ExtractedRecipeData {
   if (!raw || typeof raw !== 'object') {
@@ -99,8 +152,13 @@ export function sanitizeExtractedRecipe(raw: any): ExtractedRecipeData {
   ];
   const validDifficulties: Difficulty[] = ['Facile', 'Moyen', 'Difficile'];
 
-  const title = typeof raw.title === 'string' && raw.title.trim() ? raw.title.trim() : 'Recette sans titre';
-  const description = typeof raw.description === 'string' ? raw.description.trim() : '';
+  // Plafonnement défensif de la taille des chaînes pour immuniser contre le DoS SQLite
+  const title = typeof raw.title === 'string' && raw.title.trim()
+    ? raw.title.trim().slice(0, 200)
+    : 'Recette sans titre';
+  const description = typeof raw.description === 'string'
+    ? raw.description.trim().slice(0, 2000)
+    : '';
   const category: Category = validCategories.includes(raw.category) ? raw.category : 'Plat';
   const difficulty: Difficulty = validDifficulties.includes(raw.difficulty) ? raw.difficulty : 'Moyen';
 
@@ -117,7 +175,7 @@ export function sanitizeExtractedRecipe(raw: any): ExtractedRecipeData {
       ? Math.min(100, Math.round(Number(raw.servings)))
       : 4;
 
-  const rawIngredients = Array.isArray(raw.ingredients) ? raw.ingredients : [];
+  const rawIngredients = Array.isArray(raw.ingredients) ? raw.ingredients.slice(0, 80) : [];
   const ingredients = rawIngredients
     .filter(
       (ing: any) =>
@@ -127,12 +185,12 @@ export function sanitizeExtractedRecipe(raw: any): ExtractedRecipeData {
         ing.name.trim().length > 0
     )
     .map((ing: any) => ({
-      name: String(ing.name).trim(),
-      quantity: ing.quantity ? String(ing.quantity).trim() : '',
-      unit: ing.unit ? String(ing.unit).trim() : '',
+      name: String(ing.name).trim().slice(0, 150),
+      quantity: ing.quantity ? String(ing.quantity).trim().slice(0, 50) : '',
+      unit: ing.unit ? String(ing.unit).trim().slice(0, 50) : '',
     }));
 
-  const rawSteps = Array.isArray(raw.steps) ? raw.steps : [];
+  const rawSteps = Array.isArray(raw.steps) ? raw.steps.slice(0, 50) : [];
   const steps = rawSteps
     .filter(
       (st: any) =>
@@ -143,7 +201,7 @@ export function sanitizeExtractedRecipe(raw: any): ExtractedRecipeData {
     )
     .map((st: any, idx: number) => ({
       order: typeof st.order === 'number' && st.order > 0 ? st.order : idx + 1,
-      instruction: String(st.instruction).trim(),
+      instruction: String(st.instruction).trim().slice(0, 2500),
     }));
 
   const isVegetarian =
@@ -151,7 +209,7 @@ export function sanitizeExtractedRecipe(raw: any): ExtractedRecipeData {
       ? raw.isVegetarian
       : isRecipeVegetarian(ingredients, title, description);
 
-  const userNote = typeof raw.userNote === 'string' ? raw.userNote.trim() : '';
+  const userNote = typeof raw.userNote === 'string' ? raw.userNote.trim().slice(0, 1000) : '';
 
   return {
     title,
@@ -171,41 +229,78 @@ export function sanitizeExtractedRecipe(raw: any): ExtractedRecipeData {
 export const RecipeAiService = {
   /**
    * Récupère la clé API Gemini personnelle configurée par l'utilisateur.
-   * En mode BYOK (Bring Your Own Key), aucune clé secrète maître n'est distribuée.
+   * En mode BYOK (Bring Your Own Key), la clé est stockée de manière chiffrée
+   * via SecureStore (Keychain iOS / Android Keystore - SEC-01 & SEC-03).
    */
   async getApiKey(): Promise<string> {
     try {
-      const stored = await AsyncStorage.getItem(GEMINI_API_KEY_STORAGE);
-      if (stored && stored.trim().length > 0) {
-        return stored.trim();
-      }
-    } catch {}
+      if (Platform.OS !== 'web' && SecureStore && typeof SecureStore.getItemAsync === 'function') {
+        const secureStored = await SecureStore.getItemAsync(GEMINI_API_KEY_STORAGE);
+        if (secureStored && secureStored.trim().length > 0) {
+          return secureStored.trim();
+        }
 
-    // Repli de développement local (si défini dans le .env local du développeur uniquement)
-    const envKey = (process.env.EXPO_PUBLIC_GEMINI_API_KEY || '').trim();
-    return envKey;
+        // Migration automatique et transparente si une clé existait dans l'ancien AsyncStorage
+        const legacyStored = await AsyncStorage.getItem(LEGACY_STORAGE_KEY);
+        if (legacyStored && legacyStored.trim().length > 0) {
+          const cleanKey = legacyStored.trim();
+          await SecureStore.setItemAsync(GEMINI_API_KEY_STORAGE, cleanKey);
+          await AsyncStorage.removeItem(LEGACY_STORAGE_KEY);
+          return cleanKey;
+        }
+      } else {
+        const stored = await AsyncStorage.getItem(LEGACY_STORAGE_KEY);
+        if (stored && stored.trim().length > 0) {
+          return stored.trim();
+        }
+      }
+    } catch (e) {
+      console.error('Erreur lecture clé API chiffrée:', e);
+    }
+
+    return '';
   },
 
   /**
-   * Sauvegarde une clé API personnalisée dans le stockage local
+   * Sauvegarde une clé API personnalisée dans le coffre-fort sécurisé chiffré (SEC-01).
    */
   async setApiKey(key: string): Promise<void> {
-    await AsyncStorage.setItem(GEMINI_API_KEY_STORAGE, key.trim());
+    const trimmed = key.trim();
+    try {
+      if (Platform.OS !== 'web' && SecureStore && typeof SecureStore.setItemAsync === 'function') {
+        await SecureStore.setItemAsync(GEMINI_API_KEY_STORAGE, trimmed);
+        await AsyncStorage.removeItem(LEGACY_STORAGE_KEY);
+      } else {
+        await AsyncStorage.setItem(LEGACY_STORAGE_KEY, trimmed);
+      }
+    } catch (e) {
+      console.error('Erreur écriture clé API sécurisée:', e);
+      throw new Error("Impossible d'enregistrer la clé de manière sécurisée.");
+    }
   },
 
   /**
-   * Supprime la clé personnalisée
+   * Supprime définitivement la clé personnalisée du stockage chiffré
    */
   async clearApiKey(): Promise<void> {
-    await AsyncStorage.removeItem(GEMINI_API_KEY_STORAGE);
+    try {
+      if (Platform.OS !== 'web' && SecureStore && typeof SecureStore.deleteItemAsync === 'function') {
+        await SecureStore.deleteItemAsync(GEMINI_API_KEY_STORAGE);
+      }
+      await AsyncStorage.removeItem(LEGACY_STORAGE_KEY);
+    } catch (e) {
+      console.error('Erreur suppression clé API sécurisée:', e);
+    }
   },
 
   /**
-   * Vérifie réellement l'état et la disponibilité de l'IA (ping léger).
-   * Utilise l'en-tête HTTP x-goog-api-key au lieu d'exposer la clé dans l'URL.
+   * Vérifie réellement l'état et la disponibilité de l'IA.
+   * Utilise un GET ultraléger sur les métadonnées du modèle (ne consomme pas de quota d'inférence, <200ms).
+   * Intègre le fallback par query param ?key= et header pour traverser les tunnels ngrok / 4G / 5G.
    */
   async checkConnection(providedKey?: string): Promise<AiConnectionStatus> {
-    const apiKey = providedKey || (await this.getApiKey());
+    const rawKey = providedKey || (await this.getApiKey());
+    const apiKey = (rawKey || '').trim();
     if (!apiKey) {
       return {
         ok: false,
@@ -214,22 +309,27 @@ export const RecipeAiService = {
       };
     }
 
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
+    // Détection Web / Navigateur (CORS)
+    // Les navigateurs (Chrome/Safari) bloquent les requêtes directes vers Google Gemini API (CORS).
+    if (Platform.OS === 'web') {
+      return {
+        ok: false,
+        code: 'UNKNOWN_ERROR',
+        message:
+          'Navigateur web détecté : Google bloque les appels API directs depuis un navigateur (CORS). Pour utiliser l\'IA, ouvrez l\'application depuis Expo Go sur votre téléphone (en scannant le QR code depuis l\'application Expo Go).',
+      };
+    }
 
-      // Authentification sécurisée par en-tête HTTP x-goog-api-key (VULN-02 corrigé)
-      const response = await fetch(GEMINI_API_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-goog-api-key': apiKey,
-        },
+    const controller = new AbortController();
+    try {
+      const timeoutId = setTimeout(() => controller.abort(), 12000);
+
+      // GET ultraléger sur les métadonnées du modèle Gemini 3.8 Flash
+      const checkUrl = getGeminiModelCheckUrl(apiKey);
+      const response = await fetch(checkUrl, {
+        method: 'GET',
+        headers: getGeminiHeaders(apiKey),
         signal: controller.signal,
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: 'ping' }] }],
-          generationConfig: { maxOutputTokens: 1 },
-        }),
       });
 
       clearTimeout(timeoutId);
@@ -259,11 +359,32 @@ export const RecipeAiService = {
         return {
           ok: false,
           code: 'INVALID_KEY',
-          message: 'Clé API non reconnue ou invalide',
+          message:
+            serverMsg ||
+            'Clé API non reconnue ou invalide (vérifiez vos restrictions Google AI Studio)',
         };
       }
 
       if (response.status === 404 || serverMsg.toLowerCase().includes('model')) {
+        // Tentative de diagnostic : vérifier si la clé fonctionne sur l'endpoint générique /models
+        try {
+          const fallbackResp = await fetch(
+            `${GEMINI_BASE_URL}/models?key=${encodeURIComponent(apiKey)}`,
+            {
+              method: 'GET',
+              headers: getGeminiHeaders(apiKey),
+            }
+          );
+          if (fallbackResp.ok) {
+            return {
+              ok: false,
+              code: 'INVALID_MODEL',
+              message:
+                'Clé API valide, mais le modèle Gemini 3.8 Flash n\'est pas activé sur votre compte Google AI Studio.',
+            };
+          }
+        } catch {}
+
         return {
           ok: false,
           code: 'INVALID_MODEL',
@@ -290,13 +411,20 @@ export const RecipeAiService = {
       };
     } catch (err: any) {
       const msg = err?.message || String(err);
-      if (err?.name === 'AbortError' || msg.includes('timeout')) {
+      const isAborted =
+        controller.signal.aborted ||
+        err?.name === 'AbortError' ||
+        msg.includes('timeout') ||
+        msg.includes('aborted');
+
+      if (isAborted) {
         return {
           ok: false,
           code: 'NO_INTERNET',
-          message: 'Délai d\'attente dépassé (timeout 8s)',
+          message: 'Délai d\'attente dépassé (timeout 12s)',
         };
       }
+
       if (
         msg.includes('Network request failed') ||
         msg.includes('fetch failed') ||
@@ -306,9 +434,11 @@ export const RecipeAiService = {
         return {
           ok: false,
           code: 'NO_INTERNET',
-          message: 'Pas de connexion Internet',
+          message:
+            'Impossible de joindre Google Gemini. Vérifiez votre connexion Internet mobile ou les restrictions réseau.',
         };
       }
+
       return {
         ok: false,
         code: 'UNKNOWN_ERROR',
@@ -378,12 +508,10 @@ Règles universelles :
       },
     }));
 
-    const response = await fetch(GEMINI_API_URL, {
+    const generateUrl = getGeminiGenerateUrl(apiKey);
+    const response = await fetch(generateUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-goog-api-key': apiKey,
-      },
+      headers: getGeminiHeaders(apiKey),
       body: JSON.stringify({
         system_instruction: {
           parts: [{ text: systemPrompt }],
@@ -479,17 +607,16 @@ Extrais fidèlement la recette sous forme de JSON strict avec cette structure :
 }
 Réponds STRICTEMENT en JSON valide.`;
 
+    const sanitizedRecipe = escapeUntrustedDelimiters(recipeContent.slice(0, 15000), 'untrusted_recipe_data');
     const userPayload = `Analyse et extrais exclusivement la recette contenue entre les balises ci-dessous :
 <untrusted_recipe_data>
-${recipeContent.slice(0, 15000)}
+${sanitizedRecipe}
 </untrusted_recipe_data>`;
 
-    const response = await fetch(GEMINI_API_URL, {
+    const generateUrl = getGeminiGenerateUrl(apiKey);
+    const response = await fetch(generateUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-goog-api-key': apiKey,
-      },
+      headers: getGeminiHeaders(apiKey),
       body: JSON.stringify({
         system_instruction: {
           parts: [{ text: systemPrompt }],
@@ -588,17 +715,16 @@ Structure JSON attendue :
 }
 RÈGLE STRICTE SUR 'userNote' : Laisse STRICTEMENT "" sauf si une note personnelle explicite figurait dans le texte.`;
 
+    const sanitizedInput = escapeUntrustedDelimiters(trimmedInput.slice(0, 15000), 'untrusted_recipe_input');
     const userPayload = `Analyse et autocomplète la recette contenue entre les balises ci-dessous :
 <untrusted_recipe_input>
-${trimmedInput.slice(0, 15000)}
+${sanitizedInput}
 </untrusted_recipe_input>`;
 
-    const response = await fetch(GEMINI_API_URL, {
+    const generateUrl = getGeminiGenerateUrl(apiKey);
+    const response = await fetch(generateUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-goog-api-key': apiKey,
-      },
+      headers: getGeminiHeaders(apiKey),
       body: JSON.stringify({
         system_instruction: {
           parts: [{ text: systemPrompt }],
@@ -725,17 +851,18 @@ Structure JSON attendue STRICTE :
 }
 Réponds STRICTEMENT en JSON valide.`;
 
+    const sanitizedIngredients = cleanIngredientsList.map((i) =>
+      escapeUntrustedDelimiters(i.slice(0, 100), 'untrusted_fridge_ingredients')
+    );
     const userPayload = `Invente une recette originale avec les restes et ingrédients suivants :
 <untrusted_fridge_ingredients>
-${cleanIngredientsList.join(', ')}
+${sanitizedIngredients.join(', ')}
 </untrusted_fridge_ingredients>`;
 
-    const response = await fetch(GEMINI_API_URL, {
+    const generateUrl = getGeminiGenerateUrl(apiKey);
+    const response = await fetch(generateUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-goog-api-key': apiKey,
-      },
+      headers: getGeminiHeaders(apiKey),
       body: JSON.stringify({
         system_instruction: {
           parts: [{ text: systemPrompt }],

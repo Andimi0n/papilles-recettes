@@ -1,10 +1,24 @@
 import fs from 'fs';
 import path from 'path';
 
-const apiKey = process.argv[2] || process.env.GEMINI_API_KEY || process.env.EXPO_PUBLIC_GEMINI_API_KEY || '';
+const apiKey = process.argv[2] || process.env.GEMINI_API_KEY || '';
 
-const photo1Path = process.argv[3] || '/home/gabriel/Documents/ProjetsDev/PhotoRecette/WhatsApp Image 2026-10-18 at 11.01.02 (1).jpeg';
-const photo2Path = process.argv[4] || '/home/gabriel/Documents/ProjetsDev/PhotoRecette/WhatsApp Image 2026-10-18 at 11.01.02.jpeg';
+const defaultPhotoDir = path.resolve(process.cwd(), '../PhotoRecette');
+const defaultPhoto1 = path.join(defaultPhotoDir, 'WhatsApp Image 2026-10-18 at 11.01.02 (1).jpeg');
+const defaultPhoto2 = path.join(defaultPhotoDir, 'WhatsApp Image 2026-10-18 at 11.01.02.jpeg');
+
+const photo1Path = process.argv[3] || (fs.existsSync(defaultPhoto1) ? defaultPhoto1 : '');
+const photo2Path = process.argv[4] || (fs.existsSync(defaultPhoto2) ? defaultPhoto2 : '');
+
+if (!apiKey) {
+  console.error("❌ Clé API manquante. Usage : node scripts/testExtractRecipe.mjs <API_KEY> [path_image1] [path_image2]");
+  process.exit(1);
+}
+
+if (!photo1Path || !fs.existsSync(photo1Path)) {
+  console.error("❌ Image introuvable. Usage : node scripts/testExtractRecipe.mjs <API_KEY> <path_image1> [path_image2]");
+  process.exit(1);
+}
 
 console.log(`\n📸 Analyse de la recette :`);
 console.log(`- Image 1 (Recto) : ${photo1Path}`);
@@ -70,13 +84,14 @@ parts.push({ text: systemPrompt });
 
 async function run() {
   console.log(`\n⏳ Envoi de la requête à l'API Gemini 3.8 Flash...`);
-  const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent';
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${encodeURIComponent(apiKey)}`;
 
   const response = await fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'x-goog-api-key': apiKey,
+      'X-Goog-Api-Key': apiKey,
     },
     body: JSON.stringify({
       contents: [{ parts }],

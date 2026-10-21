@@ -37,7 +37,12 @@ export function validateMarmitonUrl(inputUrl: string): URL {
     throw new Error("Les identifiants dans l'URL ne sont pas autorisés.");
   }
 
-  // 4. Vérifier que le chemin pointe vers une fiche recette
+  // 4. Forcer le port standard HTTPS uniquement (SEC-04)
+  if (parsed.port && parsed.port !== '443') {
+    throw new Error('Seul le port HTTPS standard (443) est autorisé.');
+  }
+
+  // 5. Vérifier que le chemin pointe vers une fiche recette
   if (!parsed.pathname.startsWith('/recettes/recette_')) {
     throw new Error("L'URL doit pointer vers une fiche recette Marmiton (/recettes/recette_...).");
   }
@@ -46,7 +51,7 @@ export function validateMarmitonUrl(inputUrl: string): URL {
 }
 
 /**
- * Exécute une requête fetch avec délai d'attente maximal (protection contre les requêtes bloquantes - VULN-11).
+ * Exécute une requête fetch avec délai d'attente maximal et interdiction des redirections non contrôlées (SEC-04).
  */
 async function fetchWithTimeout(
   url: string,
@@ -58,6 +63,7 @@ async function fetchWithTimeout(
 
   try {
     const res = await fetch(url, {
+      redirect: 'error', // Interdit le suivi automatique de redirections vers des tiers ou des hôtes internes (anti-SSRF)
       ...options,
       signal: controller.signal,
     });
@@ -254,7 +260,7 @@ export const MarmitonService = {
         const [, date, imgId] = m;
         images.push(`https://assets.afcdn.com/recipe/${date}/${imgId}_w1024h768c1.jpg`);
         seenIds.add(imgId);
-      } else if (ogUrl.startsWith('http')) {
+      } else if (ogUrl.startsWith('https://')) {
         images.push(ogUrl);
       }
     }
@@ -299,6 +305,8 @@ export const MarmitonService = {
                     images.push(`https://assets.afcdn.com/recipe/${date}/${imgId}_w1024h768c1.jpg`);
                     seenIds.add(imgId);
                   }
+                } else if (urlStr.startsWith('https://')) {
+                  images.push(urlStr);
                 }
               }
             }
