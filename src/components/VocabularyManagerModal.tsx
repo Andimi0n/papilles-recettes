@@ -517,7 +517,7 @@ export const VocabularyManagerModal: React.FC<VocabularyManagerModalProps> = ({
                   <View style={styles.dialogToggleLeft}>
                     <Text style={styles.dialogToggleTitle}>📦 Ingrédient de placard / Assaisonnement</Text>
                     <Text style={styles.dialogToggleSubtitle}>
-                      Considéré présent par défaut en cuisine (sel, poivre, huiles, épices). Placé dans la section "Dans vos placards" des recettes.
+                      Considéré présent par défaut en cuisine (sel, poivre, huiles, épices). Placé dans la section "Assaisonnements & condiments" des recettes.
                     </Text>
                   </View>
                   <View style={[styles.switchCircle, formIsPantryStaple && styles.switchCircleActive]}>

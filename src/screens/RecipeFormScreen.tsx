@@ -582,7 +582,7 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
                         ing.isPantryStaple && styles.flagChipTextActiveStaple,
                       ]}
                     >
-                      {ing.isPantryStaple ? 'Dans vos placards' : '+ Dans vos placards'}
+                      {ing.isPantryStaple ? 'En placard' : '+ Placard'}
                     </Text>
                   </TouchableOpacity>
 

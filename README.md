@@ -51,12 +51,12 @@ Une application mobile moderne, soignée et intuitive pour gérer vos recettes, 
 
 ### 5. 📖 Structure "Livre de Chef", Placard & Ajout Intelligent aux Courses
 - **Organisation culinaire par sections (Zéro badge bruyant)** :
-  - **Ingrédients du marché & frais** : les denrées principales et fraîches nécessaires au plat.
-  - **Dans vos placards** : huiles, vinaigres, assaisonnements et épices usuelles réputées déjà à la maison.
-  - **En finition & au goût** : herbes fraîches de dressage, graines, épices au goût ou touches facultatives.
-- **Fenêtre de validation avant ajout aux courses ("Ne plus noyer la liste")** : au clic sur *"Ajouter à ma liste de courses"*, une modale intuitive s'ouvre organisée sous ces mêmes sections culinaires. Les ingrédients à acheter sont **cochés par défaut** ; ceux déjà dans vos placards sont **décochés par défaut** (il suffit d'un tap si vous en manquez).
+  - **Ingrédients principaux** : les denrées principales nécessaires au plat (sans descriptif parasite).
+  - **Assaisonnements & condiments** : huiles, vinaigres, assaisonnements et épices usuelles réputées déjà à la maison (descriptif placé sous le titre).
+  - **En finition & au goût** : herbes fraîches de dressage, graines, épices au goût ou touches facultatives (descriptif placé sous le titre).
+- **Fenêtre de validation avant ajout aux courses ("Ne plus noyer la liste")** : au clic sur *"Ajouter à ma liste de courses"*, une modale intuitive s'ouvre organisée sous ces mêmes sections culinaires. Les ingrédients principaux sont **cochés par défaut** ; les assaisonnements/condiments et finitions sont **décochés par défaut** (il suffit d'un tap si vous en manquez).
 - **Raccourcis rapides** : boutons *"Indispensables uniquement"*, *"Tout cocher"* et *"Tout décocher"* pour ajuster votre panier en un éclair.
-- **Puces d'organisation dans le formulaire de recette** : associez un ingrédient à `Dans vos placards` ou `En finition (au goût)` d'un simple clic lors de la création ou modification d'une recette.
+- **Puces d'organisation dans le formulaire de recette** : associez un ingrédient à `En placard` ou `En finition (au goût)` d'un simple clic lors de la création ou modification d'une recette.
 - **Classification IA native (Gemini 3.8 Flash)** : les scans photo, textes bruts et créations de recettes par l'IA qualifient automatiquement et avec précision le statut de chaque ingrédient.
 
 ### 6. 📷 Scanner de Recettes par IA (Gemini BYOK) & Import Web

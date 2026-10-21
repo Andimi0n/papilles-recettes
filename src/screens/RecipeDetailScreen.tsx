@@ -92,8 +92,8 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
     if (main.length > 0) {
       list.push({
         key: 'main',
-        title: hasSubsections ? 'Ingrédients du marché & frais' : '',
-        subtitle: hasSubsections ? 'À prévoir pour la recette' : undefined,
+        title: hasSubsections ? 'Ingrédients principaux' : '',
+        subtitle: undefined,
         iconName: 'basket-outline',
         items: main,
       });
@@ -102,9 +102,9 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
     if (pantry.length > 0) {
       list.push({
         key: 'pantry',
-        title: 'Dans vos placards',
-        subtitle: 'Huiles, assaisonnements & épices usuelles',
-        iconName: 'archive-outline',
+        title: 'Assaisonnements & condiments',
+        subtitle: 'Huiles, vinaigres, assaisonnements & épices usuelles',
+        iconName: 'sparkles-outline',
         items: pantry,
       });
     }
@@ -114,7 +114,7 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
         key: 'optional',
         title: 'En finition & au goût',
         subtitle: 'Touches facultatives ou décoratives',
-        iconName: 'sparkles-outline',
+        iconName: 'leaf-outline',
         items: optional,
       });
     }
@@ -658,7 +658,7 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
               <View key={`ing_group_${group.key}`} style={styles.ingredientGroupBlock}>
                 {group.title ? (
                   <View style={styles.ingredientGroupHeader}>
-                    <View style={styles.ingredientGroupHeaderLeft}>
+                    <View style={styles.ingredientGroupHeaderTop}>
                       {group.iconName && (
                         <Ionicons
                           name={group.iconName as any}
@@ -1005,14 +1005,14 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
                 {ingredientGroups.groups.map((group) => (
                   <View key={`shop_group_${group.key}`} style={styles.shoppingGroupBlock}>
                     <View style={styles.shoppingGroupHeader}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <View style={styles.shoppingGroupHeaderTop}>
                         <Ionicons
                           name={
                             group.key === 'main'
                               ? 'basket-outline'
                               : group.key === 'pantry'
-                              ? 'archive-outline'
-                              : 'sparkles-outline'
+                              ? 'sparkles-outline'
+                              : 'leaf-outline'
                           }
                           size={13}
                           color={group.key === 'main' ? colors.primary : colors.textSecondary}
@@ -1020,15 +1020,19 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
                         />
                         <Text style={styles.shoppingGroupTitle}>
                           {group.key === 'main'
-                            ? 'À ACHETER (INDISPENSABLES)'
+                            ? 'INGRÉDIENTS PRINCIPAUX'
                             : group.key === 'pantry'
-                            ? 'DANS VOS PLACARDS (SOUS LA MAIN)'
-                            : 'EN FINITION (AU GOÛT)'}
+                            ? 'ASSAISONNEMENTS & CONDIMENTS'
+                            : 'EN FINITION & AU GOÛT'}
                         </Text>
                       </View>
-                      <Text style={styles.shoppingGroupHint}>
-                        {group.key === 'main' ? 'Cochés par défaut' : 'Cochez si vous en manquez'}
-                      </Text>
+                      {group.key !== 'main' ? (
+                        <Text style={styles.shoppingGroupHint}>
+                          {group.key === 'pantry'
+                            ? 'Cochez si vous en manquez dans vos placards'
+                            : 'Touches facultatives ou selon vos préférences'}
+                        </Text>
+                      ) : null}
                     </View>
 
                     {group.items.map((ing) => {
@@ -1403,9 +1407,8 @@ const styles = createDynamicStyles((colors, shadows) => ({
     marginBottom: 6,
   },
   ingredientGroupHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: 'column',
+    alignItems: 'flex-start',
     paddingTop: 12,
     paddingBottom: 6,
     borderBottomWidth: 1,
@@ -1413,7 +1416,7 @@ const styles = createDynamicStyles((colors, shadows) => ({
     marginTop: 4,
     marginBottom: 2,
   },
-  ingredientGroupHeaderLeft: {
+  ingredientGroupHeaderTop: {
     flexDirection: 'row',
     alignItems: 'center',
   },
@@ -1428,6 +1431,8 @@ const styles = createDynamicStyles((colors, shadows) => ({
     fontSize: 11,
     color: colors.textMuted,
     fontStyle: 'italic',
+    marginTop: 2,
+    paddingLeft: 19,
   },
   ingredientNamePantry: {
     color: colors.textSecondary,
@@ -1853,14 +1858,17 @@ const styles = createDynamicStyles((colors, shadows) => ({
     marginBottom: 12,
   },
   shoppingGroupHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: 'column',
+    alignItems: 'flex-start',
     paddingVertical: 6,
     paddingHorizontal: 4,
     borderBottomWidth: 1,
     borderBottomColor: colors.borderLight,
     marginBottom: 4,
+  },
+  shoppingGroupHeaderTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   shoppingGroupTitle: {
     fontSize: 11,
@@ -1872,6 +1880,8 @@ const styles = createDynamicStyles((colors, shadows) => ({
     fontSize: 10,
     color: colors.textMuted,
     fontStyle: 'italic',
+    marginTop: 2,
+    paddingLeft: 19,
   },
   shoppingItemRow: {
     flexDirection: 'row',
