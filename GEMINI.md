@@ -30,10 +30,14 @@
   - Silent background learning of new ingredients and usage frequencies.
   - Full dedicated Vocabulary Manager in Settings (`VocabularyManagerModal`) allowing users to browse, search by aisle, rename, edit aliases, detach aliases into distinct ingredients with 1 tap, merge duplicates, and reset to defaults.
   - **1-Click Global Normalization**: Dedicated on-demand button in Settings ("Normaliser tous les ingrédients") allowing users to retrofit and standardize all saved recipes, grocery list items, and shelf ingredients at any time.
-- **HomeScreen Pinned Double Filter Bar & Inline Star Filter**:
-  - Pinned top section: Brand row, search bar, and the double filter bar (categories pill bar + secondary tools: Végé toggle, inline interactive 5-star rating band with score, Sort, Reset) remain locked at the top of the screen during scrolling.
+- **HomeScreen Top Section & Scroll-Reactive Collapsible Double Filter Bar**:
+  - Pinned top section: Brand row with logo and vertically stacked quick action buttons (Marmiton, Scan & IA, Ajouter) on the right, alongside the persistent search bar.
+  - Collapsible double filter bar: The double filter bar (categories pill bar + secondary tools: Végé toggle, inline interactive 5-star rating band with score, Sort, Reset) smoothly collapses and disappears when scrolling down, and reappears when scrolling up or returning to top.
   - The daily meal tracking widget ("Ce que j'ai mangé aujourd'hui") and results summary remain scrollable alongside the recipe cards.
   - The rating filter is operated directly from an inline 5-star bar supporting half-stars, with instant numeric feedback (e.g. `≥ 3.5`) and one-tap reset.
+  - Bottom Tab Bar: Centered labels across all tabs (notably "Courses & Étagères" beneath the basket icon).
+- **Settings Visual Ambiance Swatches**:
+  - Active color swatches are arranged cleanly in a row directly beneath the active palette name instead of squeezed to its right.
 - **Culinary Preferences & Default Servings Stepper**:
   - User-configurable default servings managed via an intuitive `[-]` / `[+]` stepper in Settings (1 to 50 persons).
 - **Categorized Shopping List**: Auto-generates items from recipes or meal plans, auto-classifying ingredients into supermarket aisles.

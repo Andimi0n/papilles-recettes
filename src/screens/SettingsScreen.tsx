@@ -305,7 +305,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
               </TouchableOpacity>
             </View>
 
-            {/* Pastilles d'aperçu de la palette active */}
+            {/* Pastilles d'aperçu de la palette active (placées en dessous du nom de la palette) */}
             <View style={styles.swatchCard}>
               <Text style={styles.swatchTitle}>
                 Palette active :{' '}
@@ -317,8 +317,8 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                 <View style={[styles.swatchDot, { backgroundColor: colors.primary }]} />
                 <View style={[styles.swatchDot, { backgroundColor: colors.secondary }]} />
                 <View style={[styles.swatchDot, { backgroundColor: colors.amber }]} />
-                <View style={[styles.swatchDot, { backgroundColor: colors.cardBackground, borderWidth: 1, borderColor: colors.border }]} />
-                <View style={[styles.swatchDot, { backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border }]} />
+                <View style={[styles.swatchDot, { backgroundColor: colors.cardBackground, borderWidth: 1.5, borderColor: colors.border }]} />
+                <View style={[styles.swatchDot, { backgroundColor: colors.background, borderWidth: 1.5, borderColor: colors.border }]} />
               </View>
             </View>
           </View>
@@ -791,23 +791,23 @@ const styles = createDynamicStyles((colors, shadows) => ({
     backgroundColor: colors.surfaceAlt,
     borderRadius: 12,
     padding: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: 8,
   },
   swatchTitle: {
-    fontSize: 12,
+    fontSize: 12.5,
     color: colors.textSecondary,
   },
   swatchRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
   },
   swatchDot: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    marginLeft: 6,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
   },
   apiKeyInputContainer: {
     flexDirection: 'row',

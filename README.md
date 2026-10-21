@@ -63,10 +63,13 @@ Une application mobile moderne, soignée et intuitive pour gérer vos recettes, 
 - Astuces secrètes et notes personnelles mémorisées sur chaque fiche recette.
 - **Filtre par note interactif en 5 étoiles** : bandeau d'étoiles interactif directement intégré dans la barre d'outils supérieure, avec affichage de la valeur chiffrée (ex: `≥ 3.5`) et bouton d'effacement rapide.
 
-### 7. 🥗 Double Bandeau de Filtres Verrouillé & Défilement Naturel
-- **Bandeau de commandes fixe en haut d'écran** : la barre de recherche, la barre des catégories (*Tous, Plats, Desserts...*) et la barre des filtres (*Végé, Note interactive 5 étoiles, Tri, Réinitialisation*) restent toujours verrouillées au sommet de l'écran lors du défilement.
-- **Défilement naturel du widget quotidien** : le widget *"Ce que j'ai mangé aujourd'hui"* défile avec la liste de recettes pour préserver l'espace visuel.
-- Sélecteur multi-ingrédients avec suggestions d'ingrédients populaires pour le frigo.
+### 7. 🥗 Double Bandeau de Filtres Rétractable & Boutons Verticaux
+- **Bandeau de marque & actions verticales** : l'identité Papilles avec son logo et ses actions rapides (*Marmiton*, *Scan & IA*, *Ajouter*) sont disposées de manière ordonnée à la verticale à droite, optimisant la largeur utile.
+- **Double bandeau de filtres rétractable au scroll** : la barre des catégories (*Tous, Plats, Desserts...*) et la barre des filtres secondaires (*Végé, Note interactive 5 étoiles, Tri, Effacer*) s'effacent automatiquement lors du défilement vers le bas pour libérer l'espace d'affichage, et réapparaissent instantanément dès qu'on remonte.
+- **Barre de recherche verrouillée** : la barre de recherche et le logo restent toujours accessibles en haut de l'écran.
+- **Défilement naturel du widget quotidien** : le widget *"Ce que j'ai mangé aujourd'hui"* défile avec la liste de recettes.
+- **Navigation parfaitement centrée** : intitulés des onglets (notamment *"Courses & Étagères"* sous l'icône de panier) centrés pour une lisibilité optimale.
+- **Palette active dans les paramètres** : les pastilles de couleurs sont présentées sous le nom de l'ambiance active.
 
 ### 8. 👨‍🍳 Mode Session Cuisine Interactif
 - Liste d'ingrédients et étapes avec cases à cocher pour suivre votre avancée pas à pas sans perdre le fil.

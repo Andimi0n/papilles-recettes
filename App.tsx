@@ -398,6 +398,7 @@ const styles = createDynamicStyles((colors, shadows) => ({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 2,
   },
   tabIconWrapper: {
     position: 'relative',
@@ -428,6 +429,7 @@ const styles = createDynamicStyles((colors, shadows) => ({
     fontWeight: '600',
     color: colors.textSecondary,
     marginTop: 3,
+    textAlign: 'center',
   },
   tabLabelActive: {
     color: colors.primary,
