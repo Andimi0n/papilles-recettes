@@ -17,7 +17,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Recipe } from '../types/recipe';
 import { StorageService } from '../services/storageService';
-import { Colors, Shadows } from '../theme/colors';
+import { Colors, Shadows, createDynamicStyles } from '../theme/colors';
 import { StarRating } from '../components/StarRating';
 import { CookingModeModal } from '../components/CookingModeModal';
 import {
@@ -43,7 +43,7 @@ interface RecipeDetailScreenProps {
   onBack: () => void;
   onEdit: (recipe: Recipe) => void;
   onDelete: (id: string) => void;
-  onToggleFavorite: (id: string) => void;
+  onToggleFavorite?: (id: string) => void;
   onUpdateRating: (id: string, rating: number, userNote?: string) => void;
   onNavigateToShoppingList?: () => void;
 }
@@ -53,7 +53,6 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
   onBack,
   onEdit,
   onDelete,
-  onToggleFavorite,
   onUpdateRating,
   onNavigateToShoppingList,
 }) => {
@@ -314,13 +313,6 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
             >
               <Ionicons name="cart-outline" size={22} color={Colors.primary} />
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => onToggleFavorite(recipe.id)} style={styles.navBtn}>
-              <Ionicons
-                name={recipe.isFavorite ? 'heart' : 'heart-outline'}
-                size={22}
-                color={recipe.isFavorite ? Colors.heart : Colors.textPrimary}
-              />
-            </TouchableOpacity>
             <TouchableOpacity onPress={handleShare} style={styles.navBtn}>
               <Ionicons name="share-social-outline" size={22} color={Colors.textPrimary} />
             </TouchableOpacity>
@@ -391,6 +383,9 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
                 rating={recipe.rating}
                 size={32}
                 interactive={true}
+                showScore={true}
+                showLabel={true}
+                showClear={recipe.rating > 0}
                 onRatingChange={(newRating) => onUpdateRating(recipe.id, newRating)}
               />
             </View>
@@ -818,7 +813,7 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const styles = createDynamicStyles((colors, shadows) => ({
   safeArea: {
     flex: 1,
     backgroundColor: Colors.background,
@@ -1430,4 +1425,4 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
   },
-});
+}));

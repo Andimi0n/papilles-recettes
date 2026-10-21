@@ -8,14 +8,14 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Recipe } from '../types/recipe';
-import { Colors, Shadows } from '../theme/colors';
+import { Colors, Shadows, createDynamicStyles } from '../theme/colors';
 import { StarRating } from './StarRating';
 import { formatDuration } from '../utils/helpers';
 
 interface RecipeCardProps {
   recipe: Recipe;
   onPress: () => void;
-  onToggleFavorite: () => void;
+  onToggleFavorite?: () => void;
   onQuickRate?: (rating: number) => void;
   highlightedIngredients?: string[]; // ingredients matched by search
 }
@@ -23,7 +23,6 @@ interface RecipeCardProps {
 const RecipeCardComponent: React.FC<RecipeCardProps> = ({
   recipe,
   onPress,
-  onToggleFavorite,
   onQuickRate,
   highlightedIngredients = [],
 }) => {
@@ -51,20 +50,6 @@ const RecipeCardComponent: React.FC<RecipeCardProps> = ({
             <Ionicons name="restaurant-outline" size={40} color={Colors.primary + '55'} />
           </View>
         )}
-
-        {/* Favorite Button */}
-        <TouchableOpacity
-          style={styles.favoriteBtn}
-          onPress={onToggleFavorite}
-          activeOpacity={0.8}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <Ionicons
-            name={recipe.isFavorite ? 'heart' : 'heart-outline'}
-            size={20}
-            color={recipe.isFavorite ? Colors.heart : Colors.textSecondary}
-          />
-        </TouchableOpacity>
 
         {/* Category & Vegetarian Badges */}
         <View style={styles.topBadgesRow}>
@@ -112,7 +97,8 @@ const RecipeCardComponent: React.FC<RecipeCardProps> = ({
             size={18}
             interactive={true}
             onRatingChange={onQuickRate}
-            showScore={false}
+            showScore={recipe.rating > 0}
+            showClear={recipe.rating > 0}
           />
         </View>
 
@@ -155,7 +141,7 @@ const RecipeCardComponent: React.FC<RecipeCardProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const styles = createDynamicStyles((colors, shadows) => ({
   card: {
     backgroundColor: Colors.cardBackground,
     borderRadius: 20,
@@ -179,17 +165,6 @@ const styles = StyleSheet.create({
   imageOverlay: {
     ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0,0,0,0.12)',
-  },
-  favoriteBtn: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    backgroundColor: 'rgba(0, 0, 0, 0.45)',
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   topBadgesRow: {
     position: 'absolute',
@@ -331,13 +306,12 @@ const styles = StyleSheet.create({
     height: 14,
     backgroundColor: Colors.border,
   },
-});
+}));
 
 export const RecipeCard = React.memo(RecipeCardComponent, (prevProps, nextProps) => {
   return (
     prevProps.recipe.id === nextProps.recipe.id &&
     prevProps.recipe.rating === nextProps.recipe.rating &&
-    prevProps.recipe.isFavorite === nextProps.recipe.isFavorite &&
     prevProps.recipe.title === nextProps.recipe.title &&
     prevProps.recipe.imageUrl === nextProps.recipe.imageUrl &&
     (prevProps.highlightedIngredients?.length || 0) === (nextProps.highlightedIngredients?.length || 0)

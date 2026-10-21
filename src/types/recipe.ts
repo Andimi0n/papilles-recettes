@@ -37,7 +37,7 @@ export interface Recipe {
   userNote?: string; // personal chef tip or comment
   imageUrl: string;
   availableImages?: string[];
-  isFavorite: boolean;
+  isFavorite?: boolean;
   isVegetarian?: boolean;
   createdAt: string;
   updatedAt: string;
@@ -51,6 +51,6 @@ export interface FilterOptions {
   selectedIngredients: string[];
   minRating: number;
   sortBy: SortOption;
-  onlyFavorites: boolean;
+  onlyFavorites?: boolean;
   onlyVegetarian?: boolean;
 }
