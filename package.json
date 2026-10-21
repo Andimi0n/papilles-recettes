@@ -30,6 +30,8 @@
     "android": "EXPO_NO_TELEMETRY=1 expo start --android",
     "ios": "EXPO_NO_TELEMETRY=1 expo start --ios",
     "web": "EXPO_NO_TELEMETRY=1 expo start --web",
+    "build:android": "eas build -p android --profile preview",
+    "build:ios": "eas build -p ios --profile preview",
     "import:marmiton": "node scripts/import_marmiton.js"
   },
   "overrides": {
