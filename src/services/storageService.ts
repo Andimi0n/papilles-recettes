@@ -13,24 +13,47 @@ const SCHEMA_VERSION_KEY = '@papilles_schema_version';
 const CURRENT_SCHEMA_VERSION = 'v4';
 const SHOPPING_LIST_KEY = '@papilles_shopping_list_v1';
 const WEEKLY_PLAN_KEY = '@papilles_weekly_plan_v1';
+const THEME_MODE_KEY = '@papilles_theme_mode_v1';
+const DEFAULT_SERVINGS_KEY = '@papilles_default_servings_v1';
+
+/**
+ * Assainit une URL d'image pour s'assurer qu'elle n'exploite aucun protocole malveillant (SEC-09)
+ */
+function sanitizeImageUrl(url: any): string {
+  if (typeof url !== 'string' || !url.trim()) return '';
+  const trimmed = url.trim();
+  const lower = trimmed.toLowerCase();
+  if (
+    lower.startsWith('https://') ||
+    lower.startsWith('http://') ||
+    lower.startsWith('file://') ||
+    lower.startsWith('data:image/')
+  ) {
+    return trimmed.slice(0, 2000);
+  }
+  return '';
+}
 
 /**
  * Assainit une recette chargée depuis le stockage pour éviter les crashs si des champs sont manquants
+ * et applique des plafonds stricts pour immuniser SQLite contre les attaques DoS (SEC-06).
  */
 function sanitizeStoredRecipe(r: any): Recipe {
   return {
-    id: typeof r.id === 'string' && r.id ? r.id : generateUniqueId('rec'),
-    title: typeof r.title === 'string' && r.title ? r.title : 'Recette sans titre',
-    description: typeof r.description === 'string' ? r.description : '',
+    id: typeof r.id === 'string' && r.id ? r.id.slice(0, 100) : generateUniqueId('rec'),
+    title: typeof r.title === 'string' && r.title ? r.title.slice(0, 200) : 'Recette sans titre',
+    description: typeof r.description === 'string' ? r.description.slice(0, 2000) : '',
     category: r.category || 'Plat',
     difficulty: r.difficulty || 'Moyen',
-    prepTimeMinutes: typeof r.prepTimeMinutes === 'number' ? r.prepTimeMinutes : 15,
-    cookTimeMinutes: typeof r.cookTimeMinutes === 'number' ? r.cookTimeMinutes : 0,
-    servings: typeof r.servings === 'number' && r.servings > 0 ? r.servings : 4,
-    rating: typeof r.rating === 'number' ? r.rating : 0,
-    userNote: typeof r.userNote === 'string' ? r.userNote : undefined,
-    imageUrl: typeof r.imageUrl === 'string' ? r.imageUrl : '',
-    availableImages: Array.isArray(r.availableImages) ? r.availableImages : undefined,
+    prepTimeMinutes: typeof r.prepTimeMinutes === 'number' && r.prepTimeMinutes >= 0 ? Math.min(1440, r.prepTimeMinutes) : 15,
+    cookTimeMinutes: typeof r.cookTimeMinutes === 'number' && r.cookTimeMinutes >= 0 ? Math.min(1440, r.cookTimeMinutes) : 0,
+    servings: typeof r.servings === 'number' && r.servings > 0 ? Math.min(100, r.servings) : 4,
+    rating: typeof r.rating === 'number' && r.rating >= 0 ? Math.min(5, Math.max(0, r.rating)) : 0,
+    userNote: typeof r.userNote === 'string' ? r.userNote.slice(0, 1500) : undefined,
+    imageUrl: sanitizeImageUrl(r.imageUrl),
+    availableImages: Array.isArray(r.availableImages)
+      ? r.availableImages.map(sanitizeImageUrl).filter(Boolean).slice(0, 10)
+      : undefined,
     isFavorite: Boolean(r.isFavorite),
     isVegetarian:
       typeof r.isVegetarian === 'boolean'
@@ -39,18 +62,18 @@ function sanitizeStoredRecipe(r: any): Recipe {
     createdAt: typeof r.createdAt === 'string' ? r.createdAt : new Date().toISOString(),
     updatedAt: typeof r.updatedAt === 'string' ? r.updatedAt : new Date().toISOString(),
     ingredients: Array.isArray(r.ingredients)
-      ? r.ingredients.map((ing: any, idx: number) => ({
-          id: typeof ing.id === 'string' ? ing.id : generateUniqueId(`ing_${idx}`),
-          name: typeof ing.name === 'string' ? ing.name : '',
-          quantity: ing.quantity ? String(ing.quantity) : '',
-          unit: ing.unit ? String(ing.unit) : '',
+      ? r.ingredients.slice(0, 100).map((ing: any, idx: number) => ({
+          id: typeof ing.id === 'string' ? ing.id.slice(0, 80) : generateUniqueId(`ing_${idx}`),
+          name: typeof ing.name === 'string' ? ing.name.slice(0, 150) : '',
+          quantity: ing.quantity ? String(ing.quantity).slice(0, 50) : '',
+          unit: ing.unit ? String(ing.unit).slice(0, 50) : '',
         }))
       : [],
     steps: Array.isArray(r.steps)
-      ? r.steps.map((st: any, idx: number) => ({
-          id: typeof st.id === 'string' ? st.id : generateUniqueId(`stp_${idx}`),
+      ? r.steps.slice(0, 50).map((st: any, idx: number) => ({
+          id: typeof st.id === 'string' ? st.id.slice(0, 80) : generateUniqueId(`stp_${idx}`),
           order: typeof st.order === 'number' ? st.order : idx + 1,
-          instruction: typeof st.instruction === 'string' ? st.instruction : '',
+          instruction: typeof st.instruction === 'string' ? st.instruction.slice(0, 2500) : '',
         }))
       : [],
   };
@@ -478,6 +501,115 @@ export const StorageService = {
     } catch (e) {
       console.error('Erreur génération liste de courses depuis planning:', e);
       throw e;
+    }
+  },
+
+  /**
+   * Récupère le mode de thème sauvegardé ('system' | 'light' | 'dark')
+   */
+  async getThemeMode(): Promise<'system' | 'light' | 'dark'> {
+    try {
+      const mode = await AsyncStorage.getItem(THEME_MODE_KEY);
+      if (mode === 'light' || mode === 'dark' || mode === 'system') {
+        return mode;
+      }
+      return 'system';
+    } catch (e) {
+      console.error('Erreur lecture thème:', e);
+      return 'system';
+    }
+  },
+
+  /**
+   * Sauvegarde le mode de thème
+   */
+  async saveThemeMode(mode: 'system' | 'light' | 'dark'): Promise<void> {
+    try {
+      await AsyncStorage.setItem(THEME_MODE_KEY, mode);
+    } catch (e) {
+      console.error('Erreur sauvegarde thème:', e);
+    }
+  },
+
+  /**
+   * Récupère le nombre de portions par défaut configuré
+   */
+  async getDefaultServings(): Promise<number> {
+    try {
+      const stored = await AsyncStorage.getItem(DEFAULT_SERVINGS_KEY);
+      if (stored) {
+        const parsed = parseInt(stored, 10);
+        if (!isNaN(parsed) && parsed > 0 && parsed <= 50) return parsed;
+      }
+      return 4;
+    } catch {
+      return 4;
+    }
+  },
+
+  /**
+   * Sauvegarde le nombre de portions par défaut
+   */
+  async saveDefaultServings(servings: number): Promise<void> {
+    try {
+      await AsyncStorage.setItem(DEFAULT_SERVINGS_KEY, String(servings));
+    } catch (e) {
+      console.error('Erreur sauvegarde portions par défaut:', e);
+    }
+  },
+
+  /**
+   * Exporte l'intégralité des recettes sous forme de chaîne JSON formatée
+   */
+  async exportAllData(): Promise<string> {
+    const recipes = await this.getRecipes();
+    const shoppingList = await this.getShoppingList();
+    const weeklyPlan = await this.getWeeklyPlan();
+    return JSON.stringify(
+      {
+        version: '1.0.0',
+        exportedAt: new Date().toISOString(),
+        recipes,
+        shoppingList,
+        weeklyPlan,
+      },
+      null,
+      2
+    );
+  },
+
+  /**
+   * Importe des recettes depuis un fichier JSON en préservant l'intégrité
+   */
+  async importRecipes(recipesJson: string): Promise<{ success: boolean; count: number; error?: string }> {
+    try {
+      const parsed = JSON.parse(recipesJson);
+      const incomingRecipes: any[] = Array.isArray(parsed)
+        ? parsed
+        : Array.isArray(parsed.recipes)
+        ? parsed.recipes
+        : [];
+
+      if (incomingRecipes.length === 0) {
+        return { success: false, count: 0, error: 'Aucune recette valide détectée dans le fichier.' };
+      }
+
+      const sanitizedIncoming = incomingRecipes.map(sanitizeStoredRecipe);
+      const current = await this.getRecipes();
+      const currentMap = new Map<string, Recipe>();
+      current.forEach((r) => currentMap.set(r.id, r));
+
+      let addedOrUpdated = 0;
+      sanitizedIncoming.forEach((newRec) => {
+        currentMap.set(newRec.id, newRec);
+        addedOrUpdated++;
+      });
+
+      const merged = Array.from(currentMap.values());
+      await AsyncStorage.setItem(RECIPES_STORAGE_KEY, JSON.stringify(merged));
+      return { success: true, count: addedOrUpdated };
+    } catch (err: any) {
+      return { success: false, count: 0, error: err?.message || 'Format JSON invalide.' };
     }
   },
 };

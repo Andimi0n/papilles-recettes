@@ -12,8 +12,10 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Recipe, Category, SortOption } from '../types/recipe';
-import { Colors, Shadows } from '../theme/colors';
+import { Colors, Shadows, createDynamicStyles } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
 import { RecipeCard } from '../components/RecipeCard';
+import { StarRating } from '../components/StarRating';
 import { SearchBar } from '../components/SearchBar';
 import { CategoryPills } from '../components/CategoryPills';
 import { EmptyState } from '../components/EmptyState';
@@ -40,8 +42,9 @@ interface HomeScreenProps {
   onAddNewRecipe: () => void;
   onScanRecipe: (initialMode?: 'photo' | 'text') => void;
   onImportRecipe?: (recipe: Recipe) => void;
-  onToggleFavorite: (id: string) => void;
+  onToggleFavorite?: (id: string) => void;
   onQuickRate: (id: string, rating: number) => void;
+  onOpenSettings?: () => void;
 }
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({
@@ -50,9 +53,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   onAddNewRecipe,
   onScanRecipe,
   onImportRecipe,
-  onToggleFavorite,
   onQuickRate,
+  onOpenSettings,
 }) => {
+  const { isDark, toggleTheme } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const flatListRef = useRef<FlatList<Recipe>>(null);
@@ -285,25 +289,43 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             </Text>
           </TouchableOpacity>
 
-          {/* Filtre Note minimale (3+, 3.5+, 4+, 4.5+) */}
+          {/* Filtre Note minimale (0.5★+, 1★+, 2★+, etc.) */}
           <TouchableOpacity
             style={[styles.toolPill, minRatingFilter > 0 && styles.toolPillActive]}
             onPress={() => setIsRatingModalVisible(true)}
             activeOpacity={0.7}
           >
             <Ionicons
-              name="star"
+              name={minRatingFilter > 0 ? 'star' : 'star-outline'}
               size={13}
               color={minRatingFilter > 0 ? Colors.amber : Colors.textSecondary}
             />
             <Text style={[styles.toolPillText, minRatingFilter > 0 && styles.toolPillTextActive]}>
-              {minRatingFilter > 0 ? `${minRatingFilter}★ et +` : 'Toutes notes'}
+              {minRatingFilter > 0
+                ? minRatingFilter === 0.5
+                  ? 'Notées (0.5★+)'
+                  : `${minRatingFilter}★ et +`
+                : 'Toutes notes'}
             </Text>
-            <Ionicons
-              name="chevron-down"
-              size={11}
-              color={minRatingFilter > 0 ? Colors.primary : Colors.textMuted}
-            />
+            {minRatingFilter > 0 ? (
+              <TouchableOpacity
+                onPress={(e) => {
+                  e.stopPropagation();
+                  setMinRatingFilter(0);
+                }}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                style={styles.pillClearBtn}
+                accessibilityLabel="Réinitialiser le filtre de note"
+              >
+                <Ionicons name="close-circle" size={13} color={Colors.primary} />
+              </TouchableOpacity>
+            ) : (
+              <Ionicons
+                name="chevron-down"
+                size={11}
+                color={Colors.textMuted}
+              />
+            )}
           </TouchableOpacity>
 
           {/* Modal de Tri (labels courts et instinctifs) */}
@@ -438,12 +460,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       <RecipeCard
         recipe={item}
         onPress={() => onSelectRecipe(item)}
-        onToggleFavorite={() => onToggleFavorite(item.id)}
         onQuickRate={(rating) => onQuickRate(item.id, rating)}
         highlightedIngredients={getMatchedIngredientsForRecipe(item)}
       />
     ),
-    [onSelectRecipe, onToggleFavorite, onQuickRate, matchedIngredientsMap, selectedIngredients]
+    [onSelectRecipe, onQuickRate, matchedIngredientsMap, selectedIngredients]
   );
 
   return (
@@ -459,6 +480,34 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 <View style={styles.chefHatBadge}>
                   <Ionicons name="restaurant" size={13} color={Colors.primary} />
                 </View>
+
+                {/* Bouton discret bascule Thème (Jardin Botanique / Table Nocturne) */}
+                <TouchableOpacity
+                  style={styles.headerIconBtn}
+                  onPress={toggleTheme}
+                  activeOpacity={0.7}
+                  hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+                  accessibilityLabel="Changer de thème"
+                >
+                  <Ionicons
+                    name={isDark ? 'sunny' : 'moon'}
+                    size={15}
+                    color={isDark ? Colors.amber : Colors.textSecondary}
+                  />
+                </TouchableOpacity>
+
+                {/* Bouton discret Paramètres */}
+                {onOpenSettings && (
+                  <TouchableOpacity
+                    style={styles.headerIconBtn}
+                    onPress={onOpenSettings}
+                    activeOpacity={0.7}
+                    hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+                    accessibilityLabel="Ouvrir les paramètres"
+                  >
+                    <Ionicons name="settings-outline" size={15} color={Colors.textSecondary} />
+                  </TouchableOpacity>
+                )}
               </View>
               <Text style={styles.logoSubtitle}>Votre carnet de cuisine inspiré</Text>
             </View>
@@ -621,7 +670,16 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           <View style={styles.modalBackdrop}>
             <View style={styles.sortModalBox}>
               <View style={styles.modalHeaderRow}>
-                <Text style={styles.sortModalTitle}>Filtrer par note</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.sortModalTitle}>Filtrer par note</Text>
+                  <Text style={styles.ratingModalSubtitle}>
+                    {minRatingFilter > 0
+                      ? minRatingFilter === 0.5
+                        ? 'Afficher les recettes notées (au moins 0.5★)'
+                        : `Recettes avec au moins ${minRatingFilter}★`
+                      : 'Toutes les recettes (sans filtre)'}
+                  </Text>
+                </View>
                 <TouchableOpacity
                   onPress={() => setIsRatingModalVisible(false)}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -630,52 +688,97 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 </TouchableOpacity>
               </View>
 
-              {[
-                { min: 0, label: 'Toutes les notes', icon: 'star-outline' },
-                { min: 3, label: '3★ et +', icon: 'star' },
-                { min: 3.5, label: '3.5★ et +', icon: 'star-half' },
-                { min: 4, label: '4★ et +', icon: 'star' },
-                { min: 4.5, label: '4.5★ et +', icon: 'star' },
-              ].map((opt) => (
-                <TouchableOpacity
-                  key={opt.min}
-                  style={[
-                    styles.sortOptionRow,
-                    minRatingFilter === opt.min && styles.sortOptionSelected,
-                  ]}
-                  onPress={() => {
-                    setMinRatingFilter(opt.min);
-                    setIsRatingModalVisible(false);
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.sortOptionLeft}>
-                    <Ionicons
-                      name={opt.icon as any}
-                      size={18}
-                      color={minRatingFilter === opt.min ? Colors.amber : Colors.textSecondary}
-                    />
-                    <Text
-                      style={[
-                        styles.sortOptionText,
-                        minRatingFilter === opt.min && styles.sortOptionTextActive,
-                      ]}
-                    >
-                      {opt.label}
-                    </Text>
-                  </View>
-                  {minRatingFilter === opt.min && (
-                    <Ionicons name="checkmark" size={18} color={Colors.primary} />
-                  )}
-                </TouchableOpacity>
-              ))}
+              {/* Sélecteur d'étoiles interactif direct */}
+              <View style={styles.ratingFilterInteractiveCard}>
+                <Text style={styles.ratingFilterInteractiveTitle}>
+                  Touchez les étoiles pour choisir la note minimale :
+                </Text>
+                <View style={styles.ratingFilterStarsContainer}>
+                  <StarRating
+                    rating={minRatingFilter}
+                    size={32}
+                    interactive={true}
+                    showScore={true}
+                    showClear={minRatingFilter > 0}
+                    onRatingChange={(newVal) => setMinRatingFilter(newVal)}
+                  />
+                </View>
+                <Text style={styles.ratingFilterInteractiveHint}>
+                  Astuce : touchez la gauche d'une étoile pour 0.5★ ou tapotez 2 fois.
+                </Text>
+              </View>
 
-              <TouchableOpacity
-                style={styles.closeSortModalBtn}
-                onPress={() => setIsRatingModalVisible(false)}
-              >
-                <Text style={styles.closeSortModalText}>Fermer</Text>
-              </TouchableOpacity>
+              {/* Options prédéfinies rapides */}
+              <ScrollView style={{ maxHeight: 240 }} showsVerticalScrollIndicator={false}>
+                {[
+                  { min: 0, label: 'Toutes les notes', subtitle: 'Tout afficher, y compris non notées', icon: 'star-outline' },
+                  { min: 0.5, label: 'Notées uniquement (0.5★ et +)', subtitle: 'Toutes les recettes avec avis (remplace les favoris)', icon: 'star-half' },
+                  { min: 1, label: '1★ et +', icon: 'star' },
+                  { min: 2, label: '2★ et +', icon: 'star' },
+                  { min: 3, label: '3★ et +', subtitle: 'Bonnes recettes', icon: 'star' },
+                  { min: 3.5, label: '3.5★ et +', subtitle: 'Très bonnes recettes', icon: 'star-half' },
+                  { min: 4, label: '4★ et +', subtitle: 'Excellentes recettes', icon: 'star' },
+                  { min: 4.5, label: '4.5★ et +', subtitle: 'Recettes remarquables', icon: 'star' },
+                  { min: 5, label: '5★ (Coups de cœur)', subtitle: 'La perfection culinaire', icon: 'star' },
+                ].map((opt) => (
+                  <TouchableOpacity
+                    key={opt.min}
+                    style={[
+                      styles.sortOptionRow,
+                      minRatingFilter === opt.min && styles.sortOptionSelected,
+                    ]}
+                    onPress={() => {
+                      setMinRatingFilter(opt.min);
+                      setIsRatingModalVisible(false);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.sortOptionLeft}>
+                      <Ionicons
+                        name={opt.icon as any}
+                        size={18}
+                        color={minRatingFilter === opt.min ? Colors.amber : Colors.textSecondary}
+                      />
+                      <View style={{ flex: 1 }}>
+                        <Text
+                          style={[
+                            styles.sortOptionText,
+                            minRatingFilter === opt.min && styles.sortOptionTextActive,
+                          ]}
+                        >
+                          {opt.label}
+                        </Text>
+                        {opt.subtitle ? (
+                          <Text style={styles.ratingOptionSubtitle}>{opt.subtitle}</Text>
+                        ) : null}
+                      </View>
+                    </View>
+                    {minRatingFilter === opt.min && (
+                      <Ionicons name="checkmark" size={18} color={Colors.primary} />
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+
+              <View style={styles.ratingModalActions}>
+                {minRatingFilter > 0 ? (
+                  <TouchableOpacity
+                    style={styles.ratingResetBtn}
+                    onPress={() => {
+                      setMinRatingFilter(0);
+                      setIsRatingModalVisible(false);
+                    }}
+                  >
+                    <Text style={styles.ratingResetBtnText}>Réinitialiser</Text>
+                  </TouchableOpacity>
+                ) : null}
+                <TouchableOpacity
+                  style={[styles.ratingApplyBtn, minRatingFilter === 0 && { width: '100%' }]}
+                  onPress={() => setIsRatingModalVisible(false)}
+                >
+                  <Text style={styles.ratingApplyBtnText}>Fermer</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         </Modal>
@@ -800,13 +903,24 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const styles = createDynamicStyles((colors, shadows) => ({
   safeArea: {
     flex: 1,
     backgroundColor: Colors.background,
   },
   container: {
     flex: 1,
+  },
+  headerIconBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: Colors.surfaceAlt,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 6,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
   },
   fixedTopHeader: {
     backgroundColor: Colors.background,
@@ -1085,6 +1199,73 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 14,
   },
+  ratingModalSubtitle: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  ratingFilterInteractiveCard: {
+    backgroundColor: Colors.surfaceAlt,
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 12,
+    alignItems: 'center',
+  },
+  ratingFilterInteractiveTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+    marginBottom: 8,
+  },
+  ratingFilterStarsContainer: {
+    paddingVertical: 4,
+  },
+  ratingFilterInteractiveHint: {
+    fontSize: 11,
+    color: Colors.textMuted,
+    marginTop: 6,
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
+  ratingOptionSubtitle: {
+    fontSize: 11,
+    color: Colors.textMuted,
+    marginTop: 1,
+  },
+  ratingModalActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 14,
+  },
+  ratingResetBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: Colors.surfaceAlt,
+    alignItems: 'center',
+  },
+  ratingResetBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.danger,
+  },
+  ratingApplyBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+  },
+  ratingApplyBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  pillClearBtn: {
+    marginLeft: 4,
+    padding: 2,
+  },
   aiModalBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
@@ -1255,4 +1436,4 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     fontWeight: '500',
   },
-});
+}));

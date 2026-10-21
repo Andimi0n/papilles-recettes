@@ -3,7 +3,6 @@ import {
   View,
   Text,
   ActivityIndicator,
-  StyleSheet,
   Alert,
   TouchableOpacity,
   Platform,
@@ -19,11 +18,14 @@ import { RecipeFormScreen } from './src/screens/RecipeFormScreen';
 import { ScanRecipeScreen } from './src/screens/ScanRecipeScreen';
 import { ShoppingListScreen } from './src/screens/ShoppingListScreen';
 import { MealPlannerScreen } from './src/screens/MealPlannerScreen';
-import { Colors, Shadows } from './src/theme/colors';
+import { SettingsModal } from './src/screens/SettingsModal';
+import { Colors, Shadows, createDynamicStyles } from './src/theme/colors';
+import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
 
 type AppScreen = 'home' | 'planner' | 'shopping' | 'detail' | 'form' | 'scan';
 
-export default function App() {
+function AppContent() {
+  const { isDark, colors } = useTheme();
   const [currentScreen, setCurrentScreen] = useState<AppScreen>('home');
   const [returnScreenAfterDetail, setReturnScreenAfterDetail] = useState<'home' | 'planner'>('home');
   const [recipes, setRecipes] = useState<Recipe[]>([]);
@@ -31,6 +33,7 @@ export default function App() {
   const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [shoppingBadgeCount, setShoppingBadgeCount] = useState(0);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // Met à jour le compteur d'articles de courses restants pour le badge
   const refreshShoppingBadge = useCallback(async () => {
@@ -40,6 +43,16 @@ export default function App() {
       setShoppingBadgeCount(uncompleted);
     } catch (e) {
       console.error('Erreur rafraîchissement badge courses:', e);
+    }
+  }, []);
+
+  // Recharge la liste des recettes
+  const reloadRecipes = useCallback(async () => {
+    try {
+      const loaded = await StorageService.getRecipes();
+      setRecipes(loaded);
+    } catch (e) {
+      console.error('Erreur rechargement recettes:', e);
     }
   }, []);
 
@@ -138,15 +151,6 @@ export default function App() {
     }
   };
 
-  const handleToggleFavorite = async (id: string) => {
-    try {
-      const updated = await StorageService.toggleFavorite(id);
-      setRecipes(updated);
-    } catch (e) {
-      console.error('Erreur favori:', e);
-    }
-  };
-
   const handleUpdateRating = async (id: string, rating: number, userNote?: string) => {
     try {
       const updated = await StorageService.updateRecipeRating(id, rating, userNote);
@@ -159,7 +163,7 @@ export default function App() {
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={Colors.primary} />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -168,7 +172,7 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <StatusBar style="dark" />
+      <StatusBar style={isDark ? 'light' : 'dark'} />
       <View style={styles.container}>
         {/* Écrans Principaux */}
         <View style={styles.mainContent}>
@@ -179,8 +183,8 @@ export default function App() {
               onAddNewRecipe={navigateToCreate}
               onScanRecipe={navigateToScan}
               onImportRecipe={handleRecipeExtracted}
-              onToggleFavorite={handleToggleFavorite}
               onQuickRate={handleUpdateRating}
+              onOpenSettings={() => setIsSettingsOpen(true)}
             />
           )}
 
@@ -217,7 +221,6 @@ export default function App() {
               }}
               onEdit={navigateToEdit}
               onDelete={handleDeleteRecipe}
-              onToggleFavorite={handleToggleFavorite}
               onUpdateRating={handleUpdateRating}
               onNavigateToShoppingList={navigateToShopping}
             />
@@ -249,7 +252,7 @@ export default function App() {
               <Ionicons
                 name={currentScreen === 'home' ? 'book' : 'book-outline'}
                 size={22}
-                color={currentScreen === 'home' ? Colors.primary : Colors.textSecondary}
+                color={currentScreen === 'home' ? colors.primary : colors.textSecondary}
               />
               <Text
                 style={[
@@ -269,7 +272,7 @@ export default function App() {
               <Ionicons
                 name={currentScreen === 'planner' ? 'calendar' : 'calendar-outline'}
                 size={22}
-                color={currentScreen === 'planner' ? Colors.primary : Colors.textSecondary}
+                color={currentScreen === 'planner' ? colors.primary : colors.textSecondary}
               />
               <Text
                 style={[
@@ -290,7 +293,7 @@ export default function App() {
                 <Ionicons
                   name={currentScreen === 'shopping' ? 'cart' : 'cart-outline'}
                   size={23}
-                  color={currentScreen === 'shopping' ? Colors.primary : Colors.textSecondary}
+                  color={currentScreen === 'shopping' ? colors.primary : colors.textSecondary}
                 />
                 {shoppingBadgeCount > 0 && (
                   <View style={styles.tabBadge}>
@@ -311,33 +314,49 @@ export default function App() {
             </TouchableOpacity>
           </View>
         )}
+
+        {/* Modal de Réglages & Paramètres */}
+        <SettingsModal
+          visible={isSettingsOpen}
+          onClose={() => setIsSettingsOpen(false)}
+          recipes={recipes}
+          onRecipesReloadNeeded={reloadRecipes}
+        />
       </View>
     </SafeAreaProvider>
   );
 }
 
-const styles = StyleSheet.create({
+export default function App() {
+  return (
+    <ThemeProvider>
+      <AppContent />
+    </ThemeProvider>
+  );
+}
+
+const styles = createDynamicStyles((colors, shadows) => ({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: colors.background,
   },
   mainContent: {
     flex: 1,
   },
   loadingContainer: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: colors.background,
     justifyContent: 'center',
     alignItems: 'center',
   },
   bottomTabBar: {
     flexDirection: 'row',
-    backgroundColor: Colors.cardBackground,
+    backgroundColor: colors.cardBackground,
     borderTopWidth: 1,
-    borderTopColor: Colors.border,
+    borderTopColor: colors.borderLight,
     paddingTop: 8,
     paddingBottom: Platform.OS === 'ios' ? 24 : 10,
-    ...Shadows.medium,
+    ...shadows.medium,
   },
   tabItem: {
     flex: 1,
@@ -353,7 +372,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -5,
     right: -10,
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.primary,
     borderRadius: 9,
     minWidth: 18,
     height: 18,
@@ -361,7 +380,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 4,
     borderWidth: 1.5,
-    borderColor: '#FFFFFF',
+    borderColor: colors.cardBackground,
   },
   tabBadgeText: {
     color: '#FFFFFF',
@@ -371,11 +390,11 @@ const styles = StyleSheet.create({
   tabLabel: {
     fontSize: 11,
     fontWeight: '600',
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     marginTop: 3,
   },
   tabLabelActive: {
-    color: Colors.primary,
+    color: colors.primary,
     fontWeight: '700',
   },
-});
+}));
