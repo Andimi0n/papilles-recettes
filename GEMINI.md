@@ -205,8 +205,18 @@ node scripts/testExtractRecipe.mjs <GEMINI_API_KEY>
 - When navigating between screens, pass state callbacks or update `currentScreen`.
 - Detail screens maintain a return route (`returnScreenAfterDetail`) so users return seamlessly to either `HomeScreen` or `MealPlannerScreen`.
 
+### Git Workflow & Documentation Discipline
+- **Contrôle de version systématique (Git & GitHub)** :
+  - Chaque nouvelle fonctionnalité, amélioration ou correction doit faire l'objet d'un commit dédié, atomique et explicite (respecter les conventions sémantiques, ex: `feat(...)`, `fix(...)`, `docs(...)`).
+  - Pousser systématiquement chaque commit sur GitHub (`git push origin main`) pour garantir un historique propre, faciliter le suivi de version et permettre un retour arrière (*fallback / rollback*) rapide en cas de besoin.
+- **Mise à jour systématique de la documentation** :
+  - **`GEMINI.md`** : Mettre à jour après chaque nouvelle fonctionnalité (capacités du projet, arborescence des fichiers, services et conventions).
+  - **`README.md`** : Mettre à jour pour refléter immédiatement les nouvelles fonctionnalités visibles, la structure et le mode d'emploi pour l'utilisateur.
+
 ### Verification Checklist Before Finishing Tasks
 1. Run `npx tsc --noEmit` and ensure 0 TypeScript compilation errors.
 2. Ensure no non-standard dependencies were added without `npx expo install`.
 3. Verify that both light (*Jardin Botanique*) and dark (*Table Nocturne*) color contrasts remain legible.
 4. Keep user-facing strings in French.
+5. Update `GEMINI.md` and `README.md` to document the implemented feature.
+6. Commit changes with a descriptive message and push to GitHub (`git push origin main`).
