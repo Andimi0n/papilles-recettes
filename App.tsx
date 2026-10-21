@@ -305,7 +305,7 @@ function AppContent() {
             >
               <View style={styles.tabIconWrapper}>
                 <Ionicons
-                  name={currentScreen === 'shopping' ? 'cart' : 'cart-outline'}
+                  name={currentScreen === 'shopping' ? 'basket' : 'basket-outline'}
                   size={23}
                   color={currentScreen === 'shopping' ? colors.primary : colors.textSecondary}
                 />
@@ -323,7 +323,7 @@ function AppContent() {
                   currentScreen === 'shopping' && styles.tabLabelActive,
                 ]}
               >
-                Courses & Frigo
+                Courses & Étagères
               </Text>
             </TouchableOpacity>
           </View>

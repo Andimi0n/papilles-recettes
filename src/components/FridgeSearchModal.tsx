@@ -121,14 +121,14 @@ export const FridgeSearchModal: React.FC<FridgeSearchModalProps> = ({
     try {
       const fridge = await StorageService.getFridgeItems();
       if (fridge.length === 0) {
-        Alert.alert('Frigo vide', "Vous n'avez pas encore d'aliments enregistrés dans l'onglet 'Courses & Frigo'.");
+        Alert.alert('Étagères vides', "Vous n'avez pas encore d'aliments enregistrés dans l'onglet 'Courses & Étagères'.");
         return;
       }
       const names = fridge.map((f) => f.name);
       const combined = Array.from(new Set([...localSelected, ...names]));
       setLocalSelected(combined);
     } catch (e) {
-      console.error('Erreur chargement stock frigo:', e);
+      console.error('Erreur chargement stock étagères:', e);
     }
   };
 
@@ -291,15 +291,15 @@ export const FridgeSearchModal: React.FC<FridgeSearchModalProps> = ({
               )}
             </View>
 
-            {/* Raccourci pour charger directement son frigo */}
+            {/* Raccourci pour charger directement son stock d'étagères */}
             <TouchableOpacity
               style={styles.importFridgeBtn}
               onPress={handleLoadFridgeStock}
               activeOpacity={0.8}
             >
-              <Ionicons name="snow-outline" size={15} color={Colors.primary} />
+              <Ionicons name="layers-outline" size={15} color={Colors.primary} />
               <Text style={styles.importFridgeBtnText}>
-                Importer mes aliments enregistrés au frigo
+                Importer mes aliments en stock (étagères)
               </Text>
             </TouchableOpacity>
 
