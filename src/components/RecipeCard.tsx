@@ -19,6 +19,7 @@ interface RecipeCardProps {
   onToggleFavorite?: () => void;
   onQuickRate?: (rating: number) => void;
   highlightedIngredients?: string[]; // ingredients matched by search
+  hasAllergen?: boolean;
 }
 
 const RecipeCardComponent: React.FC<RecipeCardProps> = ({
@@ -26,6 +27,7 @@ const RecipeCardComponent: React.FC<RecipeCardProps> = ({
   onPress,
   onQuickRate,
   highlightedIngredients = [],
+  hasAllergen = false,
 }) => {
   const { isDark, colors } = useTheme();
   const totalTime = recipe.prepTimeMinutes + recipe.cookTimeMinutes;
@@ -62,6 +64,12 @@ const RecipeCardComponent: React.FC<RecipeCardProps> = ({
             <View style={styles.vegeBadge}>
               <Ionicons name="leaf" size={11} color="#FFFFFF" />
               <Text style={styles.vegeBadgeText}>Végé</Text>
+            </View>
+          )}
+          {hasAllergen && (
+            <View style={[styles.allergenCardBadge, { backgroundColor: colors.danger }]}>
+              <Ionicons name="warning" size={11} color="#FFFFFF" />
+              <Text style={styles.allergenCardBadgeText}>Allergène</Text>
             </View>
           )}
         </View>
@@ -192,6 +200,20 @@ const styles = createDynamicStyles((colors, shadows) => ({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
+  },
+  allergenCardBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: colors.danger,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  allergenCardBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   vegeBadgeText: {
     fontSize: 10,

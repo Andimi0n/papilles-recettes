@@ -30,6 +30,8 @@ const MEAL_LOG_KEY = '@papilles_meal_log_v1';
 const THEME_MODE_KEY = '@papilles_theme_mode_v1';
 const DEFAULT_SERVINGS_KEY = '@papilles_default_servings_v1';
 const USER_ALLERGENS_KEY = '@papilles_user_allergens_v1';
+const ALLERGEN_FILTER_RECIPES_KEY = '@papilles_filter_allergens_recipes_v1';
+const ALLERGEN_EXCLUDE_AI_KEY = '@papilles_exclude_allergens_ai_v1';
 
 /**
  * Assainit une URL d'image pour s'assurer qu'elle n'exploite aucun protocole malveillant (SEC-09)
@@ -1161,6 +1163,54 @@ export const StorageService = {
   },
 
   /**
+   * Vérifie si le filtrage automatique des recettes contenant des allergènes est activé (vrai par défaut)
+   */
+  async getAllergenFilterEnabled(): Promise<boolean> {
+    try {
+      const stored = await AsyncStorage.getItem(ALLERGEN_FILTER_RECIPES_KEY);
+      if (stored === null) return true; // Activé par défaut
+      return stored === 'true';
+    } catch {
+      return true;
+    }
+  },
+
+  /**
+   * Active ou désactive le filtrage automatique des recettes avec allergènes
+   */
+  async setAllergenFilterEnabled(enabled: boolean): Promise<void> {
+    try {
+      await AsyncStorage.setItem(ALLERGEN_FILTER_RECIPES_KEY, enabled ? 'true' : 'false');
+    } catch (e) {
+      console.error('Erreur sauvegarde réglage filtre allergènes:', e);
+    }
+  },
+
+  /**
+   * Vérifie si l'exclusion des allergènes dans les suggestions Chef IA est activée (vrai par défaut)
+   */
+  async getAiAllergenExclusionEnabled(): Promise<boolean> {
+    try {
+      const stored = await AsyncStorage.getItem(ALLERGEN_EXCLUDE_AI_KEY);
+      if (stored === null) return true; // Activé par défaut
+      return stored === 'true';
+    } catch {
+      return true;
+    }
+  },
+
+  /**
+   * Active ou désactive l'exclusion des allergènes pour le Chef IA
+   */
+  async setAiAllergenExclusionEnabled(enabled: boolean): Promise<void> {
+    try {
+      await AsyncStorage.setItem(ALLERGEN_EXCLUDE_AI_KEY, enabled ? 'true' : 'false');
+    } catch (e) {
+      console.error('Erreur sauvegarde réglage exclusion IA allergènes:', e);
+    }
+  },
+
+  /**
    * Exporte l'intégralité des données sous forme de chaîne JSON formatée (recettes, courses, planning, suivi, frigo, allergènes)
    */
   async exportAllData(): Promise<string> {
@@ -1170,6 +1220,8 @@ export const StorageService = {
     const mealLogs = await this.getMealLogs();
     const fridgeItems = await this.getFridgeItems();
     const userAllergens = await this.getUserAllergens();
+    const isAllergenFilterEnabled = await this.getAllergenFilterEnabled();
+    const isAiAllergenExclusionEnabled = await this.getAiAllergenExclusionEnabled();
     return JSON.stringify(
       {
         version: '1.2.0',
@@ -1180,6 +1232,8 @@ export const StorageService = {
         mealLogs,
         fridgeItems,
         userAllergens,
+        isAllergenFilterEnabled,
+        isAiAllergenExclusionEnabled,
       },
       null,
       2
@@ -1271,6 +1325,13 @@ export const StorageService = {
             await this.saveUserAllergens([...currentAllergens, ...toAdd]);
           }
         }
+      }
+
+      if (typeof parsed.isAllergenFilterEnabled === 'boolean') {
+        await this.setAllergenFilterEnabled(parsed.isAllergenFilterEnabled);
+      }
+      if (typeof parsed.isAiAllergenExclusionEnabled === 'boolean') {
+        await this.setAiAllergenExclusionEnabled(parsed.isAiAllergenExclusionEnabled);
       }
 
       return { success: true, count: addedOrUpdated };

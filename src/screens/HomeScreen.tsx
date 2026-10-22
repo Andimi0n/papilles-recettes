@@ -20,6 +20,7 @@ import { Recipe, Category, SortOption, Difficulty, TimeFilterMode } from '../typ
 import { MealLogEntry } from '../types/mealLog';
 import { MealTime } from '../types/planner';
 import { FridgeItem } from '../types/fridge';
+import { UserAllergenItem } from '../types/vocabulary';
 import { StorageService } from '../services/storageService';
 import { Colors, Shadows, createDynamicStyles } from '../theme/colors';
 import { useTheme } from '../theme/ThemeContext';
@@ -43,6 +44,7 @@ import {
   recipeMatchesDifficulty,
 } from '../utils/searchEngine';
 import { evaluateRecipesWithStock, RecipeStockEvaluation } from '../utils/stockMatcher';
+import { prepareUserAllergens, recipeContainsAllergens } from '../utils/allergenMatcher';
 
 const RECIPES_PER_PAGE = 20;
 
@@ -261,10 +263,45 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     }
   }, []);
 
+  // État des allergènes et filtrage automatique
+  const [userAllergens, setUserAllergens] = useState<UserAllergenItem[]>([]);
+  const [isAllergenFilterEnabled, setIsAllergenFilterEnabled] = useState(true);
+
+  const loadAllergenSettings = useCallback(async () => {
+    try {
+      const [allergens, filterEnabled] = await Promise.all([
+        StorageService.getUserAllergens(),
+        StorageService.getAllergenFilterEnabled(),
+      ]);
+      setUserAllergens(allergens);
+      setIsAllergenFilterEnabled(filterEnabled);
+    } catch (e) {
+      console.error('Erreur chargement allergènes sur HomeScreen:', e);
+    }
+  }, []);
+
+  const handleToggleAllergenFilter = useCallback(async () => {
+    const nextVal = !isAllergenFilterEnabled;
+    setIsAllergenFilterEnabled(nextVal);
+    await StorageService.setAllergenFilterEnabled(nextVal);
+  }, [isAllergenFilterEnabled]);
+
   useEffect(() => {
     loadTodayMeals();
     loadStockItems();
-  }, [loadTodayMeals, loadStockItems]);
+    loadAllergenSettings();
+  }, [loadTodayMeals, loadStockItems, loadAllergenSettings]);
+
+  // Indexation optimisée des allergènes pour filtrage O(1)
+  const preparedAllergens = useMemo(
+    () => prepareUserAllergens(userAllergens),
+    [userAllergens]
+  );
+
+  const hiddenByAllergensCount = useMemo(() => {
+    if (!isAllergenFilterEnabled || userAllergens.length === 0) return 0;
+    return recipes.filter((r) => recipeContainsAllergens(r, preparedAllergens)).length;
+  }, [recipes, isAllergenFilterEnabled, userAllergens.length, preparedAllergens]);
 
   // Évaluation des recettes faisables avec le stock
   const { doableRecipesMap, doableCount } = useMemo(() => {
@@ -443,6 +480,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       result = result.filter((r) => recipeMatchesDifficulty(r.recipe, selectedDifficulties));
     }
 
+    // Filtrage automatique des recettes contenant des allergènes personnels (activé par défaut)
+    if (isAllergenFilterEnabled && userAllergens.length > 0) {
+      result = result.filter((r) => !recipeContainsAllergens(r.recipe, preparedAllergens));
+    }
+
     // Tri
     result.sort((a, b) => {
       // En cours de recherche textuelle, les résultats les plus pertinents (score élevé) sont mis en avant
@@ -490,6 +532,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     minRatingFilter,
     onlyVegetarian,
     onlyDoableWithStock,
+    isAllergenFilterEnabled,
+    userAllergens.length,
+    preparedAllergens,
     doableRecipesMap,
     sortBy,
   ]);
@@ -509,6 +554,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     minRatingFilter,
     onlyVegetarian,
     onlyDoableWithStock,
+    isAllergenFilterEnabled,
+    userAllergens.length,
   ]);
 
   // Pagination (20 recettes par page pour une fluidité maximale)
@@ -694,6 +741,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         <View style={styles.resultsCountRow}>
           <Text style={styles.resultsCountText}>
             {filteredRecipes.length} recette{filteredRecipes.length > 1 ? 's' : ''} trouvée{filteredRecipes.length > 1 ? 's' : ''}
+            {isAllergenFilterEnabled && hiddenByAllergensCount > 0
+              ? ` • 🛡️ ${hiddenByAllergensCount} masquée${hiddenByAllergensCount > 1 ? 's' : ''}`
+              : ''}
             {filteredRecipes.length > RECIPES_PER_PAGE && ` • Page ${safeCurrentPage}/${totalPages}`}
           </Text>
 
@@ -716,6 +766,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       onlyDoableWithStock,
       doableCount,
       filteredRecipes.length,
+      isAllergenFilterEnabled,
+      hiddenByAllergensCount,
       safeCurrentPage,
       totalPages,
       searchQuery,
@@ -794,9 +846,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         onPress={() => onSelectRecipe(item)}
         onQuickRate={(rating) => onQuickRate(item.id, rating)}
         highlightedIngredients={getMatchedIngredientsForRecipe(item)}
+        hasAllergen={recipeContainsAllergens(item, preparedAllergens)}
       />
     ),
-    [onSelectRecipe, onQuickRate, matchedIngredientsMap, selectedIngredients, onlyDoableWithStock, doableRecipesMap]
+    [onSelectRecipe, onQuickRate, matchedIngredientsMap, selectedIngredients, onlyDoableWithStock, doableRecipesMap, preparedAllergens]
   );
 
   return (
@@ -977,6 +1030,28 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   Végé
                 </Text>
               </TouchableOpacity>
+
+              {/* Filtre Allergènes Toggle Pill */}
+              {userAllergens.length > 0 && (
+                <TouchableOpacity
+                  style={[styles.toolPill, isAllergenFilterEnabled && styles.allergenToolPillActive]}
+                  onPress={handleToggleAllergenFilter}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons
+                    name={isAllergenFilterEnabled ? 'shield-checkmark' : 'shield-outline'}
+                    size={13}
+                    color={isAllergenFilterEnabled ? colors.primary : colors.textSecondary}
+                  />
+                  <Text style={[styles.toolPillText, isAllergenFilterEnabled && styles.allergenToolPillTextActive]}>
+                    {isAllergenFilterEnabled
+                      ? hiddenByAllergensCount > 0
+                        ? `Sans allergènes (${hiddenByAllergensCount})`
+                        : 'Sans allergènes'
+                      : 'Allergènes autorisés'}
+                  </Text>
+                </TouchableOpacity>
+              )}
 
               {/* Mon Stock Toggle Pill (Recettes 100% faisables) */}
               <TouchableOpacity
@@ -1592,6 +1667,10 @@ const styles = createDynamicStyles((colors, shadows) => ({
     backgroundColor: colors.primaryLight,
     borderColor: colors.primary,
   },
+  allergenToolPillActive: {
+    backgroundColor: colors.primaryLight,
+    borderColor: colors.primary,
+  },
   toolPillText: {
     fontSize: 12,
     fontWeight: '600',
@@ -1605,6 +1684,10 @@ const styles = createDynamicStyles((colors, shadows) => ({
     fontWeight: '700',
   },
   stockToolPillTextActive: {
+    color: colors.primary,
+    fontWeight: '700',
+  },
+  allergenToolPillTextActive: {
     color: colors.primary,
     fontWeight: '700',
   },

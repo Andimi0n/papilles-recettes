@@ -10,6 +10,7 @@ import {
   Share,
   Modal,
   Keyboard,
+  Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -58,6 +59,8 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
 
   // Allergies & Intolérances
   const [userAllergens, setUserAllergens] = useState<UserAllergenItem[]>([]);
+  const [isAllergenFilterEnabled, setIsAllergenFilterEnabled] = useState(true);
+  const [isAiAllergenExclusionEnabled, setIsAiAllergenExclusionEnabled] = useState(true);
   const [allergenInputText, setAllergenInputText] = useState('');
   const [isPickerModalVisible, setIsPickerModalVisible] = useState(false);
   const [pendingIngredient, setPendingIngredient] = useState<{
@@ -90,6 +93,12 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
 
       const allergens = await StorageService.getUserAllergens();
       setUserAllergens(allergens);
+
+      const filterAllergens = await StorageService.getAllergenFilterEnabled();
+      setIsAllergenFilterEnabled(filterAllergens);
+
+      const excludeAi = await StorageService.getAiAllergenExclusionEnabled();
+      setIsAiAllergenExclusionEnabled(excludeAi);
 
       const loadedVocab = await VocabularyService.getAll();
       setVocabList(loadedVocab);
@@ -145,6 +154,16 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   };
 
   // --- Gestion des Allergènes & Intolérances ---
+
+  const handleToggleAllergenFilter = async (enabled: boolean) => {
+    setIsAllergenFilterEnabled(enabled);
+    await StorageService.setAllergenFilterEnabled(enabled);
+  };
+
+  const handleToggleAiAllergenExclusion = async (enabled: boolean) => {
+    setIsAiAllergenExclusionEnabled(enabled);
+    await StorageService.setAiAllergenExclusionEnabled(enabled);
+  };
 
   const handleToggleAllergenFamily = async (fam: AllergenFamilyConfig) => {
     const associated = vocabList.filter((ing) => ing.allergen === fam.id);
@@ -707,6 +726,53 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
             <Text style={styles.sectionSubtitle}>
               Définissez vos allergies alimentaires par ingrédient ou sélectionnez directement les 14 familles majeures (norme INCO).
             </Text>
+
+            {/* Préférences & Règles de filtrage automatiques */}
+            <View style={[styles.allergenSettingsBox, { backgroundColor: colors.surfaceAlt, borderColor: colors.borderLight }]}>
+              {/* Option 1 : Filtrer les recettes par défaut */}
+              <View style={styles.allergenToggleRow}>
+                <View style={styles.allergenToggleTextCol}>
+                  <View style={styles.allergenToggleTitleRow}>
+                    <Ionicons name="filter" size={16} color={colors.primary} style={{ marginRight: 6 }} />
+                    <Text style={[styles.allergenToggleTitle, { color: colors.textPrimary }]}>
+                      Filtrer les recettes avec allergènes
+                    </Text>
+                  </View>
+                  <Text style={[styles.allergenToggleSub, { color: colors.textMuted }]}>
+                    Masque automatiquement sur l'accueil et la recherche les recettes contenant vos allergènes.
+                  </Text>
+                </View>
+                <Switch
+                  value={isAllergenFilterEnabled}
+                  onValueChange={handleToggleAllergenFilter}
+                  trackColor={{ false: colors.borderLight, true: colors.primary }}
+                  thumbColor="#FFFFFF"
+                />
+              </View>
+
+              <View style={[styles.allergenToggleDivider, { backgroundColor: colors.borderLight }]} />
+
+              {/* Option 2 : Exclure des suggestions Chef IA */}
+              <View style={styles.allergenToggleRow}>
+                <View style={styles.allergenToggleTextCol}>
+                  <View style={styles.allergenToggleTitleRow}>
+                    <Ionicons name="sparkles" size={16} color={colors.amber} style={{ marginRight: 6 }} />
+                    <Text style={[styles.allergenToggleTitle, { color: colors.textPrimary }]}>
+                      Exclure des suggestions Chef IA
+                    </Text>
+                  </View>
+                  <Text style={[styles.allergenToggleSub, { color: colors.textMuted }]}>
+                    Interdit à l'IA de proposer des idées ou recettes contenant vos allergènes.
+                  </Text>
+                </View>
+                <Switch
+                  value={isAiAllergenExclusionEnabled}
+                  onValueChange={handleToggleAiAllergenExclusion}
+                  trackColor={{ false: colors.borderLight, true: colors.primary }}
+                  thumbColor="#FFFFFF"
+                />
+              </View>
+            </View>
 
             {/* Boutons des 14 allergènes majeurs */}
             <View style={styles.allergenSubSection}>
@@ -1435,6 +1501,38 @@ const styles = createDynamicStyles((colors, shadows) => ({
   },
   allergenSubSection: {
     marginBottom: 16,
+  },
+  allergenSettingsBox: {
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 12,
+    marginBottom: 16,
+  },
+  allergenToggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  allergenToggleTextCol: {
+    flex: 1,
+  },
+  allergenToggleTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 2,
+  },
+  allergenToggleTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  allergenToggleSub: {
+    fontSize: 11,
+    lineHeight: 15,
+  },
+  allergenToggleDivider: {
+    height: 1,
+    marginVertical: 10,
   },
   allergenSubHeader: {
     flexDirection: 'row',

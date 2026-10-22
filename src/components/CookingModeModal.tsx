@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useKeepAwake } from 'expo-keep-awake';
 import { Recipe, Ingredient } from '../types/recipe';
+import { UserAllergenItem } from '../types/vocabulary';
 import { StorageService } from '../services/storageService';
 import { Colors, Shadows, createDynamicStyles } from '../theme/colors';
 import { useTheme } from '../theme/ThemeContext';
@@ -24,7 +25,9 @@ import {
   scaleQuantity,
   DetectedTimer,
   getLocalDateString,
+  normalizeString,
 } from '../utils/helpers';
+import { prepareUserAllergens, evaluateRecipeAllergens } from '../utils/allergenMatcher';
 import { StarRating } from './StarRating';
 
 interface CookingModeModalProps {
@@ -69,8 +72,32 @@ export const CookingModeModal: React.FC<CookingModeModalProps> = ({
       setCurrentStepIndex(0);
       setIsCompletedModalVisible(false);
       setUserRating(recipe.rating || 0);
+      StorageService.getUserAllergens()
+        .then(setUserAllergens)
+        .catch(() => {});
     }
   }, [visible, recipe.id]);
+
+  const [userAllergens, setUserAllergens] = useState<UserAllergenItem[]>([]);
+
+  const preparedAllergens = useMemo(
+    () => prepareUserAllergens(userAllergens),
+    [userAllergens]
+  );
+
+  const allergenEval = useMemo(
+    () => evaluateRecipeAllergens(recipe, preparedAllergens),
+    [recipe, preparedAllergens]
+  );
+
+  const allergenIngredientIdsSet = useMemo(() => {
+    const set = new Set<string>();
+    allergenEval.allergenIngredients.forEach((a) => {
+      if (a.ingredient.id) set.add(a.ingredient.id);
+      set.add(normalizeString(a.ingredient.name));
+    });
+    return set;
+  }, [allergenEval]);
 
   const steps = recipe.steps || [];
   const currentStep = steps[currentStepIndex];
@@ -510,33 +537,47 @@ export const CookingModeModal: React.FC<CookingModeModalProps> = ({
                 {recipe.ingredients.map((ing) => {
                   const isChecked = !!checkedIngredients[ing.id];
                   const scaledQty = scaleQuantity(ing.quantity, recipe.servings || 4, servings);
+                  const isAllergen = allergenIngredientIdsSet.has(ing.id) || allergenIngredientIdsSet.has(normalizeString(ing.name));
 
                   return (
                     <TouchableOpacity
                       key={ing.id}
-                      style={[styles.sheetIngRow, isChecked && styles.sheetIngRowChecked]}
+                      style={[
+                        styles.sheetIngRow,
+                        isChecked && styles.sheetIngRowChecked,
+                        isAllergen && !isChecked && { backgroundColor: Colors.danger + '18', borderLeftWidth: 3, borderLeftColor: Colors.danger },
+                      ]}
                       onPress={() => handleToggleIngredientCheck(ing.id)}
                       activeOpacity={0.7}
                     >
                       <Ionicons
-                        name={isChecked ? 'checkmark-circle' : 'ellipse-outline'}
+                        name={isChecked ? 'checkmark-circle' : isAllergen ? 'warning' : 'ellipse-outline'}
                         size={22}
-                        color={isChecked ? Colors.secondary : Colors.border}
+                        color={isChecked ? Colors.secondary : isAllergen ? Colors.danger : Colors.border}
                         style={{ marginRight: 10 }}
                       />
-                      <Text
-                        style={[
-                          styles.sheetIngName,
-                          isChecked && styles.sheetIngTextChecked,
-                        ]}
-                      >
-                        {ing.name}
-                      </Text>
+                      <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+                        <Text
+                          style={[
+                            styles.sheetIngName,
+                            isChecked && styles.sheetIngTextChecked,
+                            isAllergen && !isChecked && { color: Colors.danger, fontWeight: '700' },
+                          ]}
+                        >
+                          {ing.name}
+                        </Text>
+                        {isAllergen && !isChecked && (
+                          <View style={{ backgroundColor: Colors.danger + '22', borderColor: Colors.danger, borderWidth: 1, paddingHorizontal: 5, paddingVertical: 1, borderRadius: 4 }}>
+                            <Text style={{ fontSize: 9, fontWeight: '700', color: Colors.danger, textTransform: 'uppercase' }}>Allergène</Text>
+                          </View>
+                        )}
+                      </View>
                       {scaledQty ? (
                         <Text
                           style={[
                             styles.sheetIngQty,
                             isChecked && styles.sheetIngTextChecked,
+                            isAllergen && !isChecked && { color: Colors.danger, fontWeight: '700' },
                           ]}
                         >
                           {scaledQty} {ing.unit || ''}

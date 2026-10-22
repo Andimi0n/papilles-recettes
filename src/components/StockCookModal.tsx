@@ -227,6 +227,16 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
         .map((r) => r.title?.trim())
         .filter(Boolean);
 
+      // Récupération des allergènes à exclure pour le Chef IA si l'option est active
+      const aiExclusionEnabled = await StorageService.getAiAllergenExclusionEnabled();
+      let excludedAllergens: string[] = [];
+      if (aiExclusionEnabled) {
+        const userAllergens = await StorageService.getUserAllergens();
+        if (userAllergens.length > 0) {
+          excludedAllergens = userAllergens.map((a) => a.name.trim()).filter(Boolean);
+        }
+      }
+
       const generatedIdeas = await RecipeAiService.suggestRecipeIdeasFromFridge(
         selectedStockNames,
         {
@@ -234,6 +244,7 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
           servings,
           onlyVegetarian: isVegetarian,
           existingDoableTitles: doableTitles,
+          excludedAllergens,
         },
         key
       );
@@ -269,6 +280,15 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
     setAiFlowStep('generating_recipe');
 
     try {
+      const aiExclusionEnabled = await StorageService.getAiAllergenExclusionEnabled();
+      let excludedAllergens: string[] = [];
+      if (aiExclusionEnabled) {
+        const userAllergens = await StorageService.getUserAllergens();
+        if (userAllergens.length > 0) {
+          excludedAllergens = userAllergens.map((a) => a.name.trim()).filter(Boolean);
+        }
+      }
+
       const generated = await RecipeAiService.generateRecipeFromIdea(
         idea,
         selectedStockNames,
@@ -276,6 +296,7 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
           mealType,
           servings,
           onlyVegetarian: isVegetarian,
+          excludedAllergens,
         },
         key
       );
