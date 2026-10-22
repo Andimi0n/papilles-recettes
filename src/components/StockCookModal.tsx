@@ -46,8 +46,8 @@ const AI_STEPS = [
 export type AllowedMealType = 'Plat' | 'Entrée' | 'Dessert';
 
 const MEAL_TYPES: { id: AllowedMealType; label: string; iconName: string }[] = [
-  { id: 'Plat', label: 'Plat principal', iconName: 'restaurant-outline' },
   { id: 'Entrée', label: 'Entrée', iconName: 'leaf-outline' },
+  { id: 'Plat', label: 'Plat principal', iconName: 'restaurant-outline' },
   { id: 'Dessert', label: 'Dessert', iconName: 'ice-cream-outline' },
 ];
 
