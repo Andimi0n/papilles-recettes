@@ -451,12 +451,28 @@ export function recipeMatchesIngredients(
 }
 
 /**
- * Vérifie si le temps total d'une recette (préparation + cuisson) est inférieur ou égal au maximum spécifié.
+ * Vérifie si le temps total d'une recette (préparation + cuisson) correspond au filtre spécifié.
+ * - mode 'max' (≤) : total <= targetMinutes (recettes rapides / moins d'une certaine durée)
+ * - mode 'min' (≥) : total >= targetMinutes (recettes mijotées / plus d'une certaine durée)
+ */
+export function recipeMatchesTime(
+  recipe: Recipe,
+  targetMinutes: number | null | undefined,
+  mode: 'max' | 'min' = 'max'
+): boolean {
+  if (targetMinutes === null || targetMinutes === undefined) return true;
+  const total = (recipe.prepTimeMinutes || 0) + (recipe.cookTimeMinutes || 0);
+  if (mode === 'min') {
+    return total >= targetMinutes;
+  }
+  return total <= targetMinutes;
+}
+
+/**
+ * Rétrocompatibilité : Vérifie si le temps total d'une recette est inférieur ou égal au maximum.
  */
 export function recipeMatchesMaxTime(recipe: Recipe, maxTotalMinutes: number | null): boolean {
-  if (maxTotalMinutes === null || maxTotalMinutes === undefined) return true;
-  const total = (recipe.prepTimeMinutes || 0) + (recipe.cookTimeMinutes || 0);
-  return total <= maxTotalMinutes;
+  return recipeMatchesTime(recipe, maxTotalMinutes, 'max');
 }
 
 /**

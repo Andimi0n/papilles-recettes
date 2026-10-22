@@ -11,34 +11,39 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { Recipe, Difficulty, Category } from '../types/recipe';
+import { Recipe, Difficulty, Category, TimeFilterMode } from '../types/recipe';
 import { CanonicalIngredient } from '../types/vocabulary';
 import { VocabularyService } from '../services/vocabularyService';
 import { RecipeStockEvaluation } from '../utils/stockMatcher';
 import {
   recipeMatchesIngredients,
-  recipeMatchesMaxTime,
+  recipeMatchesTime,
   recipeMatchesDifficulty,
   searchRecipes,
 } from '../utils/searchEngine';
 import { useTheme } from '../theme/ThemeContext';
 import { createDynamicStyles } from '../theme/colors';
+import { StarRating } from './StarRating';
 
 interface AdvancedFiltersModalProps {
   visible: boolean;
   onClose: () => void;
   onApply: (filters: {
-    maxTotalTime: number | null;
+    targetTotalTime: number | null;
+    timeFilterMode: TimeFilterMode;
     difficulties: Difficulty[];
     selectedIngredients: string[];
     ingredientMatchMode: 'all' | 'any';
     onlyVegetarian?: boolean;
     minRating?: number;
     onlyDoableWithStock?: boolean;
+    maxTotalTime?: number | null; // rétrocompatibilité
   }) => void;
   onReset: () => void;
   // Valeurs initiales / actives
-  maxTotalTime: number | null;
+  targetTotalTime?: number | null;
+  timeFilterMode?: TimeFilterMode;
+  maxTotalTime?: number | null; // rétrocompatibilité
   difficulties: Difficulty[];
   selectedIngredients: string[];
   ingredientMatchMode: 'all' | 'any';
@@ -52,15 +57,32 @@ interface AdvancedFiltersModalProps {
   searchQuery?: string;
 }
 
-const TIME_OPTIONS: { label: string; value: number | null }[] = [
-  { label: 'Tous', value: null },
-  { label: '≤ 15 min', value: 15 },
-  { label: '≤ 30 min', value: 30 },
-  { label: '≤ 45 min', value: 45 },
-  { label: '≤ 1 h', value: 60 },
+const formatMinutes = (minutes: number): string => {
+  if (minutes < 60) return `${minutes} min`;
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  if (m === 0) return `${h} h`;
+  return `${h} h ${m.toString().padStart(2, '0')}`;
+};
+
+const TIME_QUICK_PRESETS: { label: string; value: number }[] = [
+  { label: '15 min', value: 15 },
+  { label: '30 min', value: 30 },
+  { label: '45 min', value: 45 },
+  { label: '1 h', value: 60 },
+  { label: '1 h 30', value: 90 },
+  { label: '2 h', value: 120 },
 ];
 
-const DIFFICULTY_OPTIONS: Difficulty[] = ['Facile', 'Moyen', 'Difficile'];
+const DIFFICULTY_CONFIG: {
+  level: Difficulty;
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+}[] = [
+  { level: 'Facile', label: 'Facile', icon: 'leaf-outline' },
+  { level: 'Moyen', label: 'Moyen', icon: 'flame-outline' },
+  { level: 'Difficile', label: 'Difficile', icon: 'trophy-outline' },
+];
 
 const POPULAR_INGREDIENT_SUGGESTIONS = [
   'Tomate',
@@ -77,18 +99,13 @@ const POPULAR_INGREDIENT_SUGGESTIONS = [
   'Champignon',
 ];
 
-const RATING_OPTIONS = [
-  { label: 'Toutes', value: 0 },
-  { label: '≥ 3 ★', value: 3 },
-  { label: '≥ 4 ★', value: 4 },
-  { label: '≥ 4.5 ★', value: 4.5 },
-];
-
 export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
   visible,
   onClose,
   onApply,
   onReset,
+  targetTotalTime,
+  timeFilterMode = 'max',
   maxTotalTime,
   difficulties,
   selectedIngredients,
@@ -103,8 +120,14 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
 }) => {
   const { isDark, colors } = useTheme();
 
+  // Initialisation sécurisée du temps cible avec prise en compte de maxTotalTime en secours
+  const initialTime = targetTotalTime !== undefined ? targetTotalTime : (maxTotalTime !== undefined ? maxTotalTime : null);
+
   // États locaux de brouillon (draft) pour ajuster les filtres avant application
-  const [draftMaxTotalTime, setDraftMaxTotalTime] = useState<number | null>(maxTotalTime);
+  const [draftTargetTotalTime, setDraftTargetTotalTime] = useState<number | null>(initialTime);
+  const [draftTimeFilterMode, setDraftTimeFilterMode] = useState<TimeFilterMode>(timeFilterMode || 'max');
+  const [timeInputString, setTimeInputString] = useState<string>(initialTime !== null ? String(initialTime) : '');
+
   const [draftDifficulties, setDraftDifficulties] = useState<Difficulty[]>(difficulties);
   const [draftIngredients, setDraftIngredients] = useState<string[]>(selectedIngredients);
   const [draftIngredientMatchMode, setDraftIngredientMatchMode] = useState<'all' | 'any'>(
@@ -121,7 +144,10 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
   // Synchronise les brouillons dès l'ouverture du modal
   useEffect(() => {
     if (visible) {
-      setDraftMaxTotalTime(maxTotalTime);
+      const activeTime = targetTotalTime !== undefined ? targetTotalTime : (maxTotalTime !== undefined ? maxTotalTime : null);
+      setDraftTargetTotalTime(activeTime);
+      setDraftTimeFilterMode(timeFilterMode || 'max');
+      setTimeInputString(activeTime !== null ? String(activeTime) : '');
       setDraftDifficulties(difficulties);
       setDraftIngredients(selectedIngredients);
       setDraftIngredientMatchMode(ingredientMatchMode);
@@ -133,6 +159,8 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
     }
   }, [
     visible,
+    targetTotalTime,
+    timeFilterMode,
     maxTotalTime,
     difficulties,
     selectedIngredients,
@@ -175,16 +203,73 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
 
   const handleToggleDifficulty = (diff: Difficulty) => {
     setDraftDifficulties((prev) => {
+      // Si la difficulté est déjà sélectionnée (clic une 2e fois), on réinitialise à toutes (tableau vide)
       if (prev.includes(diff)) {
-        return prev.filter((d) => d !== diff);
-      } else {
-        return [...prev, diff];
+        return [];
       }
+      // Sinon on sélectionne exclusivement cette difficulté
+      return [diff];
+    });
+  };
+
+  const handleTimeTextChange = (text: string) => {
+    const clean = text.replace(/[^0-9]/g, '');
+    setTimeInputString(clean);
+    if (clean.length === 0) {
+      setDraftTargetTotalTime(null);
+    } else {
+      const val = parseInt(clean, 10);
+      if (!isNaN(val)) {
+        setDraftTargetTotalTime(Math.min(360, Math.max(1, val)));
+      }
+    }
+  };
+
+  const handleSetTimeValue = (val: number | null) => {
+    setDraftTargetTotalTime(val);
+    setTimeInputString(val !== null ? String(val) : '');
+  };
+
+  const handleIncrementTime = () => {
+    setDraftTargetTotalTime((prev) => {
+      const current = prev ?? 0;
+      let next: number;
+      if (current < 30) {
+        next = current + 5;
+      } else if (current < 120) {
+        next = current + 10;
+      } else {
+        next = current + 15;
+      }
+      next = Math.min(360, next);
+      setTimeInputString(String(next));
+      return next;
+    });
+  };
+
+  const handleDecrementTime = () => {
+    setDraftTargetTotalTime((prev) => {
+      if (prev === null || prev <= 5) {
+        setTimeInputString('');
+        return null;
+      }
+      let next: number;
+      if (prev <= 30) {
+        next = Math.max(5, prev - 5);
+      } else if (prev <= 120) {
+        next = prev - 10;
+      } else {
+        next = prev - 15;
+      }
+      setTimeInputString(String(next));
+      return next;
     });
   };
 
   const handleResetDrafts = () => {
-    setDraftMaxTotalTime(null);
+    setDraftTargetTotalTime(null);
+    setDraftTimeFilterMode('max');
+    setTimeInputString('');
     setDraftDifficulties([]);
     setDraftIngredients([]);
     setDraftIngredientMatchMode('all');
@@ -197,7 +282,9 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
 
   const handleApply = () => {
     onApply({
-      maxTotalTime: draftMaxTotalTime,
+      targetTotalTime: draftTargetTotalTime,
+      timeFilterMode: draftTimeFilterMode,
+      maxTotalTime: draftTargetTotalTime,
       difficulties: draftDifficulties,
       selectedIngredients: draftIngredients,
       ingredientMatchMode: draftIngredientMatchMode,
@@ -242,9 +329,11 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
       result = result.filter((r) => r.rating >= draftMinRating);
     }
 
-    // Filtre temps total max
-    if (draftMaxTotalTime !== null) {
-      result = result.filter((r) => recipeMatchesMaxTime(r, draftMaxTotalTime));
+    // Filtre temps total (rapide <= ou mijoté >=)
+    if (draftTargetTotalTime !== null) {
+      result = result.filter((r) =>
+        recipeMatchesTime(r, draftTargetTotalTime, draftTimeFilterMode)
+      );
     }
 
     // Filtre difficultés
@@ -267,7 +356,8 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
     draftVegetarian,
     draftOnlyDoable,
     draftMinRating,
-    draftMaxTotalTime,
+    draftTargetTotalTime,
+    draftTimeFilterMode,
     draftDifficulties,
     draftIngredients,
     draftIngredientMatchMode,
@@ -475,96 +565,214 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
                 )}
               </View>
 
-              {/* SECTION 2 : TEMPS TOTAL MAX */}
+              {/* SECTION 2 : TEMPS TOTAL (ENTRÉE LIBRE, MODE RAPIDE ≤ / MIJOTÉ ≥, RACCOURCIS) */}
               <View style={styles.sectionCard}>
                 <View style={styles.sectionHeader}>
-                  <Ionicons name="time-outline" size={17} color={colors.primary} />
-                  <Text style={styles.sectionTitle}>Temps total maximum</Text>
-                  {draftMaxTotalTime !== null && (
+                  <Ionicons
+                    name={draftTimeFilterMode === 'min' ? 'flame-outline' : 'time-outline'}
+                    size={17}
+                    color={colors.primary}
+                  />
+                  <Text style={styles.sectionTitle}>Temps total</Text>
+                  {draftTargetTotalTime !== null ? (
                     <View style={styles.countBadge}>
-                      <Text style={styles.countBadgeText}>≤ {draftMaxTotalTime}m</Text>
+                      <Text style={styles.countBadgeText}>
+                        {draftTimeFilterMode === 'min' ? '≥ ' : '≤ '}
+                        {formatMinutes(draftTargetTotalTime)}
+                      </Text>
                     </View>
+                  ) : (
+                    <Text style={styles.sectionHeaderHint}>Illimité</Text>
                   )}
                 </View>
                 <Text style={styles.sectionDescription}>
                   Préparation + cuisson cumulées pour des repas rapides ou mijotés.
                 </Text>
 
-                <View style={styles.chipsRow}>
-                  {TIME_OPTIONS.map((opt) => {
-                    const isSelected = draftMaxTotalTime === opt.value;
+                {/* Commutateur de mode : Moins de (≤) vs Plus de (≥) */}
+                <View style={styles.timeModeSegmented}>
+                  <TouchableOpacity
+                    style={[
+                      styles.timeModeBtn,
+                      draftTimeFilterMode === 'max' && styles.timeModeBtnActive,
+                    ]}
+                    onPress={() => setDraftTimeFilterMode('max')}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons
+                      name="flash-outline"
+                      size={14}
+                      color={draftTimeFilterMode === 'max' ? '#FFFFFF' : colors.textSecondary}
+                      style={{ marginRight: 5 }}
+                    />
+                    <Text
+                      style={[
+                        styles.timeModeBtnText,
+                        draftTimeFilterMode === 'max' && styles.timeModeBtnTextActive,
+                      ]}
+                    >
+                      ≤ Moins de (Rapide)
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.timeModeBtn,
+                      draftTimeFilterMode === 'min' && styles.timeModeBtnActive,
+                    ]}
+                    onPress={() => setDraftTimeFilterMode('min')}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons
+                      name="flame-outline"
+                      size={14}
+                      color={draftTimeFilterMode === 'min' ? '#FFFFFF' : colors.textSecondary}
+                      style={{ marginRight: 5 }}
+                    />
+                    <Text
+                      style={[
+                        styles.timeModeBtnText,
+                        draftTimeFilterMode === 'min' && styles.timeModeBtnTextActive,
+                      ]}
+                    >
+                      ≥ Plus de (Mijoté)
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Entrée libre & Pas-à-pas : [-] [ TextInput ] [+] */}
+                <View style={styles.timeStepperRow}>
+                  <TouchableOpacity
+                    style={[
+                      styles.timeStepBtn,
+                      (!draftTargetTotalTime || draftTargetTotalTime <= 5) && styles.timeStepBtnDisabled,
+                    ]}
+                    onPress={handleDecrementTime}
+                    disabled={!draftTargetTotalTime || draftTargetTotalTime <= 5}
+                    activeOpacity={0.7}
+                    accessibilityLabel="Diminuer la durée"
+                  >
+                    <Ionicons
+                      name="remove"
+                      size={20}
+                      color={(!draftTargetTotalTime || draftTargetTotalTime <= 5) ? colors.textMuted : colors.textPrimary}
+                    />
+                  </TouchableOpacity>
+
+                  <View style={styles.timeInputBox}>
+                    <TextInput
+                      style={styles.timeTextInput}
+                      value={timeInputString}
+                      onChangeText={handleTimeTextChange}
+                      placeholder="—"
+                      placeholderTextColor={colors.textMuted}
+                      keyboardType="number-pad"
+                      maxLength={3}
+                      returnKeyType="done"
+                    />
+                    <Text style={styles.timeInputUnit}>min</Text>
+                  </View>
+
+                  <TouchableOpacity
+                    style={styles.timeStepBtn}
+                    onPress={handleIncrementTime}
+                    activeOpacity={0.7}
+                    accessibilityLabel="Augmenter la durée"
+                  >
+                    <Ionicons name="add" size={20} color={colors.textPrimary} />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Explication lisible en langage naturel */}
+                <Text style={styles.timeHumanText}>
+                  {draftTargetTotalTime !== null
+                    ? draftTimeFilterMode === 'max'
+                      ? `Recettes prêtes en moins de ${formatMinutes(draftTargetTotalTime)}`
+                      : `Recettes nécessitant plus de ${formatMinutes(draftTargetTotalTime)} (mijoté)`
+                    : 'Toutes les durées sont affichées'}
+                </Text>
+
+                {/* Raccourcis rapides en 1 clic */}
+                <View style={styles.timePresetsRow}>
+                  {TIME_QUICK_PRESETS.map((preset) => {
+                    const isSelected = draftTargetTotalTime === preset.value;
                     return (
                       <TouchableOpacity
-                        key={opt.label}
-                        style={[styles.choiceChip, isSelected && styles.choiceChipActive]}
-                        onPress={() => setDraftMaxTotalTime(isSelected && opt.value !== null ? null : opt.value)}
+                        key={preset.label}
+                        style={[styles.timePresetChip, isSelected && styles.timePresetChipActive]}
+                        onPress={() => handleSetTimeValue(isSelected ? null : preset.value)}
                         activeOpacity={0.75}
                       >
                         <Text
                           style={[
-                            styles.choiceChipText,
-                            isSelected && styles.choiceChipTextActive,
+                            styles.timePresetChipText,
+                            isSelected && styles.timePresetChipTextActive,
                           ]}
                         >
-                          {opt.label}
+                          {preset.label}
                         </Text>
                       </TouchableOpacity>
                     );
                   })}
+
+                  {draftTargetTotalTime !== null && (
+                    <TouchableOpacity
+                      style={styles.timeClearChip}
+                      onPress={() => handleSetTimeValue(null)}
+                      activeOpacity={0.75}
+                    >
+                      <Ionicons name="close-circle-outline" size={13} color={colors.textSecondary} />
+                      <Text style={styles.timeClearChipText}>Effacer</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               </View>
 
-              {/* SECTION 3 : NIVEAU DE DIFFICULTÉ */}
+              {/* SECTION 3 : NIVEAU DE DIFFICULTÉ (1 SEULE LIGNE, BASCULE AU RE-CLIC) */}
               <View style={styles.sectionCard}>
                 <View style={styles.sectionHeader}>
                   <Ionicons name="bar-chart-outline" size={17} color={colors.primary} />
                   <Text style={styles.sectionTitle}>Niveau de difficulté</Text>
-                  {draftDifficulties.length > 0 && (
+                  {draftDifficulties.length > 0 ? (
                     <View style={styles.countBadge}>
-                      <Text style={styles.countBadgeText}>{draftDifficulties.length}</Text>
+                      <Text style={styles.countBadgeText}>{draftDifficulties[0]}</Text>
                     </View>
+                  ) : (
+                    <Text style={styles.sectionHeaderHint}>Toutes</Text>
                   )}
                 </View>
                 <Text style={styles.sectionDescription}>
-                  Sélectionnez un ou plusieurs niveaux de technicité.
+                  Touchez pour cibler un niveau, ou touchez à nouveau pour tout afficher.
                 </Text>
 
-                <View style={styles.chipsRow}>
-                  <TouchableOpacity
-                    style={[
-                      styles.choiceChip,
-                      draftDifficulties.length === 0 && styles.choiceChipActive,
-                    ]}
-                    onPress={() => setDraftDifficulties([])}
-                    activeOpacity={0.75}
-                  >
-                    <Text
-                      style={[
-                        styles.choiceChipText,
-                        draftDifficulties.length === 0 && styles.choiceChipTextActive,
-                      ]}
-                    >
-                      Toutes
-                    </Text>
-                  </TouchableOpacity>
-
-                  {DIFFICULTY_OPTIONS.map((diff) => {
-                    const isSelected = draftDifficulties.includes(diff);
+                <View style={styles.difficultyRow}>
+                  {DIFFICULTY_CONFIG.map((item) => {
+                    const isSelected = draftDifficulties.includes(item.level);
                     return (
                       <TouchableOpacity
-                        key={diff}
-                        style={[styles.choiceChip, isSelected && styles.choiceChipActive]}
-                        onPress={() => handleToggleDifficulty(diff)}
+                        key={item.level}
+                        style={[
+                          styles.difficultyCard,
+                          isSelected && styles.difficultyCardActive,
+                        ]}
+                        onPress={() => handleToggleDifficulty(item.level)}
                         activeOpacity={0.75}
                       >
+                        <Ionicons
+                          name={item.icon}
+                          size={16}
+                          color={isSelected ? '#FFFFFF' : colors.textSecondary}
+                          style={{ marginBottom: 4 }}
+                        />
                         <Text
                           style={[
-                            styles.choiceChipText,
-                            isSelected && styles.choiceChipTextActive,
+                            styles.difficultyCardText,
+                            isSelected && styles.difficultyCardTextActive,
                           ]}
                         >
-                          {diff}
+                          {item.label}
                         </Text>
+                        {isSelected && <View style={styles.difficultyDotActive} />}
                       </TouchableOpacity>
                     );
                   })}
@@ -630,30 +838,38 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
                   </TouchableOpacity>
                 </View>
 
-                {/* Note minimale */}
+                {/* Note minimale (Système interactif d'étoiles propre sans liste verticale encombrante) */}
                 <View style={styles.ratingSubSection}>
-                  <Text style={styles.ratingSubLabel}>Note minimale :</Text>
-                  <View style={styles.chipsRow}>
-                    {RATING_OPTIONS.map((opt) => {
-                      const isSelected = draftMinRating === opt.value;
-                      return (
-                        <TouchableOpacity
-                          key={opt.label}
-                          style={[styles.choiceChip, isSelected && styles.choiceChipActive]}
-                          onPress={() => setDraftMinRating(opt.value)}
-                          activeOpacity={0.75}
-                        >
-                          <Text
-                            style={[
-                              styles.choiceChipText,
-                              isSelected && styles.choiceChipTextActive,
-                            ]}
-                          >
-                            {opt.label}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
+                  <View style={styles.ratingHeaderRow}>
+                    <View style={styles.ratingTitleWrap}>
+                      <Ionicons name="star" size={15} color={colors.amber} style={{ marginRight: 6 }} />
+                      <Text style={styles.ratingSubLabel}>Note minimale</Text>
+                    </View>
+                    <Text style={styles.ratingValueText}>
+                      {draftMinRating > 0
+                        ? `≥ ${draftMinRating % 1 === 0 ? draftMinRating : draftMinRating.toFixed(1)} ★`
+                        : 'Toutes les notes'}
+                    </Text>
+                  </View>
+
+                  <View style={styles.ratingStarsBox}>
+                    <StarRating
+                      rating={draftMinRating}
+                      size={26}
+                      interactive
+                      onRatingChange={(newVal) => setDraftMinRating(newVal)}
+                      showClear={draftMinRating > 0}
+                    />
+                    {draftMinRating > 0 && (
+                      <TouchableOpacity
+                        onPress={() => setDraftMinRating(0)}
+                        style={styles.ratingResetBtn}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      >
+                        <Ionicons name="close-circle" size={15} color={colors.textMuted} />
+                        <Text style={styles.ratingResetBtnText}>Effacer</Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
                 </View>
               </View>
@@ -978,31 +1194,179 @@ const styles = createDynamicStyles((colors, shadows) => ({
     fontSize: 12,
     color: colors.textPrimary,
   },
-  chipsRow: {
+  sectionHeaderHint: {
+    marginLeft: 'auto',
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textMuted,
+  },
+  timeModeSegmented: {
+    flexDirection: 'row',
+    backgroundColor: colors.cardBackground,
+    borderRadius: 12,
+    padding: 3,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: 12,
+  },
+  timeModeBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    borderRadius: 9,
+  },
+  timeModeBtnActive: {
+    backgroundColor: colors.primary,
+  },
+  timeModeBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  timeModeBtnTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  timeStepperRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 14,
+    marginBottom: 8,
+  },
+  timeStepBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.cardBackground,
+    borderWidth: 1,
+    borderColor: colors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...shadows.card,
+  },
+  timeStepBtnDisabled: {
+    opacity: 0.35,
+    elevation: 0,
+    shadowOpacity: 0,
+  },
+  timeInputBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.cardBackground,
+    borderWidth: 1.5,
+    borderColor: colors.primary + '55',
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    minWidth: 120,
+  },
+  timeTextInput: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    textAlign: 'center',
+    minWidth: 46,
+    padding: 0,
+  },
+  timeInputUnit: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.textSecondary,
+    marginLeft: 4,
+  },
+  timeHumanText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: 12,
+    fontStyle: 'italic',
+  },
+  timePresetsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: 6,
+    justifyContent: 'center',
   },
-  choiceChip: {
+  timePresetChip: {
     backgroundColor: colors.cardBackground,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingHorizontal: 11,
+    paddingVertical: 6,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: colors.border,
   },
-  choiceChipActive: {
+  timePresetChipActive: {
     backgroundColor: colors.primary,
     borderColor: colors.primary,
   },
-  choiceChipText: {
+  timePresetChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  timePresetChipTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  timeClearChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.background,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  timeClearChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  difficultyRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 4,
+  },
+  difficultyCard: {
+    flex: 1,
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: colors.cardBackground,
+    position: 'relative',
+  },
+  difficultyCardActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  difficultyCardText: {
     fontSize: 13,
     fontWeight: '600',
     color: colors.textPrimary,
   },
-  choiceChipTextActive: {
+  difficultyCardTextActive: {
     color: '#FFFFFF',
     fontWeight: '700',
+  },
+  difficultyDotActive: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#FFFFFF',
   },
   preferenceTogglesWrap: {
     flexDirection: 'row',
@@ -1041,12 +1405,54 @@ const styles = createDynamicStyles((colors, shadows) => ({
   },
   ratingSubSection: {
     marginTop: 4,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  ratingHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  ratingTitleWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   ratingSubLabel: {
-    fontSize: 12,
+    fontSize: 12.5,
     fontWeight: '600',
-    color: colors.textSecondary,
-    marginBottom: 6,
+    color: colors.textPrimary,
+  },
+  ratingValueText: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: colors.amber,
+  },
+  ratingStarsBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.cardBackground,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  ratingResetBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: colors.background,
+  },
+  ratingResetBtnText: {
+    fontSize: 11.5,
+    fontWeight: '600',
+    color: colors.textMuted,
   },
   footerSafeArea: {
     borderTopWidth: 1,

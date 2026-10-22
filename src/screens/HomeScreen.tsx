@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { Recipe, Category, SortOption, Difficulty } from '../types/recipe';
+import { Recipe, Category, SortOption, Difficulty, TimeFilterMode } from '../types/recipe';
 import { MealLogEntry } from '../types/mealLog';
 import { MealTime } from '../types/planner';
 import { FridgeItem } from '../types/fridge';
@@ -39,7 +39,7 @@ import {
   searchRecipes,
   RecipeSearchResult,
   recipeMatchesIngredients,
-  recipeMatchesMaxTime,
+  recipeMatchesTime,
   recipeMatchesDifficulty,
 } from '../utils/searchEngine';
 import { evaluateRecipesWithStock, RecipeStockEvaluation } from '../utils/stockMatcher';
@@ -88,7 +88,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const flatListRef = useRef<FlatList<Recipe>>(null);
   const [selectedCategories, setSelectedCategories] = useState<Category[]>([]);
   const [selectedIngredients, setSelectedIngredients] = useState<string[]>([]);
-  const [maxTotalTime, setMaxTotalTime] = useState<number | null>(null);
+  const [targetTotalTime, setTargetTotalTime] = useState<number | null>(null);
+  const [timeFilterMode, setTimeFilterMode] = useState<TimeFilterMode>('max');
   const [selectedDifficulties, setSelectedDifficulties] = useState<Difficulty[]>([]);
   const [ingredientMatchMode, setIngredientMatchMode] = useState<'all' | 'any'>('all');
   const [isAdvancedFiltersModalVisible, setIsAdvancedFiltersModalVisible] = useState(false);
@@ -99,11 +100,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
   const activeAdvancedFiltersCount = useMemo(() => {
     let count = 0;
-    if (maxTotalTime !== null) count++;
+    if (targetTotalTime !== null) count++;
     if (selectedDifficulties.length > 0) count++;
     if (selectedIngredients.length > 0) count++;
     return count;
-  }, [maxTotalTime, selectedDifficulties.length, selectedIngredients.length]);
+  }, [targetTotalTime, selectedDifficulties.length, selectedIngredients.length]);
 
   useEffect(() => {
     if (initialOnlyDoable) {
@@ -432,9 +433,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       );
     }
 
-    // Temps total max (préparation + cuisson)
-    if (maxTotalTime !== null) {
-      result = result.filter((r) => recipeMatchesMaxTime(r.recipe, maxTotalTime));
+    // Temps total (préparation + cuisson : rapide ≤ ou mijoté ≥)
+    if (targetTotalTime !== null) {
+      result = result.filter((r) => recipeMatchesTime(r.recipe, targetTotalTime, timeFilterMode));
     }
 
     // Niveau de difficulté
@@ -483,7 +484,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     selectedCategories,
     selectedIngredients,
     ingredientMatchMode,
-    maxTotalTime,
+    targetTotalTime,
+    timeFilterMode,
     selectedDifficulties,
     minRatingFilter,
     onlyVegetarian,
@@ -500,7 +502,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     selectedCategories,
     selectedIngredients,
     ingredientMatchMode,
-    maxTotalTime,
+    targetTotalTime,
+    timeFilterMode,
     selectedDifficulties,
     sortBy,
     minRatingFilter,
@@ -560,7 +563,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     setSearchQuery('');
     setSelectedCategories([]);
     setSelectedIngredients([]);
-    setMaxTotalTime(null);
+    setTargetTotalTime(null);
+    setTimeFilterMode('max');
     setSelectedDifficulties([]);
     setIngredientMatchMode('all');
     setMinRatingFilter(0);
@@ -608,7 +612,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         )}
 
         {/* Bandeau filtres avancés actifs (Temps max, Difficulté, Ingrédients) */}
-        {(maxTotalTime !== null ||
+        {(targetTotalTime !== null ||
           selectedDifficulties.length > 0 ||
           selectedIngredients.length > 0) && (
           <View style={styles.advancedFiltersActiveBanner}>
@@ -619,12 +623,18 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.activePillsScroll}
               >
-                {maxTotalTime !== null && (
+                {targetTotalTime !== null && (
                   <View style={styles.activePillChip}>
-                    <Ionicons name="time-outline" size={12} color={colors.primary} />
-                    <Text style={styles.activePillChipText}>≤ {maxTotalTime} min</Text>
+                    <Ionicons
+                      name={timeFilterMode === 'min' ? 'flame-outline' : 'time-outline'}
+                      size={12}
+                      color={colors.primary}
+                    />
+                    <Text style={styles.activePillChipText}>
+                      {timeFilterMode === 'min' ? `≥ ${targetTotalTime} min (mijoté)` : `≤ ${targetTotalTime} min`}
+                    </Text>
                     <TouchableOpacity
-                      onPress={() => setMaxTotalTime(null)}
+                      onPress={() => setTargetTotalTime(null)}
                       hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                     >
                       <Ionicons name="close-circle" size={14} color={colors.textSecondary} />
@@ -667,7 +677,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
             <TouchableOpacity
               onPress={() => {
-                setMaxTotalTime(null);
+                setTargetTotalTime(null);
+                setTimeFilterMode('max');
                 setSelectedDifficulties([]);
                 setSelectedIngredients([]);
               }}
@@ -698,7 +709,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     [
       todayMeals,
       selectedIngredients,
-      maxTotalTime,
+      targetTotalTime,
+      timeFilterMode,
       selectedDifficulties,
       ingredientMatchMode,
       onlyDoableWithStock,
@@ -1222,12 +1234,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           </View>
         </Modal>
 
-        {/* Modal Filtres Avancés (Famille 2 : Ingrédients, Temps max, Difficulté, Régime) */}
+        {/* Modal Filtres Avancés (Famille 2 : Ingrédients, Temps total, Difficulté, Régime, Étoiles) */}
         <AdvancedFiltersModal
           visible={isAdvancedFiltersModalVisible}
           onClose={() => setIsAdvancedFiltersModalVisible(false)}
           onApply={({
-            maxTotalTime: newMaxTime,
+            targetTotalTime: newTargetTime,
+            timeFilterMode: newTimeMode,
             difficulties: newDifficulties,
             selectedIngredients: newIngredients,
             ingredientMatchMode: newMatchMode,
@@ -1235,7 +1248,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             minRating: newMinRating,
             onlyDoableWithStock: newDoable,
           }) => {
-            setMaxTotalTime(newMaxTime);
+            setTargetTotalTime(newTargetTime);
+            setTimeFilterMode(newTimeMode);
             setSelectedDifficulties(newDifficulties);
             setSelectedIngredients(newIngredients);
             setIngredientMatchMode(newMatchMode);
@@ -1244,12 +1258,14 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             if (newDoable !== undefined) setOnlyDoableWithStock(newDoable);
           }}
           onReset={() => {
-            setMaxTotalTime(null);
+            setTargetTotalTime(null);
+            setTimeFilterMode('max');
             setSelectedDifficulties([]);
             setSelectedIngredients([]);
             setIngredientMatchMode('all');
           }}
-          maxTotalTime={maxTotalTime}
+          targetTotalTime={targetTotalTime}
+          timeFilterMode={timeFilterMode}
           difficulties={selectedDifficulties}
           selectedIngredients={selectedIngredients}
           ingredientMatchMode={ingredientMatchMode}

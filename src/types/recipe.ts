@@ -47,10 +47,14 @@ export interface Recipe {
 
 export type SortOption = 'rating_desc' | 'rating_asc' | 'prep_time' | 'title' | 'recent';
 
+export type TimeFilterMode = 'max' | 'min';
+
 export interface AdvancedFilterOptions {
-  maxTotalTime: number | null; // Temps total max en minutes (ex: 15, 30, 45, 60 ou null)
-  difficulties: Difficulty[];  // Ex: ['Facile', 'Moyen'], tableau vide = toutes
-  selectedIngredients: string[]; // Liste des ingrédients ciblés
+  targetTotalTime: number | null; // Temps total cible en minutes (ex: 15, 30, 45, 60... ou null)
+  timeFilterMode: TimeFilterMode;  // 'max' = ≤ (moins de / rapide), 'min' = ≥ (plus de / mijoté)
+  maxTotalTime?: number | null;   // Rétrocompatibilité
+  difficulties: Difficulty[];     // Ex: ['Facile'], tableau vide = toutes
+  selectedIngredients: string[];  // Liste des ingrédients ciblés
   ingredientMatchMode: 'all' | 'any'; // 'all' = contient TOUS les ingrédients (ET), 'any' = au moins un (OU)
 }
 
@@ -62,6 +66,8 @@ export interface FilterOptions {
   sortBy: SortOption;
   onlyFavorites?: boolean;
   onlyVegetarian?: boolean;
+  targetTotalTime?: number | null;
+  timeFilterMode?: TimeFilterMode;
   maxTotalTime?: number | null;
   difficulties?: Difficulty[];
   ingredientMatchMode?: 'all' | 'any';
