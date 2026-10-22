@@ -181,21 +181,221 @@ async function handleGeminiResponseText(response: Response): Promise<string> {
   }
 
   const data = await response.json();
-  const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+  const candidate = data?.candidates?.[0];
+  const rawText = candidate?.content?.parts?.[0]?.text;
   if (!rawText) {
+    if (candidate?.finishReason === 'SAFETY') {
+      throw new Error("L'IA a interrompu la génération pour des motifs de sécurité.");
+    }
     throw new Error("L'IA n'a retourné aucune donnée.");
   }
   return rawText;
 }
 
-function parseJsonFromAiText(rawText: string): any {
-  let cleanJson = rawText.trim();
-  if (cleanJson.startsWith('```json')) {
-    cleanJson = cleanJson.replace(/^```json/, '').replace(/```$/, '').trim();
-  } else if (cleanJson.startsWith('```')) {
-    cleanJson = cleanJson.replace(/^```/, '').replace(/```$/, '').trim();
+/**
+ * Répare une chaîne JSON tronquée par l'IA (ex: limite de tokens atteinte en cours de génération).
+ * Ferme les guillemets non terminés, purge les clés ou virgules pendantes et referme les accolades/crochets ouverts.
+ */
+function repairTruncatedJsonString(str: string): string {
+  let inString = false;
+  let isEscaped = false;
+  const stack: string[] = [];
+
+  for (let i = 0; i < str.length; i++) {
+    const char = str[i];
+
+    if (isEscaped) {
+      isEscaped = false;
+      continue;
+    }
+
+    if (char === '\\' && inString) {
+      isEscaped = true;
+      continue;
+    }
+
+    if (char === '"') {
+      inString = !inString;
+      continue;
+    }
+
+    if (!inString) {
+      if (char === '{') {
+        stack.push('}');
+      } else if (char === '[') {
+        stack.push(']');
+      } else if (char === '}' || char === ']') {
+        if (stack.length > 0 && stack[stack.length - 1] === char) {
+          stack.pop();
+        }
+      }
+    }
   }
-  return JSON.parse(cleanJson);
+
+  let repaired = str;
+
+  // Si la génération a coupé à l'intérieur d'une chaîne
+  if (inString) {
+    if (repaired.endsWith('\\')) {
+      repaired = repaired.slice(0, -1);
+    }
+    repaired += '"';
+  }
+
+  // Nettoyage des éléments orphelins à la fin (clés sans valeur, virgules ou deux-points pendants)
+  repaired = repaired.trim();
+  let changed = true;
+  while (changed) {
+    changed = false;
+    if (repaired.endsWith(',')) {
+      repaired = repaired.slice(0, -1).trim();
+      changed = true;
+    }
+    const danglingKeyColon = /,\s*"[^"]*"\s*:\s*$/;
+    if (danglingKeyColon.test(repaired)) {
+      repaired = repaired.replace(danglingKeyColon, '').trim();
+      changed = true;
+    }
+    const danglingKeyOnly = /,\s*"[^"]*"\s*$/;
+    if (danglingKeyOnly.test(repaired)) {
+      repaired = repaired.replace(danglingKeyOnly, '').trim();
+      changed = true;
+    }
+    const danglingColon = /:\s*$/;
+    if (danglingColon.test(repaired)) {
+      repaired = repaired.replace(/:\s*$/, '');
+      repaired = repaired.replace(/,\s*"[^"]*"\s*$/, '').trim();
+      changed = true;
+    }
+  }
+
+  // Fermeture de toutes les balises et accolades empilées
+  while (stack.length > 0) {
+    repaired += stack.pop();
+  }
+
+  return repaired;
+}
+
+/**
+ * Extrait et analyse de manière ultra-résiliente le JSON retourné par Gemini :
+ * - Prend en charge les blocs markdown ```json ... ``` et balises ouvertes
+ * - Ignore le texte conversationnel introductif
+ * - Tente une réparation automatique chirurgicale si le flux a été tronqué ("Unexpected end of input")
+ */
+function parseJsonFromAiText(rawText: string): any {
+  if (!rawText || typeof rawText !== 'string') {
+    throw new Error("L'IA a retourné une réponse textuelle vide.");
+  }
+
+  let clean = rawText.trim();
+
+  // 1. Extraction d'un bloc de code markdown si présent
+  const codeBlockMatch = clean.match(/```(?:json)?\s*([\s\S]*?)(?:```|$)/i);
+  if (codeBlockMatch && codeBlockMatch[1]) {
+    clean = codeBlockMatch[1].trim();
+  }
+
+  // 2. Détection du premier { ou [ pour ignorer tout blabla introductif
+  const firstBrace = clean.indexOf('{');
+  const firstBracket = clean.indexOf('[');
+  let startIdx = -1;
+  if (firstBrace !== -1 && firstBracket !== -1) {
+    startIdx = Math.min(firstBrace, firstBracket);
+  } else if (firstBrace !== -1) {
+    startIdx = firstBrace;
+  } else if (firstBracket !== -1) {
+    startIdx = firstBracket;
+  }
+
+  if (startIdx > 0) {
+    clean = clean.slice(startIdx).trim();
+  }
+
+  // 3. Essai standard direct
+  try {
+    return JSON.parse(clean);
+  } catch (initialErr: any) {
+    // 4. Si échec de syntaxe (ex: Unexpected end of input), tentative de réparation
+    try {
+      const repaired = repairTruncatedJsonString(clean);
+      return JSON.parse(repaired);
+    } catch (repairErr: any) {
+      console.error('[Gemini JSON Parse Error]', initialErr?.message, 'Raw snippet:', clean.slice(0, 150));
+      throw new Error(
+        `Impossible de lire la réponse du Chef IA (erreur de format JSON). Veuillez réessayer.`
+      );
+    }
+  }
+}
+
+/**
+ * Exécute une requête de génération sur Gemini avec cascade multi-modèles et validation JSON immédiate.
+ * Si un modèle échoue HTTP ou renvoie un JSON corrompu/incomplet, la cascade bascule automatiquement
+ * sur le modèle suivant de la chaîne de secours.
+ */
+async function fetchGeminiJsonWithFallbackAndRetry(
+  apiKey: string,
+  payload: any,
+  models: string[] = GEMINI_MODELS_CASCADE
+): Promise<{ parsed: any; usedModel: string }> {
+  let lastError: any = null;
+
+  for (let i = 0; i < models.length; i++) {
+    const model = models[i];
+    const generateUrl = getGeminiGenerateUrl(apiKey, model);
+    const headers = getGeminiHeaders(apiKey);
+
+    try {
+      const response = await fetchGeminiWithRetry(
+        generateUrl,
+        {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(payload),
+        },
+        1
+      );
+
+      if (response.status === 401 || response.status === 403) {
+        await handleGeminiResponseText(response);
+      }
+
+      if (!response.ok) {
+        console.warn(
+          `[Gemini Fallback] Modèle "${model}" a retourné le statut HTTP ${response.status}. Basculement automatique...`
+        );
+        continue;
+      }
+
+      const rawAiText = await handleGeminiResponseText(response);
+      try {
+        const parsed = parseJsonFromAiText(rawAiText);
+        return { parsed, usedModel: model };
+      } catch (jsonErr: any) {
+        console.warn(
+          `[Gemini Fallback] Modèle "${model}" a renvoyé un format JSON incomplet (${jsonErr.message}). Basculement sur le modèle suivant...`
+        );
+        lastError = jsonErr;
+        continue;
+      }
+    } catch (err: any) {
+      if (
+        err?.message?.includes('Clé API non reconnue') ||
+        err?.message?.includes('401') ||
+        err?.message?.includes('403')
+      ) {
+        throw err;
+      }
+      lastError = err;
+      console.warn(
+        `[Gemini Fallback] Échec sur le modèle "${model}". Basculement automatique...`,
+        err
+      );
+    }
+  }
+
+  throw lastError || new Error("Impossible d'obtenir une réponse valide des serveurs Google Gemini.");
 }
 
 export interface ExtractedRecipeData {
@@ -690,13 +890,12 @@ Règles universelles :
       generationConfig: {
         response_mime_type: 'application/json',
         temperature: 0.2,
+        max_output_tokens: 4096,
       },
     };
 
-    const { response } = await fetchGeminiWithFallbackAndRetry(apiKey, payload);
-    const rawText = await handleGeminiResponseText(response);
-    const rawParsed = parseJsonFromAiText(rawText);
-    return sanitizeExtractedRecipe(rawParsed);
+    const { parsed } = await fetchGeminiJsonWithFallbackAndRetry(apiKey, payload);
+    return sanitizeExtractedRecipe(parsed);
   },
 
   /**
@@ -775,13 +974,12 @@ ${sanitizedRecipe}
       generationConfig: {
         response_mime_type: 'application/json',
         temperature: 0.1,
+        max_output_tokens: 4096,
       },
     };
 
-    const { response } = await fetchGeminiWithFallbackAndRetry(apiKey, payload);
-    const rawText = await handleGeminiResponseText(response);
-    const rawParsed = parseJsonFromAiText(rawText);
-    return sanitizeExtractedRecipe(rawParsed);
+    const { parsed } = await fetchGeminiJsonWithFallbackAndRetry(apiKey, payload);
+    return sanitizeExtractedRecipe(parsed);
   },
 
   /**
@@ -861,13 +1059,12 @@ ${sanitizedInput}
       generationConfig: {
         response_mime_type: 'application/json',
         temperature: 0.2,
+        max_output_tokens: 4096,
       },
     };
 
-    const { response } = await fetchGeminiWithFallbackAndRetry(apiKey, payload);
-    const rawAiText = await handleGeminiResponseText(response);
-    const rawParsed = parseJsonFromAiText(rawAiText);
-    const sanitized = sanitizeExtractedRecipe(rawParsed);
+    const { parsed } = await fetchGeminiJsonWithFallbackAndRetry(apiKey, payload);
+    const sanitized = sanitizeExtractedRecipe(parsed);
 
     if (sanitized.userNote) {
       const lowerInput = trimmedInput.toLowerCase();
@@ -1009,14 +1206,12 @@ ${sanitizedIngredients.join(', ')}
       generationConfig: {
         response_mime_type: 'application/json',
         temperature: 0.6,
-        max_output_tokens: 2048,
+        max_output_tokens: 4096,
       },
     };
 
-    const { response } = await fetchGeminiWithFallbackAndRetry(apiKey, payload);
-    const rawAiText = await handleGeminiResponseText(response);
-    const rawParsed = parseJsonFromAiText(rawAiText);
-    return sanitizeExtractedRecipe(rawParsed);
+    const { parsed } = await fetchGeminiJsonWithFallbackAndRetry(apiKey, payload);
+    return sanitizeExtractedRecipe(parsed);
   },
 
   /**
@@ -1082,6 +1277,7 @@ Contraintes obligatoires :
 2. Ingrédients : mettre en vedette les ingrédients fournis (tu peux supposer disponibles les ingrédients de base du placard : sel, poivre, huiles usuelles, beurre, eau, herbes, épices basiques).
 3. ${isVege ? 'RÈGLE VÉGÉTARIENNE : les 3 idées doivent être 100% végétariennes (sans viande ni poisson).' : 'Si pertinent, tu peux utiliser de la viande ou du poisson si présent dans les ingrédients.'}
 ${antiRedundancySection}
+4. SYNTHÈSE & CONCISION : Rédige des descriptions concises et directes (1 à 2 phrases percutantes maximum).
 
 Réponds STRICTEMENT sous la forme d'un objet JSON valide respectant cette structure exacte :
 {
@@ -1131,13 +1327,12 @@ ${sanitizedIngredients.join(', ')}
       generationConfig: {
         response_mime_type: 'application/json',
         temperature: 0.6,
-        max_output_tokens: 1024,
+        max_output_tokens: 2048,
       },
     };
 
-    const { response } = await fetchGeminiWithFallbackAndRetry(apiKey, payload);
-    const rawAiText = await handleGeminiResponseText(response);
-    const rawParsed = parseJsonFromAiText(rawAiText);
+    const { parsed } = await fetchGeminiJsonWithFallbackAndRetry(apiKey, payload);
+    const rawParsed = parsed;
 
     const rawList = Array.isArray(rawParsed)
       ? rawParsed
@@ -1245,13 +1440,11 @@ ${sanitizedIngredients.join(', ')}
       generationConfig: {
         response_mime_type: 'application/json',
         temperature: 0.5,
-        max_output_tokens: 2048,
+        max_output_tokens: 4096,
       },
     };
 
-    const { response } = await fetchGeminiWithFallbackAndRetry(apiKey, payload);
-    const rawAiText = await handleGeminiResponseText(response);
-    const rawParsed = parseJsonFromAiText(rawAiText);
-    return sanitizeExtractedRecipe(rawParsed);
+    const { parsed } = await fetchGeminiJsonWithFallbackAndRetry(apiKey, payload);
+    return sanitizeExtractedRecipe(parsed);
   },
 };

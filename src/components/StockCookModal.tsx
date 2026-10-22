@@ -659,7 +659,108 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
                       </View>
                     </View>
 
-                    {/* Résumé des aliments en stock avec sélection interactive */}
+                    {/* 1. Paramètres de l'invention IA (Type de plat, portions, végétarien, anti-redondance) */}
+                    <View style={styles.aiParamsGrid}>
+                      {/* Sélecteur Entrée / Plat / Dessert (Plat par défaut) */}
+                      <View style={styles.mealTypeSection}>
+                        <Text style={styles.aiParamTitle}>Type de plat souhaité</Text>
+                        <View style={styles.mealTypeSelectorRow}>
+                          {MEAL_TYPES.map((t) => {
+                            const isSelected = mealType === t.id;
+                            return (
+                              <TouchableOpacity
+                                key={t.id}
+                                style={[
+                                  styles.mealTypeOptionBtn,
+                                  isSelected && styles.mealTypeOptionBtnSelected,
+                                ]}
+                                onPress={() => setMealType(t.id)}
+                                activeOpacity={0.7}
+                              >
+                                <Ionicons
+                                  name={t.iconName as any}
+                                  size={15}
+                                  color={isSelected ? '#FFFFFF' : colors.textSecondary}
+                                />
+                                <Text
+                                  style={[
+                                    styles.mealTypeOptionText,
+                                    isSelected && styles.mealTypeOptionTextSelected,
+                                  ]}
+                                >
+                                  {t.label}
+                                </Text>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </View>
+                      </View>
+
+                      {/* Portions */}
+                      <View style={styles.aiParamRow}>
+                        <View style={styles.aiParamLabelCol}>
+                          <Text style={styles.aiParamTitle}>Nombre de personnes</Text>
+                          <Text style={styles.aiParamSub}>Ajuste les quantités</Text>
+                        </View>
+                        <View style={styles.stepperContainer}>
+                          <TouchableOpacity
+                            style={[
+                              styles.stepperBtn,
+                              servings <= 1 && styles.stepperBtnDisabled,
+                            ]}
+                            onPress={() => setServings((prev) => Math.max(1, prev - 1))}
+                            disabled={servings <= 1}
+                          >
+                            <Ionicons name="remove" size={16} color={colors.textPrimary} />
+                          </TouchableOpacity>
+                          <Text style={styles.stepperValue}>{servings}</Text>
+                          <TouchableOpacity
+                            style={[
+                              styles.stepperBtn,
+                              servings >= 20 && styles.stepperBtnDisabled,
+                            ]}
+                            onPress={() => setServings((prev) => Math.min(20, prev + 1))}
+                            disabled={servings >= 20}
+                          >
+                            <Ionicons name="add" size={16} color={colors.textPrimary} />
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+
+                      {/* Végétarien toggle */}
+                      <View style={styles.aiParamRow}>
+                        <View style={styles.aiParamLabelCol}>
+                          <Text style={styles.aiParamTitle}>Végétarien uniquement</Text>
+                          <Text style={styles.aiParamSub}>Sans viande ni poisson</Text>
+                        </View>
+                        <Switch
+                          value={isVegetarian}
+                          onValueChange={setIsVegetarian}
+                          trackColor={{ false: colors.border, true: colors.primary }}
+                          thumbColor="#FFFFFF"
+                        />
+                      </View>
+
+                      {/* Information filtre anti-redondance ciblée (Solution 1) */}
+                      <View style={styles.doableFilterInfoBox}>
+                        <Ionicons
+                          name={
+                            doableRecipesForCurrentType.length > 0
+                              ? 'shield-checkmark-outline'
+                              : 'sparkles-outline'
+                          }
+                          size={15}
+                          color={colors.primary}
+                        />
+                        <Text style={styles.doableFilterInfoText}>
+                          {doableRecipesForCurrentType.length > 0
+                            ? `${doableRecipesForCurrentType.length} ${mealType.toLowerCase()}${doableRecipesForCurrentType.length > 1 ? 's' : ''} déjà faisable${doableRecipesForCurrentType.length > 1 ? 's' : ''} dans votre carnet sera évité${doableRecipesForCurrentType.length > 1 ? 's' : ''}`
+                            : `Aucune ${mealType.toLowerCase()} similaire en stock dans votre carnet : champ libre total pour le Chef IA`}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* 2. Choix des aliments en stock (passé en dessous des options) */}
                     <View style={styles.stockSelectionHeader}>
                       <Text style={styles.stockSelectionTitle}>
                         Aliments en vedette ({selectedStockNames.length}/{totalStockCount}) :
@@ -761,107 +862,6 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
                           </View>
                         );
                       })}
-                    </View>
-
-                    {/* Paramètres de l'invention IA */}
-                    <View style={styles.aiParamsGrid}>
-                      {/* Sélecteur Entrée / Plat / Dessert (Plat par défaut) */}
-                      <View style={styles.mealTypeSection}>
-                        <Text style={styles.aiParamTitle}>Type de plat souhaité</Text>
-                        <View style={styles.mealTypeSelectorRow}>
-                          {MEAL_TYPES.map((t) => {
-                            const isSelected = mealType === t.id;
-                            return (
-                              <TouchableOpacity
-                                key={t.id}
-                                style={[
-                                  styles.mealTypeOptionBtn,
-                                  isSelected && styles.mealTypeOptionBtnSelected,
-                                ]}
-                                onPress={() => setMealType(t.id)}
-                                activeOpacity={0.7}
-                              >
-                                <Ionicons
-                                  name={t.iconName as any}
-                                  size={15}
-                                  color={isSelected ? '#FFFFFF' : colors.textSecondary}
-                                />
-                                <Text
-                                  style={[
-                                    styles.mealTypeOptionText,
-                                    isSelected && styles.mealTypeOptionTextSelected,
-                                  ]}
-                                >
-                                  {t.label}
-                                </Text>
-                              </TouchableOpacity>
-                            );
-                          })}
-                        </View>
-                      </View>
-
-                      {/* Portions */}
-                      <View style={styles.aiParamRow}>
-                        <View style={styles.aiParamLabelCol}>
-                          <Text style={styles.aiParamTitle}>Nombre de personnes</Text>
-                          <Text style={styles.aiParamSub}>Ajuste les quantités</Text>
-                        </View>
-                        <View style={styles.stepperContainer}>
-                          <TouchableOpacity
-                            style={[
-                              styles.stepperBtn,
-                              servings <= 1 && styles.stepperBtnDisabled,
-                            ]}
-                            onPress={() => setServings((prev) => Math.max(1, prev - 1))}
-                            disabled={servings <= 1}
-                          >
-                            <Ionicons name="remove" size={16} color={colors.textPrimary} />
-                          </TouchableOpacity>
-                          <Text style={styles.stepperValue}>{servings}</Text>
-                          <TouchableOpacity
-                            style={[
-                              styles.stepperBtn,
-                              servings >= 20 && styles.stepperBtnDisabled,
-                            ]}
-                            onPress={() => setServings((prev) => Math.min(20, prev + 1))}
-                            disabled={servings >= 20}
-                          >
-                            <Ionicons name="add" size={16} color={colors.textPrimary} />
-                          </TouchableOpacity>
-                        </View>
-                      </View>
-
-                      {/* Végétarien toggle */}
-                      <View style={styles.aiParamRow}>
-                        <View style={styles.aiParamLabelCol}>
-                          <Text style={styles.aiParamTitle}>Végétarien uniquement</Text>
-                          <Text style={styles.aiParamSub}>Sans viande ni poisson</Text>
-                        </View>
-                        <Switch
-                          value={isVegetarian}
-                          onValueChange={setIsVegetarian}
-                          trackColor={{ false: colors.border, true: colors.primary }}
-                          thumbColor="#FFFFFF"
-                        />
-                      </View>
-
-                      {/* Information filtre anti-redondance ciblée (Solution 1) */}
-                      <View style={styles.doableFilterInfoBox}>
-                        <Ionicons
-                          name={
-                            doableRecipesForCurrentType.length > 0
-                              ? 'shield-checkmark-outline'
-                              : 'sparkles-outline'
-                          }
-                          size={15}
-                          color={colors.primary}
-                        />
-                        <Text style={styles.doableFilterInfoText}>
-                          {doableRecipesForCurrentType.length > 0
-                            ? `${doableRecipesForCurrentType.length} ${mealType.toLowerCase()}${doableRecipesForCurrentType.length > 1 ? 's' : ''} déjà faisable${doableRecipesForCurrentType.length > 1 ? 's' : ''} dans votre carnet sera évité${doableRecipesForCurrentType.length > 1 ? 's' : ''}`
-                            : `Aucune ${mealType.toLowerCase()} similaire en stock dans votre carnet : champ libre total pour le Chef IA`}
-                        </Text>
-                      </View>
                     </View>
 
                     {/* Bouton de génération des 3 idées (Solution 4 - Étape 1) */}
