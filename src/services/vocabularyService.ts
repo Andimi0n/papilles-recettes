@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { CanonicalIngredient } from '../types/vocabulary';
+import { CanonicalIngredient, AllergenFamily } from '../types/vocabulary';
 import { ShoppingAisle } from '../types/shopping';
-import { getInitialCanonicalVocabulary, isKnownDefaultPantryStaple } from '../data/canonicalVocabulary';
+import { getInitialCanonicalVocabulary, isKnownDefaultPantryStaple, getDefaultAllergen } from '../data/canonicalVocabulary';
 import { normalizeString } from '../utils/helpers';
 import { classifyIngredientAisle } from '../utils/aisleClassifier';
 
@@ -46,6 +46,15 @@ export const VocabularyService = {
               if (isPantryStaple === undefined) {
                 isPantryStaple = isKnownDefaultPantryStaple(item.canonicalName);
                 itemUpdated = true;
+              }
+
+              let allergen = item.allergen;
+              if (allergen === undefined) {
+                const defaultAllergen = getDefaultAllergen(item.canonicalName) || getDefaultAllergen(item.normalizedName);
+                if (defaultAllergen) {
+                  allergen = defaultAllergen;
+                  itemUpdated = true;
+                }
               }
 
               // Nettoyage anti-conflits des alias :
@@ -99,6 +108,7 @@ export const VocabularyService = {
                 return {
                   ...item,
                   isPantryStaple,
+                  allergen,
                   aliases: cleanedAliases,
                   updatedAt: new Date().toISOString(),
                 };
@@ -107,9 +117,18 @@ export const VocabularyService = {
               return item;
             });
 
-            // S'assurer que "Sucre glace" est répertorié de façon autonome
-            const hasSucreGlace = sanitized.some((i) => i.normalizedName === 'sucre glace');
+            // Synchroniser les nouveaux ingrédients de base (ex: Cacahuètes, Sésame, Tofu, Noix...)
+            const existingNormalized = new Set(sanitized.map((i) => i.normalizedName));
+            const initialSeed = getInitialCanonicalVocabulary();
+            const missingSeeds = initialSeed.filter((s) => !existingNormalized.has(s.normalizedName));
             let finalList = sanitized;
+            if (missingSeeds.length > 0) {
+              finalList = [...sanitized, ...missingSeeds];
+              hadChanges = true;
+            }
+
+            // S'assurer que "Sucre glace" est répertorié de façon autonome
+            const hasSucreGlace = finalList.some((i) => i.normalizedName === 'sucre glace');
             if (!hasSucreGlace) {
               const newEntry: CanonicalIngredient = {
                 id: 'ing_canon_sucre_glace',
@@ -123,7 +142,7 @@ export const VocabularyService = {
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
               };
-              finalList = [newEntry, ...sanitized];
+              finalList = [newEntry, ...finalList];
               hadChanges = true;
             }
 
@@ -182,6 +201,7 @@ export const VocabularyService = {
     aliases?: string[];
     isCustom?: boolean;
     isPantryStaple?: boolean;
+    allergen?: AllergenFamily;
   }): Promise<CanonicalIngredient> {
     const list = await this.getAll();
     const cleanName = item.canonicalName.trim();
@@ -193,18 +213,25 @@ export const VocabularyService = {
     // Vérifier si un ingrédient identique existe déjà
     const existing = list.find((i) => i.normalizedName === norm);
     if (existing) {
+      if (item.allergen && existing.allergen !== item.allergen) {
+        return await this.updateAllergenFamily(existing.id, item.allergen);
+      }
       return existing;
     }
 
     // Si ce terme était un alias d'un autre ingrédient, le promouvoir en ingrédient canonique distinct
     const isAliasOfAnother = list.some((i) => i.aliases.includes(norm));
     if (isAliasOfAnother) {
-      return await this.promoteAliasToCanonical(
+      const promoted = await this.promoteAliasToCanonical(
         cleanName,
         item.defaultAisle,
         item.aliases,
         item.isPantryStaple
       );
+      if (item.allergen) {
+        return await this.updateAllergenFamily(promoted.id, item.allergen);
+      }
+      return promoted;
     }
 
     const now = new Date().toISOString();
@@ -240,6 +267,7 @@ export const VocabularyService = {
       defaultAisle: aisle,
       isCustom: item.isCustom ?? true,
       isPantryStaple,
+      allergen: item.allergen,
       usageCount: 1,
       createdAt: now,
       updatedAt: now,
@@ -248,6 +276,34 @@ export const VocabularyService = {
     const updated = [newEntry, ...list];
     await this.saveAll(updated);
     return newEntry;
+  },
+
+  /**
+   * Modifie ou assigne la famille d'allergène majeure d'un ingrédient
+   */
+  async updateAllergenFamily(
+    idOrName: string,
+    allergenFamily?: AllergenFamily | null
+  ): Promise<CanonicalIngredient> {
+    const list = await this.getAll();
+    const cleanNorm = normalizeString(idOrName);
+    const idx = list.findIndex(
+      (i) => i.id === idOrName || i.normalizedName === cleanNorm
+    );
+    if (idx === -1) {
+      throw new Error(`Ingrédient introuvable: ${idOrName}`);
+    }
+
+    const updated: CanonicalIngredient = {
+      ...list[idx],
+      allergen: allergenFamily || undefined,
+      updatedAt: new Date().toISOString(),
+    };
+
+    const nextList = [...list];
+    nextList[idx] = updated;
+    await this.saveAll(nextList);
+    return updated;
   },
 
   /**

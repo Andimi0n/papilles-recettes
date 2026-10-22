@@ -12,9 +12,10 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { CanonicalIngredient } from '../types/vocabulary';
+import { CanonicalIngredient, ALLERGEN_FAMILIES, AllergenFamily } from '../types/vocabulary';
 import { ShoppingAisle } from '../types/shopping';
 import { VocabularyService } from '../services/vocabularyService';
+import { AllergenFamilyPickerModal } from './AllergenFamilyPickerModal';
 import { AISLE_CONFIGS, ALL_AISLES } from '../utils/aisleClassifier';
 import { useTheme } from '../theme/ThemeContext';
 import { createDynamicStyles } from '../theme/colors';
@@ -42,6 +43,8 @@ export const VocabularyManagerModal: React.FC<VocabularyManagerModalProps> = ({
   const [formAisle, setFormAisle] = useState<ShoppingAisle>('Épicerie & Condiments');
   const [formAliases, setFormAliases] = useState('');
   const [formIsPantryStaple, setFormIsPantryStaple] = useState(false);
+  const [formAllergen, setFormAllergen] = useState<AllergenFamily | null>(null);
+  const [isAllergenPickerOpen, setIsAllergenPickerOpen] = useState(false);
 
   // État du modal de fusion
   const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
@@ -92,6 +95,7 @@ export const VocabularyManagerModal: React.FC<VocabularyManagerModalProps> = ({
     setFormAisle('Épicerie & Condiments');
     setFormAliases('');
     setFormIsPantryStaple(false);
+    setFormAllergen(null);
     setIsEditModalOpen(true);
   };
 
@@ -101,6 +105,7 @@ export const VocabularyManagerModal: React.FC<VocabularyManagerModalProps> = ({
     setFormAisle(item.defaultAisle);
     setFormAliases(item.aliases.filter((a) => a !== item.normalizedName).join(', '));
     setFormIsPantryStaple(Boolean(item.isPantryStaple));
+    setFormAllergen(item.allergen || null);
     setIsEditModalOpen(true);
   };
 
@@ -132,6 +137,7 @@ export const VocabularyManagerModal: React.FC<VocabularyManagerModalProps> = ({
           defaultAisle: formAisle,
           aliases: aliasesArray,
           isPantryStaple: formIsPantryStaple,
+          allergen: formAllergen || undefined,
         });
       } else {
         await VocabularyService.add({
@@ -140,6 +146,7 @@ export const VocabularyManagerModal: React.FC<VocabularyManagerModalProps> = ({
           aliases: aliasesArray,
           isCustom: true,
           isPantryStaple: formIsPantryStaple,
+          allergen: formAllergen || undefined,
         });
       }
 
@@ -368,6 +375,18 @@ export const VocabularyManagerModal: React.FC<VocabularyManagerModalProps> = ({
                             {item.isPantryStaple ? 'En placard' : '+ Placard'}
                           </Text>
                         </TouchableOpacity>
+
+                        {item.allergen && (() => {
+                          const famCfg = ALLERGEN_FAMILIES.find((f) => f.id === item.allergen);
+                          if (!famCfg) return null;
+                          return (
+                            <View style={[styles.allergenBadge, { backgroundColor: colors.amberLight || '#FEF3C7', borderColor: colors.amber || '#F59E0B' }]}>
+                              <Text style={[styles.allergenBadgeText, { color: colors.amber || '#D97706' }]}>
+                                {famCfg.emoji} {famCfg.name}
+                              </Text>
+                            </View>
+                          );
+                        })()}
                       </View>
                       <Text style={styles.itemAisleName}>{item.defaultAisle}</Text>
                     </View>
@@ -505,6 +524,36 @@ export const VocabularyManagerModal: React.FC<VocabularyManagerModalProps> = ({
                   multiline
                 />
 
+                {/* Sélecteur Famille d'allergène majeur */}
+                <Text style={styles.fieldLabel}>Famille d'allergène (Règlement INCO) :</Text>
+                <TouchableOpacity
+                  style={[
+                    styles.dialogInput,
+                    {
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      marginBottom: 14,
+                    },
+                  ]}
+                  onPress={() => setIsAllergenPickerOpen(true)}
+                  activeOpacity={0.7}
+                >
+                  {formAllergen ? (() => {
+                    const famCfg = ALLERGEN_FAMILIES.find((f) => f.id === formAllergen);
+                    return (
+                      <Text style={{ fontSize: 14, color: colors.textPrimary, fontWeight: '600' }}>
+                        {famCfg?.emoji} {famCfg?.name}
+                      </Text>
+                    );
+                  })() : (
+                    <Text style={{ fontSize: 14, color: colors.textMuted }}>
+                      Aucun allergène majeur
+                    </Text>
+                  )}
+                  <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+                </TouchableOpacity>
+
                 {/* Option Dans les placards */}
                 <TouchableOpacity
                   style={[
@@ -584,6 +633,18 @@ export const VocabularyManagerModal: React.FC<VocabularyManagerModalProps> = ({
               </View>
             </View>
           </Modal>
+
+          {/* Modal de sélection de famille d'allergène */}
+          <AllergenFamilyPickerModal
+            visible={isAllergenPickerOpen}
+            ingredientName={formName || 'Ingrédient'}
+            currentFamily={formAllergen}
+            onSelectFamily={(fam) => {
+              setFormAllergen(fam);
+              setIsAllergenPickerOpen(false);
+            }}
+            onClose={() => setIsAllergenPickerOpen(false)}
+          />
         </View>
       </KeyboardAvoidingView>
     </Modal>
@@ -742,6 +803,16 @@ const styles = createDynamicStyles((colors, shadows) => ({
   },
   stapleToggleBadgeTextActive: {
     color: colors.primary,
+    fontWeight: '700',
+  },
+  allergenBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  allergenBadgeText: {
+    fontSize: 10,
     fontWeight: '700',
   },
   itemAisleName: {

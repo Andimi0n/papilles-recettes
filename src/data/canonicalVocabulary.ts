@@ -1,4 +1,4 @@
-import { CanonicalIngredient } from '../types/vocabulary';
+import { CanonicalIngredient, AllergenFamily } from '../types/vocabulary';
 import { ShoppingAisle } from '../types/shopping';
 
 interface SeedIngredientDef {
@@ -6,6 +6,7 @@ interface SeedIngredientDef {
   aisle: ShoppingAisle;
   aliases: string[];
   isPantryStaple?: boolean;
+  allergen?: AllergenFamily;
 }
 
 const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
@@ -106,6 +107,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
     name: 'Céleri',
     aisle: 'Fruits & Légumes',
     aliases: ['celeri', 'branche de celeri', 'branches de celeri', 'celeri branche', 'celeri rave'],
+    allergen: 'celeri',
   },
   {
     name: 'Haricots verts',
@@ -170,76 +172,97 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
     name: 'Œufs',
     aisle: 'Produits Frais & Crèmerie',
     aliases: ['oeuf', 'oeufs', 'oeufs frais', 'blanc d oeuf', 'blancs d oeufs', 'jaune d oeuf', 'jaunes d oeufs'],
+    allergen: 'oeufs',
   },
   {
     name: 'Beurre',
     aisle: 'Produits Frais & Crèmerie',
     aliases: ['beurres', 'beurre doux', 'beurre demi sel', 'beurre fondu', 'noix de beurre', 'margarine'],
+    allergen: 'lait',
   },
   {
     name: 'Crème fraîche',
     aisle: 'Produits Frais & Crèmerie',
     aliases: ['creme', 'cremes', 'creme fraiche', 'creme liquide', 'creme epaisse', 'creme fleurette', 'creme entiere', 'brique de creme'],
+    allergen: 'lait',
   },
   {
     name: 'Lait',
     aisle: 'Produits Frais & Crèmerie',
     aliases: ['laits', 'lait demi ecreme', 'lait entier', 'lait ecreme', 'bouteille de lait'],
+    allergen: 'lait',
   },
   {
     name: 'Fromage râpé',
     aisle: 'Produits Frais & Crèmerie',
     aliases: ['fromage rape', 'emmental rape', 'gruyere rape', 'sachet de fromage rape'],
+    allergen: 'lait',
   },
   {
     name: 'Parmesan',
     aisle: 'Produits Frais & Crèmerie',
     aliases: ['parmesan rape', 'parmigiano', 'parmigiano reggiano', 'grana padano', 'copeaux de parmesan'],
+    allergen: 'lait',
   },
   {
     name: 'Mozzarella',
     aisle: 'Produits Frais & Crèmerie',
     aliases: ['mozza', 'boule de mozzarella', 'mozzarella di bufala', 'burrata'],
+    allergen: 'lait',
   },
   {
     name: 'Emmental',
     aisle: 'Produits Frais & Crèmerie',
     aliases: ['gruyere', 'comte', 'beaufort', 'fromage a pate dure'],
+    allergen: 'lait',
   },
   {
     name: 'Chèvre',
     aisle: 'Produits Frais & Crèmerie',
     aliases: ['fromage de chevre', 'buche de chevre', 'crottin de chavignol'],
+    allergen: 'lait',
   },
   {
     name: 'Feta',
     aisle: 'Produits Frais & Crèmerie',
     aliases: ['fromage feta', 'feta grecque', 'bloc de feta'],
+    allergen: 'lait',
   },
   {
     name: 'Mascarpone',
     aisle: 'Produits Frais & Crèmerie',
     aliases: ['pot de mascarpone'],
+    allergen: 'lait',
   },
   {
     name: 'Ricotta',
     aisle: 'Produits Frais & Crèmerie',
     aliases: ['pot de ricotta'],
+    allergen: 'lait',
   },
   {
     name: 'Yaourt',
     aisle: 'Produits Frais & Crèmerie',
     aliases: ['yaourts', 'yogourt', 'yaourt nature', 'yaourt grec', 'pot de yaourt'],
+    allergen: 'lait',
   },
   {
     name: 'Reblochon',
     aisle: 'Produits Frais & Crèmerie',
     aliases: ['fromage reblochon', 'demi reblochon'],
+    allergen: 'lait',
   },
   {
     name: 'Fromage à raclette',
     aisle: 'Produits Frais & Crèmerie',
     aliases: ['raclette', 'tranches de raclette', 'fromage raclette'],
+    allergen: 'lait',
+  },
+  {
+    name: 'Tofu',
+    aisle: 'Produits Frais & Crèmerie',
+    aliases: ['tofu soyeux', 'tofu ferme', 'tofu fume', 'soja'],
+    allergen: 'soja',
   },
 
   // =========================================================================
@@ -289,26 +312,49 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
     name: 'Saumon',
     aisle: 'Boucherie & Poissonnerie',
     aliases: ['pave de saumon', 'paves de saumon', 'filet de saumon', 'filets de saumon', 'saumon frais', 'darne de saumon'],
+    allergen: 'poissons',
   },
   {
     name: 'Saumon fumé',
     aisle: 'Boucherie & Poissonnerie',
     aliases: ['saumon fume', 'tranches de saumon fume', 'chutes de saumon fume'],
+    allergen: 'poissons',
   },
   {
     name: 'Thon',
     aisle: 'Boucherie & Poissonnerie',
     aliases: ['thon en boite', 'boite de thon', 'thon naturel', 'thon au naturel', 'pave de thon'],
+    allergen: 'poissons',
   },
   {
     name: 'Cabillaud',
     aisle: 'Boucherie & Poissonnerie',
     aliases: ['dos de cabillaud', 'filet de cabillaud', 'filets de cabillaud', 'colin', 'merlu'],
+    allergen: 'poissons',
   },
   {
     name: 'Crevettes',
     aisle: 'Boucherie & Poissonnerie',
     aliases: ['crevette', 'crevettes roses', 'crevettes decortiquees', 'gambas', 'scampis'],
+    allergen: 'crustaces',
+  },
+  {
+    name: 'Crabe',
+    aisle: 'Boucherie & Poissonnerie',
+    aliases: ['chair de crabe', 'miettes de crabe', 'tourteau', 'araignee de mer'],
+    allergen: 'crustaces',
+  },
+  {
+    name: 'Moules',
+    aisle: 'Boucherie & Poissonnerie',
+    aliases: ['moule', 'moules fraiches', 'moules de bouchot', 'moules cuites'],
+    allergen: 'mollusques',
+  },
+  {
+    name: 'Huîtres',
+    aisle: 'Boucherie & Poissonnerie',
+    aliases: ['huitre', 'huitres', 'huitres fraiches'],
+    allergen: 'mollusques',
   },
 
   // =========================================================================
@@ -318,6 +364,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
     name: 'Farine',
     aisle: 'Épicerie & Condiments',
     aliases: ['farines', 'farine de ble', 'farine t55', 'farine t45', 'farine fluide'],
+    allergen: 'gluten',
   },
   {
     name: 'Sucre',
@@ -357,6 +404,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
     name: 'Pâtes',
     aisle: 'Épicerie & Condiments',
     aliases: ['pate', 'pates', 'spaghetti', 'spaghettis', 'penne', 'pennes', 'coquillette', 'coquillettes', 'tagliatelle', 'tagliatelles', 'fusilli', 'fusillis', 'macaroni', 'macaronis', 'linguine', 'linguines', 'farfalle'],
+    allergen: 'gluten',
   },
   {
     name: 'Riz',
@@ -373,6 +421,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
     name: 'Moutarde',
     aisle: 'Épicerie & Condiments',
     aliases: ['moutarde de dijon', 'moutarde a l ancienne', 'cuillere de moutarde'],
+    allergen: 'moutarde',
   },
   {
     name: 'Vinaigre',
@@ -487,6 +536,49 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
     name: 'Sauce soja',
     aisle: 'Épicerie & Condiments',
     aliases: ['sauce soja salee', 'sauce soja sucree', 'tamari'],
+    allergen: 'soja',
+  },
+  {
+    name: 'Cacahuètes',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['cacahuete', 'cacahuetes', 'arachide', 'arachides', 'beurre de cacahuete', 'beurre de cacahuetes', 'huile d arachide'],
+    allergen: 'arachides',
+  },
+  {
+    name: 'Sésame',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['sesame', 'graines de sesame', 'graine de sesame', 'huile de sesame', 'tahini', 'tahin'],
+    allergen: 'sesame',
+  },
+  {
+    name: 'Noix',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['noix', 'cerneaux de noix', 'huile de noix'],
+    allergen: 'fruits_a_coque',
+  },
+  {
+    name: 'Noisette',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['noisettes', 'poudre de noisette', 'noisettes entieres'],
+    allergen: 'fruits_a_coque',
+  },
+  {
+    name: 'Amande',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['amandes', 'amandes effilees', 'amandes entieres'],
+    allergen: 'fruits_a_coque',
+  },
+  {
+    name: 'Noix de cajou',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['noix de cajou', 'cajou', 'anacarde'],
+    allergen: 'fruits_a_coque',
+  },
+  {
+    name: 'Farine de lupin',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['lupin', 'graines de lupin'],
+    allergen: 'lupin',
   },
   {
     name: 'Pois chiches',
@@ -511,26 +603,31 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
     name: 'Pain',
     aisle: 'Boulangerie & Pâtisserie',
     aliases: ['baguette', 'pain de campagne', 'pain frais', 'tranches de pain', 'tartines de pain', 'croutons'],
+    allergen: 'gluten',
   },
   {
     name: 'Pain de mie',
     aisle: 'Boulangerie & Pâtisserie',
     aliases: ['tranches de pain de mie', 'pain burger', 'pain toast'],
+    allergen: 'gluten',
   },
   {
     name: 'Pâte feuilletée',
     aisle: 'Boulangerie & Pâtisserie',
     aliases: ['rouleau de pate feuilletee', 'pate feuilletee pur beurre'],
+    allergen: 'gluten',
   },
   {
     name: 'Pâte brisée',
     aisle: 'Boulangerie & Pâtisserie',
     aliases: ['rouleau de pate brisee'],
+    allergen: 'gluten',
   },
   {
     name: 'Pâte sablée',
     aisle: 'Boulangerie & Pâtisserie',
     aliases: ['rouleau de pate sablee'],
+    allergen: 'gluten',
   },
   {
     name: 'Levure boulangère',
@@ -541,6 +638,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
     name: 'Poudre d\'amande',
     aisle: 'Boulangerie & Pâtisserie',
     aliases: ['poudre d amande', 'amandes en poudre', 'amande effilee', 'amandes effilees'],
+    allergen: 'fruits_a_coque',
   },
 
   // =========================================================================
@@ -550,16 +648,19 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
     name: 'Vin blanc',
     aisle: 'Boissons',
     aliases: ['vin blanc sec', 'verre de vin blanc', 'bouteille de vin blanc'],
+    allergen: 'sulfites',
   },
   {
     name: 'Vin rouge',
     aisle: 'Boissons',
     aliases: ['vin rouge sec', 'verre de vin rouge'],
+    allergen: 'sulfites',
   },
   {
     name: 'Bière',
     aisle: 'Boissons',
     aliases: ['bieres', 'biere blonde', 'canette de biere'],
+    allergen: 'gluten',
   },
   {
     name: 'Lait de coco',
@@ -622,11 +723,36 @@ export function getInitialCanonicalVocabulary(): CanonicalIngredient[] {
       defaultAisle: item.aisle,
       isCustom: false,
       isPantryStaple: Boolean(item.isPantryStaple),
+      allergen: item.allergen,
       usageCount: 0,
       createdAt: now,
       updatedAt: now,
     };
   });
+}
+
+// Map pré-compilée des allergènes par défaut indexée par nom normalisé
+const DEFAULT_ALLERGENS_MAP = new Map<string, AllergenFamily>();
+RAW_SEED_INGREDIENTS.forEach((item) => {
+  if (item.allergen) {
+    const norm = normalizeForVocabIndex(item.name);
+    DEFAULT_ALLERGENS_MAP.set(norm, item.allergen);
+    if (!norm.endsWith('s')) {
+      DEFAULT_ALLERGENS_MAP.set(`${norm}s`, item.allergen);
+    }
+    item.aliases.forEach((a) => {
+      DEFAULT_ALLERGENS_MAP.set(normalizeForVocabIndex(a), item.allergen!);
+    });
+  }
+});
+
+/**
+ * Retourne la famille d'allergène majeure par défaut d'un ingrédient connu (le cas échéant)
+ */
+export function getDefaultAllergen(name: string): AllergenFamily | undefined {
+  if (!name) return undefined;
+  const clean = normalizeForVocabIndex(name);
+  return DEFAULT_ALLERGENS_MAP.get(clean);
 }
 
 // Ensemble pré-compilé des termes normalisés considérés par défaut comme fonds de placard

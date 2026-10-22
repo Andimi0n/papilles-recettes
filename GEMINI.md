@@ -73,6 +73,11 @@
   - Active color swatches are arranged cleanly in a row directly beneath the active palette name instead of squeezed to its right.
 - **Culinary Preferences & Default Servings Stepper**:
   - User-configurable default servings managed via an intuitive `[-]` / `[+]` stepper in Settings (1 to 50 persons).
+- **Allergens & Major Food Intolerances System ("Mes Allergies Alimentaires")**:
+  - **14 Major Allergens (European INCO Regulation)**: Dedicated 1-tap quick buttons for Gluten, Crustacés, Œufs, Poissons, Arachides, Soja, Lait & Lactose, Fruits à coque, Céleri, Moutarde, Sésame, Sulfites, Lupin, Mollusques. Clicking a family automatically links and registers all associated canonical ingredients from the vocabulary into the user's allergen list, with live count badges and active checkmarks.
+  - **Fluid Predictive Manual Ingestion & Family Tagging**: Saisie libre via `IngredientAutocompleteInput` with intelligent suggestions from the canonical vocabulary and automatic insertion of newly introduced ingredients into the vocabulary.
+  - **Interactive Classification Popup (`AllergenFamilyPickerModal`)**: Every manual addition or chip click triggers an interactive modal allowing the user to map the ingredient to one of the 14 locked major allergen families (saving the optional `allergen?: AllergenFamily` property directly on the canonical vocabulary ingredient) or classify it under "Autre" for unlisted specific allergies.
+  - **Structured Grouped Display**: Allergens list is grouped by the 14 major allergen families plus a dedicated "Autres allergies spécifiques" section, with individual chip deletion, quick family clearing, and global reset.
 - **Categorized Shopping List**: Auto-generates items from recipes or meal plans, auto-classifying ingredients into supermarket aisles.
 - **Dual Artistic Directions & Dynamic Theming**:
   - Light: *Jardin Botanique & Slow Food* (forest evergreen, celadon, almond mist).
@@ -164,6 +169,7 @@ papilles-recettes/
     │   ├── TodayMealWidget.tsx   # Home screen widget for today's lunch/dinner tracking (preserved)
     │   ├── ChefAiWidget.tsx      # Home screen feed widget for Chef AI inspiration & stock teaser
     │   ├── IngredientAutocompleteInput.tsx # Predictive dropdown input for canonical ingredients
+    │   ├── AllergenFamilyPickerModal.tsx # Allergen family classification modal (14 INCO families + Autre)
     │   └── VocabularyManagerModal.tsx # Vocabulary management modal (CRUD, merge, aisles)
     └── screens/                # Main feature screens
         ├── HomeScreen.tsx      # Recipe feed, unified brand top bar (logo + Marmiton/Scan/Add), filters & search

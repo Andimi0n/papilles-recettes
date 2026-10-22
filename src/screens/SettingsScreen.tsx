@@ -18,7 +18,17 @@ import { StorageService } from '../services/storageService';
 import { RecipeAiService } from '../services/recipeAiService';
 import { VocabularyService } from '../services/vocabularyService';
 import { VocabularyManagerModal } from '../components/VocabularyManagerModal';
+import { AllergenFamilyPickerModal } from '../components/AllergenFamilyPickerModal';
+import { IngredientAutocompleteInput } from '../components/IngredientAutocompleteInput';
 import { Recipe } from '../types/recipe';
+import {
+  ALLERGEN_FAMILIES,
+  AllergenFamily,
+  AllergenFamilyConfig,
+  UserAllergenItem,
+  CanonicalIngredient,
+} from '../types/vocabulary';
+import { normalizeString, generateUniqueId } from '../utils/helpers';
 
 export interface SettingsScreenProps {
   recipes: Recipe[];
@@ -45,7 +55,18 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   const [defaultServings, setDefaultServings] = useState(4);
   const [shoppingCount, setShoppingCount] = useState(0);
 
+  // Allergies & Intolérances
+  const [userAllergens, setUserAllergens] = useState<UserAllergenItem[]>([]);
+  const [allergenInputText, setAllergenInputText] = useState('');
+  const [isPickerModalVisible, setIsPickerModalVisible] = useState(false);
+  const [pendingIngredient, setPendingIngredient] = useState<{
+    name: string;
+    canonicalId?: string;
+    currentFamily?: AllergenFamily | null;
+  } | null>(null);
+
   // Vocabulaire & Lexique Ingrédients
+  const [vocabList, setVocabList] = useState<CanonicalIngredient[]>([]);
   const [isVocabModalVisible, setIsVocabModalVisible] = useState(false);
   const [vocabCount, setVocabCount] = useState(0);
   const [isNormalizing, setIsNormalizing] = useState(false);
@@ -66,8 +87,12 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
       const items = await StorageService.getShoppingList();
       setShoppingCount(items.length);
 
-      const vocabList = await VocabularyService.getAll();
-      setVocabCount(vocabList.length);
+      const allergens = await StorageService.getUserAllergens();
+      setUserAllergens(allergens);
+
+      const loadedVocab = await VocabularyService.getAll();
+      setVocabList(loadedVocab);
+      setVocabCount(loadedVocab.length);
     } catch (e) {
       console.error('Erreur chargement réglages:', e);
     }
@@ -116,6 +141,163 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   const handleSelectServings = async (servings: number) => {
     setDefaultServings(servings);
     await StorageService.saveDefaultServings(servings);
+  };
+
+  // --- Gestion des Allergènes & Intolérances ---
+
+  const handleToggleAllergenFamily = async (fam: AllergenFamilyConfig) => {
+    const associated = vocabList.filter((ing) => ing.allergen === fam.id);
+    const presentCount = associated.filter((ing) =>
+      userAllergens.some(
+        (a) => a.canonicalId === ing.id || normalizeString(a.name) === normalizeString(ing.canonicalName)
+      )
+    ).length;
+    const isAllActive = associated.length > 0 && presentCount === associated.length;
+
+    if (isAllActive) {
+      Alert.alert(
+        `Retirer ${fam.emoji} ${fam.name}`,
+        `Souhaitez-vous retirer tous les ingrédients associés à la famille ${fam.name} (${associated.length} ingrédients) de vos allergies ?`,
+        [
+          { text: 'Annuler', style: 'cancel' },
+          {
+            text: 'Retirer',
+            style: 'destructive',
+            onPress: async () => {
+              await StorageService.removeAllergensByFamily(fam.id);
+              const updated = await StorageService.getUserAllergens();
+              setUserAllergens(updated);
+            },
+          },
+        ]
+      );
+    } else {
+      const current = [...userAllergens];
+      let addedCount = 0;
+      for (const ing of associated) {
+        const exists = current.some(
+          (a) => a.canonicalId === ing.id || normalizeString(a.name) === normalizeString(ing.canonicalName)
+        );
+        if (!exists) {
+          current.push({
+            id: generateUniqueId('allg'),
+            name: ing.canonicalName,
+            canonicalId: ing.id,
+            allergenFamily: fam.id,
+            addedAt: new Date().toISOString(),
+          });
+          addedCount++;
+        }
+      }
+      await StorageService.saveUserAllergens(current);
+      setUserAllergens(current);
+      Alert.alert(
+        `${fam.emoji} ${fam.name}`,
+        `${addedCount} ingrédient${addedCount > 1 ? 's' : ''} associé${addedCount > 1 ? 's' : ''} ajouté${addedCount > 1 ? 's' : ''} à vos allergies.`
+      );
+    }
+  };
+
+  const handleInitiateAddIngredient = (name?: string, ing?: CanonicalIngredient) => {
+    const cleanName = (name || allergenInputText).trim();
+    if (!cleanName) return;
+
+    const norm = normalizeString(cleanName);
+    const alreadyExists = userAllergens.some(
+      (a) => normalizeString(a.name) === norm || (ing && a.canonicalId === ing.id)
+    );
+    if (alreadyExists) {
+      Alert.alert('Déjà enregistré', `« ${cleanName} » figure déjà dans votre liste d'allergènes.`);
+      setAllergenInputText('');
+      return;
+    }
+
+    const matched = ing || vocabList.find(
+      (i) => i.normalizedName === norm || (i.aliases && i.aliases.includes(norm))
+    );
+
+    setPendingIngredient({
+      name: matched ? matched.canonicalName : (cleanName.charAt(0).toUpperCase() + cleanName.slice(1)),
+      canonicalId: matched?.id,
+      currentFamily: matched?.allergen || null,
+    });
+    setIsPickerModalVisible(true);
+  };
+
+  const handleFamilyChosen = async (family: AllergenFamily | null) => {
+    if (!pendingIngredient) return;
+    try {
+      let canonicalId = pendingIngredient.canonicalId;
+      let canonicalName = pendingIngredient.name;
+
+      // S'il n'existe pas encore dans le vocabulaire, on l'ajoute
+      if (!canonicalId) {
+        const created = await VocabularyService.add({
+          canonicalName,
+          allergen: family || undefined,
+          isCustom: true,
+        });
+        canonicalId = created.id;
+        canonicalName = created.canonicalName;
+      } else if (family !== undefined) {
+        // Mettre à jour le tag allergène dans le vocabulaire
+        await VocabularyService.updateAllergenFamily(canonicalId, family);
+      }
+
+      // Ajouter aux allergènes utilisateur
+      await StorageService.addUserAllergen({
+        name: canonicalName,
+        canonicalId,
+        allergenFamily: family,
+      });
+
+      const updatedAllergens = await StorageService.getUserAllergens();
+      setUserAllergens(updatedAllergens);
+      const updatedVocab = await VocabularyService.getAll();
+      setVocabList(updatedVocab);
+      setVocabCount(updatedVocab.length);
+
+      setAllergenInputText('');
+      setPendingIngredient(null);
+      setIsPickerModalVisible(false);
+    } catch (e) {
+      console.error('Erreur enregistrement allergène:', e);
+      Alert.alert('Erreur', "Impossible d'enregistrer cet allergène.");
+    }
+  };
+
+  const handleRemoveAllergen = async (item: UserAllergenItem) => {
+    await StorageService.removeUserAllergen(item.id);
+    const updated = await StorageService.getUserAllergens();
+    setUserAllergens(updated);
+  };
+
+  const handleClearAllAllergens = () => {
+    if (userAllergens.length === 0) return;
+    Alert.alert(
+      'Vider mes allergies',
+      'Voulez-vous supprimer l\'ensemble de vos allergènes enregistrés ?',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Tout supprimer',
+          style: 'destructive',
+          onPress: async () => {
+            await StorageService.saveUserAllergens([]);
+            setUserAllergens([]);
+          },
+        },
+      ]
+    );
+  };
+
+  const handleEditChipFamily = (item: UserAllergenItem) => {
+    setPendingIngredient({
+      name: item.name,
+      canonicalId: item.canonicalId,
+      currentFamily: item.allergenFamily || null,
+    });
+    setIsPickerModalVisible(true);
   };
 
   const handleExportData = async () => {
@@ -490,7 +672,267 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
             </View>
           </View>
 
-          {/* SECTION 4 : LEXIQUE & VOCABULAIRE DES INGRÉDIENTS */}
+          {/* SECTION 4 : MES ALLERGIES ALIMENTAIRES */}
+          <View style={[styles.sectionCard, { zIndex: 90 }]}>
+            <View style={styles.sectionTitleRow}>
+              <Ionicons name="warning-outline" size={20} color={colors.amber} />
+              <Text style={styles.sectionTitle}>Mes Allergies Alimentaires</Text>
+              {userAllergens.length > 0 && (
+                <View style={[styles.countBadge, { backgroundColor: colors.primaryLight }]}>
+                  <Text style={[styles.countBadgeText, { color: colors.primary }]}>
+                    {userAllergens.length}
+                  </Text>
+                </View>
+              )}
+            </View>
+            <Text style={styles.sectionSubtitle}>
+              Définissez vos allergies alimentaires par ingrédient ou sélectionnez directement les 14 familles majeures (norme INCO).
+            </Text>
+
+            {/* Boutons des 14 allergènes majeurs */}
+            <View style={styles.allergenSubSection}>
+              <View style={styles.allergenSubHeader}>
+                <Text style={[styles.allergenSubTitle, { color: colors.textSecondary }]}>
+                  14 Familles Majeures (Ajout rapide) :
+                </Text>
+              </View>
+              <View style={styles.allergenButtonsGrid}>
+                {ALLERGEN_FAMILIES.map((fam) => {
+                  const associated = vocabList.filter((ing) => ing.allergen === fam.id);
+                  const presentCount = associated.filter((ing) =>
+                    userAllergens.some(
+                      (a) => a.canonicalId === ing.id || normalizeString(a.name) === normalizeString(ing.canonicalName)
+                    )
+                  ).length;
+                  const isAllActive = associated.length > 0 && presentCount === associated.length;
+                  const isPartiallyActive = presentCount > 0 && !isAllActive;
+
+                  return (
+                    <TouchableOpacity
+                      key={fam.id}
+                      style={[
+                        styles.allergenFamilyBtn,
+                        isAllActive
+                          ? { backgroundColor: colors.primary, borderColor: colors.primary }
+                          : isPartiallyActive
+                          ? { backgroundColor: colors.primaryLight, borderColor: colors.primary }
+                          : { backgroundColor: colors.surfaceAlt, borderColor: colors.borderLight },
+                      ]}
+                      onPress={() => handleToggleAllergenFamily(fam)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.allergenFamilyEmoji}>{fam.emoji}</Text>
+                      <Text
+                        style={[
+                          styles.allergenFamilyText,
+                          { color: isAllActive ? '#FFFFFF' : isPartiallyActive ? colors.primary : colors.textPrimary },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {fam.name}
+                      </Text>
+                      {isAllActive && (
+                        <Ionicons name="checkmark-circle" size={14} color="#FFFFFF" style={{ marginLeft: 2 }} />
+                      )}
+                      {isPartiallyActive && (
+                        <Text style={[styles.partialCountText, { color: colors.primary }]}>
+                          ({presentCount})
+                        </Text>
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
+            {/* Saisie manuelle d'un ingrédient spécifique */}
+            <View style={[styles.allergenSubSection, { zIndex: 100 }]}>
+              <Text style={[styles.allergenSubTitle, { color: colors.textSecondary, marginBottom: 8 }]}>
+                Ajouter un ingrédient spécifique :
+              </Text>
+              <View style={styles.quickAddMainRow}>
+                <IngredientAutocompleteInput
+                  containerStyle={{ flex: 1, marginRight: 8, zIndex: 100 }}
+                  style={[styles.nameInput, { width: '100%', marginRight: 0 }]}
+                  placeholder="Ex: Noix de cajou, Fraise, Beurre..."
+                  placeholderTextColor={colors.textMuted}
+                  value={allergenInputText}
+                  onChangeText={setAllergenInputText}
+                  clearOnSelect
+                  returnKeyType="done"
+                  onSubmitEditing={() => handleInitiateAddIngredient()}
+                  onSelectIngredient={(ing) => {
+                    handleInitiateAddIngredient(ing.canonicalName, ing);
+                  }}
+                />
+                <TouchableOpacity
+                  style={[
+                    styles.addButton,
+                    !allergenInputText.trim() && styles.addButtonDisabled,
+                    { backgroundColor: colors.primary },
+                  ]}
+                  onPress={() => handleInitiateAddIngredient()}
+                  disabled={!allergenInputText.trim()}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="add" size={24} color="#FFFFFF" />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Liste des allergènes enregistrés regroupés par famille + Autre */}
+            <View style={styles.allergenSubSection}>
+              <View style={styles.listSectionHeaderRow}>
+                <Text style={[styles.allergenSubTitle, { color: colors.textSecondary }]}>
+                  Mes allergènes enregistrés :
+                </Text>
+                {userAllergens.length > 0 && (
+                  <TouchableOpacity onPress={handleClearAllAllergens} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    <Text style={[styles.clearAllBtnText, { color: colors.danger }]}>Tout effacer</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {userAllergens.length === 0 ? (
+                <View style={[styles.emptyAllergenBox, { backgroundColor: colors.surfaceAlt, borderColor: colors.borderLight }]}>
+                  <Ionicons name="shield-checkmark-outline" size={32} color={colors.primary} />
+                  <Text style={[styles.emptyAllergenTitle, { color: colors.textPrimary }]}>
+                    Aucun allergène enregistré
+                  </Text>
+                  <Text style={[styles.emptyAllergenDesc, { color: colors.textMuted }]}>
+                    Sélectionnez les 14 familles majeures en 1 clic ou saisissez vos allergies alimentaires ci-dessus.
+                  </Text>
+                </View>
+              ) : (
+                <View style={styles.groupedAllergensContainer}>
+                  {/* Groupes des 14 familles */}
+                  {ALLERGEN_FAMILIES.map((fam) => {
+                    const items = userAllergens.filter((a) => a.allergenFamily === fam.id);
+                    if (items.length === 0) return null;
+
+                    return (
+                      <View key={fam.id} style={[styles.allergenGroupCard, { backgroundColor: colors.surfaceAlt, borderColor: colors.borderLight }]}>
+                        <View style={styles.allergenGroupHeader}>
+                          <View style={styles.allergenGroupHeaderLeft}>
+                            <Text style={styles.allergenGroupEmoji}>{fam.emoji}</Text>
+                            <Text style={[styles.allergenGroupTitle, { color: colors.textPrimary }]}>
+                              {fam.name}
+                            </Text>
+                            <View style={[styles.groupCountBadge, { backgroundColor: colors.primaryLight }]}>
+                              <Text style={[styles.groupCountText, { color: colors.primary }]}>
+                                {items.length}
+                              </Text>
+                            </View>
+                          </View>
+                          <TouchableOpacity
+                            onPress={() => {
+                              Alert.alert(
+                                `Retirer ${fam.name}`,
+                                `Retirer tous les ingrédients de la famille ${fam.name} ?`,
+                                [
+                                  { text: 'Annuler', style: 'cancel' },
+                                  {
+                                    text: 'Retirer',
+                                    style: 'destructive',
+                                    onPress: async () => {
+                                      await StorageService.removeAllergensByFamily(fam.id);
+                                      const updated = await StorageService.getUserAllergens();
+                                      setUserAllergens(updated);
+                                    },
+                                  },
+                                ]
+                              );
+                            }}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          >
+                            <Ionicons name="trash-outline" size={15} color={colors.textMuted} />
+                          </TouchableOpacity>
+                        </View>
+
+                        <View style={styles.chipsWrapRow}>
+                          {items.map((item) => (
+                            <View
+                              key={item.id}
+                              style={[styles.allergenChip, { backgroundColor: colors.cardBackground, borderColor: colors.borderLight }]}
+                            >
+                              <TouchableOpacity
+                                onPress={() => handleEditChipFamily(item)}
+                                style={styles.chipTextContainer}
+                                activeOpacity={0.7}
+                              >
+                                <Text style={[styles.chipText, { color: colors.textPrimary }]}>
+                                  {item.name}
+                                </Text>
+                              </TouchableOpacity>
+                              <TouchableOpacity
+                                onPress={() => handleRemoveAllergen(item)}
+                                style={styles.chipDeleteBtn}
+                                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                              >
+                                <Ionicons name="close" size={14} color={colors.textSecondary} />
+                              </TouchableOpacity>
+                            </View>
+                          ))}
+                        </View>
+                      </View>
+                    );
+                  })}
+
+                  {/* Groupe "Autre" */}
+                  {(() => {
+                    const otherItems = userAllergens.filter((a) => !a.allergenFamily);
+                    if (otherItems.length === 0) return null;
+
+                    return (
+                      <View style={[styles.allergenGroupCard, { backgroundColor: colors.surfaceAlt, borderColor: colors.borderLight }]}>
+                        <View style={styles.allergenGroupHeader}>
+                          <View style={styles.allergenGroupHeaderLeft}>
+                            <Text style={styles.allergenGroupEmoji}>❓</Text>
+                            <Text style={[styles.allergenGroupTitle, { color: colors.textPrimary }]}>
+                              Autres allergies spécifiques
+                            </Text>
+                            <View style={[styles.groupCountBadge, { backgroundColor: colors.primaryLight }]}>
+                              <Text style={[styles.groupCountText, { color: colors.primary }]}>
+                                {otherItems.length}
+                              </Text>
+                            </View>
+                          </View>
+                        </View>
+
+                        <View style={styles.chipsWrapRow}>
+                          {otherItems.map((item) => (
+                            <View
+                              key={item.id}
+                              style={[styles.allergenChip, { backgroundColor: colors.cardBackground, borderColor: colors.borderLight }]}
+                            >
+                              <TouchableOpacity
+                                onPress={() => handleEditChipFamily(item)}
+                                style={styles.chipTextContainer}
+                                activeOpacity={0.7}
+                              >
+                                <Text style={[styles.chipText, { color: colors.textPrimary }]}>
+                                  {item.name}
+                                </Text>
+                              </TouchableOpacity>
+                              <TouchableOpacity
+                                onPress={() => handleRemoveAllergen(item)}
+                                style={styles.chipDeleteBtn}
+                                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                              >
+                                <Ionicons name="close" size={14} color={colors.textSecondary} />
+                              </TouchableOpacity>
+                            </View>
+                          ))}
+                        </View>
+                      </View>
+                    );
+                  })()}
+                </View>
+              )}
+            </View>
+          </View>
+
+          {/* SECTION 5 : LEXIQUE & VOCABULAIRE DES INGRÉDIENTS */}
           <View style={styles.sectionCard}>
             <View style={styles.sectionTitleRow}>
               <Ionicons name="book-outline" size={20} color={colors.primary} />
@@ -675,6 +1117,20 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           loadInitialSettings();
         }}
       />
+
+      {/* Modal de classification de la famille d'allergène */}
+      {pendingIngredient && (
+        <AllergenFamilyPickerModal
+          visible={isPickerModalVisible}
+          ingredientName={pendingIngredient.name}
+          currentFamily={pendingIngredient.currentFamily}
+          onSelectFamily={handleFamilyChosen}
+          onClose={() => {
+            setIsPickerModalVisible(false);
+            setPendingIngredient(null);
+          }}
+        />
+      )}
     </SafeAreaView>
   );
 };
@@ -937,6 +1393,170 @@ const styles = createDynamicStyles((colors, shadows) => ({
     fontSize: 16,
     fontWeight: '700',
     color: colors.textPrimary,
+  },
+  countBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    marginLeft: 8,
+  },
+  countBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  allergenSubSection: {
+    marginBottom: 16,
+  },
+  allergenSubHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  allergenSubTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  allergenButtonsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 7,
+  },
+  allergenFamilyBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 10,
+    borderWidth: 1,
+    gap: 5,
+  },
+  allergenFamilyEmoji: {
+    fontSize: 14,
+  },
+  allergenFamilyText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  partialCountText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  quickAddMainRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  nameInput: {
+    height: 44,
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    fontSize: 14,
+    color: colors.textPrimary,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  addButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadows.small,
+  },
+  addButtonDisabled: {
+    opacity: 0.4,
+  },
+  listSectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  clearAllBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  emptyAllergenBox: {
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyAllergenTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  emptyAllergenDesc: {
+    fontSize: 12,
+    textAlign: 'center',
+    lineHeight: 16,
+    paddingHorizontal: 16,
+  },
+  groupedAllergensContainer: {
+    gap: 10,
+  },
+  allergenGroupCard: {
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 12,
+  },
+  allergenGroupHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  allergenGroupHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  allergenGroupEmoji: {
+    fontSize: 16,
+  },
+  allergenGroupTitle: {
+    fontSize: 13.5,
+    fontWeight: '700',
+  },
+  groupCountBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 6,
+  },
+  groupCountText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  chipsWrapRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  allergenChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 8,
+    borderWidth: 1,
+    paddingLeft: 10,
+    paddingRight: 6,
+    paddingVertical: 5,
+    gap: 6,
+  },
+  chipTextContainer: {
+    justifyContent: 'center',
+  },
+  chipText: {
+    fontSize: 12.5,
+    fontWeight: '600',
+  },
+  chipDeleteBtn: {
+    padding: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   statsRow: {
     flexDirection: 'row',

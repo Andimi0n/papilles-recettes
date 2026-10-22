@@ -4,6 +4,7 @@ import { ShoppingItem, ShoppingAisle } from '../types/shopping';
 import { FridgeItem } from '../types/fridge';
 import { WeeklyPlanMap, PlannedMeal, DayOfWeek, MealTime } from '../types/planner';
 import { MealLogEntry, MealLogMap, DayMealLogSummary } from '../types/mealLog';
+import { UserAllergenItem, AllergenFamily } from '../types/vocabulary';
 import { INITIAL_RECIPES } from '../data/initialRecipes';
 import {
   generateUniqueId,
@@ -28,6 +29,7 @@ const WEEKLY_PLAN_KEY = '@papilles_weekly_plan_v1';
 const MEAL_LOG_KEY = '@papilles_meal_log_v1';
 const THEME_MODE_KEY = '@papilles_theme_mode_v1';
 const DEFAULT_SERVINGS_KEY = '@papilles_default_servings_v1';
+const USER_ALLERGENS_KEY = '@papilles_user_allergens_v1';
 
 /**
  * Assainit une URL d'image pour s'assurer qu'elle n'exploite aucun protocole malveillant (SEC-09)
@@ -1058,7 +1060,108 @@ export const StorageService = {
   },
 
   /**
-   * Exporte l'intégralité des données sous forme de chaîne JSON formatée (recettes, courses, planning, suivi, frigo)
+   * Récupère la liste des allergènes enregistrés par l'utilisateur
+   */
+  async getUserAllergens(): Promise<UserAllergenItem[]> {
+    try {
+      const stored = await AsyncStorage.getItem(USER_ALLERGENS_KEY);
+      if (!stored) return [];
+      const parsed = JSON.parse(stored);
+      if (!Array.isArray(parsed)) return [];
+      return parsed
+        .map((raw: any) => {
+          if (!raw || typeof raw !== 'object') return null;
+          const name = typeof raw.name === 'string' ? raw.name.trim().slice(0, 100) : '';
+          if (!name) return null;
+          return {
+            id: typeof raw.id === 'string' && raw.id ? raw.id.slice(0, 100) : generateUniqueId('allg'),
+            canonicalId: typeof raw.canonicalId === 'string' ? raw.canonicalId.slice(0, 100) : undefined,
+            name,
+            allergenFamily: typeof raw.allergenFamily === 'string' ? (raw.allergenFamily as AllergenFamily) : null,
+            addedAt: typeof raw.addedAt === 'string' ? raw.addedAt : new Date().toISOString(),
+          } as UserAllergenItem;
+        })
+        .filter((i): i is UserAllergenItem => i !== null);
+    } catch (e) {
+      console.error('Erreur lecture allergènes:', e);
+      return [];
+    }
+  },
+
+  /**
+   * Sauvegarde la liste complète des allergènes utilisateur
+   */
+  async saveUserAllergens(items: UserAllergenItem[]): Promise<void> {
+    try {
+      await AsyncStorage.setItem(USER_ALLERGENS_KEY, JSON.stringify(items));
+    } catch (e) {
+      console.error('Erreur sauvegarde allergènes:', e);
+      throw e;
+    }
+  },
+
+  /**
+   * Ajoute ou met à jour un allergène dans la liste personnelle
+   */
+  async addUserAllergen(item: {
+    name: string;
+    canonicalId?: string;
+    allergenFamily?: AllergenFamily | null;
+  }): Promise<UserAllergenItem> {
+    const list = await this.getUserAllergens();
+    const cleanNorm = normalizeString(item.name);
+    // Vérifier si déjà présent
+    const existingIdx = list.findIndex(
+      (i) => normalizeString(i.name) === cleanNorm || (item.canonicalId && i.canonicalId === item.canonicalId)
+    );
+
+    const now = new Date().toISOString();
+    if (existingIdx >= 0) {
+      const updatedItem: UserAllergenItem = {
+        ...list[existingIdx],
+        allergenFamily: item.allergenFamily !== undefined ? item.allergenFamily : list[existingIdx].allergenFamily,
+        canonicalId: item.canonicalId || list[existingIdx].canonicalId,
+      };
+      const nextList = [...list];
+      nextList[existingIdx] = updatedItem;
+      await this.saveUserAllergens(nextList);
+      return updatedItem;
+    }
+
+    const newItem: UserAllergenItem = {
+      id: generateUniqueId('allg'),
+      name: item.name.trim(),
+      canonicalId: item.canonicalId,
+      allergenFamily: item.allergenFamily || null,
+      addedAt: now,
+    };
+    await this.saveUserAllergens([...list, newItem]);
+    return newItem;
+  },
+
+  /**
+   * Supprime un allergène par identifiant ou par nom
+   */
+  async removeUserAllergen(idOrName: string): Promise<UserAllergenItem[]> {
+    const list = await this.getUserAllergens();
+    const cleanNorm = normalizeString(idOrName);
+    const filtered = list.filter((i) => i.id !== idOrName && normalizeString(i.name) !== cleanNorm);
+    await this.saveUserAllergens(filtered);
+    return filtered;
+  },
+
+  /**
+   * Supprime tous les allergènes associés à une famille majeure
+   */
+  async removeAllergensByFamily(family: AllergenFamily): Promise<UserAllergenItem[]> {
+    const list = await this.getUserAllergens();
+    const filtered = list.filter((i) => i.allergenFamily !== family);
+    await this.saveUserAllergens(filtered);
+    return filtered;
+  },
+
+  /**
+   * Exporte l'intégralité des données sous forme de chaîne JSON formatée (recettes, courses, planning, suivi, frigo, allergènes)
    */
   async exportAllData(): Promise<string> {
     const recipes = await this.getRecipes();
@@ -1066,6 +1169,7 @@ export const StorageService = {
     const weeklyPlan = await this.getWeeklyPlan();
     const mealLogs = await this.getMealLogs();
     const fridgeItems = await this.getFridgeItems();
+    const userAllergens = await this.getUserAllergens();
     return JSON.stringify(
       {
         version: '1.2.0',
@@ -1075,6 +1179,7 @@ export const StorageService = {
         weeklyPlan,
         mealLogs,
         fridgeItems,
+        userAllergens,
       },
       null,
       2
@@ -1096,7 +1201,8 @@ export const StorageService = {
       if (
         incomingRecipes.length === 0 &&
         (!parsed.mealLogs || typeof parsed.mealLogs !== 'object') &&
-        (!parsed.fridgeItems || !Array.isArray(parsed.fridgeItems))
+        (!parsed.fridgeItems || !Array.isArray(parsed.fridgeItems)) &&
+        (!parsed.userAllergens || !Array.isArray(parsed.userAllergens))
       ) {
         return { success: false, count: 0, error: 'Aucune recette ou donnée valide détectée dans le fichier.' };
       }
@@ -1141,6 +1247,28 @@ export const StorageService = {
           const toAdd = incomingFridge.filter((i: FridgeItem) => !existingNames.has(i.name.trim().toLowerCase()));
           if (toAdd.length > 0) {
             await this.saveFridgeItems([...currentFridge, ...toAdd]);
+          }
+        }
+      }
+
+      // Restauration facultative des allergènes
+      if (parsed.userAllergens && Array.isArray(parsed.userAllergens)) {
+        const incomingAllergens = parsed.userAllergens
+          .filter((i: any) => i && typeof i === 'object' && typeof i.name === 'string');
+        if (incomingAllergens.length > 0) {
+          const currentAllergens = await this.getUserAllergens();
+          const currentNames = new Set(currentAllergens.map((i) => normalizeString(i.name)));
+          const toAdd = incomingAllergens
+            .filter((i: any) => !currentNames.has(normalizeString(i.name)))
+            .map((i: any) => ({
+              id: typeof i.id === 'string' && i.id ? i.id : generateUniqueId('allg'),
+              canonicalId: typeof i.canonicalId === 'string' ? i.canonicalId : undefined,
+              name: i.name.trim(),
+              allergenFamily: typeof i.allergenFamily === 'string' ? i.allergenFamily : null,
+              addedAt: typeof i.addedAt === 'string' ? i.addedAt : new Date().toISOString(),
+            }));
+          if (toAdd.length > 0) {
+            await this.saveUserAllergens([...currentAllergens, ...toAdd]);
           }
         }
       }
