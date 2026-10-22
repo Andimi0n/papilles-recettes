@@ -700,13 +700,23 @@ function normalizeForVocabIndex(str: string): string {
 }
 
 /**
+ * Génère un identifiant canonique stable et unique basé sur le nom de l'ingrédient
+ */
+export function generateCanonicalSlugId(name: string): string {
+  const clean = normalizeForVocabIndex(name)
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+  return `ing_canon_${clean}`;
+}
+
+/**
  * Crée le jeu de données initialisé canonique complet
  */
 export function getInitialCanonicalVocabulary(): CanonicalIngredient[] {
   const now = '2026-01-01T00:00:00.000Z';
-  return RAW_SEED_INGREDIENTS.map((item, idx) => {
-    const id = `ing_canon_${String(idx + 1).padStart(3, '0')}`;
+  return RAW_SEED_INGREDIENTS.map((item) => {
     const normalizedName = normalizeForVocabIndex(item.name);
+    const id = generateCanonicalSlugId(item.name);
     // Inclut le pluriel automatique comme alias de base si absent
     const aliasSet = new Set<string>();
     item.aliases.forEach((a) => aliasSet.add(normalizeForVocabIndex(a)));

@@ -7,12 +7,14 @@ import {
   ScrollView,
   StyleSheet,
   TextInput,
+  KeyboardAvoidingView,
+  Platform,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
-import { createDynamicStyles } from '../theme/colors';
-import { ALLERGEN_FAMILIES, AllergenFamily, AllergenFamilyConfig } from '../types/vocabulary';
+import { ALLERGEN_FAMILIES, AllergenFamily } from '../types/vocabulary';
 
 interface AllergenFamilyPickerModalProps {
   visible: boolean;
@@ -30,7 +32,11 @@ export const AllergenFamilyPickerModal: React.FC<AllergenFamilyPickerModalProps>
   onClose,
 }) => {
   const { colors, isDark } = useTheme();
+  const { height: windowHeight } = useWindowDimensions();
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Hauteur fixe et généreuse (82% de l'écran, plafonné à 640px) garantissant que le contenu ne s'effondre jamais
+  const modalHeight = Math.min(640, Math.round(windowHeight * 0.82));
 
   const filteredFamilies = ALLERGEN_FAMILIES.filter((fam) => {
     if (!searchQuery.trim()) return true;
@@ -41,6 +47,10 @@ export const AllergenFamilyPickerModal: React.FC<AllergenFamilyPickerModalProps>
     );
   });
 
+  const suggestedFamilyObj = currentFamily
+    ? ALLERGEN_FAMILIES.find((f) => f.id === currentFamily)
+    : null;
+
   return (
     <Modal
       visible={visible}
@@ -48,9 +58,26 @@ export const AllergenFamilyPickerModal: React.FC<AllergenFamilyPickerModalProps>
       transparent
       onRequestClose={onClose}
     >
-      <View style={styles.overlay}>
-        <SafeAreaView style={[styles.modalContainer, { backgroundColor: colors.cardBackground }]} edges={['bottom']}>
-          {/* Header */}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.overlay}
+      >
+        <TouchableOpacity
+          style={styles.backdropTouchable}
+          activeOpacity={1}
+          onPress={onClose}
+        />
+
+        <View
+          style={[
+            styles.modalContainer,
+            { height: modalHeight, backgroundColor: colors.cardBackground },
+          ]}
+        >
+          {/* Poignée visuelle */}
+          <View style={[styles.handleBar, { backgroundColor: colors.borderMedium }]} />
+
+          {/* En-tête */}
           <View style={[styles.header, { borderBottomColor: colors.borderLight }]}>
             <View style={styles.headerTitleContainer}>
               <View style={[styles.iconCircle, { backgroundColor: colors.primaryLight }]}>
@@ -73,7 +100,10 @@ export const AllergenFamilyPickerModal: React.FC<AllergenFamilyPickerModalProps>
               </View>
             </View>
             <TouchableOpacity
-              style={[styles.closeBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#F1F5F9' }]}
+              style={[
+                styles.closeBtn,
+                { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#F1F5F9' },
+              ]}
               onPress={onClose}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
@@ -81,24 +111,63 @@ export const AllergenFamilyPickerModal: React.FC<AllergenFamilyPickerModalProps>
             </TouchableOpacity>
           </View>
 
-          {/* Recherche rapide si liste longue */}
-          <View style={[styles.searchBarContainer, { backgroundColor: colors.cardBackground, borderColor: colors.borderLight }]}>
+          {/* Si une famille est déjà détectée par défaut, proposition rapide en 1 clic */}
+          {suggestedFamilyObj && (
+            <View style={[styles.suggestedBanner, { backgroundColor: colors.primaryLight, borderColor: colors.primary }]}>
+              <View style={styles.suggestedBannerLeft}>
+                <Text style={styles.suggestedEmoji}>{suggestedFamilyObj.emoji}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.suggestedTitle, { color: colors.primary }]}>
+                    Famille suggérée : {suggestedFamilyObj.name}
+                  </Text>
+                  <Text style={[styles.suggestedSub, { color: colors.textSecondary }]} numberOfLines={1}>
+                    Détecté selon la norme européenne INCO
+                  </Text>
+                </View>
+              </View>
+              <TouchableOpacity
+                style={[styles.suggestedConfirmBtn, { backgroundColor: colors.primary }]}
+                onPress={() => {
+                  onSelectFamily(suggestedFamilyObj.id);
+                  onClose();
+                }}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+                <Text style={styles.suggestedConfirmBtnText}>Valider</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Recherche rapide parmi les familles */}
+          <View
+            style={[
+              styles.searchBarContainer,
+              { backgroundColor: colors.surfaceAlt, borderColor: colors.borderLight },
+            ]}
+          >
             <Ionicons name="search" size={16} color={colors.textMuted} style={{ marginRight: 8 }} />
             <TextInput
               style={[styles.searchInput, { color: colors.textPrimary }]}
               value={searchQuery}
               onChangeText={setSearchQuery}
-              placeholder="Filtrer parmi les 14 familles..."
+              placeholder="Rechercher une famille (lait, gluten, noix...)"
               placeholderTextColor={colors.textMuted}
               clearButtonMode="while-editing"
             />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Ionicons name="close-circle" size={16} color={colors.textMuted} />
+              </TouchableOpacity>
+            )}
           </View>
 
-          {/* Liste des choix */}
+          {/* Liste déroulante des familles */}
           <ScrollView
             style={styles.scrollList}
             contentContainerStyle={styles.scrollContent}
-            showsVerticalScrollIndicator={false}
+            showsVerticalScrollIndicator={true}
+            keyboardShouldPersistTaps="handled"
           >
             {/* Option "Autre / Aucun des 14" */}
             <TouchableOpacity
@@ -122,7 +191,7 @@ export const AllergenFamilyPickerModal: React.FC<AllergenFamilyPickerModalProps>
                     <Text style={[styles.familyName, { color: colors.textPrimary }]}>
                       Autre allergie
                     </Text>
-                    <View style={[styles.pillBadge, { backgroundColor: colors.background }]}>
+                    <View style={[styles.pillBadge, { backgroundColor: colors.surfaceAlt }]}>
                       <Text style={[styles.pillBadgeText, { color: colors.textSecondary }]}>
                         Hors 14 majeurs
                       </Text>
@@ -187,8 +256,11 @@ export const AllergenFamilyPickerModal: React.FC<AllergenFamilyPickerModalProps>
               );
             })}
           </ScrollView>
-        </SafeAreaView>
-      </View>
+
+          {/* Padding bordure basse Safe Area */}
+          <SafeAreaView edges={['bottom']} />
+        </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 };
@@ -199,19 +271,34 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.55)',
     justifyContent: 'flex-end',
   },
+  backdropTouchable: {
+    flex: 1,
+  },
   modalContainer: {
-    maxHeight: '85%',
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 20,
+  },
+  handleBar: {
+    width: 38,
+    height: 4,
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginTop: 8,
+    marginBottom: 4,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingVertical: 12,
     borderBottomWidth: 1,
   },
   headerTitleContainer: {
@@ -244,11 +331,53 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  suggestedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginHorizontal: 16,
+    marginTop: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1.5,
+  },
+  suggestedBannerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 10,
+  },
+  suggestedEmoji: {
+    fontSize: 22,
+    marginRight: 10,
+  },
+  suggestedTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  suggestedSub: {
+    fontSize: 11,
+    marginTop: 1,
+  },
+  suggestedConfirmBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  suggestedConfirmBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+  },
   searchBarContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     marginHorizontal: 16,
-    marginTop: 12,
+    marginTop: 10,
     marginBottom: 6,
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -266,7 +395,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 16,
     paddingTop: 8,
-    paddingBottom: 28,
+    paddingBottom: 24,
     gap: 8,
   },
   familyCard: {
@@ -284,7 +413,7 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   familyEmoji: {
-    fontSize: 26,
+    fontSize: 24,
     marginRight: 12,
   },
   familyTextContainer: {

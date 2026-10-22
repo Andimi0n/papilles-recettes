@@ -9,6 +9,7 @@ import {
   Alert,
   Share,
   Modal,
+  Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -148,9 +149,11 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   const handleToggleAllergenFamily = async (fam: AllergenFamilyConfig) => {
     const associated = vocabList.filter((ing) => ing.allergen === fam.id);
     const presentCount = associated.filter((ing) =>
-      userAllergens.some(
-        (a) => a.canonicalId === ing.id || normalizeString(a.name) === normalizeString(ing.canonicalName)
-      )
+      userAllergens.some((a) => {
+        const nameMatch = normalizeString(a.name) === normalizeString(ing.canonicalName);
+        const idMatch = Boolean(a.canonicalId && a.canonicalId === ing.id);
+        return nameMatch || (idMatch && a.allergenFamily === fam.id);
+      })
     ).length;
     const isAllActive = associated.length > 0 && presentCount === associated.length;
 
@@ -164,9 +167,16 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
             text: 'Retirer',
             style: 'destructive',
             onPress: async () => {
-              await StorageService.removeAllergensByFamily(fam.id);
-              const updated = await StorageService.getUserAllergens();
-              setUserAllergens(updated);
+              const associatedNames = new Set(associated.map((i) => normalizeString(i.canonicalName)));
+              const associatedIds = new Set(associated.map((i) => i.id));
+              const remaining = userAllergens.filter((a) => {
+                if (a.allergenFamily === fam.id) return false;
+                if (associatedNames.has(normalizeString(a.name))) return false;
+                if (a.canonicalId && associatedIds.has(a.canonicalId)) return false;
+                return true;
+              });
+              await StorageService.saveUserAllergens(remaining);
+              setUserAllergens(remaining);
             },
           },
         ]
@@ -175,9 +185,11 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
       const current = [...userAllergens];
       let addedCount = 0;
       for (const ing of associated) {
-        const exists = current.some(
-          (a) => a.canonicalId === ing.id || normalizeString(a.name) === normalizeString(ing.canonicalName)
-        );
+        const exists = current.some((a) => {
+          const nameMatch = normalizeString(a.name) === normalizeString(ing.canonicalName);
+          const idMatch = Boolean(a.canonicalId && a.canonicalId === ing.id);
+          return nameMatch || (idMatch && a.allergenFamily === fam.id);
+        });
         if (!exists) {
           current.push({
             id: generateUniqueId('allg'),
@@ -199,13 +211,16 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   };
 
   const handleInitiateAddIngredient = (name?: string, ing?: CanonicalIngredient) => {
+    Keyboard.dismiss();
     const cleanName = (name || allergenInputText).trim();
     if (!cleanName) return;
 
     const norm = normalizeString(cleanName);
-    const alreadyExists = userAllergens.some(
-      (a) => normalizeString(a.name) === norm || (ing && a.canonicalId === ing.id)
-    );
+    const alreadyExists = userAllergens.some((a) => {
+      const nameMatch = normalizeString(a.name) === norm;
+      const idMatch = Boolean(ing && a.canonicalId && a.canonicalId === ing.id);
+      return nameMatch || idMatch;
+    });
     if (alreadyExists) {
       Alert.alert('Déjà enregistré', `« ${cleanName} » figure déjà dans votre liste d'allergènes.`);
       setAllergenInputText('');
@@ -408,7 +423,11 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           </View>
         </View>
 
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
           {/* SECTION 1 : THÈME & AMBIANCE */}
           <View style={styles.sectionCard}>
             <View style={styles.sectionTitleRow}>
@@ -700,9 +719,11 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                 {ALLERGEN_FAMILIES.map((fam) => {
                   const associated = vocabList.filter((ing) => ing.allergen === fam.id);
                   const presentCount = associated.filter((ing) =>
-                    userAllergens.some(
-                      (a) => a.canonicalId === ing.id || normalizeString(a.name) === normalizeString(ing.canonicalName)
-                    )
+                    userAllergens.some((a) => {
+                      const nameMatch = normalizeString(a.name) === normalizeString(ing.canonicalName);
+                      const idMatch = Boolean(a.canonicalId && a.canonicalId === ing.id);
+                      return nameMatch || (idMatch && a.allergenFamily === fam.id);
+                    })
                   ).length;
                   const isAllActive = associated.length > 0 && presentCount === associated.length;
                   const isPartiallyActive = presentCount > 0 && !isAllActive;
@@ -835,9 +856,17 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                                     text: 'Retirer',
                                     style: 'destructive',
                                     onPress: async () => {
-                                      await StorageService.removeAllergensByFamily(fam.id);
-                                      const updated = await StorageService.getUserAllergens();
-                                      setUserAllergens(updated);
+                                      const associated = vocabList.filter((ing) => ing.allergen === fam.id);
+                                      const associatedNames = new Set(associated.map((i) => normalizeString(i.canonicalName)));
+                                      const associatedIds = new Set(associated.map((i) => i.id));
+                                      const remaining = userAllergens.filter((a) => {
+                                        if (a.allergenFamily === fam.id) return false;
+                                        if (associatedNames.has(normalizeString(a.name))) return false;
+                                        if (a.canonicalId && associatedIds.has(a.canonicalId)) return false;
+                                        return true;
+                                      });
+                                      await StorageService.saveUserAllergens(remaining);
+                                      setUserAllergens(remaining);
                                     },
                                   },
                                 ]

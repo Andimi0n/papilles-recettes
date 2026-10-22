@@ -1110,9 +1110,9 @@ export const StorageService = {
   }): Promise<UserAllergenItem> {
     const list = await this.getUserAllergens();
     const cleanNorm = normalizeString(item.name);
-    // Vérifier si déjà présent
+    // Vérifier si déjà présent par nom normalisé strict
     const existingIdx = list.findIndex(
-      (i) => normalizeString(i.name) === cleanNorm || (item.canonicalId && i.canonicalId === item.canonicalId)
+      (i) => normalizeString(i.name) === cleanNorm
     );
 
     const now = new Date().toISOString();

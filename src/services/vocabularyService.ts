@@ -1,7 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CanonicalIngredient, AllergenFamily } from '../types/vocabulary';
 import { ShoppingAisle } from '../types/shopping';
-import { getInitialCanonicalVocabulary, isKnownDefaultPantryStaple, getDefaultAllergen } from '../data/canonicalVocabulary';
+import {
+  getInitialCanonicalVocabulary,
+  isKnownDefaultPantryStaple,
+  getDefaultAllergen,
+  generateCanonicalSlugId,
+} from '../data/canonicalVocabulary';
 import { normalizeString } from '../utils/helpers';
 import { classifyIngredientAisle } from '../utils/aisleClassifier';
 
@@ -57,6 +62,16 @@ export const VocabularyService = {
                 }
               }
 
+              // Correction d'identifiant : assigner un identifiant canonique stable et unique basé sur le slug
+              let id = item.id;
+              if (!item.isCustom) {
+                const stableId = generateCanonicalSlugId(item.canonicalName);
+                if (id !== stableId) {
+                  id = stableId;
+                  itemUpdated = true;
+                }
+              }
+
               // Nettoyage anti-conflits des alias :
               // Un ingrédient ne doit JAMAIS posséder comme alias le nom canonique d'un AUTRE ingrédient
               const cleanedAliases: string[] = [];
@@ -107,6 +122,7 @@ export const VocabularyService = {
                 hadChanges = true;
                 return {
                   ...item,
+                  id,
                   isPantryStaple,
                   allergen,
                   aliases: cleanedAliases,
@@ -117,15 +133,47 @@ export const VocabularyService = {
               return item;
             });
 
+            // Déduplication stricte par nom normalisé
+            const uniqueMap = new Map<string, CanonicalIngredient>();
+            for (const item of sanitized) {
+              const key = item.normalizedName;
+              if (!uniqueMap.has(key)) {
+                uniqueMap.set(key, item);
+              } else {
+                hadChanges = true;
+                const existing = uniqueMap.get(key)!;
+                const mergedAliases = Array.from(new Set([...(existing.aliases || []), ...(item.aliases || [])]));
+                uniqueMap.set(key, {
+                  ...existing,
+                  allergen: existing.allergen || item.allergen,
+                  usageCount: Math.max(existing.usageCount || 0, item.usageCount || 0),
+                  aliases: mergedAliases,
+                  updatedAt: new Date().toISOString(),
+                });
+              }
+            }
+            let finalList = Array.from(uniqueMap.values());
+
             // Synchroniser les nouveaux ingrédients de base (ex: Cacahuètes, Sésame, Tofu, Noix...)
-            const existingNormalized = new Set(sanitized.map((i) => i.normalizedName));
+            const existingNormalized = new Set(finalList.map((i) => i.normalizedName));
             const initialSeed = getInitialCanonicalVocabulary();
             const missingSeeds = initialSeed.filter((s) => !existingNormalized.has(s.normalizedName));
-            let finalList = sanitized;
             if (missingSeeds.length > 0) {
-              finalList = [...sanitized, ...missingSeeds];
+              finalList = [...finalList, ...missingSeeds];
               hadChanges = true;
             }
+
+            // S'assurer de l'unicité absolue de chaque identifiant dans la liste finale
+            const seenIds = new Set<string>();
+            finalList = finalList.map((item) => {
+              let uniqueId = item.id;
+              if (seenIds.has(uniqueId)) {
+                hadChanges = true;
+                uniqueId = `${uniqueId}_${Math.random().toString(36).slice(2, 6)}`;
+              }
+              seenIds.add(uniqueId);
+              return uniqueId !== item.id ? { ...item, id: uniqueId } : item;
+            });
 
             // S'assurer que "Sucre glace" est répertorié de façon autonome
             const hasSucreGlace = finalList.some((i) => i.normalizedName === 'sucre glace');
