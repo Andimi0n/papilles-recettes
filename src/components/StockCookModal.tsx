@@ -47,7 +47,7 @@ export type AllowedMealType = 'Plat' | 'Entrée' | 'Dessert';
 
 const MEAL_TYPES: { id: AllowedMealType; label: string; iconName: string }[] = [
   { id: 'Entrée', label: 'Entrée', iconName: 'leaf-outline' },
-  { id: 'Plat', label: 'Plat principal', iconName: 'restaurant-outline' },
+  { id: 'Plat', label: 'Plat', iconName: 'restaurant-outline' },
   { id: 'Dessert', label: 'Dessert', iconName: 'ice-cream-outline' },
 ];
 
@@ -687,6 +687,7 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
                                     styles.mealTypeOptionText,
                                     isSelected && styles.mealTypeOptionTextSelected,
                                   ]}
+                                  numberOfLines={1}
                                 >
                                   {t.label}
                                 </Text>
@@ -1328,7 +1329,7 @@ const styles = createDynamicStyles((colors, shadows) => ({
     justifyContent: 'center',
     gap: 6,
     paddingVertical: 9,
-    paddingHorizontal: 8,
+    paddingHorizontal: 4,
     borderRadius: 10,
     backgroundColor: colors.cardBackground,
     borderWidth: 1,
@@ -1339,9 +1340,10 @@ const styles = createDynamicStyles((colors, shadows) => ({
     borderColor: colors.primary,
   },
   mealTypeOptionText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
     color: colors.textSecondary,
+    textAlign: 'center',
   },
   mealTypeOptionTextSelected: {
     color: '#FFFFFF',
