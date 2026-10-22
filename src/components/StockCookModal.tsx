@@ -5,12 +5,12 @@ import {
   Text,
   TouchableOpacity,
   ScrollView,
-  SafeAreaView,
   ActivityIndicator,
   Alert,
   TextInput,
   Switch,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Recipe, Category, RecipeIdea } from '../types/recipe';
 import { FridgeItem } from '../types/fridge';
@@ -353,7 +353,7 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
       presentationStyle="pageSheet"
       onRequestClose={onClose}
     >
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
         <View style={styles.container}>
           {/* Header */}
           <View style={styles.header}>

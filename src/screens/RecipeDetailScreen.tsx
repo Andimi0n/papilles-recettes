@@ -6,7 +6,6 @@ import {
   ScrollView,
   Image,
   TouchableOpacity,
-  SafeAreaView,
   Alert,
   Share,
   TextInput,
@@ -14,6 +13,7 @@ import {
   Platform,
   Vibration,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Recipe } from '../types/recipe';
 import { StorageService } from '../services/storageService';
@@ -437,7 +437,7 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
   const totalTime = recipe.prepTimeMinutes + recipe.cookTimeMinutes;
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
       <View style={styles.container}>
         {/* Top Floating Navigation Header */}
         <View style={styles.topNav}>

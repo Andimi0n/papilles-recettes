@@ -6,12 +6,12 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  SafeAreaView,
   Dimensions,
   Platform,
   Vibration,
   Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useKeepAwake } from 'expo-keep-awake';
 import { Recipe, Ingredient } from '../types/recipe';
@@ -251,7 +251,7 @@ export const CookingModeModal: React.FC<CookingModeModalProps> = ({
       presentationStyle="fullScreen"
       onRequestClose={handleRequestClose}
     >
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
         <View style={styles.container}>
           {/* Top Bar : Quitter, Titre & Indicateur Écran Toujours Allumé */}
           <View style={styles.topBar}>

@@ -8,9 +8,9 @@ import {
   ActivityIndicator,
   Alert,
   Share,
-  SafeAreaView,
   Modal,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
 import { createDynamicStyles } from '../theme/colors';
@@ -211,7 +211,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   const ratedCount = recipes.filter((r) => (r.rating || 0) > 0).length;
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
       <View style={styles.container}>
         {/* Header écran Paramètres */}
         <View style={styles.header}>
