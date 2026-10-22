@@ -49,12 +49,14 @@ Une application mobile moderne, soignée et intuitive pour gérer vos recettes, 
 - **Bouton couteau-fourchette repensé (Hub Stock & Anti-gaspillage)** :
   - Bouton interactif moderne à côté de la barre de recherche avec badge dynamique du nombre de recettes faisables ou puce active.
   - Ouvre instantanément une modale complète d'assistance culinaire (`StockCookModal`) sans gel de l'écran, affichant le bilan du carnet, le sélecteur d'ingrédients à valoriser et les options de création.
-- **Génération IA inédite garantie sans doublon avec le carnet existant** :
-  - Le Chef IA (Gemini 3.8 Flash) imagine une recette sur-mesure pour sublimer vos restes et denrées en stock.
-  - **Sélection verticale des ingrédients par rayons** : fini le défilement horizontal interminable ; vos ingrédients en stock sont regroupés par rayons (`Fruits & Légumes`, `Produits Frais`, `Épicerie`...) avec compteurs et raccourcis *"Tout cocher"* / *"Tout décocher"* par rayon.
-  - **Anti-redondance stricte & résilience réseau** : transmission de l'ensemble de vos recettes existantes (strictement la liste des titres, sans données superflues) pour garantir une création 100% originale, avec gestion intelligente des surcharges temporaires de l'API Gemini (retry automatique avec backoff exponentiel).
-  - Configuration du nombre de portions (synchronisé avec vos préférences), option 100% végétarienne et catégorie souhaitée.
-  - Pré-remplissage direct du formulaire de recette pour modification et enregistrement en 1 clic.
+- **Inspiration Chef IA inédite en 2 étapes & Fallback multi-modèles (Anti-gaspillage)** :
+  - **Processus en 2 étapes ludique et sans surcharge** :
+    - *Étape 1* : Taper sur *"💡 Trouver 3 idées"* génère quasi instantanément 3 propositions originales avec titre appétissant, temps estimé et accroche culinaire valorisant vos restes.
+    - *Étape 2* : Choisissez l'idée qui vous donne envie (*"Cuisiner cette recette →"*) pour obtenir la recette pas-à-pas détaillée avec dosages précis.
+  - **Sélecteur de type de plat & Anti-redondance ciblée** : choisissez entre **Entrée**, **Plat** (par défaut) ou **Dessert**. L'anti-redondance cible spécifiquement les recettes déjà faisables avec votre stock pour ce type, éliminant tout doublon sans alourdir le traitement.
+  - **Résilience absolue & Cascade de secours multi-modèles** : basculement automatique et invisible entre `gemini-3.8-flash`, `gemini-2.5-flash`, `gemini-2.0-flash` et `gemini-1.5-flash` en cas de pic de charge (503/429) sur les serveurs Google.
+  - **Sélection verticale des ingrédients par rayons** : ingrédients en stock regroupés par rayons (`Fruits & Légumes`, `Produits Frais`, `Épicerie`...) avec compteurs et raccourcis *"Tout cocher"* / *"Tout décocher"* par rayon.
+  - Configuration du nombre de portions (synchronisé avec vos préférences), option 100% végétarienne et pré-remplissage direct du formulaire de recette.
 
 ### 5. 🏷️ Lexique Canonique & Normalisation Stricte des Ingrédients
 - **Élimination automatique des synonymes et contenants** : fini les doublons entre *"boîte de petits pois"* et *"petits pois"*, *"noix de muscade"* et *"muscade"*, ou *"carotte épluchée"* et *"carotte"*.

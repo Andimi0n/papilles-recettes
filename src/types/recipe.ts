@@ -56,3 +56,11 @@ export interface FilterOptions {
   onlyFavorites?: boolean;
   onlyVegetarian?: boolean;
 }
+
+export interface RecipeIdea {
+  id: string;
+  title: string;
+  description: string;
+  estimatedTime?: string;
+  highlightIngredients?: string[];
+}

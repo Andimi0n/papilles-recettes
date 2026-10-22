@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
-import { Recipe, Category, Difficulty } from '../types/recipe';
+import { Recipe, Category, Difficulty, RecipeIdea } from '../types/recipe';
 import { normalizeIngredients } from '../utils/ingredientNormalizer';
 
 let SecureStore: typeof import('expo-secure-store') | null = null;
@@ -18,13 +18,26 @@ const GEMINI_MODEL = 'gemini-3.8-flash';
 const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta';
 
 /**
+ * Cascade de modèles Google Gemini pour le basculement automatique (Solution 2).
+ * Si un modèle est temporairement surchargé (HTTP 503) ou atteint un quota (HTTP 429),
+ * le système bascule de manière transparente sur le modèle de repli suivant.
+ */
+export const GEMINI_MODELS_CASCADE = [
+  'gemini-3.8-flash',
+  'gemini-2.5-flash',
+  'gemini-2.0-flash',
+  'gemini-1.5-flash',
+  'gemini-1.5-flash-8b',
+];
+
+/**
  * Construit l'URL de génération avec le paramètre de clé en repli sécurisé.
  * Supporte simultanément le query param ?key= et l'en-tête x-goog-api-key pour
  * résister aux proxys mobiles (4G/5G / ngrok) qui filtrent les en-têtes personnalisés.
  */
-const getGeminiGenerateUrl = (apiKey: string): string => {
+const getGeminiGenerateUrl = (apiKey: string, modelName = GEMINI_MODEL): string => {
   const cleanKey = apiKey.trim();
-  return `${GEMINI_BASE_URL}/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(cleanKey)}`;
+  return `${GEMINI_BASE_URL}/models/${modelName}:generateContent?key=${encodeURIComponent(cleanKey)}`;
 };
 
 /**
@@ -74,6 +87,115 @@ async function fetchGeminiWithRetry(
     const delayMs = attempt * 1200;
     await new Promise((resolve) => setTimeout(resolve, delayMs));
   }
+}
+
+/**
+ * Exécute une requête de génération sur Gemini avec cascade multi-modèles et backoff (Solution 2).
+ * Si le modèle principal est surchargé (HTTP 503) ou subit une limite (429) ou est indisponible (404/500),
+ * bascule automatiquement et de manière transparente sur le modèle suivant de la cascade.
+ */
+async function fetchGeminiWithFallbackAndRetry(
+  apiKey: string,
+  payload: any,
+  models: string[] = GEMINI_MODELS_CASCADE
+): Promise<{ response: Response; usedModel: string }> {
+  let lastResponse: Response | null = null;
+  let lastError: any = null;
+
+  for (let i = 0; i < models.length; i++) {
+    const model = models[i];
+    const generateUrl = getGeminiGenerateUrl(apiKey, model);
+    const headers = getGeminiHeaders(apiKey);
+
+    try {
+      const response = await fetchGeminiWithRetry(
+        generateUrl,
+        {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(payload),
+        },
+        1 // 1 retry rapide (1.2s) sur ce modèle avant de basculer
+      );
+
+      // Si le code HTTP est 200 OK, c'est parfait !
+      if (response.ok) {
+        return { response, usedModel: model };
+      }
+
+      lastResponse = response;
+
+      // Si l'erreur est 401 ou 403 (Clé invalide), inutile de tester d'autres modèles, la clé est refusée
+      if (response.status === 401 || response.status === 403) {
+        return { response, usedModel: model };
+      }
+
+      // Si c'est 503 (Overloaded), 429 (Quota), 404 (Not Found) ou 500 (Internal), on passe au modèle suivant
+      console.warn(
+        `[Gemini Fallback] Modèle "${model}" a retourné le statut ${response.status}. Basculement automatique sur le modèle de secours...`
+      );
+    } catch (err) {
+      lastError = err;
+      console.warn(
+        `[Gemini Fallback] Échec réseau sur le modèle "${model}". Basculement automatique...`,
+        err
+      );
+    }
+  }
+
+  if (lastResponse) {
+    return { response: lastResponse, usedModel: models[models.length - 1] };
+  }
+
+  throw lastError || new Error("Impossible de joindre les serveurs Google Gemini.");
+}
+
+async function handleGeminiResponseText(response: Response): Promise<string> {
+  if (!response.ok) {
+    const errText = await response.text();
+    let errorMsg = `Erreur API Gemini (${response.status})`;
+    try {
+      const errJson = JSON.parse(errText);
+      if (errJson?.error?.message) {
+        const rawMsg = errJson.error.message;
+        if (
+          response.status === 503 ||
+          rawMsg.toLowerCase().includes('overloaded') ||
+          rawMsg.toLowerCase().includes('unavailable')
+        ) {
+          errorMsg =
+            "Les serveurs Google Gemini sont actuellement surchargés (tous les modèles temporairement très sollicités). Veuillez patienter quelques secondes et retenter.";
+        } else if (
+          response.status === 429 ||
+          rawMsg.toLowerCase().includes('quota') ||
+          rawMsg.toLowerCase().includes('resource_exhausted')
+        ) {
+          errorMsg =
+            "Limite de requêtes atteinte sur votre clé API Gemini (quota temporairement dépassé). Réessayez dans une minute.";
+        } else {
+          errorMsg = rawMsg;
+        }
+      }
+    } catch {}
+    throw new Error(errorMsg);
+  }
+
+  const data = await response.json();
+  const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!rawText) {
+    throw new Error("L'IA n'a retourné aucune donnée.");
+  }
+  return rawText;
+}
+
+function parseJsonFromAiText(rawText: string): any {
+  let cleanJson = rawText.trim();
+  if (cleanJson.startsWith('```json')) {
+    cleanJson = cleanJson.replace(/^```json/, '').replace(/```$/, '').trim();
+  } else if (cleanJson.startsWith('```')) {
+    cleanJson = cleanJson.replace(/^```/, '').replace(/```$/, '').trim();
+  }
+  return JSON.parse(cleanJson);
 }
 
 export interface ExtractedRecipeData {
@@ -555,54 +677,25 @@ Règles universelles :
       },
     }));
 
-    const generateUrl = getGeminiGenerateUrl(apiKey);
-    const response = await fetch(generateUrl, {
-      method: 'POST',
-      headers: getGeminiHeaders(apiKey),
-      body: JSON.stringify({
-        system_instruction: {
-          parts: [{ text: systemPrompt }],
+    const payload = {
+      system_instruction: {
+        parts: [{ text: systemPrompt }],
+      },
+      contents: [
+        {
+          role: 'user',
+          parts: contentsParts,
         },
-        contents: [
-          {
-            role: 'user',
-            parts: contentsParts,
-          },
-        ],
-        generationConfig: {
-          response_mime_type: 'application/json',
-          temperature: 0.2,
-        },
-      }),
-    });
+      ],
+      generationConfig: {
+        response_mime_type: 'application/json',
+        temperature: 0.2,
+      },
+    };
 
-    if (!response.ok) {
-      const errText = await response.text();
-      let errorMsg = `Erreur API Gemini (${response.status})`;
-      try {
-        const errJson = JSON.parse(errText);
-        if (errJson?.error?.message) {
-          errorMsg = errJson.error.message;
-        }
-      } catch {}
-      throw new Error(errorMsg);
-    }
-
-    const data = await response.json();
-    const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-
-    if (!rawText) {
-      throw new Error("L'IA n'a retourné aucune donnée pour cette image.");
-    }
-
-    let cleanJson = rawText.trim();
-    if (cleanJson.startsWith('```json')) {
-      cleanJson = cleanJson.replace(/^```json/, '').replace(/```$/, '').trim();
-    } else if (cleanJson.startsWith('```')) {
-      cleanJson = cleanJson.replace(/^```/, '').replace(/```$/, '').trim();
-    }
-
-    const rawParsed = JSON.parse(cleanJson);
+    const { response } = await fetchGeminiWithFallbackAndRetry(apiKey, payload);
+    const rawText = await handleGeminiResponseText(response);
+    const rawParsed = parseJsonFromAiText(rawText);
     return sanitizeExtractedRecipe(rawParsed);
   },
 
@@ -669,54 +762,25 @@ Réponds STRICTEMENT en JSON valide.`;
 ${sanitizedRecipe}
 </untrusted_recipe_data>`;
 
-    const generateUrl = getGeminiGenerateUrl(apiKey);
-    const response = await fetch(generateUrl, {
-      method: 'POST',
-      headers: getGeminiHeaders(apiKey),
-      body: JSON.stringify({
-        system_instruction: {
-          parts: [{ text: systemPrompt }],
+    const payload = {
+      system_instruction: {
+        parts: [{ text: systemPrompt }],
+      },
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: userPayload }],
         },
-        contents: [
-          {
-            role: 'user',
-            parts: [{ text: userPayload }],
-          },
-        ],
-        generationConfig: {
-          response_mime_type: 'application/json',
-          temperature: 0.1,
-        },
-      }),
-    });
+      ],
+      generationConfig: {
+        response_mime_type: 'application/json',
+        temperature: 0.1,
+      },
+    };
 
-    if (!response.ok) {
-      const errText = await response.text();
-      let errorMsg = `Erreur API Gemini (${response.status})`;
-      try {
-        const errJson = JSON.parse(errText);
-        if (errJson?.error?.message) {
-          errorMsg = errJson.error.message;
-        }
-      } catch {}
-      throw new Error(errorMsg);
-    }
-
-    const data = await response.json();
-    const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-
-    if (!rawText) {
-      throw new Error("L'IA n'a retourné aucune donnée pour ce texte.");
-    }
-
-    let cleanJson = rawText.trim();
-    if (cleanJson.startsWith('```json')) {
-      cleanJson = cleanJson.replace(/^```json/, '').replace(/```$/, '').trim();
-    } else if (cleanJson.startsWith('```')) {
-      cleanJson = cleanJson.replace(/^```/, '').replace(/```$/, '').trim();
-    }
-
-    const rawParsed = JSON.parse(cleanJson);
+    const { response } = await fetchGeminiWithFallbackAndRetry(apiKey, payload);
+    const rawText = await handleGeminiResponseText(response);
+    const rawParsed = parseJsonFromAiText(rawText);
     return sanitizeExtractedRecipe(rawParsed);
   },
 
@@ -784,54 +848,25 @@ RÈGLE STRICTE SUR 'userNote' : Laisse STRICTEMENT "" sauf si une note personnel
 ${sanitizedInput}
 </untrusted_recipe_input>`;
 
-    const generateUrl = getGeminiGenerateUrl(apiKey);
-    const response = await fetch(generateUrl, {
-      method: 'POST',
-      headers: getGeminiHeaders(apiKey),
-      body: JSON.stringify({
-        system_instruction: {
-          parts: [{ text: systemPrompt }],
+    const payload = {
+      system_instruction: {
+        parts: [{ text: systemPrompt }],
+      },
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: userPayload }],
         },
-        contents: [
-          {
-            role: 'user',
-            parts: [{ text: userPayload }],
-          },
-        ],
-        generationConfig: {
-          response_mime_type: 'application/json',
-          temperature: 0.2,
-        },
-      }),
-    });
+      ],
+      generationConfig: {
+        response_mime_type: 'application/json',
+        temperature: 0.2,
+      },
+    };
 
-    if (!response.ok) {
-      const errText = await response.text();
-      let errorMsg = `Erreur API Gemini (${response.status})`;
-      try {
-        const errJson = JSON.parse(errText);
-        if (errJson?.error?.message) {
-          errorMsg = errJson.error.message;
-        }
-      } catch {}
-      throw new Error(errorMsg);
-    }
-
-    const data = await response.json();
-    const rawAiText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-
-    if (!rawAiText) {
-      throw new Error("L'IA n'a retourné aucune donnée pour ce texte.");
-    }
-
-    let cleanJson = rawAiText.trim();
-    if (cleanJson.startsWith('```json')) {
-      cleanJson = cleanJson.replace(/^```json/, '').replace(/```$/, '').trim();
-    } else if (cleanJson.startsWith('```')) {
-      cleanJson = cleanJson.replace(/^```/, '').replace(/```$/, '').trim();
-    }
-
-    const rawParsed = JSON.parse(cleanJson);
+    const { response } = await fetchGeminiWithFallbackAndRetry(apiKey, payload);
+    const rawAiText = await handleGeminiResponseText(response);
+    const rawParsed = parseJsonFromAiText(rawAiText);
     const sanitized = sanitizeExtractedRecipe(rawParsed);
 
     if (sanitized.userNote) {
@@ -961,72 +996,262 @@ Réponds STRICTEMENT en JSON valide.`;
 ${sanitizedIngredients.join(', ')}
 </untrusted_fridge_ingredients>${options?.additionalPreferences ? `\nPréférences supplémentaires : ${escapeUntrustedDelimiters(options.additionalPreferences.slice(0, 200), 'untrusted_fridge_ingredients')}` : ''}`;
 
-    const generateUrl = getGeminiGenerateUrl(apiKey);
-    const response = await fetchGeminiWithRetry(generateUrl, {
-      method: 'POST',
-      headers: getGeminiHeaders(apiKey),
-      body: JSON.stringify({
-        system_instruction: {
-          parts: [{ text: systemPrompt }],
+    const payload = {
+      system_instruction: {
+        parts: [{ text: systemPrompt }],
+      },
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: userPayload }],
         },
-        contents: [
-          {
-            role: 'user',
-            parts: [{ text: userPayload }],
-          },
-        ],
-        generationConfig: {
-          response_mime_type: 'application/json',
-          temperature: 0.7,
-          max_output_tokens: 2048,
+      ],
+      generationConfig: {
+        response_mime_type: 'application/json',
+        temperature: 0.6,
+        max_output_tokens: 2048,
+      },
+    };
+
+    const { response } = await fetchGeminiWithFallbackAndRetry(apiKey, payload);
+    const rawAiText = await handleGeminiResponseText(response);
+    const rawParsed = parseJsonFromAiText(rawAiText);
+    return sanitizeExtractedRecipe(rawParsed);
+  },
+
+  /**
+   * Étape 1 de la génération (Solution 4) :
+   * Propose 3 idées de recettes originales et alléchantes adaptées aux ingrédients sélectionnés,
+   * au type de repas (Entrée / Plat / Dessert) et aux portions,
+   * en évitant strictement les recettes faisables existantes du même type (Solution 1).
+   */
+  async suggestRecipeIdeasFromFridge(
+    ingredients: string[],
+    options?: {
+      mealType?: string;
+      servings?: number;
+      onlyVegetarian?: boolean;
+      existingDoableTitles?: string[];
+      additionalPreferences?: string;
+    },
+    providedKey?: string
+  ): Promise<RecipeIdea[]> {
+    const apiKey = providedKey || (await this.getApiKey());
+    if (!apiKey) {
+      throw new Error(
+        'Clé API Gemini non configurée. Veuillez renseigner votre clé API dans les paramètres.'
+      );
+    }
+
+    if (!ingredients || ingredients.length === 0) {
+      throw new Error('Veuillez sélectionner au moins un ingrédient de votre réfrigérateur.');
+    }
+
+    const cleanIngredientsList = ingredients.map((i) => i.trim()).filter(Boolean);
+    const targetType = options?.mealType || 'Plat';
+    const isVege = options?.onlyVegetarian ?? false;
+
+    // Transmission des titres faisables uniquement du type sélectionné (Solution 1)
+    const existingTitles = (options?.existingDoableTitles || [])
+      .map((t) => t.trim())
+      .filter(Boolean);
+
+    const sanitizedExistingTitles = existingTitles.map((t) =>
+      escapeUntrustedDelimiters(t.slice(0, 100), 'untrusted_existing_recipes')
+    );
+
+    const antiRedundancySection =
+      sanitizedExistingTitles.length > 0
+        ? `
+CONSIGNE CRUCIALE D'ANTI-REDONDANCE (NE PAS REPRODUIRE) :
+L'utilisateur possède DÉJÀ ces recettes faisables de type "${targetType}" dans son carnet personnel :
+<untrusted_existing_recipes>
+${sanitizedExistingTitles.map((t) => `- ${t}`).join('\n')}
+</untrusted_existing_recipes>
+RÈGLE ABSOLUE : Tu ne dois EN AUCUN CAS proposer une idée identique, redondante ou trop semblable à l'un de ces titres déjà faisables.
+Tes 3 idées doivent être NOUVELLES, variées entre elles, et apporter une véritable créativité gastronomique.
+`
+        : '';
+
+    const systemPrompt = `Tu es un grand chef cuisinier renommé, créatif et chaleureux.
+L'utilisateur te fournit une liste d'ingrédients disponibles dans sa cuisine.
+Ta mission : imaginer exactement 3 idées de recettes originales, gourmandes et distinctes les unes des autres.
+
+Contraintes obligatoires :
+1. Type de recette : impérativement du type "${targetType}".
+2. Ingrédients : mettre en vedette les ingrédients fournis (tu peux supposer disponibles les ingrédients de base du placard : sel, poivre, huiles usuelles, beurre, eau, herbes, épices basiques).
+3. ${isVege ? 'RÈGLE VÉGÉTARIENNE : les 3 idées doivent être 100% végétariennes (sans viande ni poisson).' : 'Si pertinent, tu peux utiliser de la viande ou du poisson si présent dans les ingrédients.'}
+${antiRedundancySection}
+
+Réponds STRICTEMENT sous la forme d'un objet JSON valide respectant cette structure exacte :
+{
+  "ideas": [
+    {
+      "id": "idea_1",
+      "title": "Nom précis et très appétissant du premier plat",
+      "description": "Courte description alléchante en 1 à 2 phrases expliquant le concept culinaire, les textures et les saveurs",
+      "estimatedTime": "Temps estimé (ex: 20 min, 35 min)",
+      "highlightIngredients": ["Ingrédient clé 1", "Ingrédient clé 2"]
+    },
+    {
+      "id": "idea_2",
+      "title": "Nom du deuxième plat (style ou cuisson différente)",
+      "description": "Courte description alléchante en 1 à 2 phrases",
+      "estimatedTime": "Temps estimé",
+      "highlightIngredients": ["Ingrédient clé 1", "Ingrédient clé 2"]
+    },
+    {
+      "id": "idea_3",
+      "title": "Nom du troisième plat (autre approche originale)",
+      "description": "Courte description alléchante en 1 à 2 phrases",
+      "estimatedTime": "Temps estimé",
+      "highlightIngredients": ["Ingrédient clé 1", "Ingrédient clé 2"]
+    }
+  ]
+}`;
+
+    const sanitizedIngredients = cleanIngredientsList.map((i) =>
+      escapeUntrustedDelimiters(i.slice(0, 100), 'untrusted_fridge_ingredients')
+    );
+    const userPayload = `Propose 3 idées gourmandes de type "${targetType}" avec ces ingrédients :
+<untrusted_fridge_ingredients>
+${sanitizedIngredients.join(', ')}
+</untrusted_fridge_ingredients>${options?.additionalPreferences ? `\nPréférences : ${escapeUntrustedDelimiters(options.additionalPreferences.slice(0, 150), 'untrusted_fridge_ingredients')}` : ''}`;
+
+    const payload = {
+      system_instruction: {
+        parts: [{ text: systemPrompt }],
+      },
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: userPayload }],
         },
-      }),
-    });
+      ],
+      generationConfig: {
+        response_mime_type: 'application/json',
+        temperature: 0.6,
+        max_output_tokens: 1024,
+      },
+    };
 
-    if (!response.ok) {
-      const errText = await response.text();
-      let errorMsg = `Erreur API Gemini (${response.status})`;
-      try {
-        const errJson = JSON.parse(errText);
-        if (errJson?.error?.message) {
-          const rawMsg = errJson.error.message;
-          if (
-            response.status === 503 ||
-            rawMsg.toLowerCase().includes('overloaded') ||
-            rawMsg.toLowerCase().includes('unavailable')
-          ) {
-            errorMsg =
-              "Les serveurs Google Gemini sont actuellement surchargés (modèle temporairement très sollicité). Veuillez patienter quelques secondes et retenter.";
-          } else if (
-            response.status === 429 ||
-            rawMsg.toLowerCase().includes('quota') ||
-            rawMsg.toLowerCase().includes('resource_exhausted')
-          ) {
-            errorMsg =
-              "Limite de requêtes atteinte sur votre clé API Gemini (quota temporairement dépassé). Réessayez dans une minute.";
-          } else {
-            errorMsg = rawMsg;
-          }
-        }
-      } catch {}
-      throw new Error(errorMsg);
+    const { response } = await fetchGeminiWithFallbackAndRetry(apiKey, payload);
+    const rawAiText = await handleGeminiResponseText(response);
+    const rawParsed = parseJsonFromAiText(rawAiText);
+
+    const rawList = Array.isArray(rawParsed)
+      ? rawParsed
+      : Array.isArray(rawParsed?.ideas)
+        ? rawParsed.ideas
+        : [];
+
+    return rawList.slice(0, 3).map((item: any, idx: number) => ({
+      id: item?.id || `idea_${idx + 1}`,
+      title: String(item?.title || `Idée gourmande ${idx + 1}`).trim(),
+      description: String(item?.description || '').trim(),
+      estimatedTime: item?.estimatedTime ? String(item.estimatedTime).trim() : '25 min',
+      highlightIngredients: Array.isArray(item?.highlightIngredients)
+        ? item.highlightIngredients.map((h: any) => String(h).trim()).filter(Boolean)
+        : cleanIngredientsList.slice(0, 3),
+    }));
+  },
+
+  /**
+   * Étape 2 de la génération (Solution 4) :
+   * Développe la fiche recette complète à partir de l'idée choisie par l'utilisateur.
+   */
+  async generateRecipeFromIdea(
+    idea: RecipeIdea,
+    ingredients: string[],
+    options?: {
+      mealType?: string;
+      servings?: number;
+      onlyVegetarian?: boolean;
+    },
+    providedKey?: string
+  ): Promise<ExtractedRecipeData> {
+    const apiKey = providedKey || (await this.getApiKey());
+    if (!apiKey) {
+      throw new Error(
+        'Clé API Gemini non configurée. Veuillez renseigner votre clé API dans les paramètres.'
+      );
     }
 
-    const data = await response.json();
-    const rawAiText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    const cleanIngredientsList = ingredients.map((i) => i.trim()).filter(Boolean);
+    const targetType = options?.mealType || 'Plat';
+    const servings = options?.servings || 4;
+    const isVege = options?.onlyVegetarian ?? false;
 
-    if (!rawAiText) {
-      throw new Error("L'IA n'a retourné aucune recette.");
+    const systemPrompt = `Tu es un grand chef cuisinier réputé, créatif et pédagogue.
+L'utilisateur a choisi cette idée de recette :
+Titre : "${escapeUntrustedDelimiters(idea.title, 'idea')}"
+Concept : "${escapeUntrustedDelimiters(idea.description, 'idea')}"
+
+Ta mission : rédiger la fiche recette complète, détaillée et parfaitement proportionnée pour ${servings} personnes.
+Structure JSON attendue STRICTE :
+{
+  "title": "${escapeUntrustedDelimiters(idea.title, 'idea')}",
+  "description": "${escapeUntrustedDelimiters(idea.description, 'idea')}",
+  "category": "${targetType}",
+  "difficulty": "Facile" | "Moyen" | "Difficile",
+  "prepTimeMinutes": nombre de minutes de préparation (ex: 15),
+  "cookTimeMinutes": nombre de minutes de cuisson (ex: 20),
+  "servings": ${servings},
+  "isVegetarian": ${isVege},
+  "ingredients": [
+    {
+      "name": "Nom canonique de l'ingrédient au singulier",
+      "quantity": "Quantité adaptée pour ${servings} personnes (ex: '200', '2')",
+      "unit": "Unité normalisée (ex: 'g', 'ml', 'c. à soupe', 'pièces', ou vide)",
+      "isPantryStaple": false,
+      "isOptional": false
     }
-
-    let cleanJson = rawAiText.trim();
-    if (cleanJson.startsWith('```json')) {
-      cleanJson = cleanJson.replace(/^```json/, '').replace(/```$/, '').trim();
-    } else if (cleanJson.startsWith('```')) {
-      cleanJson = cleanJson.replace(/^```/, '').replace(/```$/, '').trim();
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "instruction": "Consigne complète, claire et détaillée de l'étape 1"
     }
+  ],
+  "userNote": "L'astuce de chef ou le secret de cuisson pour réussir ce plat à coup sûr"
+}
 
-    const rawParsed = JSON.parse(cleanJson);
+RÈGLES CULINAIRES ET DE FORMATAGE :
+- Utilise impérativement les dénominations canoniques brutes au singulier pour 'name' (ex: 'Petits pois', 'Carotte', 'Poulet').
+- Déplace les contenants ('boîte', 'bocal') dans 'unit' et les actions de découpe ('émincé', 'en dés') dans 'steps'.
+- FONDS DE PLACARD : 'isPantryStaple': true impérativement pour le sel, poivre, huiles de cuisson courantes, vinaigre, eau, herbes basiques et épices sèches. False pour tous les ingrédients principaux.
+- 'isOptional': true pour toute touche finale facultative ou au goût.
+- Rédige des étapes complètes et détaillées.
+- Réponds STRICTEMENT en JSON valide.`;
+
+    const sanitizedIngredients = cleanIngredientsList.map((i) =>
+      escapeUntrustedDelimiters(i.slice(0, 100), 'untrusted_fridge_ingredients')
+    );
+    const userPayload = `Rédige la recette complète détaillée pour "${idea.title}" avec les ingrédients suivants :
+<untrusted_fridge_ingredients>
+${sanitizedIngredients.join(', ')}
+</untrusted_fridge_ingredients>`;
+
+    const payload = {
+      system_instruction: {
+        parts: [{ text: systemPrompt }],
+      },
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: userPayload }],
+        },
+      ],
+      generationConfig: {
+        response_mime_type: 'application/json',
+        temperature: 0.5,
+        max_output_tokens: 2048,
+      },
+    };
+
+    const { response } = await fetchGeminiWithFallbackAndRetry(apiKey, payload);
+    const rawAiText = await handleGeminiResponseText(response);
+    const rawParsed = parseJsonFromAiText(rawAiText);
     return sanitizeExtractedRecipe(rawParsed);
   },
 };

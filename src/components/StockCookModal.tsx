@@ -12,7 +12,7 @@ import {
   Switch,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Recipe, Category } from '../types/recipe';
+import { Recipe, Category, RecipeIdea } from '../types/recipe';
 import { FridgeItem } from '../types/fridge';
 import { ShoppingAisle } from '../types/shopping';
 import { AISLE_CONFIGS, ALL_AISLES } from '../utils/aisleClassifier';
@@ -37,18 +37,18 @@ interface StockCookModalProps {
 
 const AI_STEPS = [
   'Le Chef IA examine vos ingrédients en stock...',
-  'Vérification anti-doublon avec votre carnet...',
   'Association créative et équilibre des saveurs...',
-  'Calcul des proportions & assaisonnements...',
+  'Calcul précis des proportions & assaisonnements...',
   'Rédaction des étapes pas-à-pas...',
+  'Finalisation des secrets de cuisson...',
 ];
 
-const MEAL_TYPES: { id: string; label: string }[] = [
-  { id: '', label: 'Tout type' },
-  { id: 'Plat', label: 'Plat' },
-  { id: 'Entrée', label: 'Entrée' },
-  { id: 'Dessert', label: 'Dessert' },
-  { id: 'Apéritif', label: 'Apéritif' },
+export type AllowedMealType = 'Plat' | 'Entrée' | 'Dessert';
+
+const MEAL_TYPES: { id: AllowedMealType; label: string; iconName: string }[] = [
+  { id: 'Plat', label: 'Plat principal', iconName: 'restaurant-outline' },
+  { id: 'Entrée', label: 'Entrée', iconName: 'leaf-outline' },
+  { id: 'Dessert', label: 'Dessert', iconName: 'ice-cream-outline' },
 ];
 
 export const StockCookModal: React.FC<StockCookModalProps> = ({
@@ -68,8 +68,14 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
   const [selectedStockNames, setSelectedStockNames] = useState<string[]>([]);
   const [servings, setServings] = useState<number>(4);
   const [isVegetarian, setIsVegetarian] = useState<boolean>(false);
-  const [mealType, setMealType] = useState<string>('');
-  const [isGeneratingAi, setIsGeneratingAi] = useState(false);
+  const [mealType, setMealType] = useState<AllowedMealType>('Plat');
+
+  // Flow d'invention IA en 2 étapes (Solution 4)
+  const [aiFlowStep, setAiFlowStep] = useState<
+    'config' | 'loading_ideas' | 'ideas' | 'generating_recipe'
+  >('config');
+  const [ideas, setIdeas] = useState<RecipeIdea[]>([]);
+  const [selectedIdea, setSelectedIdea] = useState<RecipeIdea | null>(null);
   const [aiStepIndex, setAiStepIndex] = useState(0);
 
   // Saisie clé API si absente
@@ -82,7 +88,10 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
   useEffect(() => {
     if (visible) {
       setSelectedStockNames(stockItems.map((item) => item.name));
-      setIsGeneratingAi(false);
+      setMealType('Plat');
+      setAiFlowStep('config');
+      setIdeas([]);
+      setSelectedIdea(null);
       // Charger les portions par défaut depuis le storage si configuré
       StorageService.getDefaultServings().then((val) => {
         if (val && val >= 1) setServings(val);
@@ -90,9 +99,9 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
     }
   }, [visible, stockItems]);
 
-  // Animation des étapes IA
+  // Animation des étapes IA lors de la génération complète
   useEffect(() => {
-    if (isGeneratingAi) {
+    if (aiFlowStep === 'generating_recipe') {
       setAiStepIndex(0);
       stepIntervalRef.current = setInterval(() => {
         setAiStepIndex((prev) => (prev + 1) % AI_STEPS.length);
@@ -107,9 +116,9 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
         clearInterval(stepIntervalRef.current);
       }
     };
-  }, [isGeneratingAi]);
+  }, [aiFlowStep]);
 
-  // Nombre de recettes faisables (réutilise doableCount déjà calculé par HomeScreen pour 0ms de latence)
+  // Nombre de recettes faisables globalement (réutilise doableCount déjà calculé par HomeScreen)
   const effectiveDoableCount = useMemo(() => {
     if (typeof doableCount === 'number') {
       return doableCount;
@@ -126,6 +135,15 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
     });
     return count;
   }, [doableCount, recipes, stockItems]);
+
+  // Recettes faisables avec le stock pour le type de repas choisi (Solution 1)
+  const doableRecipesForCurrentType = useMemo(() => {
+    if (stockItems.length === 0 || recipes.length === 0) return [];
+    const map = evaluateRecipesWithStock(recipes, stockItems, {
+      assumePantryStaplesAvailable: true,
+    });
+    return recipes.filter((r) => map.get(r.id)?.isDoable && r.category === mealType);
+  }, [recipes, stockItems, mealType]);
 
   // Groupement des aliments du stock par rayon (comme dans Mes Étagères)
   const groupedStockByAisle = useMemo(() => {
@@ -181,8 +199,8 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
     setSelectedStockNames([]);
   };
 
-  // Lancement de la génération IA sans redondance
-  const handleStartAiGeneration = async () => {
+  // Étape 1 : Demande de 3 idées gourmandes au Chef IA (Solution 4)
+  const handleStartFetchIdeas = async () => {
     if (selectedStockNames.length === 0) {
       Alert.alert(
         'Aucun ingrédient sélectionné',
@@ -197,32 +215,76 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
       return;
     }
 
-    executeAiGeneration(apiKey);
+    executeFetchIdeas(apiKey);
   };
 
-  const executeAiGeneration = async (key?: string) => {
-    setIsGeneratingAi(true);
+  const executeFetchIdeas = async (key?: string) => {
+    setAiFlowStep('loading_ideas');
 
     try {
-      // Liste de toutes les recettes existantes pour l'anti-redondance (strictement les titres uniquement)
-      const existingTitles = recipes.map((r) => r.title?.trim()).filter(Boolean);
+      // Uniquement les titres des recettes faisables du type choisi (Solution 1)
+      const doableTitles = doableRecipesForCurrentType
+        .map((r) => r.title?.trim())
+        .filter(Boolean);
 
-      const generated = await RecipeAiService.generateRecipeFromFridge(
+      const generatedIdeas = await RecipeAiService.suggestRecipeIdeasFromFridge(
         selectedStockNames,
         {
+          mealType,
           servings,
           onlyVegetarian: isVegetarian,
-          mealType: mealType || undefined,
-          existingRecipeTitles: existingTitles,
+          existingDoableTitles: doableTitles,
+        },
+        key
+      );
+
+      if (!generatedIdeas || generatedIdeas.length === 0) {
+        throw new Error("Le Chef IA n'a pas pu proposer d'idées. Réessayez.");
+      }
+
+      setIdeas(generatedIdeas);
+      setAiFlowStep('ideas');
+    } catch (err: any) {
+      setAiFlowStep('config');
+      Alert.alert(
+        'Erreur Chef IA',
+        err?.message ||
+          "Impossible de générer les idées du Chef. Vérifiez votre clé API Gemini et votre connexion."
+      );
+    }
+  };
+
+  // Étape 2 : Concrétisation de la recette complète à partir de l'idée choisie (Solution 4)
+  const handleSelectIdea = async (idea: RecipeIdea) => {
+    setSelectedIdea(idea);
+    const apiKey = await RecipeAiService.getApiKey();
+    if (!apiKey) {
+      setIsApiKeyModalVisible(true);
+      return;
+    }
+    executeGenerateRecipeFromIdea(idea, apiKey);
+  };
+
+  const executeGenerateRecipeFromIdea = async (idea: RecipeIdea, key?: string) => {
+    setAiFlowStep('generating_recipe');
+
+    try {
+      const generated = await RecipeAiService.generateRecipeFromIdea(
+        idea,
+        selectedStockNames,
+        {
+          mealType,
+          servings,
+          onlyVegetarian: isVegetarian,
         },
         key
       );
 
       const partialRecipe: Partial<Recipe> = {
         id: generateUniqueId('rec_ai_stock'),
-        title: generated.title,
-        description: generated.description,
-        category: (generated.category as Category) || 'Plat',
+        title: generated.title || idea.title,
+        description: generated.description || idea.description,
+        category: (generated.category as Category) || (mealType as Category) || 'Plat',
         difficulty: generated.difficulty || 'Moyen',
         prepTimeMinutes: generated.prepTimeMinutes || 15,
         cookTimeMinutes: generated.cookTimeMinutes || 20,
@@ -250,18 +312,18 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
         updatedAt: new Date().toISOString(),
       };
 
-      setIsGeneratingAi(false);
+      setAiFlowStep('config');
       onClose();
 
       if (onRecipeGenerated) {
         onRecipeGenerated(partialRecipe);
       }
     } catch (err: any) {
-      setIsGeneratingAi(false);
+      setAiFlowStep('ideas');
       Alert.alert(
         'Erreur Chef IA',
         err?.message ||
-          "Impossible de générer la recette. Vérifiez votre clé API Gemini et votre connexion."
+          "Impossible de finaliser la recette. Veuillez réessayer."
       );
     }
   };
@@ -275,7 +337,11 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
     await RecipeAiService.setApiKey(trimmed);
     setIsApiKeyModalVisible(false);
     setTempApiKeyInput('');
-    executeAiGeneration(trimmed);
+    if (selectedIdea) {
+      executeGenerateRecipeFromIdea(selectedIdea, trimmed);
+    } else {
+      executeFetchIdeas(trimmed);
+    }
   };
 
   const totalStockCount = stockItems.length;
@@ -322,14 +388,16 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
             )}
           </View>
 
-          {/* Loader animé si génération IA en cours */}
-          {isGeneratingAi ? (
+          {/* ÉCRAN 1 : Loader animé si génération complète de la recette choisie */}
+          {aiFlowStep === 'generating_recipe' ? (
             <View style={styles.aiLoadingContainer}>
               <View style={styles.aiLoadingCard}>
                 <View style={styles.aiSparkleIconBox}>
-                  <Ionicons name="sparkles" size={32} color="#FFFFFF" />
+                  <Ionicons name="restaurant" size={32} color="#FFFFFF" />
                 </View>
-                <Text style={styles.aiLoadingTitle}>Création de votre recette inédite</Text>
+                <Text style={styles.aiLoadingTitle}>
+                  {selectedIdea?.title || 'Création de votre recette'}
+                </Text>
                 <Text style={styles.aiLoadingStepText}>{AI_STEPS[aiStepIndex]}</Text>
                 <ActivityIndicator
                   size="large"
@@ -337,11 +405,140 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
                   style={styles.aiLoadingSpinner}
                 />
                 <Text style={styles.aiLoadingHint}>
-                  Garanti sans aucun doublon avec vos {recipes.length} recettes existantes
+                  Dosage précis des ingrédients pour {servings} personne{servings > 1 ? 's' : ''} et rédaction des étapes pas-à-pas
                 </Text>
               </View>
             </View>
+          ) : aiFlowStep === 'loading_ideas' ? (
+            /* ÉCRAN 2 : Loader rapide pendant la proposition des 3 idées */
+            <View style={styles.aiLoadingContainer}>
+              <View style={styles.aiLoadingCard}>
+                <View style={[styles.aiSparkleIconBox, { backgroundColor: colors.secondary }]}>
+                  <Ionicons name="sparkles" size={32} color="#FFFFFF" />
+                </View>
+                <Text style={styles.aiLoadingTitle}>Inspiration en cours...</Text>
+                <Text style={styles.aiLoadingStepText}>
+                  Le Chef imagine 3 idées gourmandes de type "{mealType}"...
+                </Text>
+                <ActivityIndicator
+                  size="large"
+                  color={colors.primary}
+                  style={styles.aiLoadingSpinner}
+                />
+                <Text style={styles.aiLoadingHint}>
+                  {doableRecipesForCurrentType.length > 0
+                    ? `Anti-doublon : ${doableRecipesForCurrentType.length} ${mealType.toLowerCase()}${doableRecipesForCurrentType.length > 1 ? 's' : ''} faisable${doableRecipesForCurrentType.length > 1 ? 's' : ''} dans votre carnet sera évité${doableRecipesForCurrentType.length > 1 ? 's' : ''}`
+                    : 'Génération originale adaptée à vos denrées en stock'}
+                </Text>
+              </View>
+            </View>
+          ) : aiFlowStep === 'ideas' ? (
+            /* ÉCRAN 3 : Affichage des 3 idées du Chef (Solution 4) */
+            <ScrollView
+              style={styles.content}
+              contentContainerStyle={styles.contentContainer}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
+              <View style={styles.ideasHeader}>
+                <TouchableOpacity
+                  style={styles.backToConfigBtn}
+                  onPress={() => setAiFlowStep('config')}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons name="arrow-back" size={16} color={colors.primary} />
+                  <Text style={styles.backToConfigBtnText}>Modifier ingrédients & options</Text>
+                </TouchableOpacity>
+
+                <View style={styles.ideasTitleRow}>
+                  <View style={[styles.cardIconBox, { backgroundColor: colors.secondary + '20' }]}>
+                    <Ionicons name="sparkles" size={18} color={colors.secondary} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.ideasTitle}>3 Inspirations du Chef IA</Text>
+                    <Text style={styles.ideasSubtitle}>
+                      Pour {servings} personne{servings > 1 ? 's' : ''} • {mealType}
+                      {isVegetarian ? ' • 100% Végétarien' : ''}
+                    </Text>
+                  </View>
+                </View>
+
+                <Text style={styles.ideasInstructionText}>
+                  Choisissez la proposition qui vous donne le plus envie pour générer la recette complète :
+                </Text>
+              </View>
+
+              {/* Cartes interactives des 3 idées */}
+              <View style={styles.ideasListContainer}>
+                {ideas.map((idea, index) => (
+                  <TouchableOpacity
+                    key={idea.id || index}
+                    style={styles.ideaCard}
+                    onPress={() => handleSelectIdea(idea)}
+                    activeOpacity={0.85}
+                  >
+                    <View style={styles.ideaCardTopRow}>
+                      <View style={styles.ideaBadgesRow}>
+                        <View style={styles.ideaTypeBadge}>
+                          <Text style={styles.ideaTypeBadgeText}>{mealType}</Text>
+                        </View>
+                        {idea.estimatedTime ? (
+                          <View style={styles.ideaTimeBadge}>
+                            <Ionicons name="time-outline" size={12} color={colors.textSecondary} />
+                            <Text style={styles.ideaTimeBadgeText}>{idea.estimatedTime}</Text>
+                          </View>
+                        ) : null}
+                      </View>
+                      <View style={styles.ideaActionArrowCircle}>
+                        <Ionicons name="arrow-forward" size={14} color="#FFFFFF" />
+                      </View>
+                    </View>
+
+                    <Text style={styles.ideaCardTitle}>{idea.title}</Text>
+                    <Text style={styles.ideaCardDesc}>{idea.description}</Text>
+
+                    {idea.highlightIngredients && idea.highlightIngredients.length > 0 && (
+                      <View style={styles.ideaHighlightsWrap}>
+                        {idea.highlightIngredients.map((h, i) => (
+                          <View key={i} style={styles.ideaHighlightChip}>
+                            <Ionicons name="checkmark-circle" size={12} color={colors.primary} />
+                            <Text style={styles.ideaHighlightChipText}>{h}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+
+                    <View style={styles.ideaCardFooter}>
+                      <Text style={styles.ideaCookBtnText}>Cuisiner cette recette</Text>
+                      <Ionicons name="chevron-forward" size={16} color={colors.primary} />
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Actions en bas des idées */}
+              <View style={styles.ideasBottomActions}>
+                <TouchableOpacity
+                  style={styles.refreshIdeasBtn}
+                  onPress={() => executeFetchIdeas()}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="refresh" size={16} color={colors.primary} />
+                  <Text style={styles.refreshIdeasBtnText}>Proposer 3 autres idées 🔄</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.changeConfigBtn}
+                  onPress={() => setAiFlowStep('config')}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="options-outline" size={16} color={colors.textSecondary} />
+                  <Text style={styles.changeConfigBtnText}>Modifier mes ingrédients</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
           ) : (
+            /* ÉCRAN 4 : Configuration normale (Carnet & sélection d'ingrédients / options) */
             <ScrollView
               style={styles.content}
               contentContainerStyle={styles.contentContainer}
@@ -448,7 +645,7 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
                     )}
                   </View>
 
-                  {/* SECTION 2 : INSPIRATION CHEF IA (Besoin 2) */}
+                  {/* SECTION 2 : INSPIRATION CHEF IA EN 2 ÉTAPES (Besoin 2 + Solutions 1-2-4) */}
                   <View style={styles.card}>
                     <View style={styles.cardHeaderRow}>
                       <View style={[styles.cardIconBox, { backgroundColor: colors.secondary + '20' }]}>
@@ -457,7 +654,7 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
                       <View style={styles.cardTitleCol}>
                         <Text style={styles.cardTitle}>Invention Chef IA inédite</Text>
                         <Text style={styles.cardSubtitle}>
-                          Sans aucun doublon avec votre carnet existant
+                          3 idées sur-mesure sans doublon avec votre carnet
                         </Text>
                       </View>
                     </View>
@@ -568,6 +765,41 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
 
                     {/* Paramètres de l'invention IA */}
                     <View style={styles.aiParamsGrid}>
+                      {/* Sélecteur Entrée / Plat / Dessert (Plat par défaut) */}
+                      <View style={styles.mealTypeSection}>
+                        <Text style={styles.aiParamTitle}>Type de plat souhaité</Text>
+                        <View style={styles.mealTypeSelectorRow}>
+                          {MEAL_TYPES.map((t) => {
+                            const isSelected = mealType === t.id;
+                            return (
+                              <TouchableOpacity
+                                key={t.id}
+                                style={[
+                                  styles.mealTypeOptionBtn,
+                                  isSelected && styles.mealTypeOptionBtnSelected,
+                                ]}
+                                onPress={() => setMealType(t.id)}
+                                activeOpacity={0.7}
+                              >
+                                <Ionicons
+                                  name={t.iconName as any}
+                                  size={15}
+                                  color={isSelected ? '#FFFFFF' : colors.textSecondary}
+                                />
+                                <Text
+                                  style={[
+                                    styles.mealTypeOptionText,
+                                    isSelected && styles.mealTypeOptionTextSelected,
+                                  ]}
+                                >
+                                  {t.label}
+                                </Text>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </View>
+                      </View>
+
                       {/* Portions */}
                       <View style={styles.aiParamRow}>
                         <View style={styles.aiParamLabelCol}>
@@ -613,46 +845,38 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
                         />
                       </View>
 
-                      {/* Catégorie optionnelle */}
-                      <View style={styles.mealTypesRow}>
-                        {MEAL_TYPES.map((type) => {
-                          const isCatSelected = mealType === type.id;
-                          return (
-                            <TouchableOpacity
-                              key={type.id || 'all'}
-                              style={[
-                                styles.mealTypePill,
-                                isCatSelected && styles.mealTypePillSelected,
-                              ]}
-                              onPress={() => setMealType(type.id)}
-                            >
-                              <Text
-                                style={[
-                                  styles.mealTypePillText,
-                                  isCatSelected && styles.mealTypePillTextSelected,
-                                ]}
-                              >
-                                {type.label}
-                              </Text>
-                            </TouchableOpacity>
-                          );
-                        })}
+                      {/* Information filtre anti-redondance ciblée (Solution 1) */}
+                      <View style={styles.doableFilterInfoBox}>
+                        <Ionicons
+                          name={
+                            doableRecipesForCurrentType.length > 0
+                              ? 'shield-checkmark-outline'
+                              : 'sparkles-outline'
+                          }
+                          size={15}
+                          color={colors.primary}
+                        />
+                        <Text style={styles.doableFilterInfoText}>
+                          {doableRecipesForCurrentType.length > 0
+                            ? `${doableRecipesForCurrentType.length} ${mealType.toLowerCase()}${doableRecipesForCurrentType.length > 1 ? 's' : ''} déjà faisable${doableRecipesForCurrentType.length > 1 ? 's' : ''} dans votre carnet sera évité${doableRecipesForCurrentType.length > 1 ? 's' : ''}`
+                            : `Aucune ${mealType.toLowerCase()} similaire en stock dans votre carnet : champ libre total pour le Chef IA`}
+                        </Text>
                       </View>
                     </View>
 
-                    {/* Bouton de génération IA */}
+                    {/* Bouton de génération des 3 idées (Solution 4 - Étape 1) */}
                     <TouchableOpacity
                       style={[
                         styles.generateAiBtn,
                         selectedStockNames.length === 0 && styles.generateAiBtnDisabled,
                       ]}
-                      onPress={handleStartAiGeneration}
+                      onPress={handleStartFetchIdeas}
                       disabled={selectedStockNames.length === 0}
                       activeOpacity={0.8}
                     >
                       <Ionicons name="sparkles" size={18} color="#FFFFFF" />
                       <Text style={styles.generateAiBtnText}>
-                        Générer une recette inédite
+                        💡 Trouver 3 idées de {mealType.toLowerCase()}
                       </Text>
                     </TouchableOpacity>
                   </View>
@@ -1086,32 +1310,239 @@ const styles = createDynamicStyles((colors, shadows) => ({
     minWidth: 26,
     textAlign: 'center',
   },
-  mealTypesRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    paddingTop: 10,
+  // Sélecteur de type de plat (Entrée / Plat / Dessert)
+  mealTypeSection: {
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
-  mealTypePill: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
+  mealTypeSelectorRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 8,
+  },
+  mealTypeOptionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 9,
+    paddingHorizontal: 8,
+    borderRadius: 10,
     backgroundColor: colors.cardBackground,
     borderWidth: 1,
     borderColor: colors.border,
   },
-  mealTypePillSelected: {
+  mealTypeOptionBtnSelected: {
     backgroundColor: colors.primary,
     borderColor: colors.primary,
   },
-  mealTypePillText: {
+  mealTypeOptionText: {
     fontSize: 12,
+    fontWeight: '600',
     color: colors.textSecondary,
-    fontWeight: '500',
   },
-  mealTypePillTextSelected: {
+  mealTypeOptionTextSelected: {
     color: '#FFFFFF',
     fontWeight: '700',
+  },
+
+  // Information filtre anti-redondance (Solution 1)
+  doableFilterInfoBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    backgroundColor: colors.primary + '12',
+    borderRadius: 10,
+    marginTop: 10,
+  },
+  doableFilterInfoText: {
+    flex: 1,
+    fontSize: 11,
+    lineHeight: 15,
+    color: colors.textPrimary,
+    fontWeight: '500',
+  },
+
+  // Idées du Chef IA (Solution 4)
+  ideasHeader: {
+    marginBottom: 16,
+  },
+  backToConfigBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  backToConfigBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  ideasTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 6,
+  },
+  ideasTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  ideasSubtitle: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  ideasInstructionText: {
+    fontSize: 13,
+    color: colors.textPrimary,
+    lineHeight: 18,
+    marginTop: 6,
+  },
+  ideasListContainer: {
+    gap: 12,
+    marginBottom: 16,
+  },
+  ideaCard: {
+    backgroundColor: colors.cardBackground,
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadows.card,
+  },
+  ideaCardTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  ideaBadgesRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  ideaTypeBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: colors.primary + '20',
+  },
+  ideaTypeBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  ideaTimeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: colors.surfaceAlt,
+  },
+  ideaTimeBadgeText: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: colors.textSecondary,
+  },
+  ideaActionArrowCircle: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ideaCardTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: 4,
+  },
+  ideaCardDesc: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.textSecondary,
+    marginBottom: 10,
+  },
+  ideaHighlightsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 10,
+  },
+  ideaHighlightChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.surfaceAlt,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  ideaHighlightChipText: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: colors.textPrimary,
+  },
+  ideaCardFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 4,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: colors.border + '60',
+  },
+  ideaCookBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  ideasBottomActions: {
+    gap: 10,
+    marginTop: 6,
+    marginBottom: 20,
+  },
+  refreshIdeasBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: colors.primary + '15',
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.primary + '40',
+  },
+  refreshIdeasBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  changeConfigBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+  },
+  changeConfigBtnText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: colors.textSecondary,
   },
 
   generateAiBtn: {
