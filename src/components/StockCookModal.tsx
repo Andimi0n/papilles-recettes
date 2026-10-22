@@ -573,79 +573,7 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
                 </View>
               ) : (
                 <>
-                  {/* SECTION 1 : FILTRE DU CARNET (Besoin 1) */}
-                  <View style={styles.card}>
-                    <View style={styles.cardHeaderRow}>
-                      <View style={styles.cardIconBox}>
-                        <Ionicons name="book-outline" size={18} color={colors.primary} />
-                      </View>
-                      <View style={styles.cardTitleCol}>
-                        <Text style={styles.cardTitle}>Dans votre carnet</Text>
-                        <Text style={styles.cardSubtitle}>
-                          Recettes réalisables immédiatement
-                        </Text>
-                      </View>
-                    </View>
-
-                    <View style={styles.carnetStatusRow}>
-                      <View style={styles.carnetStatBox}>
-                        <Text style={styles.carnetStatNumber}>{effectiveDoableCount}</Text>
-                        <Text style={styles.carnetStatLabel}>
-                          {effectiveDoableCount > 1 ? 'recettes prêtes' : 'recette prête'}
-                        </Text>
-                      </View>
-
-                      <View style={styles.carnetStatDescCol}>
-                        {effectiveDoableCount > 0 ? (
-                          <Text style={styles.carnetStatDescText}>
-                            Vous avez 100% des ingrédients requis (hors sel, poivre et huile du
-                            placard) pour ces recettes !
-                          </Text>
-                        ) : (
-                          <Text style={styles.carnetStatDescText}>
-                            Aucune recette ne correspond à 100% à votre stock actuel. Vous pouvez
-                            demander au Chef IA d'inventer une création sur-mesure ci-dessous !
-                          </Text>
-                        )}
-                      </View>
-                    </View>
-
-                    {effectiveDoableCount > 0 && (
-                      <View style={styles.carnetActionRow}>
-                        {isDoableFilterActive ? (
-                          <TouchableOpacity
-                            style={[styles.carnetBtn, styles.carnetBtnActive]}
-                            onPress={() => {
-                              onApplyDoableFilter(false);
-                              onClose();
-                            }}
-                            activeOpacity={0.8}
-                          >
-                            <Ionicons name="close-circle-outline" size={18} color={colors.danger} />
-                            <Text style={styles.carnetBtnTextActive}>
-                              Désactiver le filtre de stock
-                            </Text>
-                          </TouchableOpacity>
-                        ) : (
-                          <TouchableOpacity
-                            style={styles.carnetBtn}
-                            onPress={() => {
-                              onApplyDoableFilter(true);
-                              onClose();
-                            }}
-                            activeOpacity={0.8}
-                          >
-                            <Ionicons name="funnel" size={16} color="#FFFFFF" />
-                            <Text style={styles.carnetBtnText}>
-                              Voir mes {effectiveDoableCount} recette{effectiveDoableCount > 1 ? 's' : ''} faisable{effectiveDoableCount > 1 ? 's' : ''}
-                            </Text>
-                          </TouchableOpacity>
-                        )}
-                      </View>
-                    )}
-                  </View>
-
-                  {/* SECTION 2 : INSPIRATION CHEF IA EN 2 ÉTAPES (Besoin 2 + Solutions 1-2-4) */}
+                  {/* SECTION 1 : INSPIRATION CHEF IA EN 2 ÉTAPES (Besoin 2 + Solutions 1-2-4) */}
                   <View style={styles.card}>
                     <View style={styles.cardHeaderRow}>
                       <View style={[styles.cardIconBox, { backgroundColor: colors.secondary + '20' }]}>
@@ -880,6 +808,78 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
                         );
                       })}
                     </View>
+                  </View>
+
+                  {/* SECTION 2 : VÉRIFICATION DU CARNET (Besoin 1) */}
+                  <View style={styles.card}>
+                    <View style={styles.cardHeaderRow}>
+                      <View style={styles.cardIconBox}>
+                        <Ionicons name="book-outline" size={18} color={colors.primary} />
+                      </View>
+                      <View style={styles.cardTitleCol}>
+                        <Text style={styles.cardTitle}>Dans votre carnet</Text>
+                        <Text style={styles.cardSubtitle}>
+                          Recettes réalisables immédiatement avec vos stocks
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.carnetStatusRow}>
+                      <View style={styles.carnetStatBox}>
+                        <Text style={styles.carnetStatNumber}>{effectiveDoableCount}</Text>
+                        <Text style={styles.carnetStatLabel}>
+                          {effectiveDoableCount > 1 ? 'recettes prêtes' : 'recette prête'}
+                        </Text>
+                      </View>
+
+                      <View style={styles.carnetStatDescCol}>
+                        {effectiveDoableCount > 0 ? (
+                          <Text style={styles.carnetStatDescText}>
+                            Vous avez 100% des ingrédients requis (hors sel, poivre et huile du
+                            placard) pour ces recettes !
+                          </Text>
+                        ) : (
+                          <Text style={styles.carnetStatDescText}>
+                            Aucune recette ne correspond à 100% à votre stock actuel. Le Chef IA
+                            ci-dessus vous permet d'inventer des recettes sur-mesure !
+                          </Text>
+                        )}
+                      </View>
+                    </View>
+
+                    {effectiveDoableCount > 0 && (
+                      <View style={styles.carnetActionRow}>
+                        {isDoableFilterActive ? (
+                          <TouchableOpacity
+                            style={[styles.carnetBtn, styles.carnetBtnActive]}
+                            onPress={() => {
+                              onApplyDoableFilter(false);
+                              onClose();
+                            }}
+                            activeOpacity={0.8}
+                          >
+                            <Ionicons name="close-circle-outline" size={18} color={colors.danger} />
+                            <Text style={styles.carnetBtnTextActive}>
+                              Désactiver le filtre de stock
+                            </Text>
+                          </TouchableOpacity>
+                        ) : (
+                          <TouchableOpacity
+                            style={styles.carnetBtn}
+                            onPress={() => {
+                              onApplyDoableFilter(true);
+                              onClose();
+                            }}
+                            activeOpacity={0.8}
+                          >
+                            <Ionicons name="funnel" size={16} color="#FFFFFF" />
+                            <Text style={styles.carnetBtnText}>
+                              Voir mes {effectiveDoableCount} recette{effectiveDoableCount > 1 ? 's' : ''} faisable{effectiveDoableCount > 1 ? 's' : ''}
+                            </Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    )}
                   </View>
                 </>
               )}

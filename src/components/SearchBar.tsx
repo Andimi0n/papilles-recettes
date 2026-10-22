@@ -8,6 +8,7 @@ interface SearchBarProps {
   value: string;
   onChangeText: (text: string) => void;
   placeholder?: string;
+  onToggleStockFilter?: () => void;
   onOpenStockHub?: () => void;
   onOpenFridgeSearch?: () => void; // Compatibilité ascendante
   isStockFilterActive?: boolean;
@@ -21,6 +22,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   value,
   onChangeText,
   placeholder = 'Rechercher une recette ou un ingrédient...',
+  onToggleStockFilter,
   onOpenStockHub,
   onOpenFridgeSearch,
   isStockFilterActive = false,
@@ -32,7 +34,9 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   const { isDark, colors } = useTheme();
 
   const handleOpenStock = () => {
-    if (onOpenStockHub) {
+    if (onToggleStockFilter) {
+      onToggleStockFilter();
+    } else if (onOpenStockHub) {
       onOpenStockHub();
     } else if (onOpenFridgeSearch) {
       onOpenFridgeSearch();
@@ -78,7 +82,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
         )}
       </View>
 
-      {/* Bouton Cuisiner avec mon stock / Anti-gaspillage */}
+      {/* Bouton 1-Tap Stock / Filtrer recettes en stock */}
       <TouchableOpacity
         style={[
           styles.stockHubBtn,
@@ -86,12 +90,12 @@ export const SearchBar: React.FC<SearchBarProps> = ({
         ]}
         onPress={handleOpenStock}
         activeOpacity={0.75}
-        accessibilityLabel="Cuisiner avec mon stock et suggestions IA"
+        accessibilityLabel="Filtrer les recettes réalisables avec mon stock"
         accessibilityRole="button"
       >
         <Ionicons
-          name={isActive ? 'restaurant' : 'restaurant-outline'}
-          size={19}
+          name={isActive ? 'cube' : 'cube-outline'}
+          size={20}
           color={isActive ? '#FFFFFF' : colors.primary}
         />
 

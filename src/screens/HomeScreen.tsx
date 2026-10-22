@@ -30,6 +30,7 @@ import { CategoryPills } from '../components/CategoryPills';
 import { EmptyState } from '../components/EmptyState';
 import { StockCookModal } from '../components/StockCookModal';
 import { ImportMarmitonModal } from '../components/ImportMarmitonModal';
+import { ChefAiWidget } from '../components/ChefAiWidget';
 import { TodayMealWidget } from '../components/TodayMealWidget';
 import { QuickMealLogModal } from '../components/QuickMealLogModal';
 import { normalizeString, getLocalDateString } from '../utils/helpers';
@@ -528,23 +529,27 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     forceShowFilterBar();
   };
 
-  // En-tête de la liste défilante : "Ce que j'ai mangé aujourd'hui" (scrollable avec la liste), bandeau frigo et résumé des résultats
+  // En-tête de la liste défilante : Dongle Chef IA (scrollable avec la liste), bandeau frigo et résumé des résultats
   const listHeaderElement = useMemo(
     () => (
       <View style={styles.listHeaderContainer}>
-        {/* Widget Suivi des Repas du Jour (défile avec les cartes de recettes) */}
-        <TodayMealWidget
-          todayLunch={todayMeals.lunch}
-          todayDinner={todayMeals.dinner}
-          onPressSlot={handleOpenMealSlot}
-          onNavigateToJournal={onNavigateToJournal}
+        {/* Widget Inspirations Chef IA (défile avec les cartes de recettes) */}
+        <ChefAiWidget
+          stockCount={stockItems.length}
+          stockItems={stockItems}
+          doableCount={doableCount}
+          onOpenChefAi={() => {
+            loadStockItems().catch(() => {});
+            setIsStockModalVisible(true);
+          }}
+          onNavigateToStock={onNavigateToStock}
         />
 
         {/* Bandeau filtre Stock actif (recettes 100% faisables) */}
         {onlyDoableWithStock && (
           <View style={styles.stockActiveBanner}>
             <View style={styles.stockActiveLeft}>
-              <Ionicons name="restaurant" size={16} color={colors.primary} />
+              <Ionicons name="cube" size={16} color={colors.primary} />
               <Text style={styles.stockActiveText} numberOfLines={1}>
                 {doableCount > 1
                   ? `${doableCount} recettes prêtes avec votre stock`
@@ -740,7 +745,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             </View>
           </View>
 
-          {/* Barre de Recherche & Bouton Cuisiner avec mon stock */}
+          {/* Barre de Recherche & Bouton 1-Tap Stock */}
           <SearchBar
             value={searchQuery}
             onChangeText={(text) => {
@@ -752,10 +757,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               setSearchQuery('');
               forceShowFilterBar();
             }}
-            onOpenStockHub={() => {
-              setIsStockModalVisible(true);
-              loadStockItems().catch(() => {});
-            }}
+            onToggleStockFilter={handleToggleDoableFilter}
             isStockFilterActive={onlyDoableWithStock}
             stockCount={stockItems.length}
             doableRecipesCount={doableCount}

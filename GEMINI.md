@@ -26,7 +26,8 @@
   - **100% Doable Recipes Filter**: High-performance matching engine (`stockMatcher.ts`) evaluating recipe feasibility against active on-hand pantry/fridge stock (`isDoable`). A recipe is doable when all non-optional ingredients are either in stock (matched via canonical IDs, exact names, stemming, aliases, and tokenized whole-word set matching) or are common pantry staples (`isPantryStaple` / salt, pepper, oil, water, basic spices).
   - **Sub-millisecond Performance & Indexing Engine**: Zero regex compilation overhead in matching loops, pre-indexed stock lookup (`canonicalIdMap`, `canonicalNameMap`, `normalizedNameMap`, `stemmedNameMap`, `wordsMap`), normalization caching (`NORMALIZATION_CACHE` in `ingredientNormalizer.ts`), and pre-calculated doable counts passed to `StockCookModal` eliminating any UI freeze or JS thread stalling.
   - **1-Tap Filter in Filter Bar & List Header**: Filter bar features a dedicated `En stock (X)` tool pill with live doable count, and an active banner in the list header to clear or toggle with 1 tap.
-  - **Modernized Stock Action Hub**: Completely replaces legacy fork-knife button next to the search bar with an interactive culinary hub button featuring dynamic doable recipe count badges, active checkmark status, and opening `StockCookModal`.
+  - **Modernized 1-Tap Stock Button**: Dedicated 1-tap stock filter button (`cube-outline` / `cube`) next to the search bar featuring dynamic doable recipe count badges and active checkmark status, instantly toggling the doable recipes filter on/off without modal indirection.
+  - **Chef IA Home Widget ("Inspirations du Chef IA")**: Scrollable culinary feed widget (`ChefAiWidget`) positioned right beneath the filter bar, displaying active stock counts, sample ingredient chips, and a 1-tap call-to-action opening the Chef IA flow in `StockCookModal`. (Legacy `TodayMealWidget` is preserved in codebase for immediate rollback if needed).
   - **Non-Redundant AI Recipe Generator with 2-Step Inspiration & Multi-Model Fallback (Solutions 1, 2 & 4)**:
     - **Step 1 ("3 Idées du Chef IA")**: Tapping "💡 Trouver 3 idées" sends an ultralight request (< 300 output tokens) returning 3 bespoke recipe suggestions (simple, sober title without pompous adjectives, factual 1-sentence pitch, estimated time, highlight stock ingredients) with 0 latency or risk of overload.
     - **Step 2 (Interactive Recipe Realization)**: The user browses the 3 proposals on interactive cards and taps "Cuisiner cette recette →" to generate the full recipe with scaled servings, exact ingredient amounts, and concise, quick-to-read steps (1-2 sentences per step, 4-6 steps max).
@@ -160,7 +161,8 @@ papilles-recettes/
     │   ├── MealSlotPickerModal.tsx # Calendar slot picker (Lunch/Dinner)
     │   ├── ImportMarmitonModal.tsx # Marmiton import input dialog
     │   ├── QuickMealLogModal.tsx # Fast modal for freeform lunch/dinner entry
-    │   ├── TodayMealWidget.tsx   # Home screen widget for today's lunch/dinner tracking
+    │   ├── TodayMealWidget.tsx   # Home screen widget for today's lunch/dinner tracking (preserved)
+    │   ├── ChefAiWidget.tsx      # Home screen feed widget for Chef AI inspiration & stock teaser
     │   ├── IngredientAutocompleteInput.tsx # Predictive dropdown input for canonical ingredients
     │   └── VocabularyManagerModal.tsx # Vocabulary management modal (CRUD, merge, aisles)
     └── screens/                # Main feature screens
