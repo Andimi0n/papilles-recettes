@@ -15,7 +15,7 @@ import {
   NativeScrollEvent,
   Alert,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Recipe, Category, SortOption } from '../types/recipe';
 import { MealLogEntry } from '../types/mealLog';
 import { MealTime } from '../types/planner';
@@ -549,7 +549,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         {onlyDoableWithStock && (
           <View style={styles.stockActiveBanner}>
             <View style={styles.stockActiveLeft}>
-              <Ionicons name="cube" size={16} color={colors.primary} />
+              <MaterialCommunityIcons name="fridge" size={17} color={colors.primary} />
               <Text style={styles.stockActiveText} numberOfLines={1}>
                 {doableCount > 1
                   ? `${doableCount} recettes prêtes avec votre stock`

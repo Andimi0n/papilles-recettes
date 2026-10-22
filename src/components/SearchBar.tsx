@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, TextInput, TouchableOpacity, Text } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { createDynamicStyles } from '../theme/colors';
 import { useTheme } from '../theme/ThemeContext';
 
@@ -93,9 +93,9 @@ export const SearchBar: React.FC<SearchBarProps> = ({
         accessibilityLabel="Filtrer les recettes réalisables avec mon stock"
         accessibilityRole="button"
       >
-        <Ionicons
-          name={isActive ? 'cube' : 'cube-outline'}
-          size={20}
+        <MaterialCommunityIcons
+          name={isActive ? 'fridge' : 'fridge-outline'}
+          size={22}
           color={isActive ? '#FFFFFF' : colors.primary}
         />
 
