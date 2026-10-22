@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { Recipe, Category, SortOption } from '../types/recipe';
+import { Recipe, Category, SortOption, Difficulty } from '../types/recipe';
 import { MealLogEntry } from '../types/mealLog';
 import { MealTime } from '../types/planner';
 import { FridgeItem } from '../types/fridge';
@@ -29,12 +29,19 @@ import { SearchBar } from '../components/SearchBar';
 import { CategoryPills } from '../components/CategoryPills';
 import { EmptyState } from '../components/EmptyState';
 import { StockCookModal } from '../components/StockCookModal';
+import { AdvancedFiltersModal } from '../components/AdvancedFiltersModal';
 import { ImportMarmitonModal } from '../components/ImportMarmitonModal';
 import { ChefAiWidget } from '../components/ChefAiWidget';
 import { TodayMealWidget } from '../components/TodayMealWidget';
 import { QuickMealLogModal } from '../components/QuickMealLogModal';
 import { normalizeString, getLocalDateString } from '../utils/helpers';
-import { searchRecipes, RecipeSearchResult } from '../utils/searchEngine';
+import {
+  searchRecipes,
+  RecipeSearchResult,
+  recipeMatchesIngredients,
+  recipeMatchesMaxTime,
+  recipeMatchesDifficulty,
+} from '../utils/searchEngine';
 import { evaluateRecipesWithStock, RecipeStockEvaluation } from '../utils/stockMatcher';
 
 const RECIPES_PER_PAGE = 20;
@@ -81,10 +88,22 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const flatListRef = useRef<FlatList<Recipe>>(null);
   const [selectedCategories, setSelectedCategories] = useState<Category[]>([]);
   const [selectedIngredients, setSelectedIngredients] = useState<string[]>([]);
+  const [maxTotalTime, setMaxTotalTime] = useState<number | null>(null);
+  const [selectedDifficulties, setSelectedDifficulties] = useState<Difficulty[]>([]);
+  const [ingredientMatchMode, setIngredientMatchMode] = useState<'all' | 'any'>('all');
+  const [isAdvancedFiltersModalVisible, setIsAdvancedFiltersModalVisible] = useState(false);
   const [sortBy, setSortBy] = useState<SortOption>('rating_desc');
   const [minRatingFilter, setMinRatingFilter] = useState<number>(0);
   const [onlyVegetarian, setOnlyVegetarian] = useState(false);
   const [onlyDoableWithStock, setOnlyDoableWithStock] = useState(initialOnlyDoable);
+
+  const activeAdvancedFiltersCount = useMemo(() => {
+    let count = 0;
+    if (maxTotalTime !== null) count++;
+    if (selectedDifficulties.length > 0) count++;
+    if (selectedIngredients.length > 0) count++;
+    return count;
+  }, [maxTotalTime, selectedDifficulties.length, selectedIngredients.length]);
 
   useEffect(() => {
     if (initialOnlyDoable) {
@@ -406,15 +425,21 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       result = result.filter((r) => r.recipe.rating >= minRatingFilter);
     }
 
-    // Recherche par ingrédients sélectionnés (Le Frigo)
+    // Recherche par ingrédients sélectionnés (Filtres avancés)
     if (selectedIngredients.length > 0) {
-      const normSelected = selectedIngredients.map(normalizeString);
       result = result.filter((r) =>
-        r.recipe.ingredients.some((ing) => {
-          const normIng = normalizeString(ing.name);
-          return normSelected.some((sel) => normIng.includes(sel) || sel.includes(normIng));
-        })
+        recipeMatchesIngredients(r.recipe, selectedIngredients, ingredientMatchMode)
       );
+    }
+
+    // Temps total max (préparation + cuisson)
+    if (maxTotalTime !== null) {
+      result = result.filter((r) => recipeMatchesMaxTime(r.recipe, maxTotalTime));
+    }
+
+    // Niveau de difficulté
+    if (selectedDifficulties.length > 0) {
+      result = result.filter((r) => recipeMatchesDifficulty(r.recipe, selectedDifficulties));
     }
 
     // Tri
@@ -457,6 +482,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     searchQuery,
     selectedCategories,
     selectedIngredients,
+    ingredientMatchMode,
+    maxTotalTime,
+    selectedDifficulties,
     minRatingFilter,
     onlyVegetarian,
     onlyDoableWithStock,
@@ -471,6 +499,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     searchQuery,
     selectedCategories,
     selectedIngredients,
+    ingredientMatchMode,
+    maxTotalTime,
+    selectedDifficulties,
     sortBy,
     minRatingFilter,
     onlyVegetarian,
@@ -529,6 +560,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     setSearchQuery('');
     setSelectedCategories([]);
     setSelectedIngredients([]);
+    setMaxTotalTime(null);
+    setSelectedDifficulties([]);
+    setIngredientMatchMode('all');
     setMinRatingFilter(0);
     setOnlyVegetarian(false);
     setOnlyDoableWithStock(false);
@@ -573,20 +607,74 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           </View>
         )}
 
-        {/* Bandeau filtre Ingrédients / Frigo actif */}
-        {selectedIngredients.length > 0 && (
-          <View style={styles.fridgeActiveBanner}>
-            <View style={styles.fridgeActiveLeft}>
-              <Ionicons name="nutrition" size={16} color={colors.secondary} />
-              <Text style={styles.fridgeActiveText} numberOfLines={1}>
-                Dans votre frigo : {selectedIngredients.join(', ')}
-              </Text>
+        {/* Bandeau filtres avancés actifs (Temps max, Difficulté, Ingrédients) */}
+        {(maxTotalTime !== null ||
+          selectedDifficulties.length > 0 ||
+          selectedIngredients.length > 0) && (
+          <View style={styles.advancedFiltersActiveBanner}>
+            <View style={styles.advancedFiltersActiveLeft}>
+              <Ionicons name="options" size={16} color={colors.primary} style={{ marginRight: 6 }} />
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.activePillsScroll}
+              >
+                {maxTotalTime !== null && (
+                  <View style={styles.activePillChip}>
+                    <Ionicons name="time-outline" size={12} color={colors.primary} />
+                    <Text style={styles.activePillChipText}>≤ {maxTotalTime} min</Text>
+                    <TouchableOpacity
+                      onPress={() => setMaxTotalTime(null)}
+                      hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                    >
+                      <Ionicons name="close-circle" size={14} color={colors.textSecondary} />
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {selectedDifficulties.length > 0 && (
+                  <View style={styles.activePillChip}>
+                    <Ionicons name="bar-chart-outline" size={12} color={colors.primary} />
+                    <Text style={styles.activePillChipText}>
+                      {selectedDifficulties.join(', ')}
+                    </Text>
+                    <TouchableOpacity
+                      onPress={() => setSelectedDifficulties([])}
+                      hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                    >
+                      <Ionicons name="close-circle" size={14} color={colors.textSecondary} />
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {selectedIngredients.length > 0 && (
+                  <View style={styles.activePillChip}>
+                    <Ionicons name="nutrition-outline" size={12} color={colors.secondary} />
+                    <Text style={styles.activePillChipText}>
+                      {ingredientMatchMode === 'all' ? 'Avec (ET) : ' : 'Avec (OU) : '}
+                      {selectedIngredients.join(', ')}
+                    </Text>
+                    <TouchableOpacity
+                      onPress={() => setSelectedIngredients([])}
+                      hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                    >
+                      <Ionicons name="close-circle" size={14} color={colors.textSecondary} />
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </ScrollView>
             </View>
+
             <TouchableOpacity
-              onPress={() => setSelectedIngredients([])}
+              onPress={() => {
+                setMaxTotalTime(null);
+                setSelectedDifficulties([]);
+                setSelectedIngredients([]);
+              }}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityLabel="Réinitialiser les filtres avancés"
             >
-              <Ionicons name="close-circle" size={18} color={colors.textSecondary} />
+              <Text style={styles.clearAdvancedText}>Effacer</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -610,6 +698,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     [
       todayMeals,
       selectedIngredients,
+      maxTotalTime,
+      selectedDifficulties,
+      ingredientMatchMode,
       onlyDoableWithStock,
       doableCount,
       filteredRecipes.length,
@@ -755,7 +846,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             </View>
           </View>
 
-          {/* Barre de Recherche & Bouton 1-Tap Stock */}
+          {/* Barre de Recherche & Bouton Filtres Avancés (Famille 2) */}
           <SearchBar
             value={searchQuery}
             onChangeText={(text) => {
@@ -767,11 +858,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               setSearchQuery('');
               forceShowFilterBar();
             }}
-            onToggleStockFilter={handleToggleDoableFilter}
-            isStockFilterActive={onlyDoableWithStock}
-            stockCount={stockItems.length}
-            doableRecipesCount={doableCount}
-            activeIngredientsCount={selectedIngredients.length}
+            onOpenAdvancedFilters={() => setIsAdvancedFiltersModalVisible(true)}
+            activeFiltersCount={activeAdvancedFiltersCount}
           />
         </View>
 
@@ -1134,6 +1222,46 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           </View>
         </Modal>
 
+        {/* Modal Filtres Avancés (Famille 2 : Ingrédients, Temps max, Difficulté, Régime) */}
+        <AdvancedFiltersModal
+          visible={isAdvancedFiltersModalVisible}
+          onClose={() => setIsAdvancedFiltersModalVisible(false)}
+          onApply={({
+            maxTotalTime: newMaxTime,
+            difficulties: newDifficulties,
+            selectedIngredients: newIngredients,
+            ingredientMatchMode: newMatchMode,
+            onlyVegetarian: newVegetarian,
+            minRating: newMinRating,
+            onlyDoableWithStock: newDoable,
+          }) => {
+            setMaxTotalTime(newMaxTime);
+            setSelectedDifficulties(newDifficulties);
+            setSelectedIngredients(newIngredients);
+            setIngredientMatchMode(newMatchMode);
+            if (newVegetarian !== undefined) setOnlyVegetarian(newVegetarian);
+            if (newMinRating !== undefined) setMinRatingFilter(newMinRating);
+            if (newDoable !== undefined) setOnlyDoableWithStock(newDoable);
+          }}
+          onReset={() => {
+            setMaxTotalTime(null);
+            setSelectedDifficulties([]);
+            setSelectedIngredients([]);
+            setIngredientMatchMode('all');
+          }}
+          maxTotalTime={maxTotalTime}
+          difficulties={selectedDifficulties}
+          selectedIngredients={selectedIngredients}
+          ingredientMatchMode={ingredientMatchMode}
+          onlyVegetarian={onlyVegetarian}
+          minRating={minRatingFilter}
+          onlyDoableWithStock={onlyDoableWithStock}
+          recipes={recipes}
+          doableRecipesMap={doableRecipesMap}
+          selectedCategories={selectedCategories}
+          searchQuery={searchQuery}
+        />
+
         {/* Modal Cuisiner avec mon stock & suggestions Chef IA */}
         <StockCookModal
           visible={isStockModalVisible}
@@ -1344,6 +1472,53 @@ const styles = createDynamicStyles((colors, shadows) => ({
     color: colors.primary,
     fontWeight: '700',
     flex: 1,
+  },
+  advancedFiltersActiveBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.primaryLight,
+    marginHorizontal: 16,
+    marginTop: 4,
+    marginBottom: 8,
+    paddingVertical: 7,
+    paddingHorizontal: 10,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.primary + '33',
+  },
+  advancedFiltersActiveLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 8,
+  },
+  activePillsScroll: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  activePillChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.cardBackground,
+    paddingHorizontal: 8,
+    paddingVertical: 3.5,
+    borderRadius: 10,
+    gap: 5,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  activePillChipText: {
+    fontSize: 11.5,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  clearAdvancedText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: colors.primary,
+    paddingHorizontal: 4,
   },
   fridgeActiveBanner: {
     flexDirection: 'row',

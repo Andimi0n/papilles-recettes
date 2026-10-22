@@ -1,4 +1,4 @@
-import { Recipe } from '../types/recipe';
+import { Recipe, Difficulty } from '../types/recipe';
 import { normalizeString } from './helpers';
 
 /**
@@ -415,4 +415,54 @@ export function searchRecipes(recipes: Recipe[], queryString: string): RecipeSea
   results.sort((a, b) => b.score - a.score);
 
   return results;
+}
+
+/**
+ * Vérifie si une recette contient un ingrédient donné (par son nom ou un synonyme).
+ */
+export function recipeContainsIngredient(recipe: Recipe, targetIngredient: string): boolean {
+  if (!targetIngredient || !targetIngredient.trim()) return true;
+  const targetTokens = tokenizeText(targetIngredient);
+  if (targetTokens.length === 0) return true;
+
+  // Récupérer les tokens de chaque ingrédient de la recette
+  return recipe.ingredients.some((ing) => {
+    const ingTokens = tokenizeText(ing.name);
+    // Chaque token de l'ingrédient recherché doit matcher au moins un token de l'ingrédient de la recette
+    return targetTokens.every((tToken) => tokenMatchesTargetTokens(tToken, ingTokens));
+  });
+}
+
+/**
+ * Vérifie si une recette correspond à une liste d'ingrédients ciblés selon le mode 'all' (ET) ou 'any' (OU).
+ */
+export function recipeMatchesIngredients(
+  recipe: Recipe,
+  targetIngredients: string[],
+  mode: 'all' | 'any' = 'all'
+): boolean {
+  if (!targetIngredients || targetIngredients.length === 0) return true;
+
+  if (mode === 'all') {
+    return targetIngredients.every((target) => recipeContainsIngredient(recipe, target));
+  } else {
+    return targetIngredients.some((target) => recipeContainsIngredient(recipe, target));
+  }
+}
+
+/**
+ * Vérifie si le temps total d'une recette (préparation + cuisson) est inférieur ou égal au maximum spécifié.
+ */
+export function recipeMatchesMaxTime(recipe: Recipe, maxTotalMinutes: number | null): boolean {
+  if (maxTotalMinutes === null || maxTotalMinutes === undefined) return true;
+  const total = (recipe.prepTimeMinutes || 0) + (recipe.cookTimeMinutes || 0);
+  return total <= maxTotalMinutes;
+}
+
+/**
+ * Vérifie si la difficulté d'une recette correspond à une des difficultés sélectionnées.
+ */
+export function recipeMatchesDifficulty(recipe: Recipe, difficulties: Difficulty[]): boolean {
+  if (!difficulties || difficulties.length === 0) return true;
+  return difficulties.includes(recipe.difficulty);
 }
