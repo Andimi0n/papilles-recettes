@@ -80,8 +80,6 @@ function AppContent() {
 
   const selectedRecipe = recipes.find((r) => r.id === selectedRecipeId) || null;
 
-  const [scanInitialMode, setScanInitialMode] = useState<'photo' | 'text'>('photo');
-
   // Actions de navigation
   const navigateToDetail = (recipe: Recipe, fromScreen: 'home' | 'planner' | 'shopping' = 'home') => {
     setSelectedRecipeId(recipe.id);
@@ -94,8 +92,12 @@ function AppContent() {
     setCurrentScreen('form');
   };
 
-  const navigateToScan = (initialMode: 'photo' | 'text' = 'photo') => {
-    setScanInitialMode(initialMode);
+  const navigateToAddRecipe = () => {
+    setEditingRecipe(null);
+    setCurrentScreen('form');
+  };
+
+  const navigateToScan = () => {
     setCurrentScreen('scan');
   };
 
@@ -109,10 +111,13 @@ function AppContent() {
     setCurrentScreen('form');
   };
 
-  const navigateToHome = () => {
+  const [initialHomeDoableFilter, setInitialHomeDoableFilter] = useState(false);
+
+  const navigateToHome = (options?: { onlyDoable?: boolean }) => {
     setCurrentScreen('home');
     setSelectedRecipeId(null);
     setEditingRecipe(null);
+    setInitialHomeDoableFilter(Boolean(options?.onlyDoable));
   };
 
   const [plannerInitialTab, setPlannerInitialTab] = useState<'journal' | 'planner'>('journal');
@@ -188,13 +193,14 @@ function AppContent() {
             <HomeScreen
               recipes={recipes}
               onSelectRecipe={(r) => navigateToDetail(r, 'home')}
-              onAddNewRecipe={navigateToCreate}
+              onAddNewRecipe={navigateToAddRecipe}
               onScanRecipe={navigateToScan}
               onImportRecipe={handleRecipeExtracted}
               onQuickRate={handleUpdateRating}
               onOpenSettings={() => setCurrentScreen('settings')}
               onNavigateToJournal={navigateToJournal}
               onNavigateToStock={() => navigateToShopping('fridge')}
+              initialOnlyDoable={initialHomeDoableFilter}
             />
           )}
 
@@ -227,8 +233,7 @@ function AppContent() {
           {/* Écrans Secondaires (pleine page) */}
           {currentScreen === 'scan' && (
             <ScanRecipeScreen
-              initialMode={scanInitialMode}
-              onBack={navigateToHome}
+              onBack={() => navigateToHome()}
               onRecipeExtracted={handleRecipeExtracted}
             />
           )}
@@ -267,7 +272,7 @@ function AppContent() {
           <View style={styles.bottomTabBar}>
             <TouchableOpacity
               style={styles.tabItem}
-              onPress={navigateToHome}
+              onPress={() => navigateToHome()}
               activeOpacity={0.7}
             >
               <Ionicons

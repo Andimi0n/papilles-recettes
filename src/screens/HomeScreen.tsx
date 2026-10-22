@@ -5,7 +5,6 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  SafeAreaView,
   Modal,
   ScrollView,
   Platform,
@@ -15,6 +14,7 @@ import {
   NativeScrollEvent,
   Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Recipe, Category, SortOption } from '../types/recipe';
 import { MealLogEntry } from '../types/mealLog';
@@ -60,6 +60,7 @@ interface HomeScreenProps {
   onOpenSettings?: () => void;
   onNavigateToJournal?: () => void;
   onNavigateToStock?: () => void;
+  initialOnlyDoable?: boolean;
 }
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({
@@ -72,6 +73,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   onOpenSettings,
   onNavigateToJournal,
   onNavigateToStock,
+  initialOnlyDoable = false,
 }) => {
   const { isDark, colors, themeId } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
@@ -82,13 +84,18 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const [sortBy, setSortBy] = useState<SortOption>('rating_desc');
   const [minRatingFilter, setMinRatingFilter] = useState<number>(0);
   const [onlyVegetarian, setOnlyVegetarian] = useState(false);
-  const [onlyDoableWithStock, setOnlyDoableWithStock] = useState(false);
+  const [onlyDoableWithStock, setOnlyDoableWithStock] = useState(initialOnlyDoable);
+
+  useEffect(() => {
+    if (initialOnlyDoable) {
+      setOnlyDoableWithStock(true);
+    }
+  }, [initialOnlyDoable]);
   const [stockItems, setStockItems] = useState<FridgeItem[]>([]);
   const [isStockModalVisible, setIsStockModalVisible] = useState(false);
   const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
   const [isRatingModalVisible, setIsRatingModalVisible] = useState(false);
   const [isMarmitonModalVisible, setIsMarmitonModalVisible] = useState(false);
-  const [isAiChoiceModalVisible, setIsAiChoiceModalVisible] = useState(false);
 
   // Double bandeau de filtres rétractable au défilement (haute performance, 60fps via useNativeDriver)
   const FILTER_BAR_HEIGHT = 88;
@@ -690,7 +697,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   );
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
       <View style={styles.container}>
         {/* En-tête supérieur FIXE (reste en haut lors du défilement, NE perd jamais le focus pendant la frappe) */}
         <View style={styles.fixedTopHeader}>
@@ -711,26 +718,28 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               </View>
             </View>
 
-            {/* Actions rapides empilées à la verticale */}
+            {/* Actions rapides empilées à la verticale : Marmiton, Scan, Ajouter */}
             <View style={styles.topActionsCol}>
               {/* Marmiton */}
               <TouchableOpacity
                 style={styles.marmitonBtn}
                 onPress={() => setIsMarmitonModalVisible(true)}
                 activeOpacity={0.8}
+                accessibilityLabel="Importer depuis Marmiton"
               >
                 <Ionicons name="globe-outline" size={12} color={colors.primary} />
                 <Text style={styles.marmitonBtnText}>Marmiton</Text>
               </TouchableOpacity>
 
-              {/* Scan & IA */}
+              {/* Scan */}
               <TouchableOpacity
                 style={styles.scanBtn}
-                onPress={() => setIsAiChoiceModalVisible(true)}
+                onPress={() => onScanRecipe('photo')}
                 activeOpacity={0.8}
+                accessibilityLabel="Scanner une photo de recette"
               >
-                <Ionicons name="sparkles" size={12} color={colors.primary} />
-                <Text style={styles.scanBtnText}>Scan & IA</Text>
+                <Ionicons name="camera-outline" size={12} color={colors.primary} />
+                <Text style={styles.scanBtnText}>Scan</Text>
               </TouchableOpacity>
 
               {/* Ajouter */}
@@ -738,6 +747,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 style={styles.addBtn}
                 onPress={onAddNewRecipe}
                 activeOpacity={0.8}
+                accessibilityLabel="Ajouter une recette"
               >
                 <Ionicons name="add" size={15} color="#FFFFFF" />
                 <Text style={styles.addBtnText}>Ajouter</Text>
@@ -1153,95 +1163,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             }
           }}
         />
-
-        {/* Modal Choix Assistant IA (Scan Photo ou Coller Texte) */}
-        <Modal
-          visible={isAiChoiceModalVisible}
-          transparent={true}
-          animationType="fade"
-          onRequestClose={() => setIsAiChoiceModalVisible(false)}
-        >
-          <View style={styles.aiModalBackdrop}>
-            <View style={styles.aiModalBox}>
-              <View style={styles.aiModalHeader}>
-                <View style={styles.aiModalTitleRow}>
-                  <Ionicons name="sparkles" size={20} color={Colors.primary} />
-                  <Text style={styles.aiModalTitle}>Ajouter avec l'IA</Text>
-                </View>
-                <TouchableOpacity
-                  onPress={() => setIsAiChoiceModalVisible(false)}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  <Ionicons name="close" size={20} color={Colors.textSecondary} />
-                </TouchableOpacity>
-              </View>
-
-              <Text style={styles.aiModalSubtitle}>
-                Choisissez votre méthode d'importation assistée par IA :
-              </Text>
-
-              {/* Option 1: Scanner une photo */}
-              <TouchableOpacity
-                style={styles.aiOptionCard}
-                onPress={() => {
-                  setIsAiChoiceModalVisible(false);
-                  onScanRecipe('photo');
-                }}
-                activeOpacity={0.8}
-              >
-                <View style={[styles.aiOptionIconCircle, { backgroundColor: Colors.primaryLight }]}>
-                  <Ionicons name="camera" size={24} color={Colors.primary} />
-                </View>
-                <View style={styles.aiOptionContent}>
-                  <View style={styles.aiOptionTitleRow}>
-                    <Text style={styles.aiOptionTitle}>Scanner une photo</Text>
-                    <View style={styles.aiOptionTag}>
-                      <Text style={styles.aiOptionTagText}>Photo</Text>
-                    </View>
-                  </View>
-                  <Text style={styles.aiOptionDescription}>
-                    Photographiez un livre de cuisine, une fiche repas ou vos carnets manuscrits.
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
-              </TouchableOpacity>
-
-              {/* Option 2: Coller du texte brut */}
-              <TouchableOpacity
-                style={styles.aiOptionCard}
-                onPress={() => {
-                  setIsAiChoiceModalVisible(false);
-                  onScanRecipe('text');
-                }}
-                activeOpacity={0.8}
-              >
-                <View style={[styles.aiOptionIconCircle, { backgroundColor: Colors.secondaryLight }]}>
-                  <Ionicons name="document-text" size={24} color={Colors.secondary} />
-                </View>
-                <View style={styles.aiOptionContent}>
-                  <View style={styles.aiOptionTitleRow}>
-                    <Text style={styles.aiOptionTitle}>Coller du texte brut</Text>
-                    <View style={[styles.aiOptionTag, { backgroundColor: Colors.secondaryLight }]}>
-                      <Text style={[styles.aiOptionTagText, { color: Colors.secondary }]}>Autocomplétion</Text>
-                    </View>
-                  </View>
-                  <Text style={styles.aiOptionDescription}>
-                    Collez des notes, un message WhatsApp ou une recette brute. L'IA déduit et complète les portions, temps et étapes.
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.aiModalCloseBtn}
-                onPress={() => setIsAiChoiceModalVisible(false)}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.aiModalCloseBtnText}>Annuler</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
 
         {/* Modal Saisie Rapide Libre pour le suivi des repas du jour */}
         <QuickMealLogModal

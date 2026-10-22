@@ -7,7 +7,6 @@ import {
   ScrollView,
   Alert,
   Modal,
-  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { FridgeItem } from '../types/fridge';
@@ -18,7 +17,7 @@ import { StorageService } from '../services/storageService';
 import { createDynamicStyles } from '../theme/colors';
 import { useTheme } from '../theme/ThemeContext';
 import { AISLE_CONFIGS, ALL_AISLES, classifyIngredientAisle } from '../utils/aisleClassifier';
-import { searchRecipes, RecipeSearchResult } from '../utils/searchEngine';
+import { evaluateRecipesWithStock, RecipeStockEvaluation } from '../utils/stockMatcher';
 import { normalizeString } from '../utils/helpers';
 import { normalizeIngredient } from '../utils/ingredientNormalizer';
 import { VocabularyService } from '../services/vocabularyService';
@@ -30,6 +29,7 @@ interface FridgeStockViewProps {
   onNavigateToShopping?: () => void;
   onItemCopiedToShopping?: (name: string) => void;
   onFridgeCountChange?: (count: number) => void;
+  onNavigateToDoableRecipes?: () => void;
 }
 
 const CANONICAL_QUICK_SUGGESTIONS = [
@@ -66,6 +66,7 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
   onNavigateToShopping,
   onItemCopiedToShopping,
   onFridgeCountChange,
+  onNavigateToDoableRecipes,
 }) => {
   const { isDark, colors } = useTheme();
   const [items, setItems] = useState<FridgeItem[]>([]);
@@ -73,7 +74,6 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
   const [newItemName, setNewItemName] = useState('');
   const [selectedAisle, setSelectedAisle] = useState<ShoppingAisle | null>(null);
   const [isAislePickerVisible, setIsAislePickerVisible] = useState(false);
-  const [isMatchingModalVisible, setIsMatchingModalVisible] = useState(false);
   const [justCopiedId, setJustCopiedId] = useState<string | null>(null);
   const [canonicalVocabulary, setCanonicalVocabulary] = useState<CanonicalIngredient[]>(() =>
     VocabularyService.getSyncList()
@@ -131,20 +131,20 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
     return result;
   }, [items]);
 
-  // Ingrédients présents dans les étagères
-  const stockIngredientNames = useMemo(() => {
-    return items.map((i) => i.name.trim());
-  }, [items]);
-
-  // Recettes correspondantes aux ingrédients en stock
-  const matchingRecipes: RecipeSearchResult[] = useMemo(() => {
-    if (stockIngredientNames.length === 0 || recipes.length === 0) {
-      return [];
+  // Nombre de recettes 100% faisables avec le stock actuel (même fonctionnement que le bouton En stock)
+  const doableRecipesCount = useMemo(() => {
+    if (items.length === 0 || recipes.length === 0) {
+      return 0;
     }
-    const query = stockIngredientNames.join(' ');
-    const results = searchRecipes(recipes, query);
-    return results.filter((res) => res.matchedIngredients && res.matchedIngredients.length > 0);
-  }, [recipes, stockIngredientNames]);
+    const evaluations = evaluateRecipesWithStock(recipes, items, {
+      assumePantryStaplesAvailable: true,
+    });
+    let count = 0;
+    evaluations.forEach((ev) => {
+      if (ev.isDoable) count++;
+    });
+    return count;
+  }, [recipes, items]);
 
   // Suggestions rapides d'indispensables non encore ajoutés au stock (100% raccord avec le lexique canonique)
   const availableSuggestions: CanonicalIngredient[] = useMemo(() => {
@@ -384,34 +384,49 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Bannière "Que cuisiner aujourd'hui ?" au-dessus des ingrédients, défile avec le contenu */}
+        {/* Bannière "Que cuisiner aujourd'hui ?" au-dessus des ingrédients, redirige vers l'accueil avec filtre en stock */}
         {totalCount > 0 && (
           <TouchableOpacity
-            style={styles.smartCookBanner}
+            style={[
+              styles.smartCookBanner,
+              doableRecipesCount === 0 && styles.smartCookBannerDisabled,
+            ]}
             onPress={() => {
-              if (matchingRecipes.length > 0) {
-                setIsMatchingModalVisible(true);
+              if (doableRecipesCount > 0) {
+                if (onNavigateToDoableRecipes) {
+                  onNavigateToDoableRecipes();
+                }
+              } else {
+                Alert.alert(
+                  'Aucune recette 100% réalisable',
+                  'Aucune recette de votre carnet ne peut être cuisinée à 100% avec vos étagères actuelles (hors fonds de placard).\n\nAjoutez quelques ingrédients supplémentaires pour débloquer des recettes !'
+                );
               }
             }}
-            activeOpacity={matchingRecipes.length > 0 ? 0.8 : 1}
+            activeOpacity={doableRecipesCount > 0 ? 0.8 : 0.6}
           >
             <View style={styles.smartCookLeft}>
-              <View style={styles.smartCookIconBox}>
+              <View
+                style={[
+                  styles.smartCookIconBox,
+                  doableRecipesCount === 0 && styles.smartCookIconBoxMuted,
+                ]}
+              >
                 <Ionicons name="restaurant" size={20} color="#FFFFFF" />
               </View>
               <View style={styles.smartCookTextCol}>
                 <Text style={styles.smartCookTitle}>Que cuisiner aujourd'hui ?</Text>
                 <Text style={styles.smartCookSubtitle}>
-                  {matchingRecipes.length > 0
-                    ? `${matchingRecipes.length} recette${matchingRecipes.length > 1 ? 's' : ''} correspondent à votre stock`
-                    : 'Ajoutez encore quelques ingrédients pour voir des idées'}
+                  {doableRecipesCount > 0
+                    ? `${doableRecipesCount} recette${doableRecipesCount > 1 ? 's' : ''} 100% faisable${doableRecipesCount > 1 ? 's' : ''} avec votre stock`
+                    : 'Aucune recette 100% faisable avec ce stock'}
                 </Text>
               </View>
             </View>
 
-            {matchingRecipes.length > 0 && (
+            {doableRecipesCount > 0 && (
               <View style={styles.smartCookBtn}>
-                <Text style={styles.smartCookBtnText}>Voir</Text>
+                <Text style={styles.smartCookBtnText}>Voir mes recettes</Text>
                 <Ionicons name="arrow-forward" size={14} color="#FFFFFF" />
               </View>
             )}
@@ -515,91 +530,6 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
           })
         )}
       </ScrollView>
-
-      {/* Modal des recettes réalisables avec votre stock */}
-      <Modal
-        visible={isMatchingModalVisible}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setIsMatchingModalVisible(false)}
-      >
-        <View style={styles.modalContent}>
-          <View style={styles.modalHeader}>
-            <View>
-              <Text style={styles.modalTitle}>Recettes avec vos étagères</Text>
-              <Text style={styles.modalSubtitle}>
-                {matchingRecipes.length} recette{matchingRecipes.length > 1 ? 's' : ''} réalisable
-                {matchingRecipes.length > 1 ? 's' : ''}
-              </Text>
-            </View>
-            <TouchableOpacity
-              style={styles.modalCloseIconBtn}
-              onPress={() => setIsMatchingModalVisible(false)}
-            >
-              <Ionicons name="close" size={24} color={colors.textPrimary} />
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView style={styles.matchingListScroll} showsVerticalScrollIndicator={false}>
-            {matchingRecipes.map(({ recipe, matchedIngredients }) => (
-              <TouchableOpacity
-                key={recipe.id}
-                style={styles.matchingRecipeCard}
-                onPress={() => {
-                  setIsMatchingModalVisible(false);
-                  if (onSelectRecipe) {
-                    onSelectRecipe(recipe);
-                  }
-                }}
-                activeOpacity={0.85}
-              >
-                {recipe.imageUrl ? (
-                  <Image source={{ uri: recipe.imageUrl }} style={styles.matchingRecipeImage} />
-                ) : (
-                  <View style={styles.matchingRecipePlaceholder}>
-                    <Ionicons name="restaurant-outline" size={28} color={colors.primary} />
-                  </View>
-                )}
-
-                <View style={styles.matchingRecipeInfo}>
-                  <Text style={styles.matchingRecipeTitle} numberOfLines={1}>
-                    {recipe.title}
-                  </Text>
-                  <View style={styles.matchingMetaRow}>
-                    <Ionicons name="time-outline" size={13} color={colors.textSecondary} />
-                    <Text style={styles.matchingMetaText}>
-                      {recipe.prepTimeMinutes + recipe.cookTimeMinutes} min
-                    </Text>
-                    <Text style={styles.matchingMetaText}>•</Text>
-                    <Text style={styles.matchingMetaText}>{recipe.category}</Text>
-                  </View>
-
-                  {/* Badges des ingrédients qui correspondent */}
-                  {matchedIngredients && matchedIngredients.length > 0 && (
-                    <View style={styles.matchedChipsRow}>
-                      <Text style={styles.matchedChipsLabel}>En stock :</Text>
-                      {matchedIngredients.slice(0, 3).map((ingName) => (
-                        <View key={ingName} style={styles.matchedChip}>
-                          <Text style={styles.matchedChipText} numberOfLines={1}>
-                            {ingName}
-                          </Text>
-                        </View>
-                      ))}
-                      {matchedIngredients.length > 3 && (
-                        <Text style={styles.matchedExtraCount}>
-                          +{matchedIngredients.length - 3}
-                        </Text>
-                      )}
-                    </View>
-                  )}
-                </View>
-
-                <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-      </Modal>
 
       {/* Modal de sélection de rayon */}
       <Modal
@@ -820,6 +750,13 @@ const styles = createDynamicStyles((colors, shadows) => ({
     borderColor: colors.secondary + '40',
     ...shadows.small,
   },
+  smartCookBannerDisabled: {
+    opacity: 0.85,
+    borderColor: colors.borderLight,
+  },
+  smartCookIconBoxMuted: {
+    backgroundColor: colors.textMuted,
+  },
   smartCookLeft: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -993,6 +930,10 @@ const styles = createDynamicStyles((colors, shadows) => ({
   deleteItemBtn: {
     padding: 6,
   },
+  modalSafeArea: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
   modalContent: {
     flex: 1,
     backgroundColor: colors.background,
@@ -1007,6 +948,11 @@ const styles = createDynamicStyles((colors, shadows) => ({
     borderBottomWidth: 1,
     borderBottomColor: colors.borderLight,
   },
+  modalTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   modalTitle: {
     fontSize: 20,
     fontWeight: '800',
@@ -1019,6 +965,26 @@ const styles = createDynamicStyles((colors, shadows) => ({
   },
   modalCloseIconBtn: {
     padding: 4,
+  },
+  emptyDoableContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 50,
+    paddingHorizontal: 24,
+  },
+  emptyDoableTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginTop: 12,
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  emptyDoableSubtitle: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 18,
   },
   matchingListScroll: {
     flex: 1,

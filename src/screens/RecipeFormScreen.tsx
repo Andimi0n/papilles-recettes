@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,10 +6,12 @@ import {
   ScrollView,
   TextInput,
   TouchableOpacity,
-  SafeAreaView,
   Alert,
   Image,
+  ActivityIndicator,
+  Modal,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { Recipe, Category, Difficulty, Ingredient, RecipeStep } from '../types/recipe';
@@ -20,13 +22,59 @@ import { generateUniqueId, normalizeString } from '../utils/helpers';
 import { IngredientAutocompleteInput } from '../components/IngredientAutocompleteInput';
 import { VocabularyService } from '../services/vocabularyService';
 import { isKnownDefaultPantryStaple } from '../data/canonicalVocabulary';
-
+import {
+  RecipeAiService,
+  ExtractedRecipeData,
+  AiConnectionStatus,
+} from '../services/recipeAiService';
 
 interface RecipeFormScreenProps {
   initialRecipe?: Recipe | null;
   onSave: (recipe: Recipe) => void;
   onCancel: () => void;
 }
+
+const SAMPLE_RECIPES = [
+  `Risotto crémeux aux champignons & parmesan
+Pour 4 personnes
+- 300g de riz arborio
+- 250g de champignons de Paris
+- 1 échalote
+- 1 gousse d'ail
+- 15cl de vin blanc sec
+- 1 litre de bouillon de légumes chaud
+- 50g de parmesan râpé
+- 30g de beurre doux
+- 2 c. à soupe d'huile d'olive
+- Sel, poivre du moulin, persil plat ciselé
+
+Préparation :
+Émincer l'échalote et l'ail. Couper les champignons en lamelles.
+Dans une sauteuse, faire dorer les champignons dans un filet d'huile d'olive 5 min puis réserver.
+Faire suer l'échalote avec le reste d'huile, ajouter le riz et le nacrer 2 minutes.
+Déglacer au vin blanc et laisser évaporer complètement.
+Verser le bouillon chaud louche après louche en remuant constamment pendant 18 à 20 minutes.
+Hors du feu, incorporer les champignons, le beurre bien froid et le parmesan.
+Couvrir 2 minutes, rectifier l'assaisonnement et servir immédiatement avec du persil frais.`,
+  `Quiche fondante poireaux & fromage de chèvre
+Ingrédients :
+1 pâte brisée pur beurre
+3 blancs de poireaux
+150g de fromage de chèvre frais (ou bûche)
+3 gros oeufs
+20cl de crème fraîche épaisse
+10cl de lait
+Noix de muscade râpée, sel fin et poivre du moulin
+Un filet d'huile d'olive
+
+Instructions :
+Préchauffer le four à 180°C (th. 6).
+Laver et émincer finement les poireaux. Les faire fondre à feu doux dans une poêle avec un filet d'huile d'olive pendant 15 minutes jusqu'à ce qu'ils soient tendres.
+Dans un saladier, fouetter les oeufs entiers avec la crème fraîche et le lait. Assaisonner avec le sel, le poivre et une pincée de muscade.
+Étaler la pâte brisée dans un moule à tarte, piquer le fond avec une fourchette.
+Répartir la fondue de poireaux, émietter le chèvre par-dessus, puis verser l'appareil aux oeufs.
+Enfourner pour environ 35 à 40 minutes jusqu'à ce que la quiche soit bien dorée et gonflée. Laisser tiédir avant de servir.`,
+];
 
 const CATEGORIES: Category[] = [
   'Plat',
@@ -54,7 +102,140 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
   onCancel,
 }) => {
   const { isDark, colors } = useTheme();
-  const isEditing = !!initialRecipe;
+  const isEditing = Boolean(
+    initialRecipe && initialRecipe.id && !initialRecipe.id.startsWith('extracted_')
+  );
+  const hasPreloadedData = Boolean(
+    initialRecipe &&
+      (initialRecipe.title || (initialRecipe.ingredients && initialRecipe.ingredients.length > 0))
+  );
+  const [creationMode, setCreationMode] = useState<'text' | 'manual'>(
+    hasPreloadedData ? 'manual' : 'text'
+  );
+
+  const [rawTextInput, setRawTextInput] = useState('');
+  const [isAnalyzingText, setIsAnalyzingText] = useState(false);
+  const [loadingStep, setLoadingStep] = useState('Analyse du texte...');
+  const [apiKey, setApiKey] = useState('');
+  const [isApiKeyModalVisible, setIsApiKeyModalVisible] = useState(false);
+  const [tempApiKeyInput, setTempApiKeyInput] = useState('');
+  const [isKeyVisible, setIsKeyVisible] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<AiConnectionStatus | null>(null);
+  const [isCheckingConnection, setIsCheckingConnection] = useState(false);
+
+  useEffect(() => {
+    RecipeAiService.getApiKey().then((k) => setApiKey(k || ''));
+    setIsCheckingConnection(true);
+    RecipeAiService.checkConnection().then((st) => {
+      setConnectionStatus(st);
+      setIsCheckingConnection(false);
+    });
+  }, []);
+
+  const verifyAiStatus = async (keyToTest?: string) => {
+    setIsCheckingConnection(true);
+    try {
+      const status = await RecipeAiService.checkConnection(keyToTest);
+      setConnectionStatus(status);
+    } catch (e: any) {
+      setConnectionStatus({
+        ok: false,
+        code: 'UNKNOWN_ERROR',
+        message: e?.message || 'Erreur lors du test de connexion',
+      });
+    } finally {
+      setIsCheckingConnection(false);
+    }
+  };
+
+  const handleSaveApiKey = async () => {
+    try {
+      await RecipeAiService.setApiKey(tempApiKeyInput.trim());
+      setApiKey(tempApiKeyInput.trim());
+      setIsApiKeyModalVisible(false);
+      await verifyAiStatus(tempApiKeyInput.trim());
+    } catch (e) {
+      Alert.alert('Erreur', 'Impossible de sauvegarder la clé API.');
+    }
+  };
+
+  const handleFillSample = () => {
+    const sample = SAMPLE_RECIPES[Math.floor(Math.random() * SAMPLE_RECIPES.length)];
+    setRawTextInput(sample);
+  };
+
+  const handleAnalyzeText = async () => {
+    const trimmed = rawTextInput.trim();
+    if (!trimmed) {
+      Alert.alert(
+        'Texte requis',
+        'Veuillez coller ou saisir le texte de votre recette avant de lancer l\'analyse.'
+      );
+      return;
+    }
+
+    if (connectionStatus && !connectionStatus.ok) {
+      Alert.alert(
+        'IA indisponible',
+        `${connectionStatus.message}\n\nVeuillez vérifier votre connexion ou votre clé API.`
+      );
+      return;
+    }
+
+    setIsAnalyzingText(true);
+    setLoadingStep('Lecture et compréhension de votre texte...');
+
+    try {
+      setTimeout(() => setLoadingStep('Découpage et normalisation des ingrédients...'), 1200);
+      setTimeout(() => setLoadingStep('Autocomplétion des temps et portions...'), 2400);
+
+      const extracted: ExtractedRecipeData = await RecipeAiService.extractRecipeFromRawText(
+        trimmed,
+        apiKey
+      );
+
+      if (extracted.title) setTitle(extracted.title);
+      if (extracted.description) setDescription(extracted.description);
+      if (extracted.category) setCategory(extracted.category as Category);
+      if (extracted.difficulty) setDifficulty(extracted.difficulty as Difficulty);
+      if (extracted.prepTimeMinutes) setPrepTime(extracted.prepTimeMinutes.toString());
+      if (extracted.cookTimeMinutes) setCookTime(extracted.cookTimeMinutes.toString());
+      if (extracted.servings) setServings(extracted.servings);
+      if (extracted.isVegetarian !== undefined) setIsVegetarian(extracted.isVegetarian);
+      if (extracted.userNote) setUserNote(extracted.userNote.trim());
+      if (extracted.ingredients && extracted.ingredients.length > 0) {
+        setIngredients(
+          extracted.ingredients.map((ing, idx) => ({
+            id: generateUniqueId(`ing_text_${idx + 1}`),
+            name: ing.name,
+            quantity: ing.quantity,
+            unit: ing.unit,
+            isPantryStaple: ing.isPantryStaple,
+            isOptional: ing.isOptional,
+          }))
+        );
+      }
+      if (extracted.steps && extracted.steps.length > 0) {
+        setSteps(
+          extracted.steps.map((st, idx) => ({
+            id: generateUniqueId(`stp_text_${idx + 1}`),
+            order: st.order || idx + 1,
+            instruction: st.instruction,
+          }))
+        );
+      }
+      // Basculer directement en mode formulaire manuel pour révision et enregistrement !
+      setCreationMode('manual');
+    } catch (error: any) {
+      console.error('Erreur extraction texte:', error);
+      Alert.alert(
+        'Échec de l\'analyse',
+        error?.message || 'Une erreur est survenue lors de l\'analyse du texte.'
+      );
+    } finally {
+      setIsAnalyzingText(false);
+    }
+  };
 
   // Form states
   const [title, setTitle] = useState(initialRecipe?.title || '');
@@ -257,7 +438,7 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
       <View style={styles.container}>
         {/* Top Header */}
         <View style={styles.header}>
@@ -265,18 +446,215 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
             <Text style={styles.cancelText}>Annuler</Text>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>
-            {isEditing ? 'Modifier la recette' : 'Nouvelle recette'}
+            {isEditing
+              ? 'Modifier la recette'
+              : creationMode === 'text'
+              ? 'Ajouter une recette'
+              : 'Nouvelle recette'}
           </Text>
-          <TouchableOpacity onPress={handleSubmit} style={styles.saveBtn} activeOpacity={0.8}>
-            <Text style={styles.saveBtnText}>Enregistrer</Text>
-          </TouchableOpacity>
+          {creationMode === 'manual' ? (
+            <TouchableOpacity onPress={handleSubmit} style={styles.saveBtn} activeOpacity={0.8}>
+              <Text style={styles.saveBtnText}>Enregistrer</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              onPress={() => {
+                setTempApiKeyInput(apiKey);
+                setIsApiKeyModalVisible(true);
+              }}
+              style={styles.keyBtn}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="key-outline" size={20} color={colors.textSecondary} />
+              {connectionStatus && (
+                <View
+                  style={[
+                    styles.statusDotSmall,
+                    { backgroundColor: connectionStatus.ok ? '#22C55E' : '#EF4444' },
+                  ]}
+                />
+              )}
+            </TouchableOpacity>
+          )}
         </View>
 
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-        >
+        {/* Sélecteur de mode (Texte brut IA vs À la main) */}
+        {!isEditing && (
+          <View style={styles.segmentContainer}>
+            <TouchableOpacity
+              style={[styles.segmentBtn, creationMode === 'text' && styles.segmentBtnActive]}
+              onPress={() => setCreationMode('text')}
+              activeOpacity={0.8}
+            >
+              <Ionicons
+                name="sparkles"
+                size={16}
+                color={creationMode === 'text' ? '#FFFFFF' : colors.textSecondary}
+              />
+              <Text
+                style={[
+                  styles.segmentBtnText,
+                  creationMode === 'text' && styles.segmentBtnTextActive,
+                ]}
+              >
+                Texte brut (IA)
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.segmentBtn, creationMode === 'manual' && styles.segmentBtnActive]}
+              onPress={() => setCreationMode('manual')}
+              activeOpacity={0.8}
+            >
+              <Ionicons
+                name="create-outline"
+                size={16}
+                color={creationMode === 'manual' ? '#FFFFFF' : colors.textSecondary}
+              />
+              <Text
+                style={[
+                  styles.segmentBtnText,
+                  creationMode === 'manual' && styles.segmentBtnTextActive,
+                ]}
+              >
+                À la main
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {creationMode === 'text' ? (
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.textModeScroll}
+            keyboardShouldPersistTaps="handled"
+          >
+            {/* Bannière de statut IA */}
+            {connectionStatus && (
+              <View
+                style={[
+                  styles.statusBanner,
+                  connectionStatus.ok ? styles.statusBannerOk : styles.statusBannerWarning,
+                ]}
+              >
+                <View
+                  style={[
+                    styles.statusDot,
+                    { backgroundColor: connectionStatus.ok ? '#22C55E' : '#EAB308' },
+                  ]}
+                />
+                <Text style={styles.statusBannerText} numberOfLines={2}>
+                  {connectionStatus.ok
+                    ? 'Gemini 3.8 Flash prêt — extraction automatique'
+                    : connectionStatus.message}
+                </Text>
+                {!connectionStatus.ok && (
+                  <TouchableOpacity
+                    onPress={() => {
+                      setTempApiKeyInput(apiKey);
+                      setIsApiKeyModalVisible(true);
+                    }}
+                    style={styles.statusFixBtn}
+                  >
+                    <Text style={styles.statusFixBtnText}>Régler</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
+
+            {/* Carte de saisie de texte */}
+            <View style={styles.textCard}>
+              <View style={styles.textCardHeader}>
+                <View style={styles.textCardTitleRow}>
+                  <Ionicons name="document-text-outline" size={20} color={colors.primary} />
+                  <Text style={styles.textCardTitle}>Collez votre recette en vrac</Text>
+                </View>
+                <Text style={styles.textCardSubtitle}>
+                  Collez des notes, un message ou les ingrédients et instructions. L'IA structure automatiquement le titre, les portions, le minutage et le lexique d'ingrédients.
+                </Text>
+              </View>
+
+              <View style={styles.textHelperRow}>
+                <TouchableOpacity
+                  style={styles.sampleQuickBtn}
+                  onPress={handleFillSample}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="dice-outline" size={15} color={colors.primary} />
+                  <Text style={styles.sampleQuickBtnText}>Exemple rapide</Text>
+                </TouchableOpacity>
+
+                {rawTextInput.length > 0 && (
+                  <TouchableOpacity
+                    style={styles.clearTextBtn}
+                    onPress={() => setRawTextInput('')}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="trash-outline" size={14} color={colors.textSecondary} />
+                    <Text style={styles.clearTextBtnText}>Effacer</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              <TextInput
+                style={styles.rawTextInput}
+                value={rawTextInput}
+                onChangeText={setRawTextInput}
+                placeholder={"Ex: Risotto aux champignons\n300g de riz arborio, 250g de champignons, 1 échalote, parmesan, vin blanc...\n\nFaire revenir l'échalote et le riz, mouiller au vin blanc puis bouillon 20 min..."}
+                placeholderTextColor={colors.textMuted}
+                multiline
+                textAlignVertical="top"
+              />
+            </View>
+
+            {/* Bouton d'action d'analyse */}
+            <TouchableOpacity
+              style={[
+                styles.analyzeBtn,
+                (isAnalyzingText || (connectionStatus && !connectionStatus.ok)) && styles.analyzeBtnDisabled,
+              ]}
+              onPress={handleAnalyzeText}
+              disabled={isAnalyzingText}
+              activeOpacity={0.85}
+            >
+              {isAnalyzingText ? (
+                <View style={styles.analyzingContent}>
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                  <Text style={styles.analyzeBtnText}>{loadingStep}</Text>
+                </View>
+              ) : (
+                <View style={styles.analyzingContent}>
+                  <Ionicons name="sparkles" size={19} color="#FFFFFF" />
+                  <Text style={styles.analyzeBtnText}>Structurer et créer la recette</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+
+            {/* Passerelle directe vers la saisie manuelle */}
+            <TouchableOpacity
+              style={styles.manualSwitchCard}
+              onPress={() => setCreationMode('manual')}
+              activeOpacity={0.8}
+            >
+              <View style={styles.manualSwitchIconCircle}>
+                <Ionicons name="create-outline" size={18} color={colors.primary} />
+              </View>
+              <View style={styles.manualSwitchTextCol}>
+                <Text style={styles.manualSwitchTitle}>Passer à la saisie manuelle</Text>
+                <Text style={styles.manualSwitchSubtitle}>
+                  Renseignez vous-même les ingrédients et étapes sans passer par l'IA
+                </Text>
+              </View>
+              <Ionicons name="arrow-forward" size={16} color={colors.primary} />
+            </TouchableOpacity>
+          </ScrollView>
+        ) : (
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+          >
+
           {/* Photo Section */}
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>Photo de la recette</Text>
@@ -665,9 +1043,75 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
               </View>
             ))}
           </View>
+
+          {/* Bouton d'enregistrement bas de page */}
+          <TouchableOpacity onPress={handleSubmit} style={styles.bottomSaveBtn} activeOpacity={0.85}>
+            <Ionicons name="checkmark-circle-outline" size={20} color="#FFFFFF" />
+            <Text style={styles.bottomSaveBtnText}>Enregistrer la recette</Text>
+          </TouchableOpacity>
         </ScrollView>
+      )}
+    </View>
+
+    {/* Modal de configuration de la clé API */}
+    <Modal
+      visible={isApiKeyModalVisible}
+      transparent={true}
+      animationType="fade"
+      onRequestClose={() => setIsApiKeyModalVisible(false)}
+    >
+      <View style={styles.modalBackdrop}>
+        <View style={styles.modalBox}>
+          <Text style={styles.modalTitle}>Clé API Google Gemini</Text>
+          <Text style={styles.modalSubtitle}>
+            La structuration automatique utilise Gemini 3.8 Flash. Vous pouvez renseigner votre clé personnelle Google AI Studio (gratuite).
+          </Text>
+
+          <View style={styles.keyInputContainer}>
+            <TextInput
+              style={styles.keyInput}
+              value={tempApiKeyInput}
+              onChangeText={setTempApiKeyInput}
+              placeholder="Collez votre clé API Gemini ici..."
+              placeholderTextColor={colors.textMuted}
+              autoCapitalize="none"
+              autoCorrect={false}
+              secureTextEntry={!isKeyVisible}
+            />
+            <TouchableOpacity
+              style={styles.eyeBtn}
+              onPress={() => setIsKeyVisible(!isKeyVisible)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityLabel={isKeyVisible ? 'Masquer la clé' : 'Afficher la clé'}
+            >
+              <Ionicons
+                name={isKeyVisible ? 'eye-off-outline' : 'eye-outline'}
+                size={20}
+                color={colors.textSecondary}
+              />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.modalActions}>
+            <TouchableOpacity
+              style={styles.modalCancelBtn}
+              onPress={() => setIsApiKeyModalVisible(false)}
+            >
+              <Text style={styles.modalCancelText}>Annuler</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.modalSaveBtn}
+              onPress={handleSaveApiKey}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.modalSaveText}>Enregistrer</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </View>
-    </SafeAreaView>
+    </Modal>
+  </SafeAreaView>
   );
 };
 
@@ -1048,6 +1492,39 @@ const styles = createDynamicStyles((colors, shadows) => ({
     minHeight: 56,
     textAlignVertical: 'top',
   },
+  switchAiBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primaryLight,
+    borderWidth: 1,
+    borderColor: colors.primary + '30',
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    marginBottom: 16,
+    gap: 12,
+  },
+  switchAiIconCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: colors.cardBackground,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  switchAiTextCol: {
+    flex: 1,
+  },
+  switchAiTitle: {
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  switchAiSubtitle: {
+    fontSize: 11.5,
+    color: colors.textSecondary,
+    marginTop: 1,
+  },
   vegeToggleCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1179,5 +1656,309 @@ const styles = createDynamicStyles((colors, shadows) => ({
   candidateThumbLabelSelected: {
     color: '#16A34A',
     fontWeight: '700',
+  },
+  keyBtn: {
+    padding: 6,
+    position: 'relative',
+  },
+  statusDotSmall: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  segmentContainer: {
+    flexDirection: 'row',
+    marginHorizontal: 16,
+    marginTop: 12,
+    marginBottom: 4,
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: 12,
+    padding: 3,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  segmentBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 9,
+    borderRadius: 9,
+    gap: 6,
+  },
+  segmentBtnActive: {
+    backgroundColor: colors.primary,
+    ...shadows.small,
+  },
+  segmentBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  segmentBtnTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  textModeScroll: {
+    padding: 16,
+    paddingBottom: 40,
+  },
+  statusBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 12,
+    marginBottom: 14,
+    borderWidth: 1,
+    gap: 8,
+  },
+  statusBannerOk: {
+    backgroundColor: colors.isDark ? 'rgba(34, 197, 94, 0.12)' : '#F0FDF4',
+    borderColor: colors.isDark ? 'rgba(34, 197, 94, 0.3)' : '#BBF7D0',
+  },
+  statusBannerWarning: {
+    backgroundColor: colors.isDark ? 'rgba(234, 179, 8, 0.12)' : '#FEFCE8',
+    borderColor: colors.isDark ? 'rgba(234, 179, 8, 0.3)' : '#FEF08A',
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  statusBannerText: {
+    flex: 1,
+    fontSize: 12,
+    color: colors.textPrimary,
+    fontWeight: '500',
+  },
+  statusFixBtn: {
+    backgroundColor: colors.cardBackground,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  statusFixBtnText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  textCard: {
+    backgroundColor: colors.cardBackground,
+    borderRadius: 18,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadows.small,
+  },
+  textCardHeader: {
+    marginBottom: 12,
+  },
+  textCardTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
+  textCardTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  textCardSubtitle: {
+    fontSize: 12.5,
+    color: colors.textSecondary,
+    lineHeight: 18,
+  },
+  textHelperRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  sampleQuickBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: colors.surfaceAlt,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  sampleQuickBtnText: {
+    fontSize: 12,
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  clearTextBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  clearTextBtnText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  rawTextInput: {
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 14,
+    padding: 14,
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.textPrimary,
+    minHeight: 220,
+  },
+  analyzeBtn: {
+    backgroundColor: colors.primary,
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadows.medium,
+  },
+  analyzeBtnDisabled: {
+    opacity: 0.65,
+  },
+  analyzingContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  analyzeBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 15,
+  },
+  manualSwitchCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.cardBackground,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    marginTop: 16,
+    gap: 12,
+    ...shadows.small,
+  },
+  manualSwitchIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.isDark ? 'rgba(34, 197, 94, 0.15)' : '#E8F5E9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  manualSwitchTextCol: {
+    flex: 1,
+  },
+  manualSwitchTitle: {
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  manualSwitchSubtitle: {
+    fontSize: 11.5,
+    color: colors.textSecondary,
+    marginTop: 1,
+  },
+  bottomSaveBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary,
+    paddingVertical: 15,
+    borderRadius: 16,
+    gap: 8,
+    marginTop: 8,
+    marginBottom: 20,
+    ...shadows.medium,
+  },
+  bottomSaveBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 15,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  modalBox: {
+    backgroundColor: colors.cardBackground,
+    borderRadius: 20,
+    padding: 20,
+    ...shadows.large,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: 6,
+  },
+  modalSubtitle: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    lineHeight: 18,
+    marginBottom: 16,
+  },
+  keyInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    marginBottom: 16,
+    paddingRight: 10,
+  },
+  keyInput: {
+    flex: 1,
+    padding: 12,
+    fontSize: 14,
+    color: colors.textPrimary,
+  },
+  eyeBtn: {
+    padding: 6,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 12,
+  },
+  modalCancelBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+  },
+  modalCancelText: {
+    color: colors.textSecondary,
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  modalSaveBtn: {
+    backgroundColor: colors.primary,
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    borderRadius: 12,
+  },
+  modalSaveText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 14,
   },
 }));

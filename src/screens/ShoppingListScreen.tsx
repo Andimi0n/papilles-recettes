@@ -24,7 +24,7 @@ import { groupItemsByAisle, formatShoppingListForShare } from '../utils/shopping
 import { FridgeStockView } from '../components/FridgeStockView';
 
 interface ShoppingListScreenProps {
-  onNavigateToRecipes?: () => void;
+  onNavigateToRecipes?: (options?: { onlyDoable?: boolean }) => void;
   onNavigateToPlanner?: () => void;
   initialTab?: 'shopping' | 'fridge';
   recipes?: Recipe[];
@@ -356,6 +356,11 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
             loadShoppingList();
           }}
           onFridgeCountChange={(count) => setFridgeCount(count)}
+          onNavigateToDoableRecipes={() => {
+            if (onNavigateToRecipes) {
+              onNavigateToRecipes({ onlyDoable: true });
+            }
+          }}
         />
       ) : (
         /* VUE 2 : LISTE DE COURSES */
@@ -545,7 +550,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
                   {onNavigateToRecipes && (
                     <TouchableOpacity
                       style={styles.emptyActionBtn}
-                      onPress={onNavigateToRecipes}
+                      onPress={() => onNavigateToRecipes()}
                       activeOpacity={0.85}
                     >
                       <Ionicons name="book-outline" size={17} color="#FFFFFF" />
@@ -556,7 +561,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
                   {onNavigateToPlanner && (
                     <TouchableOpacity
                       style={[styles.emptyActionBtn, styles.emptyActionBtnSecondary]}
-                      onPress={onNavigateToPlanner}
+                      onPress={() => onNavigateToPlanner()}
                       activeOpacity={0.85}
                     >
                       <Ionicons name="calendar-outline" size={17} color={colors.primary} />

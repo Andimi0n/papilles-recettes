@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
   Image,
   ScrollView,
   ActivityIndicator,
@@ -12,6 +11,7 @@ import {
   TextInput,
   Modal,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
@@ -29,7 +29,6 @@ import { generateUniqueId } from '../utils/helpers';
 interface ScanRecipeScreenProps {
   onBack: () => void;
   onRecipeExtracted: (recipeData: Partial<Recipe>, coverImageUri?: string) => void;
-  initialMode?: 'photo' | 'text';
 }
 
 interface CapturedPhoto {
@@ -38,65 +37,18 @@ interface CapturedPhoto {
   base64: string;
 }
 
-const SAMPLE_RECIPES = [
-  `Risotto crémeux aux champignons & parmesan
-Pour 4 personnes
-- 300g de riz arborio
-- 250g de champignons de Paris
-- 1 échalote
-- 1 gousse d'ail
-- 15cl de vin blanc sec
-- 1 litre de bouillon de légumes chaud
-- 50g de parmesan râpé
-- 30g de beurre doux
-- 2 c. à soupe d'huile d'olive
-- Sel, poivre du moulin, persil plat ciselé
-
-Préparation :
-Émincer l'échalote et l'ail. Couper les champignons en lamelles.
-Dans une sauteuse, faire dorer les champignons dans un filet d'huile d'olive 5 min puis réserver.
-Faire suer l'échalote avec le reste d'huile, ajouter le riz et le nacrer 2 minutes.
-Déglacer au vin blanc et laisser évaporer complètement.
-Verser le bouillon chaud louche après louche en remuant constamment pendant 18 à 20 minutes.
-Hors du feu, incorporer les champignons, le beurre bien froid et le parmesan.
-Couvrir 2 minutes, rectifier l'assaisonnement et servir immédiatement avec du persil frais.`,
-  `Quiche fondante poireaux & fromage de chèvre
-Ingrédients :
-1 pâte brisée pur beurre
-3 blancs de poireaux
-150g de fromage de chèvre frais (ou bûche)
-3 gros oeufs
-20cl de crème fraîche épaisse
-10cl de lait
-Noix de muscade râpée, sel fin et poivre du moulin
-Un filet d'huile d'olive
-
-Instructions :
-Préchauffer le four à 180°C (th. 6).
-Laver et émincer finement les poireaux. Les faire fondre à feu doux dans une poêle avec un filet d'huile d'olive pendant 15 minutes jusqu'à ce qu'ils soient tendres.
-Dans un saladier, fouetter les oeufs entiers avec la crème fraîche et le lait. Assaisonner avec le sel, le poivre et une pincée de muscade.
-Étaler la pâte brisée dans un moule à tarte, piquer le fond avec une fourchette.
-Répartir la fondue de poireaux, émietter le chèvre par-dessus, puis verser l'appareil aux oeufs.
-Enfourner pour environ 35 à 40 minutes jusqu'à ce que la quiche soit bien dorée et gonflée. Laisser tiédir avant de servir.`,
-];
-
 export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
   onBack,
   onRecipeExtracted,
-  initialMode = 'photo',
 }) => {
   const { isDark, colors } = useTheme();
-  const [mode, setMode] = useState<'photo' | 'text'>(initialMode);
   const [photos, setPhotos] = useState<CapturedPhoto[]>([]);
-  const [rawTextInput, setRawTextInput] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [isAnalyzingText, setIsAnalyzingText] = useState(false);
   const [apiKey, setApiKey] = useState<string>('');
   const [isApiKeyModalVisible, setIsApiKeyModalVisible] = useState(false);
   const [tempApiKeyInput, setTempApiKeyInput] = useState('');
   const [isKeyVisible, setIsKeyVisible] = useState(false);
   const [loadingStep, setLoadingStep] = useState('Préparation des données...');
-
 
   // État de la vérification de connexion réelle
   const [connectionStatus, setConnectionStatus] = useState<AiConnectionStatus | null>(null);
@@ -276,85 +228,8 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
     }
   };
 
-  const handleAnalyzeText = async () => {
-    const trimmed = rawTextInput.trim();
-    if (!trimmed) {
-      Alert.alert(
-        'Texte requis',
-        'Veuillez coller ou saisir le texte de votre recette avant de lancer l\'analyse.'
-      );
-      return;
-    }
-
-    if (connectionStatus && !connectionStatus.ok) {
-      Alert.alert(
-        'IA indisponible',
-        `${connectionStatus.message}\n\nVeuillez vérifier votre connexion ou votre clé API avant de lancer l'analyse.`
-      );
-      return;
-    }
-
-    setIsAnalyzingText(true);
-    setLoadingStep('Lecture et compréhension de votre texte...');
-
-    try {
-      setTimeout(() => setLoadingStep('Découpage et normalisation des ingrédients...'), 1200);
-      setTimeout(() => setLoadingStep('Autocomplétion des temps et portions manquantes...'), 2500);
-      setTimeout(() => setLoadingStep('Rédaction des étapes de préparation...'), 3800);
-
-      const extracted: ExtractedRecipeData = await RecipeAiService.extractRecipeFromRawText(
-        trimmed,
-        apiKey
-      );
-
-      const partialRecipe: Partial<Recipe> = {
-        title: extracted.title || 'Recette importée',
-        description: extracted.description || '',
-        category: extracted.category || 'Plat',
-        difficulty: extracted.difficulty || 'Moyen',
-        prepTimeMinutes: extracted.prepTimeMinutes || 15,
-        cookTimeMinutes: extracted.cookTimeMinutes || 20,
-        servings: extracted.servings || 4,
-        rating: 4.5,
-        userNote: extracted.userNote ? extracted.userNote.trim() : undefined,
-        isVegetarian: extracted.isVegetarian ?? false,
-        imageUrl: '',
-        availableImages: [],
-        ingredients: (extracted.ingredients || []).map((ing, idx) => ({
-          id: generateUniqueId(`ing_text_${idx + 1}`),
-          name: ing.name,
-          quantity: ing.quantity,
-          unit: ing.unit,
-        })),
-        steps: (extracted.steps || []).map((st, idx) => ({
-          id: generateUniqueId(`stp_text_${idx + 1}`),
-          order: st.order || idx + 1,
-          instruction: st.instruction,
-        })),
-
-      };
-
-      onRecipeExtracted(partialRecipe);
-    } catch (error: any) {
-      console.error('Erreur extraction texte:', error);
-      Alert.alert(
-        'Échec de l\'analyse',
-        error?.message || 'Une erreur est survenue lors de l\'analyse du texte.'
-      );
-    } finally {
-      setIsAnalyzingText(false);
-    }
-  };
-
-  const handleFillSample = () => {
-    const sample = SAMPLE_RECIPES[Math.floor(Math.random() * SAMPLE_RECIPES.length)];
-    setRawTextInput(sample);
-  };
-
-  const isCurrentBusy = mode === 'photo' ? isAnalyzing : isAnalyzingText;
-
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
@@ -362,12 +237,8 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
             <Ionicons name="arrow-back" size={22} color={Colors.textPrimary} />
           </TouchableOpacity>
           <View style={styles.headerTitleCol}>
-            <Text style={styles.headerTitle}>
-              {mode === 'photo' ? 'Scanner une recette' : 'Ajouter par texte'}
-            </Text>
-            <Text style={styles.headerSubtitle}>
-              {mode === 'photo' ? 'Vision multimodale IA' : 'Copier-coller & autocomplétion'}
-            </Text>
+            <Text style={styles.headerTitle}>Scanner une recette</Text>
+            <Text style={styles.headerSubtitle}>Vision multimodale IA</Text>
           </View>
           <TouchableOpacity
             onPress={() => {
@@ -382,51 +253,6 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
               size={18}
               color={connectionStatus?.ok ? Colors.secondary : Colors.primary}
             />
-          </TouchableOpacity>
-        </View>
-
-        {/* Switcher Segmenté Mode Scan / Mode Texte */}
-        <View style={styles.segmentContainer}>
-          <TouchableOpacity
-            style={[styles.segmentBtn, mode === 'photo' && styles.segmentBtnActive]}
-            onPress={() => setMode('photo')}
-            activeOpacity={0.8}
-            disabled={isCurrentBusy}
-          >
-            <Ionicons
-              name="camera"
-              size={16}
-              color={mode === 'photo' ? '#FFFFFF' : Colors.textSecondary}
-            />
-            <Text
-              style={[
-                styles.segmentBtnText,
-                mode === 'photo' && styles.segmentBtnTextActive,
-              ]}
-            >
-              Scanner photo
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.segmentBtn, mode === 'text' && styles.segmentBtnActive]}
-            onPress={() => setMode('text')}
-            activeOpacity={0.8}
-            disabled={isCurrentBusy}
-          >
-            <Ionicons
-              name="document-text"
-              size={16}
-              color={mode === 'text' ? '#FFFFFF' : Colors.textSecondary}
-            />
-            <Text
-              style={[
-                styles.segmentBtnText,
-                mode === 'text' && styles.segmentBtnTextActive,
-              ]}
-            >
-              Coller du texte
-            </Text>
           </TouchableOpacity>
         </View>
 
@@ -490,20 +316,17 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
             </View>
           )}
 
-          {/* CONTENU MODE PHOTO */}
-          {mode === 'photo' && (
-            <>
-              {/* Guide explicatif universel */}
-              <View style={styles.guideCard}>
-                <View style={styles.guideHeader}>
-                  <Ionicons name="sparkles" size={16} color={Colors.primary} />
-                  <Text style={styles.guideTitle}>Tous formats de photo acceptés</Text>
-                </View>
-                <Text style={styles.guideText}>
-                  Prenez en photo votre recette depuis n'importe quel support : livre de cuisine, fiche repas, carnet manuscrit, magazine ou capture d'écran.
-                  {'\n'}Par défaut <Text style={styles.guideBold}>1 photo</Text> suffit, mais vous pouvez en ajouter d'autres si la recette s'étale sur plusieurs pages.
-                </Text>
-              </View>
+          {/* Guide explicatif photo */}
+          <View style={styles.guideCard}>
+            <View style={styles.guideHeader}>
+              <Ionicons name="sparkles" size={16} color={Colors.primary} />
+              <Text style={styles.guideTitle}>Tous formats de photo acceptés</Text>
+            </View>
+            <Text style={styles.guideText}>
+              Prenez en photo votre recette depuis n'importe quel support : livre de cuisine, fiche repas, carnet manuscrit, magazine ou capture d'écran.
+              {'\n'}Par défaut <Text style={styles.guideBold}>1 photo</Text> suffit, mais vous pouvez en ajouter d'autres si la recette s'étale sur plusieurs pages.
+            </Text>
+          </View>
 
               {/* Zone de photos */}
               {photos.length === 0 ? (
@@ -617,104 +440,6 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
                   )}
                 </TouchableOpacity>
               )}
-            </>
-          )}
-
-          {/* CONTENU MODE TEXTE BRUT & AUTOCOMPLÉTION */}
-          {mode === 'text' && (
-            <>
-              {/* Guide explicatif mode texte */}
-              <View style={styles.guideCard}>
-                <View style={styles.guideHeader}>
-                  <Ionicons name="sparkles" size={16} color={Colors.primary} />
-                  <Text style={styles.guideTitle}>Copier-coller libre & autocomplétion</Text>
-                </View>
-                <Text style={styles.guideText}>
-                  Collez votre texte brut : recette griffonnée, message WhatsApp, notes ou extrait web.
-                  {'\n'}Même s'il manque les <Text style={styles.guideBold}>temps</Text>, les <Text style={styles.guideBold}>portions</Text> ou des <Text style={styles.guideBold}>étapes</Text>, l'IA se charge de tout structurer et de compléter les détails !
-                </Text>
-              </View>
-
-              {/* Boîte de saisie texte */}
-              <View style={styles.textInputBox}>
-                <View style={styles.textInputHeader}>
-                  <View style={styles.textInputHeaderLeft}>
-                    <Ionicons name="document-text-outline" size={16} color={Colors.primary} />
-                    <Text style={styles.textInputHeaderTitle}>Votre texte ou notes</Text>
-                  </View>
-
-                  <View style={styles.textInputHeaderActions}>
-                    <TouchableOpacity
-                      style={styles.sampleQuickBtn}
-                      onPress={handleFillSample}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons name="bulb-outline" size={13} color={Colors.secondary} />
-                      <Text style={styles.sampleQuickBtnText}>Exemple</Text>
-                    </TouchableOpacity>
-
-                    {rawTextInput.length > 0 && (
-                      <TouchableOpacity
-                        style={styles.clearQuickBtn}
-                        onPress={() => setRawTextInput('')}
-                        hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                      >
-                        <Ionicons name="trash-outline" size={14} color={Colors.danger} />
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                </View>
-
-                <TextInput
-                  style={styles.rawTextArea}
-                  value={rawTextInput}
-                  onChangeText={setRawTextInput}
-                  placeholder={`Collez ici votre texte brut ou notes...\n\nExemple :\nQuiche aux poireaux et chèvre pour 4\n1 pâte brisée, 3 poireaux, 150g chèvre, 3 oeufs, 20cl crème, sel, poivre.\nFaire fondre les poireaux 15 min, mélanger les oeufs et la crème, verser sur la pâte et cuire 35 min à 180°C...`}
-                  placeholderTextColor={Colors.textMuted}
-                  multiline={true}
-                  textAlignVertical="top"
-                  autoCapitalize="sentences"
-                  autoCorrect={false}
-                />
-
-                <View style={styles.textInputFooter}>
-                  <Text style={styles.textCountHint}>
-                    {rawTextInput.trim().length > 0
-                      ? `${rawTextInput.trim().length} caractères`
-                      : 'Astuce : Même quelques mots d\'ingrédients suffisent, l\'IA complétera le reste !'}
-                  </Text>
-                </View>
-              </View>
-
-              {/* Bouton d'action principal d'analyse texte */}
-              <TouchableOpacity
-                style={[
-                  styles.analyzeBtn,
-                  (isAnalyzingText ||
-                    rawTextInput.trim().length === 0 ||
-                    (connectionStatus && !connectionStatus.ok)) &&
-                    styles.analyzeBtnDisabled,
-                ]}
-                onPress={handleAnalyzeText}
-                disabled={isAnalyzingText || rawTextInput.trim().length === 0}
-                activeOpacity={0.85}
-              >
-                {isAnalyzingText ? (
-                  <View style={styles.analyzingContent}>
-                    <ActivityIndicator size="small" color="#FFFFFF" />
-                    <Text style={styles.analyzeBtnText}>{loadingStep}</Text>
-                  </View>
-                ) : (
-                  <View style={styles.analyzingContent}>
-                    <Ionicons name="sparkles" size={20} color="#FFFFFF" />
-                    <Text style={styles.analyzeBtnText}>
-                      Structurer et autocompléter avec l'IA
-                    </Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-            </>
-          )}
         </ScrollView>
 
         {/* Modal de configuration de la clé API */}
