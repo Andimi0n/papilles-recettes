@@ -760,7 +760,23 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
                       </View>
                     </View>
 
-                    {/* 2. Choix des aliments en stock (passé en dessous des options) */}
+                    {/* Bouton de génération des 3 idées (Solution 4 - Étape 1, placé au-dessus des ingrédients) */}
+                    <TouchableOpacity
+                      style={[
+                        styles.generateAiBtn,
+                        selectedStockNames.length === 0 && styles.generateAiBtnDisabled,
+                      ]}
+                      onPress={handleStartFetchIdeas}
+                      disabled={selectedStockNames.length === 0}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name="sparkles" size={18} color="#FFFFFF" />
+                      <Text style={styles.generateAiBtnText}>
+                        💡 Trouver 3 idées de {mealType.toLowerCase()}
+                      </Text>
+                    </TouchableOpacity>
+
+                    {/* 2. Choix des aliments en stock */}
                     <View style={styles.stockSelectionHeader}>
                       <Text style={styles.stockSelectionTitle}>
                         Aliments en vedette ({selectedStockNames.length}/{totalStockCount}) :
@@ -863,22 +879,6 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
                         );
                       })}
                     </View>
-
-                    {/* Bouton de génération des 3 idées (Solution 4 - Étape 1) */}
-                    <TouchableOpacity
-                      style={[
-                        styles.generateAiBtn,
-                        selectedStockNames.length === 0 && styles.generateAiBtnDisabled,
-                      ]}
-                      onPress={handleStartFetchIdeas}
-                      disabled={selectedStockNames.length === 0}
-                      activeOpacity={0.8}
-                    >
-                      <Ionicons name="sparkles" size={18} color="#FFFFFF" />
-                      <Text style={styles.generateAiBtnText}>
-                        💡 Trouver 3 idées de {mealType.toLowerCase()}
-                      </Text>
-                    </TouchableOpacity>
                   </View>
                 </>
               )}
@@ -1553,6 +1553,7 @@ const styles = createDynamicStyles((colors, shadows) => ({
     borderRadius: 14,
     paddingVertical: 14,
     gap: 8,
+    marginBottom: 14,
     ...shadows.card,
   },
   generateAiBtnDisabled: {
