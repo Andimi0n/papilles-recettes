@@ -30,7 +30,13 @@ import {
   UserAllergenItem,
   CanonicalIngredient,
 } from '../types/vocabulary';
-import { normalizeString, generateUniqueId } from '../utils/helpers';
+import {
+  PlannerSettings,
+  PlannerMode,
+  DayOfWeek,
+  DEFAULT_PLANNER_SETTINGS,
+} from '../types/planner';
+import { normalizeString, generateUniqueId, ORDERED_DAYS_OF_WEEK } from '../utils/helpers';
 
 export interface SettingsScreenProps {
   recipes: Recipe[];
@@ -56,6 +62,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   // Préférences
   const [defaultServings, setDefaultServings] = useState(4);
   const [shoppingCount, setShoppingCount] = useState(0);
+  const [plannerSettings, setPlannerSettings] = useState<PlannerSettings>(DEFAULT_PLANNER_SETTINGS);
 
   // Allergies & Intolérances
   const [userAllergens, setUserAllergens] = useState<UserAllergenItem[]>([]);
@@ -103,8 +110,29 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
       const loadedVocab = await VocabularyService.getAll();
       setVocabList(loadedVocab);
       setVocabCount(loadedVocab.length);
+
+      const planSettings = await StorageService.getPlannerSettings();
+      setPlannerSettings(planSettings);
     } catch (e) {
       console.error('Erreur chargement réglages:', e);
+    }
+  };
+
+  const handleSelectPlannerMode = async (mode: PlannerMode) => {
+    try {
+      const updated = await StorageService.savePlannerSettings({ mode });
+      setPlannerSettings(updated);
+    } catch (e) {
+      console.error('Erreur changement mode planification:', e);
+    }
+  };
+
+  const handleSelectPlannerStartDay = async (startDay: DayOfWeek) => {
+    try {
+      const updated = await StorageService.savePlannerSettings({ startDay });
+      setPlannerSettings(updated);
+    } catch (e) {
+      console.error('Erreur changement jour départ:', e);
     }
   };
 
@@ -1027,7 +1055,138 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
             </View>
           </View>
 
-          {/* SECTION 5 : LEXIQUE & VOCABULAIRE DES INGRÉDIENTS */}
+          {/* SECTION : PLANIFICATION DES MENUS */}
+          <View style={styles.sectionCard}>
+            <View style={styles.sectionTitleRow}>
+              <Ionicons name="calendar-outline" size={20} color={colors.primary} />
+              <Text style={styles.sectionTitle}>Planification des Menus</Text>
+            </View>
+            <Text style={styles.sectionSubtitle}>
+              Organisez vos prévisions selon vos habitudes : semaine fixe de courses ou planning dynamique glissant.
+            </Text>
+
+            {/* Sélecteur de mode Fixe vs Dynamique */}
+            <View style={styles.plannerModeRow}>
+              <TouchableOpacity
+                style={[
+                  styles.plannerModeBtn,
+                  plannerSettings.mode === 'fixed' && styles.plannerModeBtnActive,
+                ]}
+                onPress={() => handleSelectPlannerMode('fixed')}
+                activeOpacity={0.8}
+              >
+                <Ionicons
+                  name="calendar"
+                  size={18}
+                  color={plannerSettings.mode === 'fixed' ? colors.primary : colors.textSecondary}
+                />
+                <Text
+                  style={[
+                    styles.plannerModeBtnText,
+                    plannerSettings.mode === 'fixed' && styles.plannerModeBtnTextActive,
+                  ]}
+                >
+                  Fixe
+                </Text>
+                <Text style={styles.plannerModeSub}>Semaine de courses</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.plannerModeBtn,
+                  plannerSettings.mode === 'dynamic' && styles.plannerModeBtnActive,
+                  { borderLeftWidth: 1, borderLeftColor: colors.borderLight },
+                ]}
+                onPress={() => handleSelectPlannerMode('dynamic')}
+                activeOpacity={0.8}
+              >
+                <Ionicons
+                  name="flash"
+                  size={18}
+                  color={plannerSettings.mode === 'dynamic' ? colors.primary : colors.textSecondary}
+                />
+                <Text
+                  style={[
+                    styles.plannerModeBtnText,
+                    plannerSettings.mode === 'dynamic' && styles.plannerModeBtnTextActive,
+                  ]}
+                >
+                  Dynamique
+                </Text>
+                <Text style={styles.plannerModeSub}>Dès aujourd'hui</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Configuration mode Fixe */}
+            {plannerSettings.mode === 'fixed' ? (
+              <View style={styles.fixedConfigContainer}>
+                <Text style={styles.configLabel}>Premier jour de la semaine :</Text>
+                <Text style={styles.configSubLabel}>
+                  Choisissez par quel jour commence votre organisation (ex: jour de vos courses).
+                </Text>
+
+                <View style={styles.daysChipsRow}>
+                  {ORDERED_DAYS_OF_WEEK.map((day) => {
+                    const isSelected = plannerSettings.startDay === day;
+                    return (
+                      <TouchableOpacity
+                        key={day}
+                        style={[
+                          styles.dayChip,
+                          isSelected && styles.dayChipActive,
+                        ]}
+                        onPress={() => handleSelectPlannerStartDay(day)}
+                        activeOpacity={0.7}
+                      >
+                        <Text
+                          style={[
+                            styles.dayChipText,
+                            isSelected && styles.dayChipTextActive,
+                          ]}
+                        >
+                          {day.slice(0, 3)}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                <View style={styles.plannerSummaryBox}>
+                  <Ionicons name="information-circle-outline" size={16} color={colors.primary} />
+                  <Text style={styles.plannerSummaryText}>
+                    Votre menu s'organisera du{' '}
+                    <Text style={{ fontWeight: '700', color: colors.primary }}>
+                      {plannerSettings.startDay}
+                    </Text>
+                    {' au '}
+                    <Text style={{ fontWeight: '700', color: colors.primary }}>
+                      {ORDERED_DAYS_OF_WEEK[
+                        (ORDERED_DAYS_OF_WEEK.indexOf(plannerSettings.startDay) + 6) % 7
+                      ]}
+                    </Text>
+                    .
+                  </Text>
+                </View>
+              </View>
+            ) : (
+              /* Configuration mode Dynamique */
+              <View style={styles.dynamicConfigContainer}>
+                <View style={styles.plannerSummaryBox}>
+                  <Ionicons name="sparkles-outline" size={18} color={colors.primary} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.plannerSummaryText, { fontWeight: '700', marginBottom: 2 }]}>
+                      Planning continu sur 7 jours
+                    </Text>
+                    <Text style={styles.plannerSummaryText}>
+                      Vos prévisions s'affichent à partir d'aujourd'hui, en commençant par le prochain repas à préparer. Les repas passés sont grisés et restent modifiables si vous souhaitez forcer un choix.
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            )}
+          </View>
+
+          {/* SECTION : LEXIQUE & VOCABULAIRE DES INGRÉDIENTS */}
           <View style={styles.sectionCard}>
             <View style={styles.sectionTitleRow}>
               <Ionicons name="book-outline" size={20} color={colors.primary} />
@@ -1684,6 +1843,102 @@ const styles = createDynamicStyles((colors, shadows) => ({
     padding: 2,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  plannerModeRow: {
+    flexDirection: 'row',
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: 14,
+    padding: 3,
+    overflow: 'hidden',
+    marginBottom: 16,
+  },
+  plannerModeBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 11,
+    gap: 2,
+  },
+  plannerModeBtnActive: {
+    backgroundColor: colors.cardBackground,
+    ...shadows.small,
+  },
+  plannerModeBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  plannerModeBtnTextActive: {
+    color: colors.primary,
+    fontWeight: '700',
+  },
+  plannerModeSub: {
+    fontSize: 10,
+    color: colors.textMuted,
+  },
+  fixedConfigContainer: {
+    gap: 10,
+  },
+  configLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  configSubLabel: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginBottom: 4,
+  },
+  daysChipsRow: {
+    flexDirection: 'row',
+    gap: 6,
+    flexWrap: 'wrap',
+    marginBottom: 6,
+  },
+  dayChip: {
+    flex: 1,
+    minWidth: 40,
+    paddingVertical: 8,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  dayChipActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  dayChipText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.textSecondary,
+  },
+  dayChipTextActive: {
+    color: '#FFFFFF',
+  },
+  plannerSummaryBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: 12,
+    padding: 12,
+    gap: 8,
+    marginTop: 4,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  plannerSummaryText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    lineHeight: 17,
+    flex: 1,
+  },
+  dynamicConfigContainer: {
+    gap: 8,
   },
   statsRow: {
     flexDirection: 'row',

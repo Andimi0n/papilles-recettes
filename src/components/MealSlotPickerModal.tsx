@@ -18,8 +18,9 @@ import { normalizeString } from '../utils/helpers';
 
 interface MealSlotPickerModalProps {
   visible: boolean;
-  day: DayOfWeek | null;
+  day: DayOfWeek | string | null;
   mealTime: MealTime | null;
+  isPassed?: boolean;
   recipes: Recipe[];
   currentMeal?: PlannedMeal;
   onSelectRecipe: (recipe: Recipe, servings: number) => void;
@@ -34,6 +35,7 @@ export const MealSlotPickerModal: React.FC<MealSlotPickerModalProps> = ({
   visible,
   day,
   mealTime,
+  isPassed = false,
   recipes,
   currentMeal,
   onSelectRecipe,
@@ -98,7 +100,11 @@ export const MealSlotPickerModal: React.FC<MealSlotPickerModalProps> = ({
           <View>
             <Text style={styles.headerTitle}>{`${dayLabel} • ${timeLabel}`}</Text>
             <Text style={styles.headerSubtitle}>
-              {currentMeal ? 'Modifier le plat prévu' : 'Choisir un plat'}
+              {isPassed
+                ? 'Créneau déjà passé • Choix forcé'
+                : currentMeal
+                ? 'Modifier le plat prévu'
+                : 'Choisir un plat'}
             </Text>
           </View>
           <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
