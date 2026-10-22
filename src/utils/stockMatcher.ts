@@ -153,22 +153,24 @@ export function isIngredientInStock(
     };
   }
 
-  // 5. Match de mot entier sans regex coûteuse (ex: "blanc de poulet" -> mot "poulet" en stock)
-  const words = ingNormStr.split(/\s+/);
-  for (const w of words) {
-    if (w.length >= 3) {
-      if (preparedStock.wordsMap.has(w)) {
-        return {
-          inStock: true,
-          matchedStockName: preparedStock.wordsMap.get(w),
-        };
-      }
-      const stemW = stemWord(w);
-      if (preparedStock.wordsMap.has(stemW)) {
-        return {
-          inStock: true,
-          matchedStockName: preparedStock.wordsMap.get(stemW),
-        };
+  // 5. Fallback par mot entier UNIQUEMENT pour les ingrédients hors lexique (non résolus vers un canonicalId)
+  if (!normIng.canonicalId) {
+    const words = ingNormStr.split(/\s+/);
+    for (const w of words) {
+      if (w.length >= 3) {
+        if (preparedStock.wordsMap.has(w)) {
+          return {
+            inStock: true,
+            matchedStockName: preparedStock.wordsMap.get(w),
+          };
+        }
+        const stemW = stemWord(w);
+        if (preparedStock.wordsMap.has(stemW)) {
+          return {
+            inStock: true,
+            matchedStockName: preparedStock.wordsMap.get(stemW),
+          };
+        }
       }
     }
   }

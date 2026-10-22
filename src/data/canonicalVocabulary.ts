@@ -183,7 +183,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
   {
     name: 'Crème fraîche',
     aisle: 'Produits Frais & Crèmerie',
-    aliases: ['creme', 'cremes', 'creme fraiche', 'creme liquide', 'creme epaisse', 'creme fleurette', 'creme entiere', 'brique de creme'],
+    aliases: ['creme fraiche', 'cremes fraiches', 'creme liquide', 'creme epaisse', 'creme fleurette', 'creme entiere', 'brique de creme'],
     allergen: 'lait',
   },
   {
@@ -403,7 +403,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
   {
     name: 'Pâtes',
     aisle: 'Épicerie & Condiments',
-    aliases: ['pate', 'pates', 'spaghetti', 'spaghettis', 'penne', 'pennes', 'coquillette', 'coquillettes', 'tagliatelle', 'tagliatelles', 'fusilli', 'fusillis', 'macaroni', 'macaronis', 'linguine', 'linguines', 'farfalle'],
+    aliases: ['pates', 'spaghetti', 'spaghettis', 'penne', 'pennes', 'coquillette', 'coquillettes', 'tagliatelle', 'tagliatelles', 'fusilli', 'fusillis', 'macaroni', 'macaronis', 'linguine', 'linguines', 'farfalle'],
     allergen: 'gluten',
   },
   {

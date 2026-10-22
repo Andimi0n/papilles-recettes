@@ -33,7 +33,8 @@
     "build:android": "eas build -p android --profile preview",
     "build:ios": "eas build -p ios --profile preview",
     "import:marmiton": "node scripts/import_marmiton.js",
-    "normalize:seed": "node scripts/normalizeInitialRecipes.js"
+    "normalize:seed": "node scripts/normalizeInitialRecipes.js",
+    "validate:lexicon": "node scripts/validateCanonicalVocabulary.js"
   },
   "overrides": {
     "braces": "^3.0.3",

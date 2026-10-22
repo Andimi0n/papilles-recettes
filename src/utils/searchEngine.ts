@@ -1,5 +1,6 @@
 import { Recipe, Difficulty } from '../types/recipe';
 import { normalizeString } from './helpers';
+import { normalizeIngredient } from './ingredientNormalizer';
 
 /**
  * Calcule la distance de Levenshtein entre deux chaînes normalisées.
@@ -418,18 +419,45 @@ export function searchRecipes(recipes: Recipe[], queryString: string): RecipeSea
 }
 
 /**
- * Vérifie si une recette contient un ingrédient donné (par son nom ou un synonyme).
+ * Vérifie si une recette contient un ingrédient donné en se basant sur le lexique canonique.
  */
 export function recipeContainsIngredient(recipe: Recipe, targetIngredient: string): boolean {
   if (!targetIngredient || !targetIngredient.trim()) return true;
-  const targetTokens = tokenizeText(targetIngredient);
-  if (targetTokens.length === 0) return true;
+  if (!recipe || !Array.isArray(recipe.ingredients) || recipe.ingredients.length === 0) {
+    return false;
+  }
 
-  // Récupérer les tokens de chaque ingrédient de la recette
+  // 1. Résolution canonique de l'ingrédient cible
+  const normTarget = normalizeIngredient({ name: targetIngredient });
+  const targetCanonicalId = normTarget.canonicalId;
+  const targetCanonicalName = normalizeString(normTarget.name || targetIngredient);
+  const targetStem = stemWord(targetCanonicalName);
+
   return recipe.ingredients.some((ing) => {
-    const ingTokens = tokenizeText(ing.name);
-    // Chaque token de l'ingrédient recherché doit matcher au moins un token de l'ingrédient de la recette
-    return targetTokens.every((tToken) => tokenMatchesTargetTokens(tToken, ingTokens));
+    const normIng = normalizeIngredient({ name: ing.name });
+
+    // A. Correspondance directe par identifiant canonique (O(1))
+    if (targetCanonicalId && normIng.canonicalId) {
+      if (normIng.canonicalId === targetCanonicalId) {
+        return true;
+      }
+    }
+
+    // B. Correspondance par nom principal canonique
+    const ingCanonicalName = normalizeString(normIng.name || ing.name);
+    if (ingCanonicalName === targetCanonicalName) {
+      return true;
+    }
+
+    // C. Fallback uniquement si l'un des ingrédients n'a pas pu être résolu dans le lexique
+    if (!targetCanonicalId || !normIng.canonicalId) {
+      const ingStem = stemWord(ingCanonicalName);
+      if (ingCanonicalName === targetCanonicalName || ingStem === targetStem) {
+        return true;
+      }
+    }
+
+    return false;
   });
 }
 
