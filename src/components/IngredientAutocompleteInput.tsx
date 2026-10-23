@@ -113,7 +113,7 @@ export const IngredientAutocompleteInput: React.FC<IngredientAutocompleteInputPr
     }
   };
 
-  const handleSelectDistinct = async (name: string) => {
+  const handleSelectDistinct = (name: string) => {
     const trimmed = name.trim();
     if (!trimmed) return;
     const formatted = trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
@@ -130,25 +130,27 @@ export const IngredientAutocompleteInput: React.FC<IngredientAutocompleteInputPr
       onChangeText(formatted);
     }
     setSuggestions([]);
-    try {
-      const created = await VocabularyService.promoteAliasToCanonical(formatted);
-      if (onSelectIngredient) {
-        onSelectIngredient(created);
+
+    // Résolution via le normaliseur sans altérer ni muter le lexique canonique global
+    const resolved = normalizeIngredient({ name: formatted });
+    if (resolved.canonicalId && onSelectIngredient) {
+      const syncList = VocabularyService.getSyncList();
+      const canon = syncList.find((c) => c.id === resolved.canonicalId);
+      if (canon) {
+        onSelectIngredient(canon);
       }
-      if (keepFocusOnSelect) {
-        setIsFocused(true);
-        setTimeout(() => {
-          inputRef.current?.focus();
-          isSelectingRef.current = false;
-        }, 50);
-      } else {
-        setTimeout(() => {
-          isSelectingRef.current = false;
-        }, 100);
-      }
-    } catch (e) {
-      console.error('Erreur promotion alias canonique:', e);
-      isSelectingRef.current = false;
+    }
+
+    if (keepFocusOnSelect) {
+      setIsFocused(true);
+      setTimeout(() => {
+        inputRef.current?.focus();
+        isSelectingRef.current = false;
+      }, 50);
+    } else {
+      setTimeout(() => {
+        isSelectingRef.current = false;
+      }, 100);
     }
   };
 
@@ -265,10 +267,10 @@ export const IngredientAutocompleteInput: React.FC<IngredientAutocompleteInputPr
                   </View>
                   <View style={styles.textColumn}>
                     <Text style={styles.distinctSuggestionName} numberOfLines={1}>
-                      Garder "{value.trim()}" (ingrédient distinct)
+                      Garder "{value.trim()}"
                     </Text>
                     <Text style={styles.distinctSuggestionSubtitle} numberOfLines={1}>
-                      Créer à part entière sans fusionner
+                      Conserver ce libellé spécifique
                     </Text>
                   </View>
                   <Ionicons name="add" size={16} color={colors.primary} />

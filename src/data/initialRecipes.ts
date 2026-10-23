@@ -26,79 +26,117 @@ export const INITIAL_RECIPES: Recipe[] = [
         "id": "ing_rec_top100_001_1",
         "name": "Blanquette de veau",
         "quantity": "1",
-        "unit": "kg"
+        "unit": "kg",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_001_2",
         "name": "Bouillon de volaille",
+        "canonicalId": "ing_canon_bouillon_de_volaille",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_001_3",
         "name": "Carotte",
+        "canonicalId": "ing_canon_carotte",
         "quantity": "2",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_001_4",
         "name": "Oignon",
+        "canonicalId": "ing_canon_oignon",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_001_5",
         "name": "Champignon de Paris",
+        "canonicalId": "ing_canon_champignon_de_paris",
         "quantity": "1",
-        "unit": "boîte"
+        "unit": "boîte",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_001_6",
         "name": "Crème fraîche",
+        "canonicalId": "ing_canon_creme_fraiche",
         "quantity": "1",
-        "unit": "pot"
+        "unit": "pot",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_001_7",
         "name": "Citron",
+        "canonicalId": "ing_canon_citron",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_001_8",
         "name": "Œufs",
+        "canonicalId": "ing_canon_ufs",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_001_9",
         "name": "Farine",
+        "canonicalId": "ing_canon_farine",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_001_10",
         "name": "Vin blanc",
+        "canonicalId": "ing_canon_vin_blanc",
         "quantity": "25",
-        "unit": "cl"
+        "unit": "cl",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_001_11",
         "name": "Sel",
+        "canonicalId": "ing_canon_sel",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_001_12",
         "name": "Poivre",
+        "canonicalId": "ing_canon_poivre",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_001_13",
         "name": "Bouillon de légumes",
+        "canonicalId": "ing_canon_bouillon_de_legumes",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -164,92 +202,136 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_002_1",
         "name": "Aubergine",
+        "canonicalId": "ing_canon_aubergine",
         "quantity": "2",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_002_2",
         "name": "Pomme de terre",
+        "canonicalId": "ing_canon_pomme_de_terre",
         "quantity": "6",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_002_3",
-        "name": "Boeuf haché",
+        "name": "Bœuf",
+        "canonicalId": "ing_canon_b_uf",
         "quantity": "500",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_002_4",
         "name": "Tomate",
+        "canonicalId": "ing_canon_tomate",
         "quantity": "5",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_002_5",
         "name": "Oignon",
+        "canonicalId": "ing_canon_oignon",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_002_6",
         "name": "Huile d'olive",
+        "canonicalId": "ing_canon_huile_d_olive",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_002_7",
         "name": "Beurre",
+        "canonicalId": "ing_canon_beurre",
         "quantity": "30",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_002_8",
-        "name": "Petite cuillère de cannelle",
+        "name": "Petite cuillere de cannelle",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_002_9",
         "name": "Miel",
+        "canonicalId": "ing_canon_miel",
         "quantity": "1",
-        "unit": "c. à soupe"
+        "unit": "c. à soupe",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_002_10",
         "name": "Muscade",
+        "canonicalId": "ing_canon_muscade",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_002_11",
         "name": "Poivre",
+        "canonicalId": "ing_canon_poivre",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_002_12",
         "name": "Sel",
+        "canonicalId": "ing_canon_sel",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_002_13",
         "name": "Beurre",
+        "canonicalId": "ing_canon_beurre",
         "quantity": "20",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_002_14",
         "name": "Farine",
+        "canonicalId": "ing_canon_farine",
         "quantity": "3",
-        "unit": "c. à soupe"
+        "unit": "c. à soupe",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_002_15",
         "name": "Lait",
+        "canonicalId": "ing_canon_lait",
         "quantity": "35",
-        "unit": "cl"
+        "unit": "cl",
+        "isPantryStaple": false,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -355,26 +437,38 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_003_1",
         "name": "Œufs",
+        "canonicalId": "ing_canon_ufs",
         "quantity": "4",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_003_2",
         "name": "Sucre",
+        "canonicalId": "ing_canon_sucre",
         "quantity": "125",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_003_3",
         "name": "Farine",
+        "canonicalId": "ing_canon_farine",
         "quantity": "125",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_003_4",
         "name": "Levure chimique",
+        "canonicalId": "ing_canon_levure_chimique",
         "quantity": "0.5",
-        "unit": "sachet"
+        "unit": "sachet",
+        "isPantryStaple": false,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -449,33 +543,47 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_004_1",
-        "name": "Pomme de terre belle de Fontenay",
+        "name": "Pomme de terre belle de fontenay",
         "quantity": "1",
-        "unit": "kg"
+        "unit": "kg",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_004_2",
         "name": "Crème fraîche",
+        "canonicalId": "ing_canon_creme_fraiche",
         "quantity": "1",
-        "unit": "l"
+        "unit": "l",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_004_3",
         "name": "Ail",
+        "canonicalId": "ing_canon_ail",
         "quantity": "2",
-        "unit": "gousses"
+        "unit": "gousses",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_004_4",
         "name": "Sel",
+        "canonicalId": "ing_canon_sel",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_004_5",
         "name": "Poivre",
+        "canonicalId": "ing_canon_poivre",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -545,33 +653,47 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_005_1",
-        "name": "Chocolat noir + 8 carrés",
+        "name": "Chocolat noir + 8 carres",
         "quantity": "120",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_005_2",
         "name": "Œufs",
+        "canonicalId": "ing_canon_ufs",
         "quantity": "3",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_005_3",
         "name": "Sucre",
+        "canonicalId": "ing_canon_sucre",
         "quantity": "80",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_005_4",
         "name": "Beurre",
+        "canonicalId": "ing_canon_beurre",
         "quantity": "35",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_005_5",
         "name": "Farine",
+        "canonicalId": "ing_canon_farine",
         "quantity": "1",
-        "unit": "c. à soupe"
+        "unit": "c. à soupe",
+        "isPantryStaple": false,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -647,50 +769,74 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_006_1",
         "name": "Courgette",
+        "canonicalId": "ing_canon_courgette",
         "quantity": "4",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_006_2",
         "name": "Oignon",
+        "canonicalId": "ing_canon_oignon",
         "quantity": "3",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_006_3",
         "name": "Fromage râpé",
+        "canonicalId": "ing_canon_fromage_rape",
         "quantity": "100",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_006_4",
         "name": "Œufs",
+        "canonicalId": "ing_canon_ufs",
         "quantity": "2",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_006_5",
         "name": "Crème fraîche",
+        "canonicalId": "ing_canon_creme_fraiche",
         "quantity": "2",
-        "unit": "c. à soupe"
+        "unit": "c. à soupe",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_006_6",
         "name": "Beurre",
+        "canonicalId": "ing_canon_beurre",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_006_7",
         "name": "Sel",
+        "canonicalId": "ing_canon_sel",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_006_8",
         "name": "Poivre",
+        "canonicalId": "ing_canon_poivre",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -756,44 +902,62 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_007_1",
         "name": "Œufs",
+        "canonicalId": "ing_canon_ufs",
         "quantity": "3",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_007_2",
         "name": "Sucre",
+        "canonicalId": "ing_canon_sucre",
         "quantity": "100",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_007_3",
         "name": "Vanille",
+        "canonicalId": "ing_canon_vanille",
         "quantity": "1",
-        "unit": "sachet"
+        "unit": "sachet",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_007_4",
         "name": "Mascarpone",
+        "canonicalId": "ing_canon_mascarpone",
         "quantity": "250",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_007_5",
-        "name": "Biscuits à la cuillère",
+        "name": "Biscuits a la cuillere",
         "quantity": "24",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_007_6",
-        "name": "Café noir non sucré",
+        "name": "Cafe noir non sucre",
         "quantity": "50",
-        "unit": "cl"
+        "unit": "cl",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_007_7",
         "name": "Cacao amer",
         "quantity": "30",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -864,44 +1028,64 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_008_1",
         "name": "Pomme",
+        "canonicalId": "ing_canon_pomme",
         "quantity": "6",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_008_2",
         "name": "Sucre",
+        "canonicalId": "ing_canon_sucre",
         "quantity": "150",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_008_3",
         "name": "Farine",
+        "canonicalId": "ing_canon_farine",
         "quantity": "150",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_008_4",
         "name": "Beurre",
+        "canonicalId": "ing_canon_beurre",
         "quantity": "125",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_008_5",
-        "name": "Petite cuillère de cannelle",
+        "name": "Petite cuillere de cannelle",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_008_6",
         "name": "Vanille",
+        "canonicalId": "ing_canon_vanille",
         "quantity": "1",
-        "unit": "sachet"
+        "unit": "sachet",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_008_7",
         "name": "Citron",
+        "canonicalId": "ing_canon_citron",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -967,50 +1151,72 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_009_1",
         "name": "Œufs",
+        "canonicalId": "ing_canon_ufs",
         "quantity": "3",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_009_2",
         "name": "Lait",
+        "canonicalId": "ing_canon_lait",
         "quantity": "0.25",
-        "unit": "l"
+        "unit": "l",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_009_3",
         "name": "Crème fraîche",
+        "canonicalId": "ing_canon_creme_fraiche",
         "quantity": "10",
-        "unit": "cl"
+        "unit": "cl",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_009_4",
-        "name": "Grosses cuillères à soupe de farine",
+        "name": "Grosses cuilleres a soupe de farine",
         "quantity": "2",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_009_5",
         "name": "Fromage râpé",
+        "canonicalId": "ing_canon_fromage_rape",
         "quantity": "100",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_009_6",
-        "name": "Dés de jambon ou 4 tranches de jambon ou lardons",
+        "name": "Des de jambon ou 4 tranches de jambon ou lardons",
         "quantity": "150",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_009_7",
         "name": "Poivre",
+        "canonicalId": "ing_canon_poivre",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_009_8",
         "name": "Sel",
+        "canonicalId": "ing_canon_sel",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -1052,61 +1258,90 @@ export const INITIAL_RECIPES: Recipe[] = [
         "id": "ing_rec_top100_010_1",
         "name": "Cuisses de canard confites",
         "quantity": "4",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_010_2",
         "name": "Oignon",
+        "canonicalId": "ing_canon_oignon",
         "quantity": "2",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_010_3",
         "name": "Échalote",
+        "canonicalId": "ing_canon_echalote",
         "quantity": "2",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_010_4",
         "name": "Pomme de terre",
+        "canonicalId": "ing_canon_pomme_de_terre",
         "quantity": "10",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_010_5",
         "name": "Crème fraîche",
+        "canonicalId": "ing_canon_creme_fraiche",
         "quantity": "2",
-        "unit": "c. à soupe"
+        "unit": "c. à soupe",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_010_6",
         "name": "Lait",
+        "canonicalId": "ing_canon_lait",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_010_7",
         "name": "Veau",
+        "canonicalId": "ing_canon_veau",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_010_8",
         "name": "Muscade",
+        "canonicalId": "ing_canon_muscade",
         "quantity": "1",
-        "unit": "pincée"
+        "unit": "pincée",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_010_9",
         "name": "Sel",
+        "canonicalId": "ing_canon_sel",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_010_10",
         "name": "Poivre",
+        "canonicalId": "ing_canon_poivre",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -1212,32 +1447,47 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_011_1",
         "name": "Lait",
+        "canonicalId": "ing_canon_lait",
         "quantity": "1",
-        "unit": "l"
+        "unit": "l",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_011_2",
         "name": "Farine",
+        "canonicalId": "ing_canon_farine",
         "quantity": "100",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_011_3",
         "name": "Sucre",
+        "canonicalId": "ing_canon_sucre",
         "quantity": "200",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_011_4",
         "name": "Œufs",
+        "canonicalId": "ing_canon_ufs",
         "quantity": "4",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_011_5",
         "name": "Vanille",
+        "canonicalId": "ing_canon_vanille",
         "quantity": "1",
-        "unit": "gousses"
+        "unit": "gousses",
+        "isPantryStaple": false,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -1293,14 +1543,20 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_012_1",
         "name": "Œufs",
+        "canonicalId": "ing_canon_ufs",
         "quantity": "4",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_012_2",
         "name": "Sucre",
+        "canonicalId": "ing_canon_sucre",
         "quantity": "250",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -1391,62 +1647,89 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_013_1",
         "name": "Saumon fumé",
+        "canonicalId": "ing_canon_saumon_fume",
         "quantity": "4",
-        "unit": "tranches"
+        "unit": "tranches",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_013_2",
         "name": "Courgette",
+        "canonicalId": "ing_canon_courgette",
         "quantity": "2",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_013_3",
         "name": "Œufs",
+        "canonicalId": "ing_canon_ufs",
         "quantity": "3",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_013_4",
         "name": "Crème fraîche",
+        "canonicalId": "ing_canon_creme_fraiche",
         "quantity": "10",
-        "unit": "cl"
+        "unit": "cl",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_013_5",
         "name": "Petite gousse d ail",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_013_6",
         "name": "Huile d'olive",
+        "canonicalId": "ing_canon_huile_d_olive",
         "quantity": "1",
-        "unit": "c. à soupe"
+        "unit": "c. à soupe",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_013_7",
         "name": "Aneth",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_013_8",
         "name": "Menthe",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_013_9",
         "name": "Sel",
+        "canonicalId": "ing_canon_sel",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_013_10",
         "name": "Poivre",
+        "canonicalId": "ing_canon_poivre",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -1527,44 +1810,64 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_014_1",
         "name": "Farine",
+        "canonicalId": "ing_canon_farine",
         "quantity": "250",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_014_2",
         "name": "Sucre",
+        "canonicalId": "ing_canon_sucre",
         "quantity": "30",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_014_3",
         "name": "Œufs",
+        "canonicalId": "ing_canon_ufs",
         "quantity": "2",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_014_4",
         "name": "Levure traditionnelle",
         "quantity": "1",
-        "unit": "sachet"
+        "unit": "sachet",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_014_5",
         "name": "Beurre",
+        "canonicalId": "ing_canon_beurre",
         "quantity": "65",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_014_6",
         "name": "Sel",
+        "canonicalId": "ing_canon_sel",
         "quantity": "1",
-        "unit": "pincée"
+        "unit": "pincée",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_014_7",
         "name": "Lait",
+        "canonicalId": "ing_canon_lait",
         "quantity": "30",
-        "unit": "cl"
+        "unit": "cl",
+        "isPantryStaple": false,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -1626,37 +1929,54 @@ export const INITIAL_RECIPES: Recipe[] = [
         "id": "ing_rec_top100_015_1",
         "name": "Mignons de porc",
         "quantity": "2",
-        "unit": "filets"
+        "unit": "filets",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_015_2",
         "name": "Pâte feuilletée",
+        "canonicalId": "ing_canon_pate_feuilletee",
         "quantity": "2",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_015_3",
         "name": "Jambon",
+        "canonicalId": "ing_canon_jambon",
         "quantity": "4",
-        "unit": "tranches"
+        "unit": "tranches",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_015_4",
         "name": "Fromage râpé",
+        "canonicalId": "ing_canon_fromage_rape",
         "quantity": "200",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_015_5",
         "name": "Oignon",
+        "canonicalId": "ing_canon_oignon",
         "quantity": "2",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_015_6",
         "name": "Œufs",
+        "canonicalId": "ing_canon_ufs",
         "quantity": "2",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -1737,50 +2057,72 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_016_1",
         "name": "Bœuf",
+        "canonicalId": "ing_canon_b_uf",
         "quantity": "600",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_016_2",
         "name": "Oignon",
+        "canonicalId": "ing_canon_oignon",
         "quantity": "4",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_016_3",
         "name": "Carotte",
+        "canonicalId": "ing_canon_carotte",
         "quantity": "4",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_016_4",
         "name": "Bouquet garni",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_016_5",
         "name": "Vin rouge assez bon",
         "quantity": "1",
-        "unit": "bouteille"
+        "unit": "bouteille",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_016_6",
         "name": "Beurre",
+        "canonicalId": "ing_canon_beurre",
         "quantity": "100",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_016_7",
         "name": "Sel",
+        "canonicalId": "ing_canon_sel",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_016_8",
         "name": "Poivre",
+        "canonicalId": "ing_canon_poivre",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -1842,49 +2184,69 @@ export const INITIAL_RECIPES: Recipe[] = [
         "id": "ing_rec_top100_017_1",
         "name": "Pain pour hamburger",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_017_2",
         "name": "Viande",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_017_3",
         "name": "Oignon",
+        "canonicalId": "ing_canon_oignon",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_017_4",
         "name": "Cheddar",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_017_5",
         "name": "Tomate",
+        "canonicalId": "ing_canon_tomate",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_017_6",
         "name": "Salade",
+        "canonicalId": "ing_canon_salade",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_017_7",
         "name": "Moutarde",
+        "canonicalId": "ing_canon_moutarde",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_017_8",
         "name": "Ketchup",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -1946,31 +2308,41 @@ export const INITIAL_RECIPES: Recipe[] = [
         "id": "ing_rec_top100_018_1",
         "name": "Oeuf par personne",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_018_2",
         "name": "Oeuf gros calibre et bio",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_018_3",
         "name": "Sel ou quelques gouttes de jus de citron",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_018_4",
-        "name": "Pain de campagne pour réaliser des mouillettes",
+        "name": "Pain de campagne pour realiser des mouillettes",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_018_5",
         "name": "Beurre demi-sel",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -2033,45 +2405,62 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_019_1",
-        "name": "Farine avec levure incorporée",
+        "name": "Farine avec levure incorporee",
         "quantity": "120",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_019_2",
         "name": "Sucre",
+        "canonicalId": "ing_canon_sucre",
         "quantity": "60",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_019_3",
         "name": "Lait",
+        "canonicalId": "ing_canon_lait",
         "quantity": "4",
-        "unit": "c. à soupe"
+        "unit": "c. à soupe",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_019_4",
         "name": "Oeuf entier + un blanc d oeuf",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_019_5",
         "name": "Beurre",
+        "canonicalId": "ing_canon_beurre",
         "quantity": "50",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_019_6",
-        "name": "Chocolat pour la pâte",
+        "name": "Chocolat pour la pate",
         "quantity": "60",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_019_7",
-        "name": "Pépites de chocolat",
+        "name": "Pepites de chocolat",
         "quantity": "100",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -2152,56 +2541,80 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_020_1",
         "name": "Œufs",
+        "canonicalId": "ing_canon_ufs",
         "quantity": "4",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_020_2",
         "name": "Sucre",
+        "canonicalId": "ing_canon_sucre",
         "quantity": "180",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_020_3",
         "name": "Farine",
+        "canonicalId": "ing_canon_farine",
         "quantity": "120",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_020_4",
         "name": "Levure",
         "quantity": "1",
-        "unit": "sachet"
+        "unit": "sachet",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_020_5",
         "name": "Beurre",
+        "canonicalId": "ing_canon_beurre",
         "quantity": "160",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_020_6",
         "name": "Chocolat noir",
+        "canonicalId": "ing_canon_chocolat_noir",
         "quantity": "100",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_020_7",
         "name": "Copeaux de chocolat",
         "quantity": "100",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_020_8",
         "name": "Crème fraîche",
+        "canonicalId": "ing_canon_creme_fraiche",
         "quantity": "40",
-        "unit": "cl"
+        "unit": "cl",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_020_9",
-        "name": "Cerises confites maisons ou cerises à l eau de vie",
+        "name": "Cerises confites maisons ou cerises a l eau de vie",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -2283,61 +2696,87 @@ export const INITIAL_RECIPES: Recipe[] = [
         "id": "ing_rec_top100_021_1",
         "name": "Poissons",
         "quantity": "500",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_021_2",
         "name": "Tomate",
+        "canonicalId": "ing_canon_tomate",
         "quantity": "5",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_021_3",
         "name": "Citrons jaunes ou 8 verts",
         "quantity": "4",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_021_4",
         "name": "Oignon",
+        "canonicalId": "ing_canon_oignon",
         "quantity": "0.5",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_021_5",
         "name": "Coriandre",
+        "canonicalId": "ing_canon_coriandre",
         "quantity": "0.25",
-        "unit": "verre"
+        "unit": "verre",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_021_6",
         "name": "Huile d'olive",
+        "canonicalId": "ing_canon_huile_d_olive",
         "quantity": "3",
-        "unit": "c. à soupe"
+        "unit": "c. à soupe",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_021_7",
         "name": "Olives en petits morceaux",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_021_8",
         "name": "Avocat",
+        "canonicalId": "ing_canon_avocat",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_021_9",
         "name": "Origan",
         "quantity": "1",
-        "unit": "pincée"
+        "unit": "pincée",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_021_10",
         "name": "Sel",
+        "canonicalId": "ing_canon_sel",
         "quantity": "1",
-        "unit": "pincée"
+        "unit": "pincée",
+        "isPantryStaple": true,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -2409,121 +2848,180 @@ export const INITIAL_RECIPES: Recipe[] = [
         "id": "ing_rec_top100_022_1",
         "name": "Lasagnes",
         "quantity": "1",
-        "unit": "paquet"
+        "unit": "paquet",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_022_2",
         "name": "Oignon",
+        "canonicalId": "ing_canon_oignon",
         "quantity": "3",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_022_3",
         "name": "Ail",
+        "canonicalId": "ing_canon_ail",
         "quantity": "2",
-        "unit": "gousses"
+        "unit": "gousses",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_022_4",
         "name": "Céleri",
+        "canonicalId": "ing_canon_celeri",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_022_5",
         "name": "Carotte",
+        "canonicalId": "ing_canon_carotte",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_022_6",
-        "name": "Boeuf haché",
+        "name": "Bœuf",
+        "canonicalId": "ing_canon_b_uf",
         "quantity": "600",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_022_7",
         "name": "Coulis de tomate",
+        "canonicalId": "ing_canon_coulis_de_tomate",
         "quantity": "800",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_022_8",
         "name": "Veau",
+        "canonicalId": "ing_canon_veau",
         "quantity": "15",
-        "unit": "cl"
+        "unit": "cl",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_022_9",
         "name": "Vin rouge",
+        "canonicalId": "ing_canon_vin_rouge",
         "quantity": "20",
-        "unit": "cl"
+        "unit": "cl",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_022_10",
         "name": "Laurier",
+        "canonicalId": "ing_canon_laurier",
         "quantity": "2",
-        "unit": "feuilles"
+        "unit": "feuilles",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_022_11",
         "name": "Thym",
+        "canonicalId": "ing_canon_thym",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_022_12",
         "name": "Basilic",
+        "canonicalId": "ing_canon_basilic",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_022_13",
         "name": "Muscade",
+        "canonicalId": "ing_canon_muscade",
         "quantity": "3",
-        "unit": "pincée"
+        "unit": "pincée",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_022_14",
         "name": "Fromage râpé",
+        "canonicalId": "ing_canon_fromage_rape",
         "quantity": "70",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_022_15",
         "name": "Parmesan",
+        "canonicalId": "ing_canon_parmesan",
         "quantity": "125",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_022_16",
         "name": "Sel",
+        "canonicalId": "ing_canon_sel",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_022_17",
         "name": "Poivre",
+        "canonicalId": "ing_canon_poivre",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_022_18",
         "name": "Farine",
+        "canonicalId": "ing_canon_farine",
         "quantity": "100",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_022_19",
         "name": "Beurre",
+        "canonicalId": "ing_canon_beurre",
         "quantity": "125",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_022_20",
         "name": "Lait",
+        "canonicalId": "ing_canon_lait",
         "quantity": "1",
-        "unit": "l"
+        "unit": "l",
+        "isPantryStaple": false,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -2624,32 +3122,47 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_023_1",
         "name": "Lait",
+        "canonicalId": "ing_canon_lait",
         "quantity": "25",
-        "unit": "cl"
+        "unit": "cl",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_023_2",
         "name": "Beurre",
+        "canonicalId": "ing_canon_beurre",
         "quantity": "20",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_023_3",
         "name": "Farine",
+        "canonicalId": "ing_canon_farine",
         "quantity": "2",
-        "unit": "c. à soupe"
+        "unit": "c. à soupe",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_023_4",
         "name": "Sel",
+        "canonicalId": "ing_canon_sel",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_023_5",
         "name": "Poivre",
+        "canonicalId": "ing_canon_poivre",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -2705,26 +3218,38 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_024_1",
         "name": "Pomme",
+        "canonicalId": "ing_canon_pomme",
         "quantity": "3",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_024_2",
         "name": "Farine",
+        "canonicalId": "ing_canon_farine",
         "quantity": "150",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_024_3",
         "name": "Beurre",
+        "canonicalId": "ing_canon_beurre",
         "quantity": "75",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_024_4",
         "name": "Sucre",
+        "canonicalId": "ing_canon_sucre",
         "quantity": "120",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -2790,38 +3315,54 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_025_1",
         "name": "Œufs",
+        "canonicalId": "ing_canon_ufs",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_025_2",
         "name": "Sucre",
+        "canonicalId": "ing_canon_sucre",
         "quantity": "1",
-        "unit": "c. à soupe"
+        "unit": "c. à soupe",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_025_3",
         "name": "Huile ou de beurre",
         "quantity": "1",
-        "unit": "c. à soupe"
+        "unit": "c. à soupe",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_025_4",
         "name": "Farine",
+        "canonicalId": "ing_canon_farine",
         "quantity": "150",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_025_5",
-        "name": "Bonne cuillère à café de levure",
+        "name": "Bonne cuillere a cafe de levure",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_025_6",
         "name": "Lait",
+        "canonicalId": "ing_canon_lait",
         "quantity": "200",
-        "unit": "ml"
+        "unit": "ml",
+        "isPantryStaple": false,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -2887,74 +3428,107 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_026_1",
         "name": "Miel",
+        "canonicalId": "ing_canon_miel",
         "quantity": "250",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_026_2",
         "name": "Farine",
+        "canonicalId": "ing_canon_farine",
         "quantity": "250",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_026_3",
         "name": "Sucre",
+        "canonicalId": "ing_canon_sucre",
         "quantity": "100",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_026_4",
         "name": "Levure chimique",
+        "canonicalId": "ing_canon_levure_chimique",
         "quantity": "1",
-        "unit": "sachet"
+        "unit": "sachet",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_026_5",
         "name": "Vanille",
+        "canonicalId": "ing_canon_vanille",
         "quantity": "1",
-        "unit": "sachet"
+        "unit": "sachet",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_026_6",
         "name": "Anis vert",
         "quantity": "1",
-        "unit": "c. à café"
+        "unit": "c. à café",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_026_7",
         "name": "Muscade",
+        "canonicalId": "ing_canon_muscade",
         "quantity": "1",
-        "unit": "c. à café"
+        "unit": "c. à café",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_026_8",
         "name": "Cannelle",
+        "canonicalId": "ing_canon_cannelle",
         "quantity": "1",
-        "unit": "c. à café"
+        "unit": "c. à café",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_026_9",
         "name": "Gingembre",
         "quantity": "1",
-        "unit": "c. à café"
+        "unit": "c. à café",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_026_10",
-        "name": "Quatre-épices",
+        "name": "Quatre-epices",
         "quantity": "1",
-        "unit": "c. à café"
+        "unit": "c. à café",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_026_11",
         "name": "Œufs",
+        "canonicalId": "ing_canon_ufs",
         "quantity": "2",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_026_12",
         "name": "Lait",
+        "canonicalId": "ing_canon_lait",
         "quantity": "10",
-        "unit": "cl"
+        "unit": "cl",
+        "isPantryStaple": false,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -3030,38 +3604,56 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_027_1",
         "name": "Pomme",
+        "canonicalId": "ing_canon_pomme",
         "quantity": "3",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_027_2",
         "name": "Pâte brisée",
+        "canonicalId": "ing_canon_pate_brisee",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_027_3",
         "name": "Œufs",
+        "canonicalId": "ing_canon_ufs",
         "quantity": "2",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_027_4",
         "name": "Crème fraîche",
+        "canonicalId": "ing_canon_creme_fraiche",
         "quantity": "25",
-        "unit": "cl"
+        "unit": "cl",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_027_5",
         "name": "Sucre",
+        "canonicalId": "ing_canon_sucre",
         "quantity": "100",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_027_6",
         "name": "Vanille",
+        "canonicalId": "ing_canon_vanille",
         "quantity": "1",
-        "unit": "sachet"
+        "unit": "sachet",
+        "isPantryStaple": false,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -3126,57 +3718,79 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_028_1",
-        "name": "Sauté de veau",
+        "name": "Saute de veau",
         "quantity": "1",
-        "unit": "kg"
+        "unit": "kg",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_028_2",
-        "name": "Pulpes de tomate",
+        "name": "Coulis de tomate",
+        "canonicalId": "ing_canon_coulis_de_tomate",
         "quantity": "2",
-        "unit": "boîtes"
+        "unit": "boîtes",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_028_3",
         "name": "Saucisse",
+        "canonicalId": "ing_canon_saucisse",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_028_4",
         "name": "Olives vertes",
         "quantity": "1",
-        "unit": "pot"
+        "unit": "pot",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_028_5",
         "name": "Oignon",
+        "canonicalId": "ing_canon_oignon",
         "quantity": "4",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_028_6",
         "name": "Bouquet de basilic",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_028_7",
         "name": "Bouquet garni",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_028_8",
         "name": "Ail",
+        "canonicalId": "ing_canon_ail",
         "quantity": "1",
-        "unit": "gousses"
+        "unit": "gousses",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_028_9",
         "name": "Huile",
         "quantity": "2",
-        "unit": "c. à soupe"
+        "unit": "c. à soupe",
+        "isPantryStaple": false,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -3237,50 +3851,72 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_029_1",
         "name": "Farine",
+        "canonicalId": "ing_canon_farine",
         "quantity": "150",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_029_2",
         "name": "Jambon",
+        "canonicalId": "ing_canon_jambon",
         "quantity": "100",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_029_3",
         "name": "Olives vertes",
         "quantity": "150",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_029_4",
         "name": "Fromage râpé",
+        "canonicalId": "ing_canon_fromage_rape",
         "quantity": "75",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_029_5",
         "name": "Œufs",
+        "canonicalId": "ing_canon_ufs",
         "quantity": "4",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_029_6",
         "name": "Lait",
+        "canonicalId": "ing_canon_lait",
         "quantity": "10",
-        "unit": "cl"
+        "unit": "cl",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_029_7",
         "name": "Levure chimique",
+        "canonicalId": "ing_canon_levure_chimique",
         "quantity": "1",
-        "unit": "sachet"
+        "unit": "sachet",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_029_8",
         "name": "Huile",
         "quantity": "1",
-        "unit": "c. à soupe"
+        "unit": "c. à soupe",
+        "isPantryStaple": false,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -3347,67 +3983,97 @@ export const INITIAL_RECIPES: Recipe[] = [
         "id": "ing_rec_top100_030_1",
         "name": "Boeuf pour bourguignon",
         "quantity": "800",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_030_2",
         "name": "Lardons",
+        "canonicalId": "ing_canon_lardons",
         "quantity": "100",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_030_3",
-        "name": "Beurre ou 3 cuillères à soupe d huile",
+        "name": "Beurre ou 3 cuilleres a soupe d huile",
         "quantity": "50",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_030_4",
         "name": "Vin rouge",
+        "canonicalId": "ing_canon_vin_rouge",
         "quantity": "0.6666667",
-        "unit": "l"
+        "unit": "l",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_030_5",
         "name": "Oignon",
+        "canonicalId": "ing_canon_oignon",
         "quantity": "2",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_030_6",
         "name": "Ail",
+        "canonicalId": "ing_canon_ail",
         "quantity": "1",
-        "unit": "gousses"
+        "unit": "gousses",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_030_7",
         "name": "Farine",
+        "canonicalId": "ing_canon_farine",
         "quantity": "2",
-        "unit": "c. à soupe"
+        "unit": "c. à soupe",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_030_8",
         "name": "Bouquet garni",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_030_9",
         "name": "Champignon de Paris",
+        "canonicalId": "ing_canon_champignon_de_paris",
         "quantity": "250",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_030_10",
         "name": "Sel",
+        "canonicalId": "ing_canon_sel",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_030_11",
         "name": "Poivre",
+        "canonicalId": "ing_canon_poivre",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -3478,20 +4144,28 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_031_1",
         "name": "Pâte feuilletée",
+        "canonicalId": "ing_canon_pate_feuilletee",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_031_2",
         "name": "Saumon fumé",
+        "canonicalId": "ing_canon_saumon_fume",
         "quantity": "4",
-        "unit": "tranches"
+        "unit": "tranches",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_031_3",
-        "name": "Cuillères de lait",
+        "name": "Cuilleres de lait",
         "quantity": "2",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -3542,44 +4216,64 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_032_1",
         "name": "Chocolat noir",
+        "canonicalId": "ing_canon_chocolat_noir",
         "quantity": "150",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_032_2",
         "name": "Œufs",
+        "canonicalId": "ing_canon_ufs",
         "quantity": "3",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_032_3",
         "name": "Sucre",
+        "canonicalId": "ing_canon_sucre",
         "quantity": "100",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_032_4",
         "name": "Farine",
+        "canonicalId": "ing_canon_farine",
         "quantity": "60",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_032_5",
         "name": "Levure",
         "quantity": "1",
-        "unit": "c. à café"
+        "unit": "c. à café",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_032_6",
         "name": "Beurre",
+        "canonicalId": "ing_canon_beurre",
         "quantity": "80",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_032_7",
-        "name": "Amandes",
+        "name": "Amande",
+        "canonicalId": "ing_canon_amande",
         "quantity": "50",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -3636,31 +4330,44 @@ export const INITIAL_RECIPES: Recipe[] = [
         "id": "ing_rec_top100_033_1",
         "name": "Yaourt bulgare",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_033_2",
         "name": "Œufs",
+        "canonicalId": "ing_canon_ufs",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_033_3",
         "name": "Yaourt de farine",
         "quantity": "1",
-        "unit": "pot"
+        "unit": "pot",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_033_4",
         "name": "Levure chimique",
+        "canonicalId": "ing_canon_levure_chimique",
         "quantity": "0.5",
-        "unit": "sachet"
+        "unit": "sachet",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_033_5",
         "name": "Sel",
+        "canonicalId": "ing_canon_sel",
         "quantity": "1",
-        "unit": "pincée"
+        "unit": "pincée",
+        "isPantryStaple": true,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -3716,26 +4423,36 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_034_1",
         "name": "Crème fraîche",
+        "canonicalId": "ing_canon_creme_fraiche",
         "quantity": "50",
-        "unit": "cl"
+        "unit": "cl",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_034_2",
         "name": "Sucre",
+        "canonicalId": "ing_canon_sucre",
         "quantity": "50",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_034_3",
-        "name": "Gélatine",
+        "name": "Gelatine",
         "quantity": "2",
-        "unit": "feuilles"
+        "unit": "feuilles",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_034_4",
         "name": "Vanille ou extrait de vanille",
         "quantity": "1",
-        "unit": "gousses"
+        "unit": "gousses",
+        "isPantryStaple": false,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -3787,43 +4504,62 @@ export const INITIAL_RECIPES: Recipe[] = [
         "id": "ing_rec_top100_035_1",
         "name": "Mignons de porc",
         "quantity": "2",
-        "unit": "filets"
+        "unit": "filets",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_035_2",
         "name": "Vin blanc",
+        "canonicalId": "ing_canon_vin_blanc",
         "quantity": "10",
-        "unit": "cl"
+        "unit": "cl",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_035_3",
         "name": "Oignon",
+        "canonicalId": "ing_canon_oignon",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_035_4",
         "name": "Crème fraîche",
+        "canonicalId": "ing_canon_creme_fraiche",
         "quantity": "50",
-        "unit": "cl"
+        "unit": "cl",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_035_5",
         "name": "Maroilles",
         "quantity": "250",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_035_6",
         "name": "Poivre",
+        "canonicalId": "ing_canon_poivre",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_035_7",
         "name": "Sel",
+        "canonicalId": "ing_canon_sel",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -3894,38 +4630,54 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_036_1",
         "name": "Lait",
+        "canonicalId": "ing_canon_lait",
         "quantity": "1",
-        "unit": "l"
+        "unit": "l",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_036_2",
         "name": "Riz blanc rond",
         "quantity": "100",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_036_3",
         "name": "Sucre",
+        "canonicalId": "ing_canon_sucre",
         "quantity": "5",
-        "unit": "c. à soupe"
+        "unit": "c. à soupe",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_036_4",
         "name": "Vanille",
+        "canonicalId": "ing_canon_vanille",
         "quantity": "1",
-        "unit": "sachet"
+        "unit": "sachet",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_036_5",
         "name": "Citron",
+        "canonicalId": "ing_canon_citron",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_036_6",
-        "name": "Orange ou de clémentine",
+        "name": "Orange ou de clementine",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -3975,33 +4727,45 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_037_1",
-        "name": "Pommes de terre à chair ferme",
+        "name": "Pommes de terre a chair ferme",
         "quantity": "6",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_037_2",
         "name": "Huile",
         "quantity": "3",
-        "unit": "c. à soupe"
+        "unit": "c. à soupe",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_037_3",
         "name": "Tour de moulin de poivre",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_037_4",
         "name": "Sel",
+        "canonicalId": "ing_canon_sel",
         "quantity": "2",
-        "unit": "pincée"
+        "unit": "pincée",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_037_5",
         "name": "Curry",
+        "canonicalId": "ing_canon_curry",
         "quantity": "3",
-        "unit": "pincée"
+        "unit": "pincée",
+        "isPantryStaple": true,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -4067,74 +4831,106 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_038_1",
         "name": "Œufs",
+        "canonicalId": "ing_canon_ufs",
         "quantity": "2",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_038_2",
         "name": "Sucre",
+        "canonicalId": "ing_canon_sucre",
         "quantity": "60",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_038_3",
-        "name": "Poudre de noisette",
+        "name": "Noisette",
+        "canonicalId": "ing_canon_noisette",
         "quantity": "40",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_038_4",
         "name": "Farine rases",
         "quantity": "2",
-        "unit": "c. à soupe"
+        "unit": "c. à soupe",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_038_5",
         "name": "Beurre",
+        "canonicalId": "ing_canon_beurre",
         "quantity": "30",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_038_6",
         "name": "Levure chimique",
+        "canonicalId": "ing_canon_levure_chimique",
         "quantity": "0.5",
-        "unit": "c. à café"
+        "unit": "c. à café",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_038_7",
         "name": "Pralinoise",
         "quantity": "200",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_038_8",
-        "name": "Crêpe dentelle soit 9 petits papiers dorés",
+        "name": "Crepe dentelle soit 9 petits papiers dores",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_038_9",
         "name": "Pain",
+        "canonicalId": "ing_canon_pain",
         "quantity": "40",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_038_10",
         "name": "Crème fraîche",
+        "canonicalId": "ing_canon_creme_fraiche",
         "quantity": "500",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_038_11",
         "name": "Chocolat noir",
+        "canonicalId": "ing_canon_chocolat_noir",
         "quantity": "300",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_038_12",
         "name": "Liqueur de menthe",
         "quantity": "3",
-        "unit": "cl"
+        "unit": "cl",
+        "isPantryStaple": false,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -4274,45 +5070,64 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_039_1",
-        "name": "Rôti de porc de 600 grammes environ",
+        "name": "Roti de porc de 600 grammes environ",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_039_2",
         "name": "Ail",
+        "canonicalId": "ing_canon_ail",
         "quantity": "0.75",
-        "unit": "gousses"
+        "unit": "gousses",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_039_3",
         "name": "Moutarde",
+        "canonicalId": "ing_canon_moutarde",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_039_4",
         "name": "Échalote",
+        "canonicalId": "ing_canon_echalote",
         "quantity": "10",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_039_5",
         "name": "Poivre",
+        "canonicalId": "ing_canon_poivre",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_039_6",
         "name": "Sel",
+        "canonicalId": "ing_canon_sel",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_039_7",
-        "name": "Crème allégée",
+        "name": "Creme allegee",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -4373,51 +5188,74 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_040_1",
-        "name": "Mignon de porc de 600 à 700 g environ",
+        "name": "Mignon de porc de 600 a 700 g environ",
         "quantity": "1",
-        "unit": "filet"
+        "unit": "filet",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_040_2",
         "name": "Vin blanc",
+        "canonicalId": "ing_canon_vin_blanc",
         "quantity": "25",
-        "unit": "cl"
+        "unit": "cl",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_040_3",
         "name": "Bouillon de légumes",
+        "canonicalId": "ing_canon_bouillon_de_legumes",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_040_4",
         "name": "Crème fraîche",
+        "canonicalId": "ing_canon_creme_fraiche",
         "quantity": "40",
-        "unit": "cl"
+        "unit": "cl",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_040_5",
         "name": "Champignon de Paris",
+        "canonicalId": "ing_canon_champignon_de_paris",
         "quantity": "500",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_040_6",
         "name": "Moutarde",
+        "canonicalId": "ing_canon_moutarde",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_040_7",
         "name": "Huile d'olive",
+        "canonicalId": "ing_canon_huile_d_olive",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_040_8",
         "name": "Beurre",
+        "canonicalId": "ing_canon_beurre",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -4488,50 +5326,70 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_041_1",
         "name": "Mascarpone",
+        "canonicalId": "ing_canon_mascarpone",
         "quantity": "250",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_041_2",
         "name": "Sucre",
+        "canonicalId": "ing_canon_sucre",
         "quantity": "80",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_041_3",
         "name": "Vanille",
+        "canonicalId": "ing_canon_vanille",
         "quantity": "1",
-        "unit": "sachet"
+        "unit": "sachet",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_041_4",
         "name": "Œufs",
+        "canonicalId": "ing_canon_ufs",
         "quantity": "3",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_041_5",
-        "name": "Spéculoos",
+        "name": "Speculoos",
         "quantity": "300",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_041_6",
-        "name": "Café noir assez fort",
+        "name": "Cafe noir assez fort",
         "quantity": "2",
-        "unit": "verre"
+        "unit": "verre",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_041_7",
         "name": "Amaretto",
         "quantity": "1",
-        "unit": "c. à soupe"
+        "unit": "c. à soupe",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_041_8",
-        "name": "Cacao non sucré",
+        "name": "Cacao non sucre",
         "quantity": "30",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -4597,74 +5455,106 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_042_1",
         "name": "Beurre",
+        "canonicalId": "ing_canon_beurre",
         "quantity": "50",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_042_2",
         "name": "Oignon",
+        "canonicalId": "ing_canon_oignon",
         "quantity": "2",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_042_3",
-        "name": "Ail écrasées",
+        "name": "Ail ecrasees",
         "quantity": "2",
-        "unit": "gousses"
+        "unit": "gousses",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_042_4",
-        "name": "Boeuf haché",
+        "name": "Bœuf",
+        "canonicalId": "ing_canon_b_uf",
         "quantity": "500",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_042_5",
         "name": "Chili",
         "quantity": "1",
-        "unit": "c. à café"
+        "unit": "c. à café",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_042_6",
         "name": "Cumin",
+        "canonicalId": "ing_canon_cumin",
         "quantity": "2",
-        "unit": "c. à café"
+        "unit": "c. à café",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_042_7",
         "name": "Concentré de tomate",
+        "canonicalId": "ing_canon_concentre_de_tomate",
         "quantity": "65",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_042_8",
-        "name": "Haricots rouges égouttés",
+        "name": "Haricots rouges egouttes",
         "quantity": "1",
-        "unit": "boîte"
+        "unit": "boîte",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_042_9",
         "name": "Bouillon de boeuf",
         "quantity": "30",
-        "unit": "cl"
+        "unit": "cl",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_042_10",
         "name": "Sel",
+        "canonicalId": "ing_canon_sel",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_042_11",
         "name": "Poivre",
+        "canonicalId": "ing_canon_poivre",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_042_12",
-        "name": "Persil pour décorer",
+        "name": "Persil",
+        "canonicalId": "ing_canon_persil",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": true
       }
     ],
     "steps": [
@@ -4725,56 +5615,79 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_043_1",
         "name": "Pâte feuilletée",
+        "canonicalId": "ing_canon_pate_feuilletee",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_043_2",
         "name": "Thon",
+        "canonicalId": "ing_canon_thon",
         "quantity": "2",
-        "unit": "boîtes"
+        "unit": "boîtes",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_043_3",
         "name": "Tomates rondes",
         "quantity": "2",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_043_4",
         "name": "Moutarde",
+        "canonicalId": "ing_canon_moutarde",
         "quantity": "3",
-        "unit": "c. à soupe"
+        "unit": "c. à soupe",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_043_5",
         "name": "Oeufs entiers",
         "quantity": "2",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_043_6",
-        "name": "Crème semi-liquide ou épaisse",
+        "name": "Creme semi-liquide ou epaisse",
         "quantity": "20",
-        "unit": "cl"
+        "unit": "cl",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_043_7",
         "name": "Lait",
+        "canonicalId": "ing_canon_lait",
         "quantity": "3",
-        "unit": "c. à soupe"
+        "unit": "c. à soupe",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_043_8",
         "name": "Sel",
+        "canonicalId": "ing_canon_sel",
         "quantity": "1",
-        "unit": "pincée"
+        "unit": "pincée",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_043_9",
         "name": "Poivre + 5 baies",
         "quantity": "2",
-        "unit": "pincée"
+        "unit": "pincée",
+        "isPantryStaple": true,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -4841,73 +5754,105 @@ export const INITIAL_RECIPES: Recipe[] = [
         "id": "ing_rec_top100_044_1",
         "name": "Pilons de poulet",
         "quantity": "8",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_044_2",
         "name": "Saucisse",
+        "canonicalId": "ing_canon_saucisse",
         "quantity": "12",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_044_3",
         "name": "Huile d'olive",
+        "canonicalId": "ing_canon_huile_d_olive",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_044_4",
         "name": "Concentré de tomate",
+        "canonicalId": "ing_canon_concentre_de_tomate",
         "quantity": "2",
-        "unit": "boîtes"
+        "unit": "boîtes",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_044_5",
-        "name": "Épices à couscous",
+        "name": "Epices a couscous",
         "quantity": "3",
-        "unit": "c. à soupe"
+        "unit": "c. à soupe",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_044_6",
         "name": "Harissa",
         "quantity": "1",
-        "unit": "c. à café"
+        "unit": "c. à café",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_044_7",
         "name": "Bouillon de boeuf",
         "quantity": "2",
-        "unit": "cube"
+        "unit": "cube",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_044_8",
         "name": "Tomate",
+        "canonicalId": "ing_canon_tomate",
         "quantity": "3",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_044_9",
         "name": "Navet",
+        "canonicalId": "ing_canon_navet",
         "quantity": "10",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_044_10",
         "name": "Carotte",
+        "canonicalId": "ing_canon_carotte",
         "quantity": "5",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_044_11",
         "name": "Courgette",
+        "canonicalId": "ing_canon_courgette",
         "quantity": "2",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_044_12",
         "name": "Pois chiches",
+        "canonicalId": "ing_canon_pois_chiches",
         "quantity": "400",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -4978,50 +5923,72 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_045_1",
         "name": "Lait",
+        "canonicalId": "ing_canon_lait",
         "quantity": "50",
-        "unit": "cl"
+        "unit": "cl",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_045_2",
         "name": "Oeufs entiers",
         "quantity": "2",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_045_3",
         "name": "Œufs",
+        "canonicalId": "ing_canon_ufs",
         "quantity": "2",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_045_4",
         "name": "Vanille",
+        "canonicalId": "ing_canon_vanille",
         "quantity": "0.5",
-        "unit": "gousses"
+        "unit": "gousses",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_045_5",
         "name": "Rhum",
         "quantity": "3",
-        "unit": "c. à soupe"
+        "unit": "c. à soupe",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_045_6",
         "name": "Farine",
+        "canonicalId": "ing_canon_farine",
         "quantity": "100",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_045_7",
         "name": "Sucre",
+        "canonicalId": "ing_canon_sucre",
         "quantity": "200",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_045_8",
         "name": "Beurre",
+        "canonicalId": "ing_canon_beurre",
         "quantity": "25",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -5092,68 +6059,100 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_046_1",
         "name": "Beurre",
+        "canonicalId": "ing_canon_beurre",
         "quantity": "3",
-        "unit": "c. à soupe"
+        "unit": "c. à soupe",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_046_2",
         "name": "Oignon",
+        "canonicalId": "ing_canon_oignon",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_046_3",
         "name": "Champignon de Paris",
+        "canonicalId": "ing_canon_champignon_de_paris",
         "quantity": "250",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_046_4",
         "name": "Farine",
+        "canonicalId": "ing_canon_farine",
         "quantity": "2",
-        "unit": "c. à soupe"
+        "unit": "c. à soupe",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_046_5",
         "name": "Bouillon",
         "quantity": "0.25",
-        "unit": "l"
+        "unit": "l",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_046_6",
         "name": "Lait",
+        "canonicalId": "ing_canon_lait",
         "quantity": "0.5",
-        "unit": "l"
+        "unit": "l",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_046_7",
         "name": "Citron",
+        "canonicalId": "ing_canon_citron",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_046_8",
         "name": "Crème fraîche",
+        "canonicalId": "ing_canon_creme_fraiche",
         "quantity": "2",
-        "unit": "c. à soupe"
+        "unit": "c. à soupe",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_046_9",
         "name": "Persil",
+        "canonicalId": "ing_canon_persil",
         "quantity": "1",
-        "unit": "c. à soupe"
+        "unit": "c. à soupe",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_046_10",
         "name": "Sel",
+        "canonicalId": "ing_canon_sel",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_046_11",
         "name": "Poivre",
+        "canonicalId": "ing_canon_poivre",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -5224,56 +6223,81 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_047_1",
         "name": "Farine",
+        "canonicalId": "ing_canon_farine",
         "quantity": "250",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_047_2",
         "name": "Sucre de canne roux",
         "quantity": "90",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_047_3",
         "name": "Vanille",
+        "canonicalId": "ing_canon_vanille",
         "quantity": "1",
-        "unit": "sachet"
+        "unit": "sachet",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_047_4",
         "name": "Sel",
+        "canonicalId": "ing_canon_sel",
         "quantity": "1",
-        "unit": "pincée"
+        "unit": "pincée",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_047_5",
         "name": "Levure",
         "quantity": "0.5",
-        "unit": "sachet"
+        "unit": "sachet",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_047_6",
         "name": "Œufs",
+        "canonicalId": "ing_canon_ufs",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_047_7",
         "name": "Beurre",
+        "canonicalId": "ing_canon_beurre",
         "quantity": "125",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_047_8",
         "name": "Miel",
+        "canonicalId": "ing_canon_miel",
         "quantity": "2",
-        "unit": "c. à café"
+        "unit": "c. à café",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_047_9",
         "name": "Chocolat noir",
+        "canonicalId": "ing_canon_chocolat_noir",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -5350,49 +6374,71 @@ export const INITIAL_RECIPES: Recipe[] = [
         "id": "ing_rec_top100_048_1",
         "name": "Paupiettes de veau",
         "quantity": "4",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_048_2",
         "name": "Ail",
+        "canonicalId": "ing_canon_ail",
         "quantity": "1",
-        "unit": "gousses"
+        "unit": "gousses",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_048_3",
         "name": "Huile d'olive",
+        "canonicalId": "ing_canon_huile_d_olive",
         "quantity": "1",
-        "unit": "c. à soupe"
+        "unit": "c. à soupe",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_048_4",
         "name": "Fond de veau",
         "quantity": "2",
-        "unit": "c. à soupe"
+        "unit": "c. à soupe",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_048_5",
         "name": "Vin blanc",
+        "canonicalId": "ing_canon_vin_blanc",
         "quantity": "12.5",
-        "unit": "cl"
+        "unit": "cl",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_048_6",
         "name": "Veau",
+        "canonicalId": "ing_canon_veau",
         "quantity": "12.5",
-        "unit": "cl"
+        "unit": "cl",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_048_7",
         "name": "Moutarde",
+        "canonicalId": "ing_canon_moutarde",
         "quantity": "1",
-        "unit": "c. à soupe"
+        "unit": "c. à soupe",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_048_8",
         "name": "Vinaigre",
+        "canonicalId": "ing_canon_vinaigre",
         "quantity": "1",
-        "unit": "c. à soupe"
+        "unit": "c. à soupe",
+        "isPantryStaple": true,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -5452,69 +6498,97 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_049_1",
-        "name": "Ronds de pâtes feuilletées",
+        "name": "Ronds de pates feuilletees",
         "quantity": "2",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_049_2",
-        "name": "Amandes",
+        "name": "Amande",
+        "canonicalId": "ing_canon_amande",
         "quantity": "125",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_049_3",
         "name": "Beurre",
+        "canonicalId": "ing_canon_beurre",
         "quantity": "50",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_049_4",
         "name": "Sucre",
+        "canonicalId": "ing_canon_sucre",
         "quantity": "100",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_049_5",
         "name": "Oeufs entier",
         "quantity": "2",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_049_6",
         "name": "Jaune d oeuf pour dorer",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_049_7",
         "name": "Vanille",
+        "canonicalId": "ing_canon_vanille",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_049_8",
         "name": "Liqueur d amande",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_049_9",
-        "name": "Maïzena",
+        "name": "Fécule de maïs",
+        "canonicalId": "ing_canon_fecule_de_mais",
         "quantity": "10",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_049_10",
         "name": "Lait",
+        "canonicalId": "ing_canon_lait",
         "quantity": "10",
-        "unit": "cl"
+        "unit": "cl",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_049_11",
-        "name": "Cuillère de rhum",
+        "name": "Cuillere de rhum",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -5576,80 +6650,118 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_050_1",
         "name": "Farine",
+        "canonicalId": "ing_canon_farine",
         "quantity": "250",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_050_2",
         "name": "Beurre",
+        "canonicalId": "ing_canon_beurre",
         "quantity": "125",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_050_3",
         "name": "Sucre",
+        "canonicalId": "ing_canon_sucre",
         "quantity": "70",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_050_4",
         "name": "Œufs",
+        "canonicalId": "ing_canon_ufs",
         "quantity": "2",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_050_5",
         "name": "Veau",
+        "canonicalId": "ing_canon_veau",
         "quantity": "5",
-        "unit": "cl"
+        "unit": "cl",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_050_6",
         "name": "Sel",
+        "canonicalId": "ing_canon_sel",
         "quantity": "1",
-        "unit": "pincée"
+        "unit": "pincée",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_050_7",
         "name": "Citrons de taille moyenne",
         "quantity": "4",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_050_8",
         "name": "Sucre",
+        "canonicalId": "ing_canon_sucre",
         "quantity": "150",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_050_9",
         "name": "Œufs",
+        "canonicalId": "ing_canon_ufs",
         "quantity": "3",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_050_10",
-        "name": "Maïzena",
+        "name": "Fécule de maïs",
+        "canonicalId": "ing_canon_fecule_de_mais",
         "quantity": "1",
-        "unit": "c. à soupe"
+        "unit": "c. à soupe",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_050_11",
         "name": "Œufs",
+        "canonicalId": "ing_canon_ufs",
         "quantity": "2",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_050_12",
         "name": "Sucre",
+        "canonicalId": "ing_canon_sucre",
         "quantity": "100",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_050_13",
         "name": "Levure chimique",
+        "canonicalId": "ing_canon_levure_chimique",
         "quantity": "0.5",
-        "unit": "c. à café"
+        "unit": "c. à café",
+        "isPantryStaple": false,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -5800,32 +6912,46 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_051_1",
         "name": "Chocolat noir",
+        "canonicalId": "ing_canon_chocolat_noir",
         "quantity": "200",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_051_2",
         "name": "Beurre + une noix pour le moule",
         "quantity": "100",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_051_3",
         "name": "Œufs",
+        "canonicalId": "ing_canon_ufs",
         "quantity": "3",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_051_4",
         "name": "Farine",
+        "canonicalId": "ing_canon_farine",
         "quantity": "50",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_051_5",
         "name": "Sucre",
+        "canonicalId": "ing_canon_sucre",
         "quantity": "100",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -5886,44 +7012,65 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_052_1",
         "name": "Sucre",
+        "canonicalId": "ing_canon_sucre",
         "quantity": "120",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_052_2",
         "name": "Vanille",
+        "canonicalId": "ing_canon_vanille",
         "quantity": "1",
-        "unit": "paquet"
+        "unit": "paquet",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_052_3",
         "name": "Œufs",
+        "canonicalId": "ing_canon_ufs",
         "quantity": "3",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_052_4",
         "name": "Levure chimique",
+        "canonicalId": "ing_canon_levure_chimique",
         "quantity": "0.5",
-        "unit": "paquet"
+        "unit": "paquet",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_052_5",
         "name": "Farine",
+        "canonicalId": "ing_canon_farine",
         "quantity": "125",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_052_6",
         "name": "Huile de tournesol",
+        "canonicalId": "ing_canon_huile_de_tournesol",
         "quantity": "0.5",
-        "unit": "verre"
+        "unit": "verre",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_052_7",
         "name": "Pomme",
+        "canonicalId": "ing_canon_pomme",
         "quantity": "3",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -5978,45 +7125,63 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_053_1",
-        "name": "Poires conférences bien mûres",
+        "name": "Poires conferences bien mures",
         "quantity": "3",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_053_2",
-        "name": "Chocolat spécial dessert",
+        "name": "Chocolat special dessert",
         "quantity": "100",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_053_3",
         "name": "Pâte feuilletée",
+        "canonicalId": "ing_canon_pate_feuilletee",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_053_4",
         "name": "Œufs",
+        "canonicalId": "ing_canon_ufs",
         "quantity": "2",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_053_5",
         "name": "Beurre tendre",
         "quantity": "100",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_053_6",
-        "name": "Amandes",
+        "name": "Amande",
+        "canonicalId": "ing_canon_amande",
         "quantity": "100",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_053_7",
         "name": "Sucre",
+        "canonicalId": "ing_canon_sucre",
         "quantity": "125",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -6072,104 +7237,149 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_054_1",
         "name": "Miel",
+        "canonicalId": "ing_canon_miel",
         "quantity": "250",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_054_2",
         "name": "Lait chaud",
         "quantity": "10",
-        "unit": "cl"
+        "unit": "cl",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_054_3",
         "name": "Beurre",
+        "canonicalId": "ing_canon_beurre",
         "quantity": "100",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_054_4",
         "name": "Farine",
+        "canonicalId": "ing_canon_farine",
         "quantity": "200",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_054_5",
         "name": "Levure",
         "quantity": "0.5",
-        "unit": "sachet"
+        "unit": "sachet",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_054_6",
         "name": "Sucre",
+        "canonicalId": "ing_canon_sucre",
         "quantity": "50",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_054_7",
         "name": "Œufs",
+        "canonicalId": "ing_canon_ufs",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_054_8",
         "name": "Sel",
+        "canonicalId": "ing_canon_sel",
         "quantity": "1",
-        "unit": "pincée"
+        "unit": "pincée",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_054_9",
         "name": "Cannelle",
+        "canonicalId": "ing_canon_cannelle",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_054_10",
         "name": "Gingembre",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_054_11",
         "name": "Clou de girofle",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_054_12",
         "name": "Muscade",
+        "canonicalId": "ing_canon_muscade",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_054_13",
         "name": "Noix",
+        "canonicalId": "ing_canon_noix",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_054_14",
-        "name": "Noisettes",
+        "name": "Noisette",
+        "canonicalId": "ing_canon_noisette",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_054_15",
-        "name": "Amandes",
+        "name": "Amande",
+        "canonicalId": "ing_canon_amande",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_054_16",
         "name": "Noix de coco",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_054_17",
-        "name": "Écorce d orange",
+        "name": "Ecorce d orange",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -6240,50 +7450,73 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_055_1",
         "name": "Pâte feuilletée",
+        "canonicalId": "ing_canon_pate_feuilletee",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_055_2",
         "name": "Endives",
         "quantity": "5",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_055_3",
-        "name": "Crottins de chavignol",
+        "name": "Chèvre",
+        "canonicalId": "ing_canon_chevre",
         "quantity": "2",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_055_4",
         "name": "Beurre",
+        "canonicalId": "ing_canon_beurre",
         "quantity": "50",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_055_5",
         "name": "Herbes de Provence",
+        "canonicalId": "ing_canon_herbes_de_provence",
         "quantity": "1",
-        "unit": "c. à café"
+        "unit": "c. à café",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_055_6",
         "name": "Sucre",
+        "canonicalId": "ing_canon_sucre",
         "quantity": "1",
-        "unit": "c. à soupe"
+        "unit": "c. à soupe",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_055_7",
         "name": "Poivre",
+        "canonicalId": "ing_canon_poivre",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_055_8",
         "name": "Sel",
+        "canonicalId": "ing_canon_sel",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -6371,43 +7604,61 @@ export const INITIAL_RECIPES: Recipe[] = [
         "id": "ing_rec_top100_056_1",
         "name": "Oeufs + 1 jaune",
         "quantity": "4",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_056_2",
         "name": "Fromage râpé",
+        "canonicalId": "ing_canon_fromage_rape",
         "quantity": "150",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_056_3",
-        "name": "Farine tamisée",
+        "name": "Farine tamisee",
         "quantity": "150",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_056_4",
         "name": "Beurre + 15 g pour la plaque",
         "quantity": "80",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_056_5",
         "name": "Muscade",
+        "canonicalId": "ing_canon_muscade",
         "quantity": "1",
-        "unit": "pincée"
+        "unit": "pincée",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_056_6",
         "name": "Sel",
+        "canonicalId": "ing_canon_sel",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_056_7",
         "name": "Poivre",
+        "canonicalId": "ing_canon_poivre",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -6488,68 +7739,101 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_057_1",
         "name": "Potimarron",
+        "canonicalId": "ing_canon_potimarron",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_057_2",
         "name": "Pomme de terre",
+        "canonicalId": "ing_canon_pomme_de_terre",
         "quantity": "2",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_057_3",
         "name": "Oignon",
+        "canonicalId": "ing_canon_oignon",
         "quantity": "2",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_057_4",
         "name": "Ail",
+        "canonicalId": "ing_canon_ail",
         "quantity": "3",
-        "unit": "gousses"
+        "unit": "gousses",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_057_5",
         "name": "Crème fraîche",
+        "canonicalId": "ing_canon_creme_fraiche",
         "quantity": "10",
-        "unit": "cl"
+        "unit": "cl",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_057_6",
         "name": "Curry",
+        "canonicalId": "ing_canon_curry",
         "quantity": "1",
-        "unit": "c. à café"
+        "unit": "c. à café",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_057_7",
         "name": "Muscade",
+        "canonicalId": "ing_canon_muscade",
         "quantity": "1",
-        "unit": "pincée"
+        "unit": "pincée",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_057_8",
         "name": "Bouillon de volaille",
+        "canonicalId": "ing_canon_bouillon_de_volaille",
         "quantity": "1",
-        "unit": "cube"
+        "unit": "cube",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_057_9",
         "name": "Laurier",
+        "canonicalId": "ing_canon_laurier",
         "quantity": "1",
-        "unit": "feuille"
+        "unit": "feuille",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_057_10",
         "name": "Sel",
+        "canonicalId": "ing_canon_sel",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_057_11",
         "name": "Poivre",
+        "canonicalId": "ing_canon_poivre",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -6614,33 +7898,48 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_058_1",
-        "name": "Amandes",
+        "name": "Amande",
+        "canonicalId": "ing_canon_amande",
         "quantity": "80",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_058_2",
         "name": "Farine",
+        "canonicalId": "ing_canon_farine",
         "quantity": "60",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_058_3",
         "name": "Beurre",
+        "canonicalId": "ing_canon_beurre",
         "quantity": "100",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_058_4",
         "name": "Sucre",
+        "canonicalId": "ing_canon_sucre",
         "quantity": "150",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_058_5",
         "name": "Œufs",
+        "canonicalId": "ing_canon_ufs",
         "quantity": "4",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -6686,62 +7985,92 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_059_1",
         "name": "Farine",
+        "canonicalId": "ing_canon_farine",
         "quantity": "250",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_059_2",
         "name": "Beurre",
+        "canonicalId": "ing_canon_beurre",
         "quantity": "140",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_059_3",
         "name": "Veau",
+        "canonicalId": "ing_canon_veau",
         "quantity": "2",
-        "unit": "c. à soupe"
+        "unit": "c. à soupe",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_059_4",
         "name": "Poireau",
+        "canonicalId": "ing_canon_poireau",
         "quantity": "3",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_059_5",
         "name": "Lardons",
+        "canonicalId": "ing_canon_lardons",
         "quantity": "400",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_059_6",
         "name": "Œufs",
+        "canonicalId": "ing_canon_ufs",
         "quantity": "3",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_059_7",
         "name": "Fromage râpé",
+        "canonicalId": "ing_canon_fromage_rape",
         "quantity": "100",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_059_8",
         "name": "Crème fraîche",
+        "canonicalId": "ing_canon_creme_fraiche",
         "quantity": "25",
-        "unit": "cl"
+        "unit": "cl",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_059_9",
         "name": "Poivre",
+        "canonicalId": "ing_canon_poivre",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_059_10",
         "name": "Sel",
+        "canonicalId": "ing_canon_sel",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -6817,68 +8146,99 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_060_1",
         "name": "Courgette",
+        "canonicalId": "ing_canon_courgette",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_060_2",
-        "name": "Poivrons de couleurs différentes",
+        "name": "Poivrons de couleurs differentes",
         "quantity": "3",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_060_3",
         "name": "Oignon",
+        "canonicalId": "ing_canon_oignon",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_060_4",
         "name": "Tomate",
+        "canonicalId": "ing_canon_tomate",
         "quantity": "2",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_060_5",
         "name": "Aubergine",
+        "canonicalId": "ing_canon_aubergine",
         "quantity": "0.5",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_060_6",
         "name": "Huile d'olive",
+        "canonicalId": "ing_canon_huile_d_olive",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_060_7",
         "name": "Poivre",
+        "canonicalId": "ing_canon_poivre",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_060_8",
         "name": "Sel",
+        "canonicalId": "ing_canon_sel",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_060_9",
         "name": "Herbes de Provence",
+        "canonicalId": "ing_canon_herbes_de_provence",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_060_10",
         "name": "Parmesan environ",
         "quantity": "50",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_060_11",
         "name": "Pâte brisée",
+        "canonicalId": "ing_canon_pate_brisee",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -6933,69 +8293,97 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_061_1",
-        "name": "Sauté de veau",
+        "name": "Saute de veau",
         "quantity": "400",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_061_2",
-        "name": "Chorizo coupé en fines rondelles",
+        "name": "Chorizo en fines rondelles",
         "quantity": "1",
-        "unit": "morceau"
+        "unit": "morceau",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_061_3",
         "name": "Pommes de terre en gros morceaux",
         "quantity": "3",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_061_4",
-        "name": "Petite poignée d olives noires",
+        "name": "Petite poignee d olives noires",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_061_5",
         "name": "Concentré de tomate",
+        "canonicalId": "ing_canon_concentre_de_tomate",
         "quantity": "1",
-        "unit": "boîte"
+        "unit": "boîte",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_061_6",
         "name": "Porto + 1 verre d eau",
         "quantity": "1",
-        "unit": "verre"
+        "unit": "verre",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_061_7",
         "name": "Oignon",
+        "canonicalId": "ing_canon_oignon",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_061_8",
         "name": "Ail",
+        "canonicalId": "ing_canon_ail",
         "quantity": "1",
-        "unit": "gousses"
+        "unit": "gousses",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_061_9",
         "name": "Thym",
+        "canonicalId": "ing_canon_thym",
         "quantity": "1",
-        "unit": "pincée"
+        "unit": "pincée",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_061_10",
         "name": "Poivre",
+        "canonicalId": "ing_canon_poivre",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_061_11",
         "name": "Sel",
+        "canonicalId": "ing_canon_sel",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -7071,63 +8459,87 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_062_1",
-        "name": "Boeuf maigre à braiser",
+        "name": "Boeuf maigre a braiser",
         "quantity": "1",
-        "unit": "kg"
+        "unit": "kg",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_062_2",
         "name": "Sucre",
+        "canonicalId": "ing_canon_sucre",
         "quantity": "1",
-        "unit": "c. à soupe"
+        "unit": "c. à soupe",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_062_3",
         "name": "Bouquet garni",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_062_4",
-        "name": "Bière brune",
+        "name": "Biere brune",
         "quantity": "1",
-        "unit": "l"
+        "unit": "l",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_062_5",
         "name": "Oignon",
+        "canonicalId": "ing_canon_oignon",
         "quantity": "400",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_062_6",
-        "name": "Lard fumé entier",
+        "name": "Lard fume entier",
         "quantity": "250",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_062_7",
-        "name": "Pains d épices",
+        "name": "Pains d epices",
         "quantity": "5",
-        "unit": "tranches"
+        "unit": "tranches",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_062_8",
         "name": "Beurre",
+        "canonicalId": "ing_canon_beurre",
         "quantity": "30",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_062_9",
-        "name": "Sel de Guérande",
+        "name": "Sel de guerande",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_062_10",
         "name": "Moutarde",
+        "canonicalId": "ing_canon_moutarde",
         "quantity": "3",
-        "unit": "c. à soupe"
+        "unit": "c. à soupe",
+        "isPantryStaple": false,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -7208,26 +8620,38 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_063_1",
         "name": "Pâte brisée",
+        "canonicalId": "ing_canon_pate_brisee",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_063_2",
-        "name": "Pommes Golden",
+        "name": "Pomme",
+        "canonicalId": "ing_canon_pomme",
         "quantity": "6",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_063_3",
         "name": "Vanille",
+        "canonicalId": "ing_canon_vanille",
         "quantity": "1",
-        "unit": "sachet"
+        "unit": "sachet",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_063_4",
         "name": "Beurre",
+        "canonicalId": "ing_canon_beurre",
         "quantity": "30",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -7299,85 +8723,125 @@ export const INITIAL_RECIPES: Recipe[] = [
         "id": "ing_rec_top100_064_1",
         "name": "Lapin",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_064_2",
         "name": "Vin blanc",
+        "canonicalId": "ing_canon_vin_blanc",
         "quantity": "1",
-        "unit": "bouteille"
+        "unit": "bouteille",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_064_3",
         "name": "Moutarde",
+        "canonicalId": "ing_canon_moutarde",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_064_4",
         "name": "Crème fraîche",
+        "canonicalId": "ing_canon_creme_fraiche",
         "quantity": "1",
-        "unit": "pot"
+        "unit": "pot",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_064_5",
         "name": "Huile d'olive",
+        "canonicalId": "ing_canon_huile_d_olive",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_064_6",
         "name": "Ail",
+        "canonicalId": "ing_canon_ail",
         "quantity": "2",
-        "unit": "gousses"
+        "unit": "gousses",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_064_7",
         "name": "Échalote",
+        "canonicalId": "ing_canon_echalote",
         "quantity": "5",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_064_8",
         "name": "Laurier",
+        "canonicalId": "ing_canon_laurier",
         "quantity": "3",
-        "unit": "feuilles"
+        "unit": "feuilles",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_064_9",
         "name": "Branche de thym",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_064_10",
         "name": "Persil",
+        "canonicalId": "ing_canon_persil",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_064_11",
         "name": "Poivre",
+        "canonicalId": "ing_canon_poivre",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_064_12",
         "name": "Sel",
+        "canonicalId": "ing_canon_sel",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_064_13",
         "name": "Sucre",
+        "canonicalId": "ing_canon_sucre",
         "quantity": "1",
-        "unit": "morceau"
+        "unit": "morceau",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_064_14",
         "name": "Carotte",
+        "canonicalId": "ing_canon_carotte",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -7438,44 +8902,64 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_065_1",
         "name": "Farine",
+        "canonicalId": "ing_canon_farine",
         "quantity": "300",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_065_2",
         "name": "Sucre",
+        "canonicalId": "ing_canon_sucre",
         "quantity": "300",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_065_3",
         "name": "Œufs",
+        "canonicalId": "ing_canon_ufs",
         "quantity": "4",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_065_4",
         "name": "Vanille",
+        "canonicalId": "ing_canon_vanille",
         "quantity": "1",
-        "unit": "paquet"
+        "unit": "paquet",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_065_5",
         "name": "Levure chimique",
+        "canonicalId": "ing_canon_levure_chimique",
         "quantity": "1",
-        "unit": "paquet"
+        "unit": "paquet",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_065_6",
         "name": "Lait",
+        "canonicalId": "ing_canon_lait",
         "quantity": "1",
-        "unit": "verre"
+        "unit": "verre",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_065_7",
         "name": "Huile",
         "quantity": "1",
-        "unit": "verre"
+        "unit": "verre",
+        "isPantryStaple": false,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -7541,26 +9025,38 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_066_1",
         "name": "Crevettes",
+        "canonicalId": "ing_canon_crevettes",
         "quantity": "300",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_066_2",
         "name": "Crème fraîche",
+        "canonicalId": "ing_canon_creme_fraiche",
         "quantity": "2",
-        "unit": "c. à soupe"
+        "unit": "c. à soupe",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_066_3",
         "name": "Curry",
+        "canonicalId": "ing_canon_curry",
         "quantity": "1",
-        "unit": "c. à café"
+        "unit": "c. à café",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_066_4",
         "name": "Huile d'olive",
+        "canonicalId": "ing_canon_huile_d_olive",
         "quantity": "2",
-        "unit": "c. à café"
+        "unit": "c. à café",
+        "isPantryStaple": true,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -7606,50 +9102,71 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_067_1",
         "name": "Œufs",
+        "canonicalId": "ing_canon_ufs",
         "quantity": "3",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_067_2",
         "name": "Farine",
+        "canonicalId": "ing_canon_farine",
         "quantity": "150",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_067_3",
         "name": "Sucre",
+        "canonicalId": "ing_canon_sucre",
         "quantity": "100",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_067_4",
         "name": "Levure",
         "quantity": "0.5",
-        "unit": "paquet"
+        "unit": "paquet",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_067_5",
         "name": "Beurre",
+        "canonicalId": "ing_canon_beurre",
         "quantity": "125",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_067_6",
         "name": "Bananes ou 2 grandes",
         "quantity": "4",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_067_7",
         "name": "Rhum",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_067_8",
         "name": "Vanille",
+        "canonicalId": "ing_canon_vanille",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -7711,25 +9228,36 @@ export const INITIAL_RECIPES: Recipe[] = [
         "id": "ing_rec_top100_068_1",
         "name": "Citrons de taille moyenne",
         "quantity": "4",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_068_2",
         "name": "Sucre",
+        "canonicalId": "ing_canon_sucre",
         "quantity": "150",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_068_3",
         "name": "Œufs",
+        "canonicalId": "ing_canon_ufs",
         "quantity": "3",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_068_4",
-        "name": "Maïzena",
+        "name": "Fécule de maïs",
+        "canonicalId": "ing_canon_fecule_de_mais",
         "quantity": "1",
-        "unit": "c. à soupe"
+        "unit": "c. à soupe",
+        "isPantryStaple": false,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -7821,37 +9349,51 @@ export const INITIAL_RECIPES: Recipe[] = [
         "id": "ing_rec_top100_069_1",
         "name": "Endive",
         "quantity": "1",
-        "unit": "kg"
+        "unit": "kg",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_069_2",
         "name": "Jambon",
+        "canonicalId": "ing_canon_jambon",
         "quantity": "4",
-        "unit": "tranches"
+        "unit": "tranches",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_069_3",
-        "name": "Crème liquide épaisse",
+        "name": "Creme liquide epaisse",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_069_4",
-        "name": "Ail 2 à 3 gousses",
+        "name": "Ail 2 a 3 gousses",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_069_5",
         "name": "Fromage râpé",
+        "canonicalId": "ing_canon_fromage_rape",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_069_6",
         "name": "Noisette de beurre",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -7902,62 +9444,90 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_070_1",
         "name": "Poulet",
+        "canonicalId": "ing_canon_poulet",
         "quantity": "4",
-        "unit": "filets"
+        "unit": "filets",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_070_2",
         "name": "Oignon",
+        "canonicalId": "ing_canon_oignon",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_070_3",
         "name": "Ail au poudre",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_070_4",
         "name": "Sauce soja",
+        "canonicalId": "ing_canon_sauce_soja",
         "quantity": "4",
-        "unit": "c. à soupe"
+        "unit": "c. à soupe",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_070_5",
         "name": "Oignon",
+        "canonicalId": "ing_canon_oignon",
         "quantity": "4",
-        "unit": "brins"
+        "unit": "brins",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_070_6",
         "name": "Huile d'olive",
+        "canonicalId": "ing_canon_huile_d_olive",
         "quantity": "1",
-        "unit": "c. à soupe"
+        "unit": "c. à soupe",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_070_7",
         "name": "Curry",
+        "canonicalId": "ing_canon_curry",
         "quantity": "1",
-        "unit": "c. à café"
+        "unit": "c. à café",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_070_8",
-        "name": "Crème épaisse ou liquide",
+        "name": "Creme epaisse ou liquide",
         "quantity": "10",
-        "unit": "cl"
+        "unit": "cl",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_070_9",
         "name": "Sel",
+        "canonicalId": "ing_canon_sel",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_070_10",
         "name": "Poivre",
+        "canonicalId": "ing_canon_poivre",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -8013,44 +9583,62 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_071_1",
         "name": "Pâte feuilletée",
+        "canonicalId": "ing_canon_pate_feuilletee",
         "quantity": "2",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_071_2",
-        "name": "Amandes",
+        "name": "Amande",
+        "canonicalId": "ing_canon_amande",
         "quantity": "100",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_071_3",
         "name": "Sucre",
+        "canonicalId": "ing_canon_sucre",
         "quantity": "75",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_071_4",
         "name": "Œufs",
+        "canonicalId": "ing_canon_ufs",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_071_5",
         "name": "Beurre tendre",
         "quantity": "50",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_071_6",
-        "name": "Extrait d amande amère",
+        "name": "Extrait d amande amere",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_071_7",
         "name": "Jaune d oeuf pour dorer",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -8125,45 +9713,63 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_072_1",
-        "name": "Farine tamisée",
+        "name": "Farine tamisee",
         "quantity": "375",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_072_2",
         "name": "Sel",
+        "canonicalId": "ing_canon_sel",
         "quantity": "3",
-        "unit": "pincée"
+        "unit": "pincée",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_072_3",
         "name": "Sucre",
+        "canonicalId": "ing_canon_sucre",
         "quantity": "75",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_072_4",
         "name": "Oeufs entiers",
         "quantity": "6",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_072_5",
         "name": "Beurre",
+        "canonicalId": "ing_canon_beurre",
         "quantity": "90",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_072_6",
         "name": "Lait",
+        "canonicalId": "ing_canon_lait",
         "quantity": "1",
-        "unit": "l"
+        "unit": "l",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_072_7",
         "name": "Grand-marnier ou de rhum",
         "quantity": "3",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -8219,38 +9825,56 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_073_1",
         "name": "Chocolat noir",
+        "canonicalId": "ing_canon_chocolat_noir",
         "quantity": "200",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_073_2",
         "name": "Œufs",
+        "canonicalId": "ing_canon_ufs",
         "quantity": "4",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_073_3",
         "name": "Beurre",
+        "canonicalId": "ing_canon_beurre",
         "quantity": "125",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_073_4",
         "name": "Sucre",
+        "canonicalId": "ing_canon_sucre",
         "quantity": "200",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_073_5",
         "name": "Farine",
+        "canonicalId": "ing_canon_farine",
         "quantity": "100",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_073_6",
         "name": "Levure chimique",
+        "canonicalId": "ing_canon_levure_chimique",
         "quantity": "1",
-        "unit": "sachet"
+        "unit": "sachet",
+        "isPantryStaple": false,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -8316,56 +9940,83 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_074_1",
         "name": "Pâte brisée",
+        "canonicalId": "ing_canon_pate_brisee",
         "quantity": "200",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_074_2",
         "name": "Lardons",
+        "canonicalId": "ing_canon_lardons",
         "quantity": "200",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_074_3",
         "name": "Beurre",
+        "canonicalId": "ing_canon_beurre",
         "quantity": "30",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_074_4",
         "name": "Œufs",
+        "canonicalId": "ing_canon_ufs",
         "quantity": "3",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_074_5",
         "name": "Crème fraîche",
+        "canonicalId": "ing_canon_creme_fraiche",
         "quantity": "20",
-        "unit": "cl"
+        "unit": "cl",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_074_6",
         "name": "Lait",
+        "canonicalId": "ing_canon_lait",
         "quantity": "20",
-        "unit": "cl"
+        "unit": "cl",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_074_7",
         "name": "Muscade",
+        "canonicalId": "ing_canon_muscade",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_074_8",
         "name": "Sel",
+        "canonicalId": "ing_canon_sel",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_074_9",
         "name": "Poivre",
+        "canonicalId": "ing_canon_poivre",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -8446,50 +10097,74 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_075_1",
         "name": "Farine",
+        "canonicalId": "ing_canon_farine",
         "quantity": "250",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_075_2",
         "name": "Sel",
+        "canonicalId": "ing_canon_sel",
         "quantity": "1",
-        "unit": "pincée"
+        "unit": "pincée",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_075_3",
         "name": "Sucre",
+        "canonicalId": "ing_canon_sucre",
         "quantity": "1",
-        "unit": "c. à soupe"
+        "unit": "c. à soupe",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_075_4",
         "name": "Vanille",
+        "canonicalId": "ing_canon_vanille",
         "quantity": "1",
-        "unit": "sachet"
+        "unit": "sachet",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_075_5",
         "name": "Levure chimique",
+        "canonicalId": "ing_canon_levure_chimique",
         "quantity": "0.5",
-        "unit": "sachet"
+        "unit": "sachet",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_075_6",
         "name": "Œufs",
+        "canonicalId": "ing_canon_ufs",
         "quantity": "2",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_075_7",
         "name": "Lait",
+        "canonicalId": "ing_canon_lait",
         "quantity": "37.5",
-        "unit": "cl"
+        "unit": "cl",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_075_8",
         "name": "Beurre",
+        "canonicalId": "ing_canon_beurre",
         "quantity": "50",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -8555,32 +10230,46 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_076_1",
         "name": "Farine",
+        "canonicalId": "ing_canon_farine",
         "quantity": "500",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_076_2",
         "name": "Levure de boulangerie express",
         "quantity": "1",
-        "unit": "sachet"
+        "unit": "sachet",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_076_3",
         "name": "Sel",
+        "canonicalId": "ing_canon_sel",
         "quantity": "1",
-        "unit": "c. à café"
+        "unit": "c. à café",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_076_4",
-        "name": "Eau tiède",
+        "name": "Eau",
+        "canonicalId": "ing_canon_eau",
         "quantity": "0.25",
-        "unit": "l"
+        "unit": "l",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_076_5",
         "name": "Sucre",
+        "canonicalId": "ing_canon_sucre",
         "quantity": "1",
-        "unit": "c. à café"
+        "unit": "c. à café",
+        "isPantryStaple": false,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -8636,56 +10325,81 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_077_1",
         "name": "Farine",
+        "canonicalId": "ing_canon_farine",
         "quantity": "120",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_077_2",
         "name": "Beurre",
+        "canonicalId": "ing_canon_beurre",
         "quantity": "50",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_077_3",
         "name": "Sucre",
+        "canonicalId": "ing_canon_sucre",
         "quantity": "150",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_077_4",
         "name": "Levure chimique",
+        "canonicalId": "ing_canon_levure_chimique",
         "quantity": "1",
-        "unit": "sachet"
+        "unit": "sachet",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_077_5",
         "name": "Lait",
+        "canonicalId": "ing_canon_lait",
         "quantity": "3",
-        "unit": "c. à soupe"
+        "unit": "c. à soupe",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_077_6",
         "name": "Œufs",
+        "canonicalId": "ing_canon_ufs",
         "quantity": "3",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_077_7",
         "name": "Veau",
+        "canonicalId": "ing_canon_veau",
         "quantity": "0.25",
-        "unit": "l"
+        "unit": "l",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_077_8",
         "name": "Sirop de sucre de canne",
         "quantity": "0.25",
-        "unit": "l"
+        "unit": "l",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_077_9",
         "name": "Rhum",
         "quantity": "10",
-        "unit": "cl"
+        "unit": "cl",
+        "isPantryStaple": false,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -8772,37 +10486,50 @@ export const INITIAL_RECIPES: Recipe[] = [
         "id": "ing_rec_top100_078_1",
         "name": "Pomme reinette du vigan ou pomme verte",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_078_2",
-        "name": "Magrets de canard fumé",
+        "name": "Magrets de canard fume",
         "quantity": "4",
-        "unit": "tranches"
+        "unit": "tranches",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_078_3",
-        "name": "Rondelle de pain de mie grillé",
+        "name": "Rondelle de pain de mie grille",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_078_4",
         "name": "Foie gras",
         "quantity": "1",
-        "unit": "tranche"
+        "unit": "tranche",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_078_5",
         "name": "Calvados ou alcool de pomme",
         "quantity": "1",
-        "unit": "c. à café"
+        "unit": "c. à café",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_078_6",
         "name": "Beurre",
+        "canonicalId": "ing_canon_beurre",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -8853,38 +10580,56 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_079_1",
         "name": "Farine",
+        "canonicalId": "ing_canon_farine",
         "quantity": "50",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_079_2",
         "name": "Beurre",
+        "canonicalId": "ing_canon_beurre",
         "quantity": "50",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_079_3",
         "name": "Lait",
+        "canonicalId": "ing_canon_lait",
         "quantity": "60",
-        "unit": "cl"
+        "unit": "cl",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_079_4",
         "name": "Sel",
+        "canonicalId": "ing_canon_sel",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_079_5",
         "name": "Poivre",
+        "canonicalId": "ing_canon_poivre",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_079_6",
         "name": "Muscade",
+        "canonicalId": "ing_canon_muscade",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -8935,68 +10680,99 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_080_1",
         "name": "Aubergine",
+        "canonicalId": "ing_canon_aubergine",
         "quantity": "350",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_080_2",
         "name": "Courgette",
+        "canonicalId": "ing_canon_courgette",
         "quantity": "350",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_080_3",
         "name": "Poivrons de couleur rouge et vert",
         "quantity": "350",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_080_4",
         "name": "Oignon",
+        "canonicalId": "ing_canon_oignon",
         "quantity": "350",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_080_5",
-        "name": "Tomates bien mûres",
+        "name": "Tomates bien mures",
         "quantity": "500",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_080_6",
         "name": "Ail",
+        "canonicalId": "ing_canon_ail",
         "quantity": "3",
-        "unit": "gousses"
+        "unit": "gousses",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_080_7",
         "name": "Huile d'olive",
+        "canonicalId": "ing_canon_huile_d_olive",
         "quantity": "6",
-        "unit": "c. à soupe"
+        "unit": "c. à soupe",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_080_8",
         "name": "Thym",
+        "canonicalId": "ing_canon_thym",
         "quantity": "1",
-        "unit": "brin"
+        "unit": "brin",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_080_9",
         "name": "Laurier",
+        "canonicalId": "ing_canon_laurier",
         "quantity": "1",
-        "unit": "feuille"
+        "unit": "feuille",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_080_10",
         "name": "Poivre",
+        "canonicalId": "ing_canon_poivre",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_080_11",
         "name": "Sel",
+        "canonicalId": "ing_canon_sel",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -9081,45 +10857,64 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_081_1",
-        "name": "Eau tiéde",
+        "name": "Eau",
+        "canonicalId": "ing_canon_eau",
         "quantity": "25",
-        "unit": "cl"
+        "unit": "cl",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_081_2",
         "name": "Huile d'olive",
+        "canonicalId": "ing_canon_huile_d_olive",
         "quantity": "5",
-        "unit": "cl"
+        "unit": "cl",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_081_3",
         "name": "Sel",
+        "canonicalId": "ing_canon_sel",
         "quantity": "0.5",
-        "unit": "c. à café"
+        "unit": "c. à café",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_081_4",
         "name": "Farine blanche",
         "quantity": "440",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_081_5",
-        "name": "Levure boulangère spéciale pain",
+        "name": "Levure boulangere speciale pain",
         "quantity": "1",
-        "unit": "sachet"
+        "unit": "sachet",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_081_6",
         "name": "Herbes de Provence",
+        "canonicalId": "ing_canon_herbes_de_provence",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_081_7",
         "name": "Fromage râpé",
+        "canonicalId": "ing_canon_fromage_rape",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -9171,67 +10966,96 @@ export const INITIAL_RECIPES: Recipe[] = [
         "id": "ing_rec_top100_082_1",
         "name": "Jarrets de veau d environ 200 g chacune",
         "quantity": "4",
-        "unit": "tranches"
+        "unit": "tranches",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_082_2",
         "name": "Huile",
         "quantity": "10",
-        "unit": "cl"
+        "unit": "cl",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_082_3",
         "name": "Ail",
+        "canonicalId": "ing_canon_ail",
         "quantity": "3",
-        "unit": "gousses"
+        "unit": "gousses",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_082_4",
         "name": "G de tomates",
         "quantity": "1",
-        "unit": "boîte"
+        "unit": "boîte",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_082_5",
         "name": "Carotte",
+        "canonicalId": "ing_canon_carotte",
         "quantity": "200",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_082_6",
         "name": "Oignon",
+        "canonicalId": "ing_canon_oignon",
         "quantity": "100",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_082_7",
         "name": "Vin blanc",
+        "canonicalId": "ing_canon_vin_blanc",
         "quantity": "20",
-        "unit": "cl"
+        "unit": "cl",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_082_8",
         "name": "Bouquet garni",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_082_9",
         "name": "Farine",
+        "canonicalId": "ing_canon_farine",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_082_10",
         "name": "Poivre",
+        "canonicalId": "ing_canon_poivre",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_082_11",
         "name": "Sel",
+        "canonicalId": "ing_canon_sel",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -9277,26 +11101,38 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_083_1",
         "name": "Mascarpone",
+        "canonicalId": "ing_canon_mascarpone",
         "quantity": "250",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_083_2",
         "name": "Sucre",
+        "canonicalId": "ing_canon_sucre",
         "quantity": "100",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_083_3",
         "name": "Crème fraîche",
+        "canonicalId": "ing_canon_creme_fraiche",
         "quantity": "2",
-        "unit": "dl"
+        "unit": "dl",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_083_4",
         "name": "Citron",
+        "canonicalId": "ing_canon_citron",
         "quantity": "100",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -9342,38 +11178,55 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_084_1",
         "name": "Chocolat noir",
+        "canonicalId": "ing_canon_chocolat_noir",
         "quantity": "100",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_084_2",
-        "name": "Carrés de chocolat",
+        "name": "Carres de chocolat",
         "quantity": "8",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_084_3",
         "name": "Œufs",
+        "canonicalId": "ing_canon_ufs",
         "quantity": "3",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_084_4",
         "name": "Beurre",
+        "canonicalId": "ing_canon_beurre",
         "quantity": "60",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_084_5",
         "name": "Farine",
+        "canonicalId": "ing_canon_farine",
         "quantity": "20",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_084_6",
         "name": "Sucre",
+        "canonicalId": "ing_canon_sucre",
         "quantity": "80",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -9436,79 +11289,113 @@ export const INITIAL_RECIPES: Recipe[] = [
         "id": "ing_rec_top100_085_1",
         "name": "Paleron ou de bourguignon lkg",
         "quantity": "1",
-        "unit": "morceau"
+        "unit": "morceau",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_085_2",
         "name": "Oignon",
+        "canonicalId": "ing_canon_oignon",
         "quantity": "2",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_085_3",
         "name": "Lard",
         "quantity": "1",
-        "unit": "tranche"
+        "unit": "tranche",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_085_4",
-        "name": "Matière grasse",
+        "name": "Matiere grasse",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_085_5",
         "name": "Concentré de tomate",
+        "canonicalId": "ing_canon_concentre_de_tomate",
         "quantity": "1",
-        "unit": "boîte"
+        "unit": "boîte",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_085_6",
         "name": "Laurier",
+        "canonicalId": "ing_canon_laurier",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_085_7",
         "name": "Thym",
+        "canonicalId": "ing_canon_thym",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_085_8",
         "name": "Sauge",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_085_9",
         "name": "Bouillon de boeuf",
         "quantity": "1",
-        "unit": "tablette"
+        "unit": "tablette",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_085_10",
         "name": "Poivre",
+        "canonicalId": "ing_canon_poivre",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_085_11",
         "name": "Sel",
+        "canonicalId": "ing_canon_sel",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_085_12",
         "name": "Ail",
+        "canonicalId": "ing_canon_ail",
         "quantity": "2",
-        "unit": "gousses"
+        "unit": "gousses",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_085_13",
         "name": "Carotte",
+        "canonicalId": "ing_canon_carotte",
         "quantity": "6",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -9564,56 +11451,81 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_086_1",
         "name": "Lait",
+        "canonicalId": "ing_canon_lait",
         "quantity": "50",
-        "unit": "cl"
+        "unit": "cl",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_086_2",
         "name": "Oeufs entiers",
         "quantity": "2",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_086_3",
         "name": "Œufs",
+        "canonicalId": "ing_canon_ufs",
         "quantity": "2",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_086_4",
         "name": "Vanille",
+        "canonicalId": "ing_canon_vanille",
         "quantity": "0.5",
-        "unit": "gousses"
+        "unit": "gousses",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_086_5",
         "name": "Rhum",
         "quantity": "1",
-        "unit": "c. à soupe"
+        "unit": "c. à soupe",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_086_6",
         "name": "Farine",
+        "canonicalId": "ing_canon_farine",
         "quantity": "100",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_086_7",
         "name": "Sucre",
+        "canonicalId": "ing_canon_sucre",
         "quantity": "250",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_086_8",
         "name": "Beurre",
+        "canonicalId": "ing_canon_beurre",
         "quantity": "50",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_086_9",
         "name": "Sel",
+        "canonicalId": "ing_canon_sel",
         "quantity": "1",
-        "unit": "pincée"
+        "unit": "pincée",
+        "isPantryStaple": true,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -9699,38 +11611,54 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_087_1",
         "name": "Pâte feuilletée",
+        "canonicalId": "ing_canon_pate_feuilletee",
         "quantity": "2",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_087_2",
-        "name": "Amandes",
+        "name": "Amande",
+        "canonicalId": "ing_canon_amande",
         "quantity": "140",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_087_3",
         "name": "Sucre fin",
         "quantity": "100",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_087_4",
         "name": "Œufs",
+        "canonicalId": "ing_canon_ufs",
         "quantity": "2",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_087_5",
         "name": "Beurre tendre",
         "quantity": "75",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_087_6",
         "name": "Œufs",
+        "canonicalId": "ing_canon_ufs",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -9791,44 +11719,65 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_088_1",
         "name": "Pâte sablée",
+        "canonicalId": "ing_canon_pate_sablee",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_088_2",
         "name": "Chocolat noir",
+        "canonicalId": "ing_canon_chocolat_noir",
         "quantity": "80",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_088_3",
         "name": "Lait",
+        "canonicalId": "ing_canon_lait",
         "quantity": "2",
-        "unit": "c. à soupe"
+        "unit": "c. à soupe",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_088_4",
         "name": "Œufs",
+        "canonicalId": "ing_canon_ufs",
         "quantity": "3",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_088_5",
         "name": "Crème fraîche",
+        "canonicalId": "ing_canon_creme_fraiche",
         "quantity": "6",
-        "unit": "c. à soupe"
+        "unit": "c. à soupe",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_088_6",
         "name": "Sucre",
+        "canonicalId": "ing_canon_sucre",
         "quantity": "70",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_088_7",
         "name": "Poire",
+        "canonicalId": "ing_canon_poire",
         "quantity": "1",
-        "unit": "boîte"
+        "unit": "boîte",
+        "isPantryStaple": false,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -9889,32 +11838,45 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_089_1",
         "name": "Farine",
+        "canonicalId": "ing_canon_farine",
         "quantity": "300",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_089_2",
         "name": "Beurre et en pommade",
         "quantity": "150",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_089_3",
         "name": "Sel",
+        "canonicalId": "ing_canon_sel",
         "quantity": "0.5",
-        "unit": "c. à café"
+        "unit": "c. à café",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_089_4",
         "name": "Sucre",
+        "canonicalId": "ing_canon_sucre",
         "quantity": "3",
-        "unit": "c. à soupe"
+        "unit": "c. à soupe",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_089_5",
-        "name": "Eau ou de lait tiède",
+        "name": "Eau ou de lait tiede",
         "quantity": "8",
-        "unit": "cl"
+        "unit": "cl",
+        "isPantryStaple": true,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -9966,79 +11928,116 @@ export const INITIAL_RECIPES: Recipe[] = [
         "id": "ing_rec_top100_090_1",
         "name": "Viande",
         "quantity": "400",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_090_2",
-        "name": "Purée",
+        "name": "Puree",
         "quantity": "300",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_090_3",
         "name": "Oignon",
+        "canonicalId": "ing_canon_oignon",
         "quantity": "2",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_090_4",
         "name": "Ail",
+        "canonicalId": "ing_canon_ail",
         "quantity": "2",
-        "unit": "gousses"
+        "unit": "gousses",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_090_5",
         "name": "Tomate",
+        "canonicalId": "ing_canon_tomate",
         "quantity": "2",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_090_6",
         "name": "Farine",
+        "canonicalId": "ing_canon_farine",
         "quantity": "1",
-        "unit": "c. à soupe"
+        "unit": "c. à soupe",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_090_7",
         "name": "Herbes de Provence",
+        "canonicalId": "ing_canon_herbes_de_provence",
         "quantity": "1",
-        "unit": "pincée"
+        "unit": "pincée",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_090_8",
         "name": "Œufs",
+        "canonicalId": "ing_canon_ufs",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_090_9",
         "name": "Parmesan",
+        "canonicalId": "ing_canon_parmesan",
         "quantity": "30",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_090_10",
         "name": "Beurre",
+        "canonicalId": "ing_canon_beurre",
         "quantity": "30",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_090_11",
         "name": "Fromage râpé",
+        "canonicalId": "ing_canon_fromage_rape",
         "quantity": "50",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_090_12",
         "name": "Sel",
+        "canonicalId": "ing_canon_sel",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_090_13",
         "name": "Poivre",
+        "canonicalId": "ing_canon_poivre",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -10089,44 +12088,64 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_091_1",
         "name": "Œufs",
+        "canonicalId": "ing_canon_ufs",
         "quantity": "3",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_091_2",
         "name": "Sucre",
+        "canonicalId": "ing_canon_sucre",
         "quantity": "100",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_091_3",
         "name": "Vanille",
+        "canonicalId": "ing_canon_vanille",
         "quantity": "1",
-        "unit": "sachet"
+        "unit": "sachet",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_091_4",
         "name": "Mascarpone",
+        "canonicalId": "ing_canon_mascarpone",
         "quantity": "250",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_091_5",
-        "name": "Biscuits à la cuillère",
+        "name": "Biscuits a la cuillere",
         "quantity": "24",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_091_6",
         "name": "Lait",
+        "canonicalId": "ing_canon_lait",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_091_7",
         "name": "Framboise",
+        "canonicalId": "ing_canon_framboise",
         "quantity": "500",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -10193,85 +12212,124 @@ export const INITIAL_RECIPES: Recipe[] = [
         "id": "ing_rec_top100_092_1",
         "name": "Cuisses de canard",
         "quantity": "4",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_092_2",
         "name": "Oignon",
+        "canonicalId": "ing_canon_oignon",
         "quantity": "2",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_092_3",
         "name": "Ail",
+        "canonicalId": "ing_canon_ail",
         "quantity": "2",
-        "unit": "gousses"
+        "unit": "gousses",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_092_4",
         "name": "Cumin",
+        "canonicalId": "ing_canon_cumin",
         "quantity": "1",
-        "unit": "c. à soupe"
+        "unit": "c. à soupe",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_092_5",
         "name": "Gingembre",
         "quantity": "1",
-        "unit": "c. à soupe"
+        "unit": "c. à soupe",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_092_6",
         "name": "Coriandre",
+        "canonicalId": "ing_canon_coriandre",
         "quantity": "1",
-        "unit": "c. à soupe"
+        "unit": "c. à soupe",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_092_7",
         "name": "Raisins secs blonds",
         "quantity": "60",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_092_8",
         "name": "Miel",
+        "canonicalId": "ing_canon_miel",
         "quantity": "2",
-        "unit": "c. à soupe"
+        "unit": "c. à soupe",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_092_9",
         "name": "Vinaigre",
+        "canonicalId": "ing_canon_vinaigre",
         "quantity": "2",
-        "unit": "c. à soupe"
+        "unit": "c. à soupe",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_092_10",
         "name": "Bouillon de volaille",
+        "canonicalId": "ing_canon_bouillon_de_volaille",
         "quantity": "1",
-        "unit": "cube"
+        "unit": "cube",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_092_11",
         "name": "Crème fraîche",
+        "canonicalId": "ing_canon_creme_fraiche",
         "quantity": "15",
-        "unit": "cl"
+        "unit": "cl",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_092_12",
         "name": "Veau",
+        "canonicalId": "ing_canon_veau",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_092_13",
         "name": "Poivre",
+        "canonicalId": "ing_canon_poivre",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_092_14",
         "name": "Sel",
+        "canonicalId": "ing_canon_sel",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -10347,32 +12405,46 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_093_1",
         "name": "Potimarron",
+        "canonicalId": "ing_canon_potimarron",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_093_2",
         "name": "Oignon",
+        "canonicalId": "ing_canon_oignon",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_093_3",
         "name": "Bouillon",
         "quantity": "1",
-        "unit": "cube"
+        "unit": "cube",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_093_4",
         "name": "Crème fraîche",
+        "canonicalId": "ing_canon_creme_fraiche",
         "quantity": "1",
-        "unit": "c. à soupe"
+        "unit": "c. à soupe",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_093_5",
         "name": "Cannelle",
+        "canonicalId": "ing_canon_cannelle",
         "quantity": "1",
-        "unit": "pincée"
+        "unit": "pincée",
+        "isPantryStaple": true,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -10438,62 +12510,91 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_094_1",
         "name": "Beurre",
+        "canonicalId": "ing_canon_beurre",
         "quantity": "180",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_094_2",
         "name": "Sucre",
+        "canonicalId": "ing_canon_sucre",
         "quantity": "180",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_094_3",
         "name": "Vanille",
+        "canonicalId": "ing_canon_vanille",
         "quantity": "3",
-        "unit": "sachet"
+        "unit": "sachet",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_094_4",
         "name": "Œufs",
+        "canonicalId": "ing_canon_ufs",
         "quantity": "3",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_094_5",
         "name": "Farine",
+        "canonicalId": "ing_canon_farine",
         "quantity": "360",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_094_6",
         "name": "Lait",
+        "canonicalId": "ing_canon_lait",
         "quantity": "240",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_094_7",
         "name": "Miel liquide",
         "quantity": "3",
-        "unit": "c. à café"
+        "unit": "c. à café",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_094_8",
         "name": "Levure chimique",
+        "canonicalId": "ing_canon_levure_chimique",
         "quantity": "1",
-        "unit": "paquet"
+        "unit": "paquet",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_094_9",
         "name": "Chocolat noir",
+        "canonicalId": "ing_canon_chocolat_noir",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_094_10",
         "name": "Sel",
+        "canonicalId": "ing_canon_sel",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -10560,50 +12661,74 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_095_1",
         "name": "Pomme de terre",
+        "canonicalId": "ing_canon_pomme_de_terre",
         "quantity": "1.5",
-        "unit": "kg"
+        "unit": "kg",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_095_2",
         "name": "Ail",
+        "canonicalId": "ing_canon_ail",
         "quantity": "2",
-        "unit": "gousses"
+        "unit": "gousses",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_095_3",
         "name": "Crème fraîche",
+        "canonicalId": "ing_canon_creme_fraiche",
         "quantity": "30",
-        "unit": "cl"
+        "unit": "cl",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_095_4",
         "name": "Beurre",
+        "canonicalId": "ing_canon_beurre",
         "quantity": "100",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_095_5",
         "name": "Lait",
+        "canonicalId": "ing_canon_lait",
         "quantity": "1",
-        "unit": "l"
+        "unit": "l",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_095_6",
         "name": "Muscade",
+        "canonicalId": "ing_canon_muscade",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_095_7",
         "name": "Sel",
+        "canonicalId": "ing_canon_sel",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_095_8",
         "name": "Poivre",
+        "canonicalId": "ing_canon_poivre",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -10664,32 +12789,47 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_096_1",
         "name": "Chocolat noir",
+        "canonicalId": "ing_canon_chocolat_noir",
         "quantity": "250",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_096_2",
         "name": "Beurre",
+        "canonicalId": "ing_canon_beurre",
         "quantity": "175",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_096_3",
         "name": "Sucre",
+        "canonicalId": "ing_canon_sucre",
         "quantity": "125",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_096_4",
         "name": "Farine",
+        "canonicalId": "ing_canon_farine",
         "quantity": "75",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_096_5",
         "name": "Œufs",
+        "canonicalId": "ing_canon_ufs",
         "quantity": "5",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -10755,32 +12895,46 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_097_1",
         "name": "Courgette",
+        "canonicalId": "ing_canon_courgette",
         "quantity": "1",
-        "unit": "kg"
+        "unit": "kg",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_097_2",
         "name": "Fromage râpé",
+        "canonicalId": "ing_canon_fromage_rape",
         "quantity": "100",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_097_3",
-        "name": "Cuillères de lait",
+        "name": "Cuilleres de lait",
         "quantity": "8",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_097_4",
         "name": "Œufs",
+        "canonicalId": "ing_canon_ufs",
         "quantity": "6",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_097_5",
         "name": "Basilic",
+        "canonicalId": "ing_canon_basilic",
         "quantity": "20",
-        "unit": "feuilles"
+        "unit": "feuilles",
+        "isPantryStaple": false,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -10835,99 +12989,144 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_098_1",
-        "name": "Épaule de veau ou de tendron de veau",
+        "name": "Epaule de veau ou de tendron de veau",
         "quantity": "1.2",
-        "unit": "kg"
+        "unit": "kg",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_098_2",
         "name": "Carotte",
+        "canonicalId": "ing_canon_carotte",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_098_3",
         "name": "Poireau",
+        "canonicalId": "ing_canon_poireau",
         "quantity": "2",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_098_4",
         "name": "Oignon",
+        "canonicalId": "ing_canon_oignon",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_098_5",
         "name": "Ail",
+        "canonicalId": "ing_canon_ail",
         "quantity": "1",
-        "unit": "gousses"
+        "unit": "gousses",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_098_6",
         "name": "Échalote",
+        "canonicalId": "ing_canon_echalote",
         "quantity": "2",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_098_7",
         "name": "Céleri",
+        "canonicalId": "ing_canon_celeri",
         "quantity": "1",
-        "unit": "brin"
+        "unit": "brin",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_098_8",
         "name": "Bouquet garni",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_098_9",
         "name": "Bouquet de persil",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_098_10",
         "name": "Citron",
+        "canonicalId": "ing_canon_citron",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_098_11",
         "name": "Champignon de Paris",
+        "canonicalId": "ing_canon_champignon_de_paris",
         "quantity": "300",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_098_12",
         "name": "Vin blanc",
+        "canonicalId": "ing_canon_vin_blanc",
         "quantity": "3",
-        "unit": "c. à soupe"
+        "unit": "c. à soupe",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_098_13",
         "name": "Œufs",
+        "canonicalId": "ing_canon_ufs",
         "quantity": "2",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_098_14",
         "name": "Crème fraîche",
+        "canonicalId": "ing_canon_creme_fraiche",
         "quantity": "1",
-        "unit": "dl"
+        "unit": "dl",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_098_15",
         "name": "Farine",
+        "canonicalId": "ing_canon_farine",
         "quantity": "1",
-        "unit": "c. à soupe"
+        "unit": "c. à soupe",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_098_16",
         "name": "Beurre",
+        "canonicalId": "ing_canon_beurre",
         "quantity": "70",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -10992,45 +13191,63 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_099_1",
-        "name": "Biscuits à la cuillère",
+        "name": "Biscuits a la cuillere",
         "quantity": "200",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_099_2",
         "name": "Orange",
+        "canonicalId": "ing_canon_orange",
         "quantity": "30",
-        "unit": "cl"
+        "unit": "cl",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_099_3",
         "name": "Mascarpone",
+        "canonicalId": "ing_canon_mascarpone",
         "quantity": "200",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_099_4",
         "name": "Fromage blanc",
         "quantity": "400",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_099_5",
         "name": "Sucre",
+        "canonicalId": "ing_canon_sucre",
         "quantity": "100",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_099_6",
         "name": "Framboise",
+        "canonicalId": "ing_canon_framboise",
         "quantity": "150",
-        "unit": "g"
+        "unit": "g",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_099_7",
-        "name": "Pêches",
+        "name": "Peches",
         "quantity": "2",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       }
     ],
     "steps": [
@@ -11097,56 +13314,82 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_100_1",
         "name": "Saumon",
+        "canonicalId": "ing_canon_saumon",
         "quantity": "4",
-        "unit": "pavés"
+        "unit": "pavés",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_100_2",
         "name": "Tomate",
+        "canonicalId": "ing_canon_tomate",
         "quantity": "20",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_100_3",
         "name": "Champignon de Paris",
+        "canonicalId": "ing_canon_champignon_de_paris",
         "quantity": "20",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_100_4",
         "name": "Ail",
+        "canonicalId": "ing_canon_ail",
         "quantity": "1",
-        "unit": "gousses"
+        "unit": "gousses",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_100_5",
         "name": "Aneth",
         "quantity": "4",
-        "unit": "brins"
+        "unit": "brins",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_100_6",
         "name": "Huile d'olive",
+        "canonicalId": "ing_canon_huile_d_olive",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_100_7",
         "name": "Citron",
+        "canonicalId": "ing_canon_citron",
         "quantity": "1",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": false,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_100_8",
         "name": "Sel",
+        "canonicalId": "ing_canon_sel",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       },
       {
         "id": "ing_rec_top100_100_9",
         "name": "Poivre",
+        "canonicalId": "ing_canon_poivre",
         "quantity": "",
-        "unit": ""
+        "unit": "",
+        "isPantryStaple": true,
+        "isOptional": false
       }
     ],
     "steps": [

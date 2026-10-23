@@ -123,7 +123,6 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
     if (!trimmedName) return;
 
     try {
-      VocabularyService.promoteAliasToCanonical(trimmedName, selectedAisle || undefined).catch(() => {});
       const updated = await StorageService.addCustomShoppingItem(
         trimmedName,
         newItemQuantity.trim() || undefined,

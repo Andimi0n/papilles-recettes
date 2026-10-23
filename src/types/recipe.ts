@@ -12,6 +12,7 @@ export type Difficulty = 'Facile' | 'Moyen' | 'Difficile';
 export interface Ingredient {
   id: string;
   name: string;
+  canonicalId?: string;
   quantity?: string; // ex: "200", "2", "1/2"
   unit?: string;     // ex: "g", "ml", "c. à soupe", "pièces"
   isPantryStaple?: boolean; // Ingrédient de base / fond de placard (sel, poivre, huile, épices...)

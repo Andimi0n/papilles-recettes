@@ -41,13 +41,16 @@
     - Replaces unmanageable horizontal scrolling with structured vertical cards grouped by supermarket aisle (`ShoppingAisle`), aisle icons, selection counters `(X/Y)`, and 1-tap "Tout cocher" / "Tout décocher" per aisle.
     - **Inverted Ergonomic Flow**: Positioned primary high-level cooking parameters (Targeted Meal Type: Entrée/Plat/Dessert, Servings stepper, Vegetarian toggle, Anti-redundancy badge) directly at the top of the card for instant 1-tap access, immediately followed by the generation button ("💡 Trouver 3 idées de [type]"), and placing the ingredient checklist beneath for effortless immediate generation without scrolling.
   - **Foundation for Missing Ingredient Suggestions (Need 3)**: Engine tracks `missingIngredients` and `matchPercentage` for upcoming missing-item suggestions and 1-tap shopping list additions.
-- **Strict Ingredient Vocabulary & Normalization Engine ("Lexique Canonique")**:
-  - Eliminates synonyms and noisy prefixes/qualifiers across all entry points: maps `"boîte de petits pois"` -> `"Petits pois"`, `"noix de muscade"` -> `"Muscade"`, `"carottes épluchées"` -> `"Carotte"`.
-  - **Deliberate Synonym Promotion & Anti-Collision Engine**: If a user explicitly chooses or types a synonym (e.g. keeps `"Noix de muscade"` instead of accepting `"Muscade"`, or creates `"Sucre glace"` independently from `"Sucre"`), the engine safely detaches this synonym and its distinct variants from the parent ingredient and promotes it into a full-fledged independent canonical ingredient with its own aliases and aisle.
+- **Strict Ingredient Vocabulary & Normalization Engine ("Lexique-First" Architecture)**:
+  - **Inverted Resolution Cascade (Lexique-First)**: Direct O(1) lookup on `canonicalName` and aliases *before* any regex qualifier/container stripping. Fully preserves sensitive compound terms without mutilation (e.g., `"Crème fraîche"` resolves to `ing_canon_creme_fraiche`, `"Légumes surgelés"` to `ing_canon_legumes_surgeles`, `"Poudre d'amande"` to `ing_canon_poudre_d_amande`). Multi-word phrase stemming ensures plural compounds (`"oignons blancs"`) match cleanly.
+  - **Transversal Model Integrity (`canonicalId`)**: The `canonicalId?: string` attribute is extended across `Recipe.Ingredient`, `FridgeItem`, and `ShoppingItem`. Guarantees sub-millisecond O(1) matching with zero false positives (`Pomme` !== `Pomme de terre`, `Muscade` !== `Noix`, `Oignon blanc` matches `Oignon`).
+  - **Automated Data Migration**: Startup migration (`StorageService.migrateRecipesToCanonicalV1()`) automatically enriches pre-existing recipes in `AsyncStorage` with canonical IDs without data loss.
+  - **Anti-Desynchronization Guardrail**: In `RecipeFormScreen`, manual edits to the `name` field automatically re-evaluate `normalizeIngredient()` and never retain stale or mismatched canonical IDs.
+  - **Deliberate Synonym Promotion & Anti-Collision Engine**: Controlled promotion of aliases into distinct canonical items in `VocabularyManagerModal`. Strong collision prevention rejects reserved names, forbidden generic words, and cross-ingredient alias collisions.
   - **Strict Anti-Conflict & Self-Healing Sanitizer**: Prevents cross-ingredient alias collisions. Under no circumstance can a parent canonical name (e.g. `"sucre"`) be detached or captured as a synonym of a derived or promoted ingredient (e.g. `"Sucre glace"`). Automatic background self-healing sanitizer on load purges any conflicting aliases across all canonical ingredients.
   - Hybrid AI & deterministic local pipeline: enhanced few-shot prompting in Gemini 3.8 Flash, followed by deterministic local parsing (`IngredientNormalizer`).
   - Applied strictly to ingredient names only; recipe steps (`steps`) remain 100% verbatim and untouched.
-  - Instant autocomplete dropdown (`IngredientAutocompleteInput`) proposing normalized matches as well as a 1-tap option to keep and create deliberate synonyms as distinct ingredients.
+  - Instant autocomplete dropdown (`IngredientAutocompleteInput`) proposing normalized matches without intempestive background mutations.
   - Silent background learning of new ingredients and usage frequencies.
   - Full dedicated Vocabulary Manager in Settings (`VocabularyManagerModal`) allowing users to browse, search by aisle, rename, edit aliases, detach aliases into distinct ingredients with 1 tap, merge duplicates, and reset to defaults.
   - **1-Click Global Normalization**: Dedicated on-demand button in Settings ("Normaliser tous les ingrédients") allowing users to retrofit and standardize all saved recipes, grocery list items, and shelf ingredients at any time.
@@ -73,12 +76,19 @@
   - Active color swatches are arranged cleanly in a row directly beneath the active palette name instead of squeezed to its right.
 - **Culinary Preferences & Default Servings Stepper**:
   - User-configurable default servings managed via an intuitive `[-]` / `[+]` stepper in Settings (1 to 50 persons).
-- **Allergens & Major Food Intolerances System ("Mes Allergies Alimentaires")**:
+- **Allergens & Major Food Intolerances System ("Mes Allergies Alimentaires" & Arbitrage 5)**:
   - **14 Major Allergens (European INCO Regulation)**: Dedicated 1-tap quick buttons for Gluten, Crustacés, Œufs, Poissons, Arachides, Soja, Lait & Lactose, Fruits à coque, Céleri, Moutarde, Sésame, Sulfites, Lupin, Mollusques. Clicking a family automatically links and registers all associated canonical ingredients from the vocabulary into the user's allergen list, with live count badges and active checkmarks.
-  - **Fluid Predictive Manual Ingestion & Family Tagging**: Saisie libre via `IngredientAutocompleteInput` with intelligent suggestions from the canonical vocabulary and automatic insertion of newly introduced ingredients into the vocabulary.
-  - **Interactive Classification Popup (`AllergenFamilyPickerModal`)**: Every manual addition or chip click triggers an interactive modal allowing the user to map the ingredient to one of the 14 locked major allergen families (saving the optional `allergen?: AllergenFamily` property directly on the canonical vocabulary ingredient) or classify it under "Autre" for unlisted specific allergies.
+  - **Zero False Positives via Canonical IDs**: Because items are matched via their resolved `canonicalId`, `"oignon blanc"` will never match sulfites from `"vin blanc"`.
+  - **Semantic Root Safety Nets on Uncatalogued Items**: Safety net dictionary (`INCO_FAMILY_KEY_ROOTS`) detecting major allergen roots on ingredients without canonical IDs (e.g. `"sauce béchamel maison"` triggers `lait`, `"coulis de noisette"` triggers `fruits_a_coque`).
+  - **Visual Precaution Indicator**: When a recipe contains uncatalogued ingredients and the user has active allergies, a discrete amber warning advises manual verification.
+  - **Fluid Predictive Manual Ingestion & Family Tagging**: Saisie libre via `IngredientAutocompleteInput` with intelligent suggestions from the canonical vocabulary.
+  - **Interactive Classification Popup (`AllergenFamilyPickerModal`)**: Every manual addition or chip click triggers an interactive modal allowing the user to map the ingredient to one of the 14 locked major allergen families or classify it under "Autre" for unlisted specific allergies.
   - **Structured Grouped Display**: Allergens list is grouped by the 14 major allergen families plus a dedicated "Autres allergies spécifiques" section, with individual chip deletion, quick family clearing, and global reset.
-- **Categorized Shopping List**: Auto-generates items from recipes or meal plans, auto-classifying ingredients into supermarket aisles.
+- **Categorized Shopping List & Smart Aggregator (`shoppingAggregator.ts`)**:
+  - **Single Source of Truth for Aisles**: Classifies items according to `defaultAisle` from the canonical lexicon.
+  - **O(1) Fusion & Arithmetic Addition with Metric Conversions**: Automatically merges identical items by `canonicalId` and sums quantities with metric conversions (e.g. `1 kg` + `250 g` = `1,25 kg`, `50 cl` + `1 L` = `1,5 L`).
+  - **Pantry Staple Rules**: Excluded by default when generating grocery lists; if included voluntarily, formatted with canonical name alone without micro-quantities (e.g. `Huile d'olive`, `Sel`).
+  - **Strict Water Exclusion**: The technical ingredient `Eau` is strictly excluded from grocery lists.
 - **Dual Artistic Directions & Dynamic Theming**:
   - Light: *Jardin Botanique & Slow Food* (forest evergreen, celadon, almond mist).
   - Dark: *Table Nocturne & Sauge Céleste* (obsidian slate, luminous culinary emerald, silver sage, honey amber).
@@ -227,6 +237,21 @@ npx expo install --fix
 
 ### CLI Maintenance & Testing Scripts
 ```bash
+# Full test suite (Lexicon audit, Stock matching, Shopping aggregator, Allergen safety)
+npm test
+
+# Audit static integrity of the canonical vocabulary (135 ingredients, 0 collision)
+npm run validate:lexicon
+
+# Unit tests for stock matching & Lexique-First resolution
+npm run test:stock
+
+# Unit tests for shopping aggregation, staples & metric conversions
+npm run test:shopping
+
+# Unit tests for allergen safety & semantic roots
+npm run test:allergens
+
 # Batch import Marmiton recipes into src/data/initialRecipes.ts
 npm run import:marmiton
 

@@ -34,7 +34,11 @@
     "build:ios": "eas build -p ios --profile preview",
     "import:marmiton": "node scripts/import_marmiton.js",
     "normalize:seed": "node scripts/normalizeInitialRecipes.js",
-    "validate:lexicon": "node scripts/validateCanonicalVocabulary.js"
+    "validate:lexicon": "node scripts/validateCanonicalVocabulary.js",
+    "test:stock": "node scripts/testStockMatcher.js",
+    "test:shopping": "node scripts/testShoppingAggregator.js",
+    "test:allergens": "node scripts/testAllergenMatcher.js",
+    "test": "npm run validate:lexicon && npm run test:stock && npm run test:shopping && npm run test:allergens"
   },
   "overrides": {
     "braces": "^3.0.3",

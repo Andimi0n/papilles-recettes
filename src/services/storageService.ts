@@ -18,6 +18,8 @@ import { createShoppingItemFromIngredient, mergeShoppingItems } from '../utils/s
 import { classifyIngredientAisle } from '../utils/aisleClassifier';
 import { normalizeIngredient } from '../utils/ingredientNormalizer';
 import { isKnownDefaultPantryStaple } from '../data/canonicalVocabulary';
+import { VocabularyService } from './vocabularyService';
+import { CanonicalIngredient } from '../types/vocabulary';
 
 const RECIPES_STORAGE_KEY = '@papilles_recipes_v4';
 const SCHEMA_VERSION_KEY = '@papilles_schema_version';
@@ -82,6 +84,7 @@ function sanitizeStoredRecipe(r: any): Recipe {
       ? r.ingredients.slice(0, 100).map((ing: any, idx: number) => ({
           id: typeof ing.id === 'string' ? ing.id.slice(0, 80) : generateUniqueId(`ing_${idx}`),
           name: typeof ing.name === 'string' ? ing.name.slice(0, 150) : '',
+          canonicalId: typeof ing.canonicalId === 'string' && ing.canonicalId ? ing.canonicalId.slice(0, 100) : undefined,
           quantity: ing.quantity ? String(ing.quantity).slice(0, 50) : '',
           unit: ing.unit ? String(ing.unit).slice(0, 50) : '',
           isPantryStaple:
@@ -130,6 +133,7 @@ function sanitizeFridgeItem(item: any): FridgeItem | null {
   if (!item || typeof item !== 'object' || typeof item.name !== 'string') return null;
   const name = item.name.trim().slice(0, 150);
   if (!name) return null;
+  const canonicalId = typeof item.canonicalId === 'string' && item.canonicalId ? item.canonicalId.slice(0, 100) : undefined;
   const aisle: ShoppingAisle = (typeof item.aisle === 'string' && item.aisle)
     ? item.aisle
     : classifyIngredientAisle(name);
@@ -137,6 +141,7 @@ function sanitizeFridgeItem(item: any): FridgeItem | null {
   return {
     id: typeof item.id === 'string' && item.id ? item.id.slice(0, 80) : generateUniqueId('fridge'),
     name,
+    canonicalId,
     aisle,
     createdAt: typeof item.createdAt === 'string' ? item.createdAt : new Date().toISOString(),
   };
@@ -328,14 +333,22 @@ export const StorageService = {
               let hasChanges = false;
               const updatedIngredients = (recipe.ingredients || []).map((ing) => {
                 const res = normalizeIngredient(ing);
-                if (res.name !== ing.name || res.unit !== ing.unit || res.quantity !== ing.quantity) {
+                if (
+                  res.name !== ing.name ||
+                  res.unit !== ing.unit ||
+                  res.quantity !== ing.quantity ||
+                  res.canonicalId !== ing.canonicalId
+                ) {
                   hasChanges = true;
                 }
                 return {
                   ...ing,
                   name: res.name || ing.name,
+                  canonicalId: res.canonicalId || ing.canonicalId,
                   quantity: res.quantity !== undefined ? res.quantity : ing.quantity,
                   unit: res.unit !== undefined ? res.unit : ing.unit,
+                  isPantryStaple: res.isPantryStaple !== undefined ? res.isPantryStaple : ing.isPantryStaple,
+                  isOptional: res.isOptional !== undefined ? res.isOptional : ing.isOptional,
                 };
               });
 
@@ -365,16 +378,21 @@ export const StorageService = {
         try {
           const parsedShopping: ShoppingItem[] = JSON.parse(shoppingData);
           if (Array.isArray(parsedShopping)) {
+            const vocabList = VocabularyService.getSyncList();
             const updatedShopping = parsedShopping.map((item) => {
-              const res = normalizeIngredient({ name: item.name });
-              if (res.name !== item.name) {
+              const res = normalizeIngredient({ name: item.name, canonicalId: item.canonicalId });
+              const canonDef = res.canonicalId ? vocabList.find((v) => v.id === res.canonicalId) : undefined;
+              const resolvedAisle = canonDef?.defaultAisle || item.aisle || classifyIngredientAisle(res.name || item.name);
+
+              if (res.name !== item.name || res.canonicalId !== item.canonicalId || resolvedAisle !== item.aisle) {
                 shoppingUpdated++;
                 return {
                   ...item,
                   name: res.name || item.name,
+                  canonicalId: res.canonicalId || item.canonicalId,
                   quantity: item.quantity || res.quantity,
                   unit: item.unit || res.unit,
-                  aisle: item.aisle || classifyIngredientAisle(res.name || item.name),
+                  aisle: resolvedAisle,
                 };
               }
               return item;
@@ -395,14 +413,19 @@ export const StorageService = {
         try {
           const parsedFridge: FridgeItem[] = JSON.parse(fridgeData);
           if (Array.isArray(parsedFridge)) {
+            const vocabList = VocabularyService.getSyncList();
             const updatedFridge = parsedFridge.map((item) => {
-              const res = normalizeIngredient({ name: item.name });
-              if (res.name !== item.name) {
+              const res = normalizeIngredient({ name: item.name, canonicalId: item.canonicalId });
+              const canonDef = res.canonicalId ? vocabList.find((v) => v.id === res.canonicalId) : undefined;
+              const resolvedAisle = canonDef?.defaultAisle || item.aisle || classifyIngredientAisle(res.name || item.name);
+
+              if (res.name !== item.name || res.canonicalId !== item.canonicalId || resolvedAisle !== item.aisle) {
                 fridgeUpdated++;
                 return {
                   ...item,
                   name: res.name || item.name,
-                  aisle: item.aisle || classifyIngredientAisle(res.name || item.name),
+                  canonicalId: res.canonicalId || item.canonicalId,
+                  aisle: resolvedAisle,
                 };
               }
               return item;
@@ -424,6 +447,13 @@ export const StorageService = {
       console.error('Erreur globale migration canonique:', err);
       return { recipesUpdated: 0, shoppingUpdated: 0, fridgeUpdated: 0 };
     }
+  },
+
+  /**
+   * Alias de démarrage pour la migration v1 vers les identifiants canoniques
+   */
+  async migrateRecipesToCanonicalV1(): Promise<{ recipesUpdated: number; shoppingUpdated: number; fridgeUpdated: number }> {
+    return this.runCanonicalVocabularyMigration(false);
   },
 
   // ==========================================
@@ -475,15 +505,17 @@ export const StorageService = {
         ? recipe.ingredients.filter((ing) => selectedIngredientIds.includes(ing.id))
         : recipe.ingredients;
 
-      const newItems: ShoppingItem[] = ingredientsToAdd.map((ing) =>
-        createShoppingItemFromIngredient(
-          ing,
-          baseServings,
-          targetServings,
-          recipe.title,
-          recipe.id
+      const newItems: ShoppingItem[] = ingredientsToAdd
+        .map((ing) =>
+          createShoppingItemFromIngredient(
+            ing,
+            baseServings,
+            targetServings,
+            recipe.title,
+            recipe.id
+          )
         )
-      );
+        .filter((item): item is ShoppingItem => item !== null);
 
       const updatedList = mergeShoppingItems(currentList, newItems);
       await this.saveShoppingList(updatedList);
@@ -501,22 +533,48 @@ export const StorageService = {
     name: string,
     quantity?: string,
     unit?: string,
-    aisle?: ShoppingAisle
+    aisle?: ShoppingAisle,
+    canonicalId?: string
   ): Promise<ShoppingItem[]> {
     try {
-      const currentList = await this.getShoppingList();
-      const resolvedAisle = aisle || classifyIngredientAisle(name);
+      const trimmed = name.trim();
+      if (!trimmed) return await this.getShoppingList();
+
+      const norm = normalizeIngredient({ name: trimmed, canonicalId, quantity, unit });
+      const resolvedCanonicalId = canonicalId || norm.canonicalId;
+      const resolvedName = norm.canonicalId ? norm.name : (trimmed.charAt(0).toUpperCase() + trimmed.slice(1));
+
+      // Exclusion stricte de l'eau
+      if (resolvedCanonicalId === 'ing_canon_eau' || normalizeString(resolvedName) === 'eau') {
+        return await this.getShoppingList();
+      }
+
+      let resolvedAisle = aisle;
+      if (!resolvedAisle && norm.canonicalId) {
+        const vocabList = VocabularyService.getSyncList();
+        const canonDef = vocabList.find((v) => v.id === norm.canonicalId);
+        if (canonDef) resolvedAisle = canonDef.defaultAisle;
+      }
+      if (!resolvedAisle) {
+        resolvedAisle = classifyIngredientAisle(resolvedName);
+      }
+
+      const isStaple = Boolean(norm.isPantryStaple);
+      const finalQuantity = isStaple ? undefined : (quantity?.trim() || norm.quantity || undefined);
+      const finalUnit = isStaple ? undefined : (unit?.trim() || norm.unit || undefined);
 
       const newItem: ShoppingItem = {
         id: generateUniqueId('shop_custom'),
-        name: name.trim(),
-        quantity: quantity?.trim() || undefined,
-        unit: unit?.trim() || undefined,
+        name: resolvedName,
+        canonicalId: resolvedCanonicalId,
+        quantity: finalQuantity,
+        unit: finalUnit,
         isChecked: false,
         aisle: resolvedAisle,
         createdAt: new Date().toISOString(),
       };
 
+      const currentList = await this.getShoppingList();
       const updatedList = mergeShoppingItems(currentList, [newItem]);
       await this.saveShoppingList(updatedList);
       return updatedList;
@@ -621,16 +679,37 @@ export const StorageService = {
   },
 
   /**
-   * Ajoute un nouvel aliment au frigo avec catégorisation automatique par rayon
+   * Ajoute un nouvel aliment au frigo avec catégorisation automatique par rayon et canonicalId
    */
-  async addFridgeItem(name: string, aisle?: ShoppingAisle): Promise<FridgeItem[]> {
+  async addFridgeItem(name: string, aisle?: ShoppingAisle, canonicalId?: string): Promise<FridgeItem[]> {
     try {
       const trimmed = name.trim();
       if (!trimmed) return await this.getFridgeItems();
 
       const currentItems = await this.getFridgeItems();
-      const normNew = normalizeString(trimmed);
+
+      // Résolution canonique
+      const norm = normalizeIngredient({ name: trimmed, canonicalId });
+      const resolvedCanonicalId = canonicalId || norm.canonicalId;
+      const resolvedName = norm.canonicalId ? norm.name : (trimmed.charAt(0).toUpperCase() + trimmed.slice(1));
+
+      // Rayon officiel via defaultAisle
+      let assignedAisle = aisle;
+      if (!assignedAisle && resolvedCanonicalId) {
+        const vocabList = VocabularyService.getSyncList();
+        const canonDef = vocabList.find((v) => v.id === resolvedCanonicalId);
+        if (canonDef) assignedAisle = canonDef.defaultAisle;
+      }
+      if (!assignedAisle) {
+        assignedAisle = classifyIngredientAisle(resolvedName);
+      }
+
+      // Anti-doublon strict basé sur canonicalId (O(1)) ou nom normalisé
+      const normNew = normalizeString(resolvedName);
       const existing = currentItems.find((i) => {
+        if (resolvedCanonicalId && i.canonicalId) {
+          return i.canonicalId === resolvedCanonicalId;
+        }
         const normItem = normalizeString(i.name);
         return (
           normItem === normNew ||
@@ -642,10 +721,10 @@ export const StorageService = {
         return currentItems;
       }
 
-      const assignedAisle = aisle || classifyIngredientAisle(trimmed);
       const newItem: FridgeItem = {
         id: generateUniqueId('fridge'),
-        name: trimmed,
+        name: resolvedName,
+        canonicalId: resolvedCanonicalId,
         aisle: assignedAisle,
         createdAt: new Date().toISOString(),
       };
@@ -660,25 +739,53 @@ export const StorageService = {
   },
 
   /**
-   * Ajoute plusieurs aliments au frigo (ex: depuis suggestions rapides)
+   * Ajoute plusieurs aliments au frigo (ex: depuis suggestions rapides) avec canonicalId
    */
   async addMultipleFridgeItems(names: string[]): Promise<FridgeItem[]> {
     try {
       const currentItems = await this.getFridgeItems();
-      const existingNames = new Set(currentItems.map((i) => i.name.trim().toLowerCase()));
+      const existingCanonicalIds = new Set(currentItems.map((i) => i.canonicalId).filter(Boolean));
+      const existingNames = new Set(currentItems.map((i) => normalizeString(i.name)));
       const toAdd: FridgeItem[] = [];
 
       names.forEach((name) => {
         const trimmed = name.trim();
-        if (trimmed && !existingNames.has(trimmed.toLowerCase())) {
-          existingNames.add(trimmed.toLowerCase());
-          toAdd.push({
-            id: generateUniqueId('fridge'),
-            name: trimmed,
-            aisle: classifyIngredientAisle(trimmed),
-            createdAt: new Date().toISOString(),
-          });
+        if (!trimmed) return;
+
+        const norm = normalizeIngredient({ name: trimmed });
+        const resolvedCanonicalId = norm.canonicalId;
+        const resolvedName = norm.canonicalId ? norm.name : (trimmed.charAt(0).toUpperCase() + trimmed.slice(1));
+        const normClean = normalizeString(resolvedName);
+
+        if (resolvedCanonicalId && existingCanonicalIds.has(resolvedCanonicalId)) {
+          return;
         }
+        if (existingNames.has(normClean)) {
+          return;
+        }
+
+        if (resolvedCanonicalId) {
+          existingCanonicalIds.add(resolvedCanonicalId);
+        }
+        existingNames.add(normClean);
+
+        let assignedAisle: ShoppingAisle | undefined;
+        if (resolvedCanonicalId) {
+          const vocabList = VocabularyService.getSyncList();
+          const canonDef = vocabList.find((v) => v.id === resolvedCanonicalId);
+          if (canonDef) assignedAisle = canonDef.defaultAisle;
+        }
+        if (!assignedAisle) {
+          assignedAisle = classifyIngredientAisle(resolvedName);
+        }
+
+        toAdd.push({
+          id: generateUniqueId('fridge'),
+          name: resolvedName,
+          canonicalId: resolvedCanonicalId,
+          aisle: assignedAisle,
+          createdAt: new Date().toISOString(),
+        });
       });
 
       if (toAdd.length === 0) return currentItems;
@@ -731,8 +838,8 @@ export const StorageService = {
         return { shoppingList, fridgeItems };
       }
 
-      // Ajout au frigo
-      const updatedFridge = await this.addFridgeItem(targetItem.name, targetItem.aisle);
+      // Ajout au frigo avec son canonicalId
+      const updatedFridge = await this.addFridgeItem(targetItem.name, targetItem.aisle, targetItem.canonicalId);
 
       // Suppression de la liste de courses
       const updatedShopping = shoppingList.filter((i) => i.id !== shoppingItemId);
@@ -750,7 +857,7 @@ export const StorageService = {
    */
   async copyFridgeItemToShopping(fridgeItem: FridgeItem): Promise<ShoppingItem[]> {
     try {
-      return await this.addCustomShoppingItem(fridgeItem.name, undefined, undefined, fridgeItem.aisle);
+      return await this.addCustomShoppingItem(fridgeItem.name, undefined, undefined, fridgeItem.aisle, fridgeItem.canonicalId);
     } catch (e) {
       console.error('Erreur copie aliment vers courses:', e);
       throw e;
@@ -854,18 +961,19 @@ export const StorageService = {
         const baseServings = recipe.servings || 4;
 
         recipe.ingredients.forEach((ing) => {
-          // Ne pas encombrer la liste de courses avec les ingrédients de base / fonds de placard
+          // Ne pas encombrer la liste de courses avec les ingrédients de base / fonds de placard par défaut
           if (ing.isPantryStaple) return;
 
-          newItemsToMerge.push(
-            createShoppingItemFromIngredient(
-              ing,
-              baseServings,
-              targetServings,
-              plannedMeal.recipeTitle || recipe.title,
-              recipe.id
-            )
+          const created = createShoppingItemFromIngredient(
+            ing,
+            baseServings,
+            targetServings,
+            plannedMeal.recipeTitle || recipe.title,
+            recipe.id
           );
+          if (created) {
+            newItemsToMerge.push(created);
+          }
         });
       });
 

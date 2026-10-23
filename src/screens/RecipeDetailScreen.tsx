@@ -645,6 +645,18 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
             </View>
           )}
 
+          {/* Mention discrète de précaution si des ingrédients hors lexique sont présents (Arbitrage 5) */}
+          {!allergenEval.hasAllergen && allergenEval.hasUnrecognizedIngredients && (
+            <View style={[styles.allergenAlertCard, { backgroundColor: colors.amberLight, borderColor: colors.amber, paddingVertical: 8, paddingHorizontal: 12 }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Ionicons name="information-circle-outline" size={18} color={colors.amber} />
+                <Text style={{ fontSize: 12, color: colors.textPrimary, flex: 1, fontWeight: '500' }}>
+                  Certains ingrédients non répertoriés nécessitent une vérification manuelle de vos allergènes.
+                </Text>
+              </View>
+            </View>
+          )}
+
           {/* Ingredients Section with Dynamic Servings Stepper */}
           <View style={styles.sectionCard}>
             <View style={styles.sectionHeader}>

@@ -17,6 +17,7 @@ import { ShoppingAisle } from '../types/shopping';
 import { VocabularyService } from '../services/vocabularyService';
 import { AllergenFamilyPickerModal } from './AllergenFamilyPickerModal';
 import { AISLE_CONFIGS, ALL_AISLES } from '../utils/aisleClassifier';
+import { FORBIDDEN_ISOLATED_ALIASES } from '../data/canonicalVocabulary';
 import { useTheme } from '../theme/ThemeContext';
 import { createDynamicStyles } from '../theme/colors';
 import { normalizeString } from '../utils/helpers';
@@ -125,17 +126,81 @@ export const VocabularyManagerModal: React.FC<VocabularyManagerModalProps> = ({
       return;
     }
 
-    const aliasesArray = formAliases
+    const normName = normalizeString(cleanName);
+
+    // 1. Vérification d'unicité du nom canonique
+    const existingSameName = items.find(
+      (i) => i.normalizedName === normName && (!editingItem || i.id !== editingItem.id)
+    );
+    if (existingSameName) {
+      Alert.alert(
+        'Ingrédient déjà existant',
+        `Un ingrédient portant le nom "${existingSameName.canonicalName}" existe déjà dans le lexique.`
+      );
+      return;
+    }
+
+    // 2. Si création, vérifier si le terme est déjà répertorié comme alias d'un autre ingrédient
+    if (!editingItem) {
+      const parentWithAlias = items.find((i) => i.aliases.includes(normName));
+      if (parentWithAlias) {
+        Alert.alert(
+          'Terme déjà utilisé comme synonyme',
+          `"${cleanName}" est déjà répertorié comme synonyme de "${parentWithAlias.canonicalName}".\n\nPour en faire un ingrédient autonome, utilisez le bouton "Détacher" sur la ligne du synonyme.`
+        );
+        return;
+      }
+    }
+
+    // 3. Validation stricte des alias (anti-collisions et termes génériques)
+    const rawAliasesArray = formAliases
       .split(',')
       .map((s) => s.trim())
       .filter((s) => s.length > 0);
+
+    const otherCanonicalMap = new Map<string, string>();
+    const otherAliasesMap = new Map<string, string>();
+
+    items
+      .filter((i) => !editingItem || i.id !== editingItem.id)
+      .forEach((i) => {
+        otherCanonicalMap.set(i.normalizedName, i.canonicalName);
+        otherCanonicalMap.set(`${i.normalizedName}s`, i.canonicalName);
+        (i.aliases || []).forEach((a) => otherAliasesMap.set(a, i.canonicalName));
+      });
+
+    const rejectedAliases: string[] = [];
+    const validAliases: string[] = [];
+
+    rawAliasesArray.forEach((alias) => {
+      const normA = normalizeString(alias);
+      if (!normA) return;
+
+      if (FORBIDDEN_ISOLATED_ALIASES.has(normA)) {
+        rejectedAliases.push(`"${alias}" (qualificatif ou terme trop générique isolé)`);
+      } else if (otherCanonicalMap.has(normA)) {
+        rejectedAliases.push(`"${alias}" (nom réservé de l'ingrédient ${otherCanonicalMap.get(normA)})`);
+      } else if (otherAliasesMap.has(normA)) {
+        rejectedAliases.push(`"${alias}" (déjà synonyme de ${otherAliasesMap.get(normA)})`);
+      } else {
+        validAliases.push(alias);
+      }
+    });
+
+    if (rejectedAliases.length > 0) {
+      Alert.alert(
+        'Synonymes non valides',
+        `Certains synonymes ne peuvent pas être enregistrés :\n\n• ${rejectedAliases.join('\n• ')}`
+      );
+      return;
+    }
 
     try {
       if (editingItem) {
         await VocabularyService.update(editingItem.id, {
           canonicalName: cleanName,
           defaultAisle: formAisle,
-          aliases: aliasesArray,
+          aliases: validAliases,
           isPantryStaple: formIsPantryStaple,
           allergen: formAllergen || undefined,
         });
@@ -143,7 +208,7 @@ export const VocabularyManagerModal: React.FC<VocabularyManagerModalProps> = ({
         await VocabularyService.add({
           canonicalName: cleanName,
           defaultAisle: formAisle,
-          aliases: aliasesArray,
+          aliases: validAliases,
           isCustom: true,
           isPantryStaple: formIsPantryStaple,
           allergen: formAllergen || undefined,

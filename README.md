@@ -36,8 +36,11 @@ Une application mobile moderne, soignée et intuitive pour gérer vos recettes, 
   - **Classification automatique par rayons** (Primeur, Crémerie, Épicerie salée/sucrée, Boucherie...).
   - **Que cuisiner aujourd'hui ?** : calcul immédiat des recettes faisables avec votre inventaire actif.
   - Commandes verrouillées en haut d'écran pour une saisie fluide sans perte d'espace au défilement.
-- **Liste de courses catégorisée** :
-  - Regroupement automatique par rayons de supermarché pour simplifier vos achats.
+- **Liste de courses catégorisée & Agrégateur intelligent** :
+  - Regroupement automatique selon le rayon officiel (`defaultAisle`) du lexique canonique.
+  - **Fusion O(1) et addition arithmétique avec conversion métrique** : les articles identiques sont automatiquement fusionnés et additionnés (ex: `1 kg` + `250 g` = `1,25 kg`, `50 cl` + `1 L` = `1,5 L`).
+  - **Gestion fine des fonds de placard** : exclus par défaut pour éviter d'inonder la liste ; si inclus volontairement, affichés sous leur nom seul sans micro-quantité.
+  - **Exclusion stricte de l'eau** : l'ingrédient technique `Eau` n'est jamais ajouté aux courses.
   - Cocher/décocher les articles achetés.
   - **Passerelle intelligente** : bouton 1 tap *"Ajouter aux courses"* depuis les étagères, et *"Ranger dans mes étagères 🥫"* pour basculer vos courses achetées dans vos stocks.
 
@@ -58,15 +61,16 @@ Une application mobile moderne, soignée et intuitive pour gérer vos recettes, 
   - **Sélection verticale des ingrédients par rayons** : ingrédients en stock regroupés par rayons (`Fruits & Légumes`, `Produits Frais`, `Épicerie`...) avec compteurs et raccourcis *"Tout cocher"* / *"Tout décocher"* par rayon.
   - Configuration du nombre de portions (synchronisé avec vos préférences), option 100% végétarienne et pré-remplissage direct du formulaire de recette.
 
-### 5. 🏷️ Lexique Canonique & Normalisation Stricte des Ingrédients
+### 5. 🏷️ Lexique Canonique & Architecture "Lexique-First"
+- **Cascade inversée "Lexique-First"** : recherche exacte directe dans le lexique (noms canoniques et alias) **avant** tout élagage regex destructif. Les termes sensibles composés (*Crème fraîche*, *Légumes surgelés*, *Poudre d'amande*) sont résolus immédiatement sans altération.
+- **Identifiant transversal `canonicalId`** : étendu à `Recipe.Ingredient`, `FridgeItem` et `ShoppingItem` pour des correspondances $O(1)$ à 0 faux positif (*Pomme* !== *Pomme de terre*, *Muscade* !== *Noix*).
+- **Sécurité sanitaire renforcée des allergènes (Arbitrage 5)** : zéro faux positif sur les ingrédients répertoriés (*oignon blanc* ne déclenche pas sulfites), détection des racines sémantiques alimentaires sur les termes hors lexique (*sauce béchamel* ➔ *lait*), et indicateur ambré de précaution.
 - **Élimination automatique des synonymes et contenants** : fini les doublons entre *"boîte de petits pois"* et *"petits pois"*, *"noix de muscade"* et *"muscade"*, ou *"carotte épluchée"* et *"carotte"*.
-- **Création délibérée d'ingrédients distincts & détachement sécurisé sans conflit** : si vous choisissez délibérément de saisir un terme qui était enregistré comme synonyme (ex: conserver *"Noix de muscade"* au lieu d'accepter *"Muscade"*, ou dissocier *"Sucre glace"* de *"Sucre"*), l'application détache proprement cet alias du parent sans jamais capturer le nom de base du parent en synonyme.
-- **Auto-assainissement anti-conflits (Self-Healing)** : le système vérifie et assainit en tâche de fond le lexique pour empêcher qu'un ingrédient ne vole ou ne partage les alias d'un autre terme canonique.
-- **Pipeline hybride intelligent** : guidage strict de l'IA (Gemini 3.8 Flash) en amont, couplé à un moteur de nettoyage déterministe local (`IngredientNormalizer`) qui résout instantanément vers le nom canonique officiel.
+- **Garde-fous stricts dans le Gestionnaire de vocabulaire** : interdiction des doublons normalisés, protection des alias existants et rejet des termes génériques isolés (*rouge*, *blanc*, *sauce*...).
 - **Respect absolu des instructions** : la normalisation s'applique **exclusivement aux ingrédients** ; les étapes et instructions de préparation restent 100% fidèles et intouchées.
-- **Autocomplétion prédictive réactive** : composant de saisie avec liste déroulante suggérant les termes officiels et permettant de choisir en 1 clic de conserver un ingrédient distinct.
+- **Autocomplétion prédictive réactive** : composant de saisie avec liste déroulante suggérant les termes officiels sans altérer intempestivement le lexique.
 - **Harmonisation en 1 clic ("Normaliser tous les ingrédients")** : bouton disponible dans les Paramètres permettant d'analyser et de standardiser rétroactivement l'ensemble de vos recettes, listes de courses et étagères avec compte-rendu précis.
-- **Gestionnaire de vocabulaire complet & Placard personnalisable** : accessible dans les Paramètres pour consulter les ~350 ingrédients canoniques, rechercher par rayon ou par filtre rapide `📦 Dans les placards`, définir d'un clic si un ingrédient est habituellement en placard, renommer, ajouter des alias, détacher des synonymes, fusionner des doublons ou réinitialiser.
+- **Gestionnaire de vocabulaire complet & Placard personnalisable** : accessible dans les Paramètres pour consulter les ingrédients canoniques, rechercher par rayon ou par filtre rapide `📦 Dans les placards`, définir d'un clic si un ingrédient est habituellement en placard, renommer, ajouter des alias, détacher des synonymes, fusionner des doublons ou réinitialiser.
 
 ### 6. 📖 Structure "Livre de Chef", Placard & Ajout Intelligent aux Courses
 - **Organisation culinaire par sections (Zéro badge bruyant)** :
@@ -135,9 +139,24 @@ npm run lan:wifi
 npm run web
 ```
 
-### Vérification du code
+### Tests & Vérification du code
 ```bash
-# Vérification des types TypeScript
+# Lancement de toute la suite de tests automatisée
+npm test
+
+# Audit d'intégrité du lexique (135 ingrédients, 0 collision d'alias)
+npm run validate:lexicon
+
+# Tests stricts du moteur de stock & Lexique-First
+npm run test:stock
+
+# Tests de l'agrégateur de courses & conversions métriques
+npm run test:shopping
+
+# Tests de conformité des allergènes INCO & racines sémantiques
+npm run test:allergens
+
+# Vérification stricte des types TypeScript (0 erreur requise)
 npx tsc --noEmit
 
 # Diagnostic du projet Expo

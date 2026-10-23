@@ -19,6 +19,8 @@ import { Colors, Shadows, createDynamicStyles } from '../theme/colors';
 import { useTheme } from '../theme/ThemeContext';
 import { StarRating } from '../components/StarRating';
 import { generateUniqueId, normalizeString } from '../utils/helpers';
+import { normalizeIngredient } from '../utils/ingredientNormalizer';
+import { CanonicalIngredient } from '../types/vocabulary';
 import { IngredientAutocompleteInput } from '../components/IngredientAutocompleteInput';
 import { VocabularyService } from '../services/vocabularyService';
 import { isKnownDefaultPantryStaple } from '../data/canonicalVocabulary';
@@ -316,22 +318,33 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
     const updated = [...ingredients];
     updated[index] = { ...updated[index], [field]: value };
 
-    // Si on modifie le nom et que le statut staple n'a pas été explicitement défini
-    if (field === 'name' && typeof value === 'string' && value.trim()) {
-      if (updated[index].isPantryStaple === undefined) {
-        const vocabList = VocabularyService.getSyncList();
-        const norm = normalizeString(value);
-        const match = vocabList.find(
-          (v) => v.normalizedName === norm || v.aliases.includes(norm)
-        );
-        if (match && match.isPantryStaple) {
-          updated[index].isPantryStaple = true;
-        } else if (isKnownDefaultPantryStaple(value)) {
-          updated[index].isPantryStaple = true;
+    // RÈGLE ANTI-DÉSYNCHRONISATION (Spécification 3.3) :
+    // Toute modification du champ 'name' réévalue synchrone via normalizeIngredient(value)
+    // et ne conserve JAMAIS un ancien canonicalId obsolète !
+    if (field === 'name') {
+      const textVal = typeof value === 'string' ? value.trim() : '';
+      if (!textVal) {
+        updated[index].canonicalId = undefined;
+      } else {
+        const res = normalizeIngredient({ name: textVal });
+        updated[index].canonicalId = res.canonicalId;
+        if (res.isPantryStaple !== undefined && updated[index].isPantryStaple === undefined) {
+          updated[index].isPantryStaple = res.isPantryStaple;
         }
       }
     }
 
+    setIngredients(updated);
+  };
+
+  const handleSelectCanonicalIngredient = (index: number, item: CanonicalIngredient) => {
+    const updated = [...ingredients];
+    updated[index] = {
+      ...updated[index],
+      name: item.canonicalName,
+      canonicalId: item.id,
+      isPantryStaple: item.isPantryStaple ?? updated[index].isPantryStaple,
+    };
     setIngredients(updated);
   };
 
@@ -427,11 +440,9 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
     };
 
     // Enregistrement silencieux et incrémentation de l'usage dans le vocabulaire
-    // Si un ingrédient était un synonyme d'un autre, il est promu délibérément en ingrédient canonique distinct
     validIngredients.forEach((ing) => {
       const clean = ing.name.trim();
       VocabularyService.incrementUsage(clean).catch(() => {});
-      VocabularyService.promoteAliasToCanonical(clean).catch(() => {});
     });
 
     onSave(recipe);
@@ -921,6 +932,7 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
                     style={[styles.textInput, styles.ingNameInput]}
                     value={ing.name}
                     onChangeText={(val) => handleUpdateIngredient(index, 'name', val)}
+                    onSelectIngredient={(canon) => handleSelectCanonicalIngredient(index, canon)}
                     onAutoExtractedDetails={(extracted) => {
                       if (extracted.quantity && !ing.quantity) {
                         handleUpdateIngredient(index, 'quantity', extracted.quantity);

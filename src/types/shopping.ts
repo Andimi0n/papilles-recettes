@@ -11,6 +11,7 @@ export type ShoppingAisle =
 export interface ShoppingItem {
   id: string;
   name: string;
+  canonicalId?: string;
   quantity?: string;
   unit?: string;
   isChecked: boolean;

@@ -2,6 +2,8 @@ import { Ingredient } from '../types/recipe';
 import { ShoppingItem, ShoppingAisle } from '../types/shopping';
 import { classifyIngredientAisle, ALL_AISLES } from './aisleClassifier';
 import { normalizeString, scaleQuantity, generateUniqueId } from './helpers';
+import { normalizeIngredient } from './ingredientNormalizer';
+import { VocabularyService } from '../services/vocabularyService';
 
 /**
  * Tente de convertir une quantité textuelle en valeur numérique (ex: "250", "1.5", "1/2")
@@ -28,16 +30,106 @@ function formatSummedQuantity(num: number): string {
   if (num >= 15) return Math.round(num).toString();
 
   const rounded = Math.round(num * 100) / 100;
-  if (Math.abs(rounded - 0.5) < 0.05) return '1/2';
-  if (Math.abs(rounded - 0.25) < 0.05) return '1/4';
-  if (Math.abs(rounded - 0.75) < 0.05) return '3/4';
+  if (Math.abs(rounded - 0.5) < 0.01) return '1/2';
+  if (Math.abs(rounded - 0.25) < 0.01) return '1/4';
+  if (Math.abs(rounded - 0.75) < 0.01) return '3/4';
 
-  const withOne = Math.round(num * 10) / 10;
-  return withOne.toString().replace('.', ',');
+  return rounded.toString().replace('.', ',');
+}
+
+/**
+ * Normalise et standardise les unités métriques pour addition mathématique
+ */
+function normalizeUnitKey(unit?: string): string {
+  if (!unit) return '';
+  const u = normalizeString(unit);
+  if (['g', 'gr', 'gramme', 'grammes'].includes(u)) return 'g';
+  if (['kg', 'kilo', 'kilos', 'kilogramme', 'kilogrammes'].includes(u)) return 'kg';
+  if (['ml', 'millilitre', 'millilitres'].includes(u)) return 'ml';
+  if (['cl', 'centilitre', 'centilitres'].includes(u)) return 'cl';
+  if (['l', 'litre', 'litres'].includes(u)) return 'l';
+  if (['c a soupe', 'cuillere a soupe', 'cuilleres a soupe', 'cas', 'c.a.s'].includes(u)) return 'c. à soupe';
+  if (['c a cafe', 'cuillere a cafe', 'cuilleres a cafe', 'cac', 'c.a.c'].includes(u)) return 'c. à café';
+  if (['pincee', 'pincees'].includes(u)) return 'pincée';
+  if (['gousse', 'gousses'].includes(u)) return 'gousse';
+  if (['tranche', 'tranches'].includes(u)) return 'tranche';
+  if (['boite', 'boites'].includes(u)) return 'boîte';
+  if (['bocal', 'bocaux'].includes(u)) return 'bocal';
+  if (['pot', 'pots'].includes(u)) return 'pot';
+  if (['morceau', 'morceaux'].includes(u)) return 'morceau';
+  if (['filet', 'filets'].includes(u)) return 'filet';
+  if (['sachet', 'sachets'].includes(u)) return 'sachet';
+  return u;
+}
+
+/**
+ * Tente d'additionner deux quantités numériques avec conversion métrique (g ↔ kg, ml ↔ cl ↔ L)
+ */
+function sumMetricQuantities(
+  qty1: number,
+  unit1: string,
+  qty2: number,
+  unit2: string
+): { sumQty: string; finalUnit: string } | null {
+  const u1 = normalizeUnitKey(unit1);
+  const u2 = normalizeUnitKey(unit2);
+
+  // Unités identiques
+  if (u1 === u2) {
+    return {
+      sumQty: formatSummedQuantity(qty1 + qty2),
+      finalUnit: unit1 || unit2,
+    };
+  }
+
+  // Masse : g et kg
+  if ((u1 === 'g' && u2 === 'kg') || (u1 === 'kg' && u2 === 'g')) {
+    const valInG = (u1 === 'kg' ? qty1 * 1000 : qty1) + (u2 === 'kg' ? qty2 * 1000 : qty2);
+    if (valInG >= 1000) {
+      return {
+        sumQty: formatSummedQuantity(valInG / 1000),
+        finalUnit: 'kg',
+      };
+    }
+    return {
+      sumQty: formatSummedQuantity(valInG),
+      finalUnit: 'g',
+    };
+  }
+
+  // Volume : ml, cl, l
+  const volumeUnits = ['ml', 'cl', 'l'];
+  if (volumeUnits.includes(u1) && volumeUnits.includes(u2)) {
+    const toMl = (q: number, u: string) => (u === 'l' ? q * 1000 : u === 'cl' ? q * 10 : q);
+    const totalMl = toMl(qty1, u1) + toMl(qty2, u2);
+    if (totalMl >= 1000) {
+      return {
+        sumQty: formatSummedQuantity(totalMl / 1000),
+        finalUnit: 'L',
+      };
+    }
+    if (totalMl >= 10 && totalMl % 10 === 0) {
+      return {
+        sumQty: formatSummedQuantity(totalMl / 10),
+        finalUnit: 'cl',
+      };
+    }
+    return {
+      sumQty: formatSummedQuantity(totalMl),
+      finalUnit: 'ml',
+    };
+  }
+
+  return null;
 }
 
 /**
  * Crée un ShoppingItem à partir d'un ingrédient mis à l'échelle des portions
+ * selon les règles du lexique canonique (Arbitrages 2 & 3) :
+ * - Nom canonique standardisé
+ * - Rayon issu de defaultAisle du lexique
+ * - Staples inclus sans quantité ni unité
+ * - Exclusion stricte de l'eau (renvoie null)
  */
 export function createShoppingItemFromIngredient(
   ingredient: Ingredient,
@@ -45,15 +137,38 @@ export function createShoppingItemFromIngredient(
   targetServings: number,
   recipeTitle?: string,
   recipeId?: string
-): ShoppingItem {
-  const scaledQty = scaleQuantity(ingredient.quantity, baseServings, targetServings);
-  const aisle = classifyIngredientAisle(ingredient.name);
+): ShoppingItem | null {
+  const norm = normalizeIngredient(ingredient);
+  const resolvedCanonicalId = ingredient.canonicalId || norm.canonicalId;
+  const canonicalName = norm.canonicalId ? norm.name : ingredient.name.trim();
+
+  // EXCLUSION STRICTE DE L'EAU (Arbitrage 2)
+  const normLower = normalizeString(canonicalName);
+  if (resolvedCanonicalId === 'ing_canon_eau' || normLower === 'eau') {
+    return null;
+  }
+
+  // RAYON OFFICIEL : defaultAisle du lexique canonique (Arbitrage 3)
+  let aisle: ShoppingAisle;
+  if (resolvedCanonicalId) {
+    const vocabList = VocabularyService.getSyncList();
+    const canonItem = vocabList.find((v) => v.id === resolvedCanonicalId);
+    aisle = canonItem?.defaultAisle || classifyIngredientAisle(canonicalName);
+  } else {
+    aisle = classifyIngredientAisle(canonicalName);
+  }
+
+  // FONDS DE PLACARD (Arbitrage 2) : Nom canonique seul, sans quantité
+  const isStaple = Boolean(ingredient.isPantryStaple || norm.isPantryStaple);
+  const scaledQty = isStaple ? undefined : scaleQuantity(ingredient.quantity, baseServings, targetServings);
+  const finalUnit = isStaple ? undefined : (ingredient.unit ? ingredient.unit.trim() : undefined);
 
   return {
     id: generateUniqueId('shop'),
-    name: ingredient.name.trim(),
+    name: canonicalName,
+    canonicalId: resolvedCanonicalId,
     quantity: scaledQty || undefined,
-    unit: ingredient.unit ? ingredient.unit.trim() : undefined,
+    unit: finalUnit || undefined,
     isChecked: false,
     aisle,
     recipeTitle,
@@ -65,53 +180,106 @@ export function createShoppingItemFromIngredient(
 
 /**
  * Fusionne intelligemment une liste d'ingrédients existants avec de nouveaux ingrédients
- * - Si le même produit (même nom et même unité) existe déjà non coché, leurs quantités numériques sont additionnées !
- * - Sinon le nouvel article est ajouté à la liste.
+ * - Priorité O(1) par canonicalId sous nom canonique standardisé
+ * - Addition mathématique et conversion métrique (g ↔ kg, ml ↔ cl ↔ L)
+ * - Les fonds de placard sans quantité restent groupés sous une ligne unique
+ * - L'eau est strictement exclue
  */
 export function mergeShoppingItems(
   existingItems: ShoppingItem[],
-  newItems: ShoppingItem[]
+  newItems: (ShoppingItem | null)[]
 ): ShoppingItem[] {
   const result: ShoppingItem[] = [...existingItems];
 
-  newItems.forEach((newItem) => {
-    const normNewName = normalizeString(newItem.name);
-    const normNewUnit = normalizeString(newItem.unit || '');
+  const validNewItems = newItems.filter((i): i is ShoppingItem => {
+    if (!i) return false;
+    const n = normalizeString(i.name);
+    return i.canonicalId !== 'ing_canon_eau' && n !== 'eau';
+  });
 
-    // Cherche un doublon non-coché avec le même nom et la même unité
+  validNewItems.forEach((newItem) => {
+    const normNewName = normalizeString(newItem.name);
+
+    // Cherche un doublon non-coché :
+    // 1. Par canonicalId si présent sur les deux
+    // 2. Sinon par nom normalisé strict
     const matchIndex = result.findIndex((item) => {
       if (item.isChecked) return false;
+
+      if (newItem.canonicalId && item.canonicalId) {
+        if (newItem.canonicalId === item.canonicalId) {
+          // Vérifier si fusionnable (unités compatibles ou les deux sans quantité)
+          if (!newItem.quantity && !item.quantity) return true;
+          const u1 = normalizeUnitKey(item.unit);
+          const u2 = normalizeUnitKey(newItem.unit);
+          if (u1 === u2) return true;
+          if (sumMetricQuantities(1, u1, 1, u2) !== null) return true;
+        }
+        return false;
+      }
+
       const normItemName = normalizeString(item.name);
-      const normItemUnit = normalizeString(item.unit || '');
-      return normItemName === normNewName && normItemUnit === normNewUnit;
+      if (normItemName === normNewName) {
+        if (!newItem.quantity && !item.quantity) return true;
+        const u1 = normalizeUnitKey(item.unit);
+        const u2 = normalizeUnitKey(newItem.unit);
+        return u1 === u2;
+      }
+
+      return false;
     });
 
     if (matchIndex >= 0) {
       const existing = result[matchIndex];
+
+      // Fusion des titres de recettes sans doublon
+      let mergedRecipeTitle = existing.recipeTitle;
+      if (newItem.recipeTitle) {
+        if (!existing.recipeTitle) {
+          mergedRecipeTitle = newItem.recipeTitle;
+        } else if (!existing.recipeTitle.includes(newItem.recipeTitle)) {
+          mergedRecipeTitle = `${existing.recipeTitle}, ${newItem.recipeTitle}`;
+        }
+      }
+
+      // Cas 1 : Fonds de placard ou articles sans quantité (ex: "Sel", "Muscade")
+      if (!existing.quantity && !newItem.quantity) {
+        result[matchIndex] = {
+          ...existing,
+          canonicalId: existing.canonicalId || newItem.canonicalId,
+          recipeTitle: mergedRecipeTitle,
+        };
+        return;
+      }
+
+      // Cas 2 : Addition mathématique numérique
       const num1 = parseNumericQuantity(existing.quantity);
       const num2 = parseNumericQuantity(newItem.quantity);
 
       if (num1 !== null && num2 !== null) {
-        // Addition mathématique des quantités
-        const summed = num1 + num2;
-        result[matchIndex] = {
-          ...existing,
-          quantity: formatSummedQuantity(summed),
-          recipeTitle: existing.recipeTitle && newItem.recipeTitle && existing.recipeTitle !== newItem.recipeTitle
-            ? `${existing.recipeTitle}, ${newItem.recipeTitle}`
-            : (existing.recipeTitle || newItem.recipeTitle),
-        };
-      } else {
-        // Quantités textuelles complexes (ex: "au goût" ou "1 pincée")
-        const mergedQty = [existing.quantity, newItem.quantity]
-          .filter(Boolean)
-          .join(' + ');
-        result[matchIndex] = {
-          ...existing,
-          quantity: mergedQty || undefined,
-          recipeTitle: existing.recipeTitle || newItem.recipeTitle,
-        };
+        const metricSum = sumMetricQuantities(num1, existing.unit || '', num2, newItem.unit || '');
+        if (metricSum) {
+          result[matchIndex] = {
+            ...existing,
+            canonicalId: existing.canonicalId || newItem.canonicalId,
+            quantity: metricSum.sumQty,
+            unit: metricSum.finalUnit || undefined,
+            recipeTitle: mergedRecipeTitle,
+          };
+          return;
+        }
       }
+
+      // Cas 3 : Concaténation textuelle si unités complexes
+      const mergedQty = [existing.quantity, newItem.quantity]
+        .filter(Boolean)
+        .join(' + ');
+      result[matchIndex] = {
+        ...existing,
+        canonicalId: existing.canonicalId || newItem.canonicalId,
+        quantity: mergedQty || undefined,
+        recipeTitle: mergedRecipeTitle,
+      };
     } else {
       result.push(newItem);
     }

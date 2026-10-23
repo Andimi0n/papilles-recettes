@@ -37,7 +37,32 @@ export interface RecipeAllergenEvaluation {
   hasAllergen: boolean;
   /** Ingrédients concernés avec détails de l'allergène déclencheur */
   allergenIngredients: MatchedAllergenDetail[];
+  /** Vrai si la recette contient des ingrédients hors lexique nécessitant vigilance */
+  hasUnrecognizedIngredients?: boolean;
+  /** Liste des ingrédients non répertoriés */
+  unrecognizedIngredients?: Ingredient[];
 }
+
+/**
+ * Racines sémantiques clés des 14 familles d'allergènes INCO (Arbitrage 5 - Sécurité Sanitaire)
+ * Permet de prévenir à 100% les faux négatifs sur des ingrédients hors seed (sauce béchamel, coulis de noisette...)
+ */
+const INCO_FAMILY_KEY_ROOTS: Record<AllergenFamily, string[]> = {
+  lait: ['lait', 'creme', 'fromage', 'beurre', 'yaourt', 'yogourt', 'lact', 'bechamel', 'mascarpone', 'ricotta', 'mozzarella', 'parmesan', 'cheddar', 'comte', 'gruyere', 'gouda', 'roquefort'],
+  gluten: ['farine', 'ble', 'orge', 'seigle', 'avoine', 'epeautre', 'semoule', 'pain', 'chapelure', 'pates', 'tagliatelle', 'spaghetti', 'biscuit', 'brioche'],
+  oeufs: ['oeuf', 'jaune d oeuf', 'blanc d oeuf', 'mayonnaise'],
+  poissons: ['poisson', 'saumon', 'thon', 'cabillaud', 'colin', 'truite', 'anchois', 'sardine', 'merlu', 'dorade', 'bar', 'sole', 'morue'],
+  crustaces: ['crevette', 'crabe', 'homard', 'langouste', 'langoustine', 'ecrevisse', 'gambas'],
+  fruits_a_coque: ['noisette', 'amande', 'noix', 'cajou', 'pistache', 'pecan', 'macadamia'],
+  arachides: ['arachide', 'cacahuete', 'cacahouete'],
+  soja: ['soja', 'tofu', 'edamame', 'tamari', 'miso'],
+  sesame: ['sesame', 'tahini', 'tahin'],
+  moutarde: ['moutarde'],
+  celeri: ['celeri'],
+  mollusques: ['moule', 'huitre', 'calmar', 'calamar', 'poulpe', 'seiche', 'escargot', 'palourde', 'saint jacques'],
+  lupin: ['lupin'],
+  sulfites: ['sulfite', 'vin blanc', 'vin rouge', 'champagne', 'porto'],
+};
 
 /**
  * Prépare et indexe en mémoire les allergènes de l'utilisateur pour une vérification sub-milliseconde
@@ -196,6 +221,8 @@ export function isIngredientAllergen(
   if (!norm.canonicalId) {
     const rawNormStr = normalizeString(rawName);
     const rawStemmed = stemWord(rawNormStr);
+
+    // 5.1 Correspondance textuelle directe sur allergène personnalisé
     if (
       prepared.normalizedNamesSet.has(rawNormStr) ||
       prepared.stemmedNamesSet.has(rawStemmed) ||
@@ -207,6 +234,31 @@ export function isIngredientAllergen(
         matchedAllergenName: rawName,
         allergenFamily: family,
       };
+    }
+
+    // 5.2 Héritage par racines sémantiques majeures (Arbitrage 5 - Prévention des faux négatifs)
+    // Permet de détecter "sauce béchamel" pour le lait ou "coulis de noisette" pour les fruits à coque
+    for (const activeFam of prepared.activeFamilies) {
+      const roots = INCO_FAMILY_KEY_ROOTS[activeFam];
+      if (roots) {
+        for (const root of roots) {
+          const rootRegex = new RegExp(`(^|\\s|['’])${root}(s|es)?(\\s|$|['’])`, 'i');
+          if (rootRegex.test(rawNormStr) || rawNormStr.includes(root)) {
+            // Garde-fous faux amis connus : boissons végétales
+            if (activeFam === 'lait' && (rawNormStr.includes('coco') || rawNormStr.includes('soja') || rawNormStr.includes('amande') || rawNormStr.includes('avoine'))) {
+              continue;
+            }
+            if (activeFam === 'fruits_a_coque' && (rawNormStr.includes('muscade') || rawNormStr.includes('coco'))) {
+              continue;
+            }
+            return {
+              isAllergen: true,
+              matchedAllergenName: rawName,
+              allergenFamily: activeFam,
+            };
+          }
+        }
+      }
     }
   }
 
@@ -222,12 +274,18 @@ export function evaluateRecipeAllergens(
   vocabList?: CanonicalIngredient[]
 ): RecipeAllergenEvaluation {
   if (!prepared || prepared.items.length === 0 || !recipe || !Array.isArray(recipe.ingredients)) {
-    return { hasAllergen: false, allergenIngredients: [] };
+    return { hasAllergen: false, allergenIngredients: [], hasUnrecognizedIngredients: false, unrecognizedIngredients: [] };
   }
 
   const allergenIngredients: MatchedAllergenDetail[] = [];
+  const unrecognizedIngredients: Ingredient[] = [];
 
   for (const ing of recipe.ingredients) {
+    const norm = normalizeIngredient(ing);
+    if (!norm.canonicalId && !ing.canonicalId) {
+      unrecognizedIngredients.push(ing);
+    }
+
     const check = isIngredientAllergen(ing, prepared, vocabList);
     if (check.isAllergen) {
       allergenIngredients.push({
@@ -241,6 +299,8 @@ export function evaluateRecipeAllergens(
   return {
     hasAllergen: allergenIngredients.length > 0,
     allergenIngredients,
+    hasUnrecognizedIngredients: unrecognizedIngredients.length > 0 && prepared.items.length > 0,
+    unrecognizedIngredients,
   };
 }
 

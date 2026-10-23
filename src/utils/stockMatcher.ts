@@ -56,7 +56,11 @@ export function prepareStockItems(stockItems: FridgeItem[]): PreparedStock {
     const rawName = item.name.trim();
     if (!rawName) return;
 
-    const norm = normalizeIngredient({ name: rawName });
+    if (item.canonicalId) {
+      canonicalIdMap.set(item.canonicalId, rawName);
+    }
+
+    const norm = normalizeIngredient({ name: rawName, canonicalId: item.canonicalId });
     const cName = norm.name || rawName;
     const normStr = normalizeString(cName);
     const stemmed = stemWord(normStr);
@@ -108,10 +112,19 @@ export function isIngredientInStock(
     return { inStock: false };
   }
 
+  // 0. Identifiant canonique direct préexistant sur l'ingrédient (O(1))
+  if (ing.canonicalId && preparedStock.canonicalIdMap.has(ing.canonicalId)) {
+    return {
+      inStock: true,
+      matchedStockName: preparedStock.canonicalIdMap.get(ing.canonicalId),
+    };
+  }
+
   const normIng =
     precomputedNorm ||
     normalizeIngredient({
       name: ing.name,
+      canonicalId: ing.canonicalId,
       quantity: ing.quantity,
       unit: ing.unit,
       isPantryStaple: ing.isPantryStaple,

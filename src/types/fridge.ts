@@ -3,6 +3,7 @@ import { ShoppingAisle } from './shopping';
 export interface FridgeItem {
   id: string;
   name: string;
+  canonicalId?: string;
   aisle: ShoppingAisle;
   createdAt: string;
 }

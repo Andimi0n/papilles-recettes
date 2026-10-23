@@ -193,25 +193,26 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
   }, [items, canonicalVocabulary]);
 
   // Actions utilisateur
-  const handleAddItem = async (nameToAdd?: string, aisleToAdd?: ShoppingAisle) => {
+  const handleAddItem = async (nameToAdd?: string, aisleToAdd?: ShoppingAisle, canonicalIdToAdd?: string) => {
     const raw = (nameToAdd || newItemName).trim();
     if (!raw) return;
 
     // Normalisation de l'ingrédient
-    const normalized = normalizeIngredient({ name: raw });
+    const normalized = normalizeIngredient({ name: raw, canonicalId: canonicalIdToAdd });
+    const resolvedCanonicalId = canonicalIdToAdd || normalized.canonicalId;
     const name = normalized.name || (raw.charAt(0).toUpperCase() + raw.slice(1));
     const resolvedAisle =
       aisleToAdd ||
       selectedAisle ||
-      (normalized.canonicalId
-        ? canonicalVocabulary.find((c) => c.id === normalized.canonicalId)?.defaultAisle
+      (resolvedCanonicalId
+        ? canonicalVocabulary.find((c) => c.id === resolvedCanonicalId)?.defaultAisle
         : undefined) ||
       classifyIngredientAisle(name);
 
     try {
-      const updated = await StorageService.addFridgeItem(name, resolvedAisle);
+      const updated = await StorageService.addFridgeItem(name, resolvedAisle, resolvedCanonicalId);
       setItems(updated);
-      VocabularyService.incrementUsage(normalized.canonicalId || name).catch(() => {});
+      VocabularyService.incrementUsage(resolvedCanonicalId || name).catch(() => {});
       if (onFridgeCountChange) {
         onFridgeCountChange(updated.length);
       }
@@ -313,7 +314,7 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
             returnKeyType="done"
             onSubmitEditing={() => handleAddItem()}
             onSelectIngredient={(ing) => {
-              handleAddItem(ing.canonicalName, ing.defaultAisle);
+              handleAddItem(ing.canonicalName, ing.defaultAisle, ing.id);
             }}
           />
 
@@ -367,7 +368,7 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
               <TouchableOpacity
                 key={sug.id}
                 style={styles.suggestionChip}
-                onPress={() => handleAddItem(sug.canonicalName, sug.defaultAisle)}
+                onPress={() => handleAddItem(sug.canonicalName, sug.defaultAisle, sug.id)}
                 activeOpacity={0.7}
               >
                 <Ionicons name="add-circle" size={14} color={colors.primary} />

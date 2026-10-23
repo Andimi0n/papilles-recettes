@@ -31,7 +31,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
   {
     name: 'Oignon',
     aisle: 'Fruits & Légumes',
-    aliases: ['oignons', 'oignon jaune', 'oignon rouge', 'oignon blanc', 'oignons jaunes', 'oignon emince', 'oignon epluche', 'cebette', 'ciboule'],
+    aliases: ['oignons', 'oignon jaune', 'oignon rouge', 'oignon blanc', 'oignons jaunes', 'oignons rouges', 'oignons blancs', 'oignon emince', 'oignon epluche', 'cebette', 'ciboule'],
   },
   {
     name: 'Ail',
@@ -757,6 +757,12 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
     aliases: ['creme de coco', 'brique de lait de coco', 'boite de lait de coco'],
   },
   {
+    name: 'Eau',
+    aisle: 'Boissons',
+    aliases: ['eau tiede', 'eau chaude', 'eau froide', 'eau gazeuse', 'verre d eau'],
+    isPantryStaple: true,
+  },
+  {
     name: 'Café',
     aisle: 'Boissons',
     aliases: ['tasse de cafe', 'cafe expresso', 'cafe moulu', 'cafe soluble'],
@@ -853,6 +859,14 @@ export function getDefaultAllergen(name: string): AllergenFamily | undefined {
   const clean = normalizeForVocabIndex(name);
   return DEFAULT_ALLERGENS_MAP.get(clean);
 }
+
+// Termes génériques ou qualificatifs isolés formellement interdits comme alias uniques
+export const FORBIDDEN_ISOLATED_ALIASES = new Set<string>([
+  'blanc', 'blanche', 'rouge', 'jaune', 'vert', 'verte', 'noir', 'noire',
+  'emince', 'epluche', 'hache', 'rape', 'concasse', 'frais', 'fraiche',
+  'sec', 'seche', 'cuit', 'cuite', 'moulu', 'surgele', 'sauce', 'huile',
+  'poudre', 'puree', 'creme', 'pate', 'petit', 'gros', 'grand', 'morceau',
+]);
 
 // Ensemble pré-compilé des termes normalisés considérés par défaut comme fonds de placard
 const DEFAULT_PANTRY_STAPLES_SET = new Set<string>([

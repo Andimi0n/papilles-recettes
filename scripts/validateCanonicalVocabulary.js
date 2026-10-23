@@ -135,5 +135,6 @@ if (errorCount === 0) {
   console.log('✅ AUCUNE ERREUR : Le lexique respecte 100% des contraintes d\'intégrité !');
 } else {
   console.log(`❌ ${errorCount} erreur(s) détectée(s) nécessitant une correction.`);
+  process.exit(1);
 }
 console.log('-------------------------\n');

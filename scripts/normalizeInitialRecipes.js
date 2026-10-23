@@ -15,8 +15,9 @@ async function main() {
   const tmpDir = path.join(__dirname, '../.tmp_norm_build');
   
   try {
+    const tscBin = path.join(__dirname, '../node_modules/.bin/tsc');
     execSync(
-      `npx tsc src/data/initialRecipes.ts src/utils/ingredientNormalizer.ts src/services/vocabularyService.ts src/data/canonicalVocabulary.ts src/types/vocabulary.ts src/types/recipe.ts src/utils/helpers.ts src/utils/searchEngine.ts src/utils/aisleClassifier.ts --outDir "${tmpDir}" --module commonjs --target es2020 --skipLibCheck --esModuleInterop --ignoreConfig`,
+      `"${tscBin}" src/data/initialRecipes.ts src/utils/ingredientNormalizer.ts src/services/vocabularyService.ts src/data/canonicalVocabulary.ts src/types/vocabulary.ts src/types/recipe.ts src/utils/helpers.ts src/utils/searchEngine.ts src/utils/aisleClassifier.ts --outDir "${tmpDir}" --module commonjs --target es2020 --skipLibCheck --esModuleInterop --ignoreConfig`,
       { stdio: 'pipe' }
     );
   } catch (err) {
@@ -37,14 +38,17 @@ async function main() {
     const updatedIngredients = recipe.ingredients.map((ing) => {
       totalIngredients++;
       const res = normalizeIngredient(ing);
-      if (res.name !== ing.name || res.unit !== ing.unit || res.quantity !== ing.quantity) {
+      if (res.name !== ing.name || res.unit !== ing.unit || res.quantity !== ing.quantity || res.canonicalId !== ing.canonicalId) {
         normalizedCount++;
       }
       return {
         id: ing.id,
         name: res.name || ing.name,
+        canonicalId: res.canonicalId || ing.canonicalId,
         quantity: res.quantity !== undefined ? res.quantity : ing.quantity || '',
         unit: res.unit !== undefined ? res.unit : ing.unit || '',
+        isPantryStaple: res.isPantryStaple,
+        isOptional: res.isOptional,
       };
     });
 

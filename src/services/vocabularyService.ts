@@ -6,6 +6,7 @@ import {
   isKnownDefaultPantryStaple,
   getDefaultAllergen,
   generateCanonicalSlugId,
+  FORBIDDEN_ISOLATED_ALIASES,
 } from '../data/canonicalVocabulary';
 import { normalizeString } from '../utils/helpers';
 import { classifyIngredientAisle } from '../utils/aisleClassifier';
@@ -207,8 +208,10 @@ export const VocabularyService = {
         await AsyncStorage.setItem(VOCABULARY_STORAGE_KEY, JSON.stringify(initialList));
         memoryCache = initialList;
         return memoryCache;
-      } catch (err) {
-        console.error('Erreur chargement vocabulaire canonique:', err);
+      } catch (err: any) {
+        if (!err || typeof err.message !== 'string' || !err.message.includes('window is not defined')) {
+          console.error('Erreur chargement vocabulaire canonique:', err);
+        }
         const fallback = getInitialCanonicalVocabulary();
         memoryCache = fallback;
         return fallback;
@@ -286,9 +289,14 @@ export const VocabularyService = {
     const uniqueId = `ing_custom_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
     const aisle = item.defaultAisle || classifyIngredientAisle(cleanName);
 
-    // Collecter les noms canoniques des autres ingrédients pour interdire tout conflit
+    // Collecter les noms canoniques et alias des autres ingrédients pour interdire tout conflit
     const otherCanonicalNames = new Set(list.map((i) => i.normalizedName));
     list.forEach((i) => otherCanonicalNames.add(`${i.normalizedName}s`));
+
+    const otherAliases = new Set<string>();
+    list.forEach((i) => {
+      (i.aliases || []).forEach((a) => otherAliases.add(a));
+    });
 
     const aliasSet = new Set<string>();
     aliasSet.add(norm);
@@ -297,7 +305,12 @@ export const VocabularyService = {
     }
     (item.aliases || []).forEach((a) => {
       const cleanAlias = normalizeString(a);
-      if (cleanAlias && !otherCanonicalNames.has(cleanAlias)) {
+      if (
+        cleanAlias &&
+        !FORBIDDEN_ISOLATED_ALIASES.has(cleanAlias) &&
+        !otherCanonicalNames.has(cleanAlias) &&
+        !otherAliases.has(cleanAlias)
+      ) {
         aliasSet.add(cleanAlias);
       }
     });
@@ -521,12 +534,25 @@ export const VocabularyService = {
       : current.canonicalName;
     const newNormalized = normalizeString(newCanonicalName);
 
+    // Vérifier si un autre ingrédient porte déjà ce nom normalisé
+    if (updates.canonicalName) {
+      const conflict = list.find((i) => i.id !== id && i.normalizedName === newNormalized);
+      if (conflict) {
+        throw new Error(`Un autre ingrédient porte déjà le nom "${conflict.canonicalName}".`);
+      }
+    }
+
     // Collecter les noms canoniques des AUTRES ingrédients pour interdire tout conflit
     const otherCanonicalNames = new Set(
       list.filter((i) => i.id !== id).map((i) => i.normalizedName)
     );
     list.filter((i) => i.id !== id).forEach((i) => {
       otherCanonicalNames.add(`${i.normalizedName}s`);
+    });
+
+    const otherAliases = new Set<string>();
+    list.filter((i) => i.id !== id).forEach((i) => {
+      (i.aliases || []).forEach((a) => otherAliases.add(a));
     });
 
     // Mettre à jour les alias
@@ -539,7 +565,12 @@ export const VocabularyService = {
 
     rawAliases.forEach((a) => {
       const cleanA = normalizeString(a);
-      if (cleanA && !otherCanonicalNames.has(cleanA)) {
+      if (
+        cleanA &&
+        !FORBIDDEN_ISOLATED_ALIASES.has(cleanA) &&
+        !otherCanonicalNames.has(cleanA) &&
+        !otherAliases.has(cleanA)
+      ) {
         aliasSet.add(cleanA);
       }
     });

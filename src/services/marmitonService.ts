@@ -1,6 +1,7 @@
 import { Recipe } from '../types/recipe';
 import { RecipeAiService } from './recipeAiService';
 import { generateUniqueId } from '../utils/helpers';
+import { normalizeIngredient } from '../utils/ingredientNormalizer';
 
 export interface MarmitonSearchResult {
   title: string;
@@ -226,12 +227,22 @@ export const MarmitonService = {
       userNote: extracted.userNote ? extracted.userNote.trim() : '',
       createdAt: now,
       updatedAt: now,
-      ingredients: (extracted.ingredients || []).map((ing, idx) => ({
-        id: generateUniqueId(`ing_marm_${idx + 1}`),
-        name: ing.name.trim(),
-        quantity: ing.quantity || '',
-        unit: ing.unit || '',
-      })),
+      ingredients: (extracted.ingredients || []).map((ing, idx) => {
+        const norm = normalizeIngredient({
+          name: ing.name ? ing.name.trim() : '',
+          quantity: ing.quantity || '',
+          unit: ing.unit || '',
+        });
+        return {
+          id: generateUniqueId(`ing_marm_${idx + 1}`),
+          name: norm.name || ing.name.trim(),
+          canonicalId: norm.canonicalId,
+          quantity: norm.quantity || '',
+          unit: norm.unit || '',
+          isPantryStaple: norm.isPantryStaple,
+          isOptional: norm.isOptional,
+        };
+      }),
       steps: (extracted.steps || []).map((st, idx) => ({
         id: generateUniqueId(`stp_marm_${idx + 1}`),
         order: st.order || idx + 1,

@@ -59,6 +59,7 @@ function AppContent() {
   useEffect(() => {
     const loadInitialData = async () => {
       try {
+        await StorageService.migrateRecipesToCanonicalV1().catch(() => {});
         const loaded = await StorageService.getRecipes();
         setRecipes(loaded);
         await refreshShoppingBadge();
