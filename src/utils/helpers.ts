@@ -13,6 +13,78 @@ export function normalizeString(str: string): string {
 }
 
 /**
+ * Calcule la distance de Levenshtein entre deux chaînes normalisées.
+ * Optimisé en mémoire O(min(M, N)).
+ */
+export function levenshteinDistance(a: string, b: string): number {
+  if (a === b) return 0;
+  if (a.length === 0) return b.length;
+  if (b.length === 0) return a.length;
+
+  if (a.length > b.length) {
+    const tmp = a;
+    a = b;
+    b = tmp;
+  }
+
+  const aLen = a.length;
+  const bLen = b.length;
+  let prevRow = new Array(aLen + 1);
+  let currRow = new Array(aLen + 1);
+
+  for (let i = 0; i <= aLen; i++) {
+    prevRow[i] = i;
+  }
+
+  for (let j = 1; j <= bLen; j++) {
+    currRow[0] = j;
+    const bChar = b[j - 1];
+
+    for (let i = 1; i <= aLen; i++) {
+      const cost = a[i - 1] === bChar ? 0 : 1;
+      currRow[i] = Math.min(
+        currRow[i - 1] + 1,      // insertion
+        prevRow[i] + 1,          // suppression
+        prevRow[i - 1] + cost    // substitution
+      );
+    }
+
+    for (let i = 0; i <= aLen; i++) {
+      prevRow[i] = currRow[i];
+    }
+  }
+
+  return prevRow[aLen];
+}
+
+/**
+ * Normalisation avancée pour la recherche :
+ * - Minuscules, sans accents
+ * - Stemming simple pour le français (pluriels en -s, -x, etc.)
+ */
+export function stemWord(word: string): string {
+  const clean = normalizeString(word);
+  if (clean.length <= 3) return clean;
+
+  // Pluriels irréguliers courants
+  if (clean === 'oeufs') return 'oeuf';
+  if (clean === 'yeux') return 'oeil';
+  if (clean === 'ails') return 'ail';
+
+  // Pluriel en -x (gateaux -> gateau, choux -> chou, morceaux -> morceau)
+  if (clean.endsWith('x') && clean.length > 4) {
+    return clean.slice(0, -1);
+  }
+
+  // Pluriel en -s (tomates -> tomate, carottes -> carotte, lardons -> lardon)
+  if (clean.endsWith('s') && clean.length > 3) {
+    return clean.slice(0, -1);
+  }
+
+  return clean;
+}
+
+/**
  * Formate une durée en minutes en texte lisible (ex: "25 min" ou "1h15")
  */
 export function formatDuration(minutes: number): string {
