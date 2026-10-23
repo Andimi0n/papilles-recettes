@@ -54,7 +54,7 @@
   - Instant autocomplete dropdown (`IngredientAutocompleteInput`) proposing normalized matches without intempestive background mutations.
   - Silent background learning of new ingredients and usage frequencies.
   - Full dedicated Vocabulary Manager in Settings (`VocabularyManagerModal`) allowing users to browse, search by aisle, rename, edit aliases, detach aliases into distinct ingredients with 1 tap, merge duplicates, and reset to defaults.
-  - **1-Click Global Normalization**: Dedicated on-demand button in Settings ("Normaliser tous les ingrédients") allowing users to retrofit and standardize all saved recipes, grocery list items, and shelf ingredients at any time.
+  - **Zero-Manual-Effort Normalization & Cascade**: All normalization and vocabulary synchronizations operate transparently in real time; legacy manual normalization button removed in favor of instant reactive cascade and automatic startup migration.
 - **Pantry Staples & Optional Ingredients Engine ("Livre de Chef" & Sections culinaires)**:
   - Distinguishes essential ingredients from pantry staples (`isPantryStaple`: salt, pepper, common oils, vinegar, water, standard dry spices) and optional garnishes (`isOptional`: dressings, optional garnishes, "au goût").
   - **Livre de Chef Sub-sections (Zero-badge UI)**: Ingredients on recipe detail screen and shopping dialog are structured naturally into culinary sections: "Ingrédients principaux" (sans descriptif parasite), "Assaisonnements & condiments" (huiles, épices, vinaigres usuels) and "En finition & au goût" without noisy visual clutter. The descriptive subtitles/hints sit cleanly beneath their section titles.

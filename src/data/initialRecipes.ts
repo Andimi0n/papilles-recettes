@@ -24,7 +24,8 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_001_1",
-        "name": "Blanquette de veau",
+        "name": "Veau",
+        "canonicalId": "ing_canon_veau",
         "quantity": "1",
         "unit": "kg",
         "isPantryStaple": false,
@@ -937,7 +938,8 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_007_5",
-        "name": "Biscuits a la cuillere",
+        "name": "Biscuits à la cuillère",
+        "canonicalId": "ing_canon_biscuits_a_la_cuillere",
         "quantity": "24",
         "unit": "",
         "isPantryStaple": false,
@@ -1257,7 +1259,8 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_010_1",
-        "name": "Cuisses de canard confites",
+        "name": "Canard",
+        "canonicalId": "ing_canon_canard",
         "quantity": "4",
         "unit": "",
         "isPantryStaple": false,
@@ -1839,7 +1842,8 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_014_4",
-        "name": "Levure traditionnelle",
+        "name": "Levure chimique",
+        "canonicalId": "ing_canon_levure_chimique",
         "quantity": "1",
         "unit": "sachet",
         "isPantryStaple": false,
@@ -1930,7 +1934,8 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_015_1",
-        "name": "Mignons de porc",
+        "name": "Porc",
+        "canonicalId": "ing_canon_porc",
         "quantity": "2",
         "unit": "filets",
         "isPantryStaple": false,
@@ -2087,6 +2092,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_016_4",
         "name": "Bouquet garni",
+        "canonicalId": "ing_canon_bouquet_garni",
         "quantity": "1",
         "unit": "",
         "isPantryStaple": false,
@@ -2185,7 +2191,8 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_017_1",
-        "name": "Pain pour hamburger",
+        "name": "Pain de mie",
+        "canonicalId": "ing_canon_pain_de_mie",
         "quantity": "",
         "unit": "",
         "isPantryStaple": false,
@@ -2211,6 +2218,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_017_4",
         "name": "Cheddar",
+        "canonicalId": "ing_canon_cheddar",
         "quantity": "",
         "unit": "",
         "isPantryStaple": false,
@@ -2246,6 +2254,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_017_8",
         "name": "Ketchup",
+        "canonicalId": "ing_canon_ketchup",
         "quantity": "",
         "unit": "",
         "isPantryStaple": false,
@@ -2570,7 +2579,8 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_020_4",
-        "name": "Levure",
+        "name": "Levure chimique",
+        "canonicalId": "ing_canon_levure_chimique",
         "quantity": "1",
         "unit": "sachet",
         "isPantryStaple": false,
@@ -3723,7 +3733,8 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_028_1",
-        "name": "Saute de veau",
+        "name": "Veau",
+        "canonicalId": "ing_canon_veau",
         "quantity": "1",
         "unit": "kg",
         "isPantryStaple": false,
@@ -3776,6 +3787,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_028_7",
         "name": "Bouquet garni",
+        "canonicalId": "ing_canon_bouquet_garni",
         "quantity": "1",
         "unit": "",
         "isPantryStaple": false,
@@ -4050,6 +4062,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_030_8",
         "name": "Bouquet garni",
+        "canonicalId": "ing_canon_bouquet_garni",
         "quantity": "1",
         "unit": "",
         "isPantryStaple": false,
@@ -4258,7 +4271,8 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_032_5",
-        "name": "Levure",
+        "name": "Levure chimique",
+        "canonicalId": "ing_canon_levure_chimique",
         "quantity": "1",
         "unit": "c. à café",
         "isPantryStaple": false,
@@ -4509,7 +4523,8 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_035_1",
-        "name": "Mignons de porc",
+        "name": "Porc",
+        "canonicalId": "ing_canon_porc",
         "quantity": "2",
         "unit": "filets",
         "isPantryStaple": false,
@@ -5658,7 +5673,8 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_043_5",
-        "name": "Oeufs entiers",
+        "name": "Œufs",
+        "canonicalId": "ing_canon_ufs",
         "quantity": "2",
         "unit": "",
         "isPantryStaple": false,
@@ -5941,7 +5957,8 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_045_2",
-        "name": "Oeufs entiers",
+        "name": "Œufs",
+        "canonicalId": "ing_canon_ufs",
         "quantity": "2",
         "unit": "",
         "isPantryStaple": false,
@@ -6269,7 +6286,8 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_047_5",
-        "name": "Levure",
+        "name": "Levure chimique",
+        "canonicalId": "ing_canon_levure_chimique",
         "quantity": "0.5",
         "unit": "sachet",
         "isPantryStaple": false,
@@ -6545,7 +6563,8 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_049_5",
-        "name": "Oeufs entier",
+        "name": "Œufs",
+        "canonicalId": "ing_canon_ufs",
         "quantity": "2",
         "unit": "",
         "isPantryStaple": false,
@@ -7172,7 +7191,8 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_053_5",
-        "name": "Beurre tendre",
+        "name": "Beurre",
+        "canonicalId": "ing_canon_beurre",
         "quantity": "100",
         "unit": "g",
         "isPantryStaple": false,
@@ -7284,7 +7304,8 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_054_5",
-        "name": "Levure",
+        "name": "Levure chimique",
+        "canonicalId": "ing_canon_levure_chimique",
         "quantity": "0.5",
         "unit": "sachet",
         "isPantryStaple": false,
@@ -7635,7 +7656,8 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_056_3",
-        "name": "Farine tamisee",
+        "name": "Farine",
+        "canonicalId": "ing_canon_farine",
         "quantity": "150",
         "unit": "g",
         "isPantryStaple": false,
@@ -8309,7 +8331,8 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_061_1",
-        "name": "Saute de veau",
+        "name": "Veau",
+        "canonicalId": "ing_canon_veau",
         "quantity": "400",
         "unit": "g",
         "isPantryStaple": false,
@@ -8493,6 +8516,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_062_3",
         "name": "Bouquet garni",
+        "canonicalId": "ing_canon_bouquet_garni",
         "quantity": "1",
         "unit": "",
         "isPantryStaple": false,
@@ -9145,7 +9169,8 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_067_4",
-        "name": "Levure",
+        "name": "Levure chimique",
+        "canonicalId": "ing_canon_levure_chimique",
         "quantity": "0.5",
         "unit": "paquet",
         "isPantryStaple": false,
@@ -9637,7 +9662,8 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_071_5",
-        "name": "Beurre tendre",
+        "name": "Beurre",
+        "canonicalId": "ing_canon_beurre",
         "quantity": "50",
         "unit": "g",
         "isPantryStaple": false,
@@ -9732,7 +9758,8 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_072_1",
-        "name": "Farine tamisee",
+        "name": "Farine",
+        "canonicalId": "ing_canon_farine",
         "quantity": "375",
         "unit": "g",
         "isPantryStaple": false,
@@ -9758,7 +9785,8 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_072_4",
-        "name": "Oeufs entiers",
+        "name": "Œufs",
+        "canonicalId": "ing_canon_ufs",
         "quantity": "6",
         "unit": "",
         "isPantryStaple": false,
@@ -11046,6 +11074,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_082_8",
         "name": "Bouquet garni",
+        "canonicalId": "ing_canon_bouquet_garni",
         "quantity": "1",
         "unit": "",
         "isPantryStaple": false,
@@ -11481,7 +11510,8 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_086_2",
-        "name": "Oeufs entiers",
+        "name": "Œufs",
+        "canonicalId": "ing_canon_ufs",
         "quantity": "2",
         "unit": "",
         "isPantryStaple": false,
@@ -11668,7 +11698,8 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_087_5",
-        "name": "Beurre tendre",
+        "name": "Beurre",
+        "canonicalId": "ing_canon_beurre",
         "quantity": "75",
         "unit": "g",
         "isPantryStaple": false,
@@ -12146,7 +12177,8 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_091_5",
-        "name": "Biscuits a la cuillere",
+        "name": "Biscuits à la cuillère",
+        "canonicalId": "ing_canon_biscuits_a_la_cuillere",
         "quantity": "24",
         "unit": "",
         "isPantryStaple": false,
@@ -13077,6 +13109,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_098_8",
         "name": "Bouquet garni",
+        "canonicalId": "ing_canon_bouquet_garni",
         "quantity": "1",
         "unit": "",
         "isPantryStaple": false,
@@ -13216,7 +13249,8 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_099_1",
-        "name": "Biscuits a la cuillere",
+        "name": "Biscuits à la cuillère",
+        "canonicalId": "ing_canon_biscuits_a_la_cuillere",
         "quantity": "200",
         "unit": "g",
         "isPantryStaple": false,

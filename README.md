@@ -69,7 +69,7 @@ Une application mobile moderne, soignée et intuitive pour gérer vos recettes, 
 - **Garde-fous stricts dans le Gestionnaire de vocabulaire** : interdiction des doublons normalisés, protection des alias existants et rejet des termes génériques isolés (*rouge*, *blanc*, *sauce*...).
 - **Respect absolu des instructions** : la normalisation s'applique **exclusivement aux ingrédients** ; les étapes et instructions de préparation restent 100% fidèles et intouchées.
 - **Autocomplétion prédictive réactive** : composant de saisie avec liste déroulante suggérant les termes officiels sans altérer intempestivement le lexique.
-- **Harmonisation en 1 clic ("Normaliser tous les ingrédients")** : bouton disponible dans les Paramètres permettant d'analyser et de standardiser rétroactivement l'ensemble de vos recettes, listes de courses et étagères avec compte-rendu précis.
+- **Propagation réactive & Cascade automatique** : toute modification du vocabulaire (détachement, fusion, modification de rayon) est répercutée instantanément sur les recettes, stocks et courses sans action manuelle requise.
 - **Gestionnaire de vocabulaire complet & Placard personnalisable** : accessible dans les Paramètres pour consulter les ingrédients canoniques, rechercher par rayon ou par filtre rapide `📦 Dans les placards`, définir d'un clic si un ingrédient est habituellement en placard, renommer, ajouter des alias, détacher des synonymes, fusionner des doublons ou réinitialiser.
 
 ### 6. 📖 Structure "Livre de Chef", Placard & Ajout Intelligent aux Courses

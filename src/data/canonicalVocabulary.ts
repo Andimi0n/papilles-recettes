@@ -296,13 +296,13 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
   {
     name: 'Œufs',
     aisle: 'Produits Frais & Crèmerie',
-    aliases: ['oeuf', 'oeufs', 'oeufs frais', 'blanc d oeuf', 'blancs d oeufs', 'jaune d oeuf', 'jaunes d oeufs'],
+    aliases: ['oeuf', 'oeufs', 'oeufs frais', 'oeufs entiers', 'oeuf entier', 'blanc d oeuf', 'blancs d oeufs', 'jaune d oeuf', 'jaunes d oeufs'],
     allergen: 'oeufs',
   },
   {
     name: 'Beurre',
     aisle: 'Produits Frais & Crèmerie',
-    aliases: ['beurres', 'beurre doux', 'beurre demi sel', 'beurre fondu', 'noix de beurre', 'margarine'],
+    aliases: ['beurres', 'beurre doux', 'beurre demi sel', 'beurre fondu', 'beurre tendre', 'noix de beurre', 'margarine'],
     allergen: 'lait',
   },
   {
@@ -363,6 +363,12 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
     name: 'Feta',
     aisle: 'Produits Frais & Crèmerie',
     aliases: ['fromage feta', 'feta grecque', 'bloc de feta'],
+    allergen: 'lait',
+  },
+  {
+    name: 'Cheddar',
+    aisle: 'Produits Frais & Crèmerie',
+    aliases: ['fromage cheddar', 'cheddar rape', 'tranches de cheddar'],
     allergen: 'lait',
   },
   {
@@ -468,7 +474,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
   {
     name: 'Porc',
     aisle: 'Boucherie & Poissonnerie',
-    aliases: ['cote de porc', 'cotes de porc', 'filet mignon', 'filet mignon de porc', 'echine de porc', 'roti de porc'],
+    aliases: ['cote de porc', 'cotes de porc', 'filet mignon', 'filet mignon de porc', 'mignon de porc', 'mignons de porc', 'echine de porc', 'roti de porc'],
   },
   {
     name: 'Saucisse',
@@ -488,7 +494,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
   {
     name: 'Veau',
     aisle: 'Boucherie & Poissonnerie',
-    aliases: ['escalope de veau', 'escalopes de veau', 'roti de veau', 'morceaux de veau'],
+    aliases: ['escalope de veau', 'escalopes de veau', 'roti de veau', 'morceaux de veau', 'blanquette de veau', 'saute de veau'],
   },
   {
     name: 'Saumon',
@@ -546,7 +552,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
   {
     name: 'Canard',
     aisle: 'Boucherie & Poissonnerie',
-    aliases: ['magret de canard', 'magrets de canard', 'cuisse de canard', 'cuisses de canard', 'aiguillettes de canard', 'confit de canard'],
+    aliases: ['magret de canard', 'magrets de canard', 'cuisse de canard', 'cuisses de canard', 'cuisses de canard confites', 'cuisse de canard confite', 'aiguillettes de canard', 'confit de canard'],
   },
   {
     name: 'Agneau',
@@ -623,7 +629,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
   {
     name: 'Farine',
     aisle: 'Épicerie & Condiments',
-    aliases: ['farines', 'farine de ble', 'farine t55', 'farine t45', 'farine fluide'],
+    aliases: ['farines', 'farine de ble', 'farine t55', 'farine t45', 'farine fluide', 'farine tamisee'],
     allergen: 'gluten',
   },
   {
@@ -662,7 +668,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
   {
     name: 'Huile de tournesol',
     aisle: 'Épicerie & Condiments',
-    aliases: ['huile neutre', 'huile vegetale', 'huile de colza', 'huile de friture'],
+    aliases: ['huile neutre', 'huile vegetale', 'huile de colza', 'huile de friture', 'huile de cuisson'],
     isPantryStaple: true,
   },
   {
@@ -705,9 +711,20 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
     aliases: ['concentre de tomates', 'tube de concentre de tomate', 'petite boite de concentre'],
   },
   {
+    name: 'Bouquet garni',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['bouquet garni', 'bouquets garnis'],
+    isPantryStaple: true,
+  },
+  {
+    name: 'Ketchup',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['sauce ketchup'],
+  },
+  {
     name: 'Levure chimique',
     aisle: 'Épicerie & Condiments',
-    aliases: ['sachet de levure chimique', 'poudre a lever', 'levure alsacienne'],
+    aliases: ['sachet de levure chimique', 'poudre a lever', 'levure alsacienne', 'levure', 'levures', 'levure traditionnelle'],
   },
   {
     name: 'Chocolat noir',
@@ -1039,7 +1056,13 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
   {
     name: 'Pain de mie',
     aisle: 'Boulangerie & Pâtisserie',
-    aliases: ['tranches de pain de mie', 'pain burger', 'pain toast'],
+    aliases: ['tranches de pain de mie', 'pain burger', 'pains burger', 'pain toast', 'pain pour hamburger', 'pains pour hamburger'],
+    allergen: 'gluten',
+  },
+  {
+    name: 'Biscuits à la cuillère',
+    aisle: 'Boulangerie & Pâtisserie',
+    aliases: ['biscuits a la cuillere', 'biscuit a la cuillere', 'boudoir', 'boudoirs'],
     allergen: 'gluten',
   },
   {

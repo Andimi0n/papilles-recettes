@@ -73,7 +73,6 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   const [vocabList, setVocabList] = useState<CanonicalIngredient[]>([]);
   const [isVocabModalVisible, setIsVocabModalVisible] = useState(false);
   const [vocabCount, setVocabCount] = useState(0);
-  const [isNormalizing, setIsNormalizing] = useState(false);
 
   // Import JSON Modal/State
   const [isImportModalVisible, setIsImportModalVisible] = useState(false);
@@ -344,37 +343,6 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
     } catch (e) {
       console.error('Erreur export données:', e);
     }
-  };
-
-  const handleNormalizeAllIngredients = () => {
-    Alert.alert(
-      'Normaliser tous les ingrédients ?',
-      "Cette action va parcourir toutes vos recettes enregistrées, votre liste de courses et vos étagères pour uniformiser le nom des ingrédients selon le lexique canonique strict (suppression des contenants, doublons et préfixes).\n\nLes étapes de vos recettes restent 100% inchangées.",
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Normaliser maintenant',
-          onPress: async () => {
-            setIsNormalizing(true);
-            try {
-              const res = await StorageService.runCanonicalVocabularyMigration(true);
-              if (onRecipesReloadNeeded) {
-                await onRecipesReloadNeeded();
-              }
-              await loadInitialSettings();
-              Alert.alert(
-                'Harmonisation terminée !',
-                `Résultats de la normalisation :\n• ${res.recipesUpdated} recette(s) mise(s) à jour\n• ${res.shoppingUpdated} article(s) de courses harmonisé(s)\n• ${res.fridgeUpdated} aliment(s) d'étagères mis à jour`
-              );
-            } catch (err: any) {
-              Alert.alert('Erreur', 'Impossible de terminer la normalisation.');
-            } finally {
-              setIsNormalizing(false);
-            }
-          },
-        },
-      ]
-    );
   };
 
   const handleConfirmImport = async () => {
@@ -1038,9 +1006,9 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
             </Text>
 
             <View style={styles.dataActionsColumn}>
-              {/* Bouton 1 : Consulter & Gérer le lexique */}
+              {/* Bouton : Consulter & Gérer le lexique */}
               <TouchableOpacity
-                style={styles.dataActionBtn}
+                style={[styles.dataActionBtn, { borderBottomWidth: 0 }]}
                 onPress={() => setIsVocabModalVisible(true)}
                 activeOpacity={0.7}
               >
@@ -1049,27 +1017,6 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                   <Text style={styles.dataActionTitle}>Gérer le vocabulaire des ingrédients</Text>
                   <Text style={styles.dataActionDesc}>
                     {vocabCount > 0 ? `${vocabCount} ingrédients canoniques répertoriés` : 'Consulter, renommer, fusionner'}
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-              </TouchableOpacity>
-
-              {/* Bouton 2 : Harmonisation / Normalisation globale à la demande */}
-              <TouchableOpacity
-                style={[styles.dataActionBtn, { borderBottomWidth: 0 }]}
-                onPress={handleNormalizeAllIngredients}
-                disabled={isNormalizing}
-                activeOpacity={0.7}
-              >
-                {isNormalizing ? (
-                  <ActivityIndicator size="small" color={colors.primary} style={{ marginRight: 2 }} />
-                ) : (
-                  <Ionicons name="sparkles-outline" size={20} color={colors.primary} />
-                )}
-                <View style={styles.dataActionInfo}>
-                  <Text style={styles.dataActionTitle}>Normaliser tous les ingrédients</Text>
-                  <Text style={styles.dataActionDesc}>
-                    Harmonise en 1 clic vos recettes, liste de courses et étagères
                   </Text>
                 </View>
                 <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
