@@ -953,7 +953,8 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_007_7",
-        "name": "Cacao amer",
+        "name": "Cacao en poudre",
+        "canonicalId": "ing_canon_cacao_en_poudre",
         "quantity": "30",
         "unit": "g",
         "isPantryStaple": false,
@@ -1700,6 +1701,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_013_7",
         "name": "Aneth",
+        "canonicalId": "ing_canon_aneth",
         "quantity": "",
         "unit": "",
         "isPantryStaple": false,
@@ -1708,6 +1710,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_013_8",
         "name": "Menthe",
+        "canonicalId": "ing_canon_menthe",
         "quantity": "",
         "unit": "",
         "isPantryStaple": false,
@@ -2764,6 +2767,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_021_9",
         "name": "Origan",
+        "canonicalId": "ing_canon_origan",
         "quantity": "1",
         "unit": "pincée",
         "isPantryStaple": true,
@@ -3499,6 +3503,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_026_9",
         "name": "Gingembre",
+        "canonicalId": "ing_canon_gingembre",
         "quantity": "1",
         "unit": "c. à café",
         "isPantryStaple": false,
@@ -3744,7 +3749,8 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_028_4",
-        "name": "Olives vertes",
+        "name": "Olives",
+        "canonicalId": "ing_canon_olives",
         "quantity": "1",
         "unit": "pot",
         "isPantryStaple": false,
@@ -3868,7 +3874,8 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_029_3",
-        "name": "Olives vertes",
+        "name": "Olives",
+        "canonicalId": "ing_canon_olives",
         "quantity": "150",
         "unit": "g",
         "isPantryStaple": false,
@@ -5385,7 +5392,8 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_041_8",
-        "name": "Cacao non sucre",
+        "name": "Cacao en poudre",
+        "canonicalId": "ing_canon_cacao_en_poudre",
         "quantity": "30",
         "unit": "g",
         "isPantryStaple": false,
@@ -5523,7 +5531,8 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_042_9",
-        "name": "Bouillon de boeuf",
+        "name": "Bouillon de bœuf",
+        "canonicalId": "ing_canon_bouillon_de_b_uf",
         "quantity": "30",
         "unit": "cl",
         "isPantryStaple": false,
@@ -5803,7 +5812,8 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_044_7",
-        "name": "Bouillon de boeuf",
+        "name": "Bouillon de bœuf",
+        "canonicalId": "ing_canon_bouillon_de_b_uf",
         "quantity": "2",
         "unit": "cube",
         "isPantryStaple": false,
@@ -5958,6 +5968,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_045_5",
         "name": "Rhum",
+        "canonicalId": "ing_canon_rhum",
         "quantity": "3",
         "unit": "c. à soupe",
         "isPantryStaple": false,
@@ -6231,7 +6242,8 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_047_2",
-        "name": "Sucre de canne roux",
+        "name": "Cassonade",
+        "canonicalId": "ing_canon_cassonade",
         "quantity": "90",
         "unit": "g",
         "isPantryStaple": false,
@@ -6584,7 +6596,8 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_049_11",
-        "name": "Cuillere de rhum",
+        "name": "Rhum",
+        "canonicalId": "ing_canon_rhum",
         "quantity": "1",
         "unit": "",
         "isPantryStaple": false,
@@ -7316,6 +7329,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_054_10",
         "name": "Gingembre",
+        "canonicalId": "ing_canon_gingembre",
         "quantity": "",
         "unit": "",
         "isPantryStaple": false,
@@ -7324,6 +7338,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_054_11",
         "name": "Clou de girofle",
+        "canonicalId": "ing_canon_clou_de_girofle",
         "quantity": "",
         "unit": "",
         "isPantryStaple": true,
@@ -7458,7 +7473,8 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_055_2",
-        "name": "Endives",
+        "name": "Endive",
+        "canonicalId": "ing_canon_endive",
         "quantity": "5",
         "unit": "",
         "isPantryStaple": false,
@@ -8722,6 +8738,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_064_1",
         "name": "Lapin",
+        "canonicalId": "ing_canon_lapin",
         "quantity": "1",
         "unit": "",
         "isPantryStaple": false,
@@ -9154,6 +9171,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_067_7",
         "name": "Rhum",
+        "canonicalId": "ing_canon_rhum",
         "quantity": "",
         "unit": "",
         "isPantryStaple": false,
@@ -9348,6 +9366,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_069_1",
         "name": "Endive",
+        "canonicalId": "ing_canon_endive",
         "quantity": "1",
         "unit": "kg",
         "isPantryStaple": false,
@@ -10396,6 +10415,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_077_9",
         "name": "Rhum",
+        "canonicalId": "ing_canon_rhum",
         "quantity": "10",
         "unit": "cl",
         "isPantryStaple": false,
@@ -10492,7 +10512,8 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_078_2",
-        "name": "Magrets de canard fume",
+        "name": "Canard",
+        "canonicalId": "ing_canon_canard",
         "quantity": "4",
         "unit": "tranches",
         "isPantryStaple": false,
@@ -11355,7 +11376,8 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_085_9",
-        "name": "Bouillon de boeuf",
+        "name": "Bouillon de bœuf",
+        "canonicalId": "ing_canon_bouillon_de_b_uf",
         "quantity": "1",
         "unit": "tablette",
         "isPantryStaple": false,
@@ -11486,6 +11508,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_086_5",
         "name": "Rhum",
+        "canonicalId": "ing_canon_rhum",
         "quantity": "1",
         "unit": "c. à soupe",
         "isPantryStaple": false,
@@ -12210,7 +12233,8 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_092_1",
-        "name": "Cuisses de canard",
+        "name": "Canard",
+        "canonicalId": "ing_canon_canard",
         "quantity": "4",
         "unit": "",
         "isPantryStaple": false,
@@ -12246,6 +12270,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_092_5",
         "name": "Gingembre",
+        "canonicalId": "ing_canon_gingembre",
         "quantity": "1",
         "unit": "c. à soupe",
         "isPantryStaple": false,
@@ -13218,6 +13243,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_099_4",
         "name": "Fromage blanc",
+        "canonicalId": "ing_canon_fromage_blanc",
         "quantity": "400",
         "unit": "g",
         "isPantryStaple": false,
@@ -13243,7 +13269,8 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_099_7",
-        "name": "Peches",
+        "name": "Pêche",
+        "canonicalId": "ing_canon_peche",
         "quantity": "2",
         "unit": "",
         "isPantryStaple": false,
@@ -13350,6 +13377,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_100_5",
         "name": "Aneth",
+        "canonicalId": "ing_canon_aneth",
         "quantity": "4",
         "unit": "brins",
         "isPantryStaple": false,
