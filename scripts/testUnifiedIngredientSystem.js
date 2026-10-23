@@ -322,6 +322,57 @@ async function main() {
   assert.strictEqual(resolutionAfter.canonical.id, fenouilCanon.id);
   console.log(`✓ Après qualification de "${rawInput}", la recette peut être enregistrée avec son canonicalId officiel`);
 
+  // =========================================================================
+  // TEST 8 : Fusion de lexique et déduplication automatique du stock (Scénario utilisateur Tomate / Tomato)
+  // =========================================================================
+  console.log('\n--- Test 8 : Fusion de lexique et déduplication automatique du stock ---');
+
+  // 1. Trouver "Tomate" canonique
+  const tomateCanon = VocabularyService.getSyncList().find((c) => c.normalizedName === 'tomate');
+  assert.ok(tomateCanon, 'Tomate canonique doit exister');
+
+  // 2. Créer un nouvel ingrédient "Tomato"
+  const createdTomato = await UnifiedIngredientService.registerNewCanonicalIngredient({
+    canonicalName: 'Tomato',
+    defaultAisle: 'Fruits & Légumes',
+    allergen: null,
+    isPantryStaple: false,
+  });
+  const tomatoCanon = createdTomato.ingredient;
+  assert.ok(tomatoCanon, 'Tomato canonique créé avec succès');
+
+  // 3. Ajouter "Tomate" et "Tomato" au stock
+  await StorageService.saveFridgeItems([
+    {
+      id: 'stock_tomate_1',
+      name: 'Tomate',
+      canonicalId: tomateCanon.id,
+      aisle: 'fruits_legumes',
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: 'stock_tomato_2',
+      name: 'Tomato',
+      canonicalId: tomatoCanon.id,
+      aisle: 'fruits_legumes',
+      createdAt: new Date().toISOString(),
+    },
+  ]);
+
+  const initialStock = await StorageService.getFridgeItems();
+  assert.strictEqual(initialStock.length, 2, 'Les 2 aliments distincts doivent être initialement en stock');
+  console.log('✓ Stock initial : "Tomate" et "Tomato" présents en 2 entrées distinctes');
+
+  // 4. Fusionner "Tomato" dans "Tomate"
+  await VocabularyService.merge(tomatoCanon.id, tomateCanon.id);
+
+  // 5. Vérifier le stock après fusion
+  const stockAfterMerge = await StorageService.getFridgeItems();
+  assert.strictEqual(stockAfterMerge.length, 1, 'Après fusion dans le lexique, le stock doit être dédupliqué à 1 seule entrée');
+  assert.strictEqual(stockAfterMerge[0].canonicalId, tomateCanon.id);
+  assert.strictEqual(stockAfterMerge[0].name, 'Tomate', 'L\'aliment restant doit avoir le nom canonique officiel "Tomate"');
+  console.log('✓ Stock après fusion : Déduplication stricte réussie (1 seule entrée "Tomate" rattachée à Tomate)');
+
   console.log('\n🎉 TOUS LES TESTS DU SYSTÈME UNIFIÉ D\'ENTRÉE D\'INGRÉDIENTS ONT RÉUSSI (0 ERREUR) !');
 
   if (fs.existsSync(tmpDir)) {

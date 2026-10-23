@@ -11,6 +11,7 @@ import {
   Platform,
   useWindowDimensions,
   ReturnKeyTypeOptions,
+  Keyboard,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { CanonicalIngredient } from '../types/vocabulary';
@@ -123,6 +124,7 @@ export const UnifiedIngredientInput: React.FC<UnifiedIngredientInputProps> = ({
 
     VocabularyService.incrementUsage(item.id).catch(() => {});
     setSuggestions([]);
+    setIsFocused(false);
 
     const details = extractedDetails
       ? { quantity: extractedDetails.quantity, unit: extractedDetails.unit }
@@ -132,17 +134,16 @@ export const UnifiedIngredientInput: React.FC<UnifiedIngredientInputProps> = ({
       onSelectIngredient(item, details);
     }
 
-    if (keepFocusOnSelect) {
-      setIsFocused(true);
-      setTimeout(() => {
-        inputRef.current?.focus();
-        isSelectingRef.current = false;
-      }, 50);
-    } else {
-      setTimeout(() => {
-        isSelectingRef.current = false;
-      }, 100);
-    }
+    // Sortie immédiate de la barre de recherche (blur + fermeture clavier)
+    inputRef.current?.blur();
+    try {
+      Keyboard.dismiss();
+    } catch (_) {}
+
+    setTimeout(() => {
+      isSelectingRef.current = false;
+      setIsFocused(false);
+    }, 100);
   };
 
   // Ouverture du modal de qualification stricte

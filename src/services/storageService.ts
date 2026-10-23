@@ -38,6 +38,10 @@ const ALLERGEN_EXCLUDE_AI_KEY = '@papilles_exclude_allergens_ai_v1';
 // File d'attente séquentielle (mutex async) pour sérialiser les cascades de vocabulaire et éviter tout conflit AsyncStorage
 let cascadeMutexQueue: Promise<any> = Promise.resolve();
 
+type StorageListener<T> = (items: T) => void;
+let fridgeListeners: StorageListener<FridgeItem[]>[] = [];
+let shoppingListeners: StorageListener<ShoppingItem[]>[] = [];
+
 /**
  * Assainit une URL d'image pour s'assurer qu'elle n'exploite aucun protocole malveillant (SEC-09)
  */
@@ -528,11 +532,16 @@ export const StorageService = {
                   }
                 }
               } else if (event.type === 'merge') {
-                if (ing.canonicalId === event.sourceId) {
+                const isSource = ing.canonicalId === event.sourceId ||
+                  normalizeString(ing.name) === normalizeString(event.sourceId);
+                if (isSource) {
                   hasRecipeChange = true;
                   return {
                     ...ing,
                     canonicalId: event.targetId,
+                    name: normalizeString(ing.name) === normalizeString(event.sourceId)
+                      ? event.targetIngredient.canonicalName
+                      : ing.name,
                   };
                 }
               } else if (event.type === 'delete') {
@@ -600,11 +609,14 @@ export const StorageService = {
                 }
               }
             } else if (event.type === 'merge') {
-              if (item.canonicalId === event.sourceId) {
+              const isSource = item.canonicalId === event.sourceId ||
+                normalizeString(item.name) === normalizeString(event.sourceId);
+              if (isSource) {
                 fridgeUpdated++;
                 hasAnyFridgeChange = true;
                 return {
                   ...item,
+                  name: event.targetIngredient.canonicalName,
                   canonicalId: event.targetId,
                   aisle: event.targetIngredient.defaultAisle,
                 };
@@ -648,8 +660,32 @@ export const StorageService = {
             return item;
           });
 
+          let finalFridge = updatedFridge;
+          if (event.type === 'merge') {
+            const seenCanonical = new Set<string>();
+            const seenNames = new Set<string>();
+            finalFridge = [];
+            for (const item of updatedFridge) {
+              const cId = item.canonicalId;
+              const nName = normalizeString(item.name);
+              if (cId && seenCanonical.has(cId)) {
+                hasAnyFridgeChange = true;
+                fridgeUpdated++;
+                continue;
+              }
+              if (seenNames.has(nName)) {
+                hasAnyFridgeChange = true;
+                fridgeUpdated++;
+                continue;
+              }
+              if (cId) seenCanonical.add(cId);
+              seenNames.add(nName);
+              finalFridge.push(item);
+            }
+          }
+
           if (hasAnyFridgeChange) {
-            await AsyncStorage.setItem(FRIDGE_ITEMS_KEY, JSON.stringify(updatedFridge));
+            await this.saveFridgeItems(finalFridge);
           }
         }
       }
@@ -680,7 +716,9 @@ export const StorageService = {
                 }
               }
             } else if (event.type === 'merge') {
-              if (item.canonicalId === event.sourceId) {
+              const isSource = item.canonicalId === event.sourceId ||
+                normalizeString(item.name) === normalizeString(event.sourceId);
+              if (isSource) {
                 shoppingUpdated++;
                 hasAnyShoppingChange = true;
                 return {
@@ -740,8 +778,33 @@ export const StorageService = {
             return item;
           });
 
+          let finalShopping = updatedShopping;
+          if (event.type === 'merge') {
+            const consolidated: ShoppingItem[] = [];
+            for (const item of updatedShopping) {
+              const existingIdx = consolidated.findIndex((c) =>
+                (c.canonicalId && item.canonicalId && c.canonicalId === item.canonicalId) ||
+                normalizeString(c.name) === normalizeString(item.name)
+              );
+              if (existingIdx >= 0) {
+                const existing = consolidated[existingIdx];
+                const mergedQty = [existing.quantity, item.quantity].filter(Boolean).join(' + ');
+                consolidated[existingIdx] = {
+                  ...existing,
+                  quantity: mergedQty || existing.quantity,
+                  isChecked: existing.isChecked && item.isChecked,
+                };
+                hasAnyShoppingChange = true;
+                shoppingUpdated++;
+              } else {
+                consolidated.push(item);
+              }
+            }
+            finalShopping = consolidated;
+          }
+
           if (hasAnyShoppingChange) {
-            await AsyncStorage.setItem(SHOPPING_LIST_KEY, JSON.stringify(updatedShopping));
+            await this.saveShoppingList(finalShopping);
           }
         }
       }
@@ -755,6 +818,26 @@ export const StorageService = {
   // ==========================================
   // GESTION DE LA LISTE DE COURSES
   // ==========================================
+
+  /**
+   * Écouteur réactif des mutations du stock frigo / étagères
+   */
+  onFridgeChange(listener: StorageListener<FridgeItem[]>): () => void {
+    fridgeListeners.push(listener);
+    return () => {
+      fridgeListeners = fridgeListeners.filter((l) => l !== listener);
+    };
+  },
+
+  /**
+   * Écouteur réactif des mutations de la liste de courses
+   */
+  onShoppingListChange(listener: StorageListener<ShoppingItem[]>): () => void {
+    shoppingListeners.push(listener);
+    return () => {
+      shoppingListeners = shoppingListeners.filter((l) => l !== listener);
+    };
+  },
 
   /**
    * Récupère la liste de courses stockée localement
@@ -777,6 +860,9 @@ export const StorageService = {
   async saveShoppingList(items: ShoppingItem[]): Promise<ShoppingItem[]> {
     try {
       await AsyncStorage.setItem(SHOPPING_LIST_KEY, JSON.stringify(items));
+      shoppingListeners.forEach((l) => {
+        try { l(items); } catch (err) { console.error('Erreur listener shopping:', err); }
+      });
       return items;
     } catch (e) {
       console.error('Erreur sauvegarde liste de courses:', e);
@@ -953,7 +1039,35 @@ export const StorageService = {
       if (!data) return [];
       const parsed = JSON.parse(data);
       if (!Array.isArray(parsed)) return [];
-      return parsed.map(sanitizeFridgeItem).filter((i): i is FridgeItem => i !== null);
+      const sanitized = parsed.map(sanitizeFridgeItem).filter((i): i is FridgeItem => i !== null);
+
+      // Auto-guérison et déduplication stricte par canonicalId ou nom normalisé
+      const seenCanonical = new Set<string>();
+      const seenNames = new Set<string>();
+      const deduplicated: FridgeItem[] = [];
+      let hadDuplicates = false;
+
+      for (const item of sanitized) {
+        const cId = item.canonicalId;
+        const nName = normalizeString(item.name);
+        if (cId && seenCanonical.has(cId)) {
+          hadDuplicates = true;
+          continue;
+        }
+        if (seenNames.has(nName)) {
+          hadDuplicates = true;
+          continue;
+        }
+        if (cId) seenCanonical.add(cId);
+        seenNames.add(nName);
+        deduplicated.push(item);
+      }
+
+      if (hadDuplicates) {
+        AsyncStorage.setItem(FRIDGE_ITEMS_KEY, JSON.stringify(deduplicated)).catch(() => {});
+      }
+
+      return deduplicated;
     } catch (e) {
       console.error('Erreur lecture aliments frigo:', e);
       return [];
@@ -967,6 +1081,9 @@ export const StorageService = {
     try {
       const sanitized = items.map(sanitizeFridgeItem).filter((i): i is FridgeItem => i !== null);
       await AsyncStorage.setItem(FRIDGE_ITEMS_KEY, JSON.stringify(sanitized));
+      fridgeListeners.forEach((l) => {
+        try { l(sanitized); } catch (err) { console.error('Erreur listener fridge:', err); }
+      });
       return sanitized;
     } catch (e) {
       console.error('Erreur sauvegarde aliments frigo:', e);

@@ -121,6 +121,25 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
   useEffect(() => {
     loadShoppingList();
     loadFridgeCount();
+
+    const unsubShopping = StorageService.onShoppingListChange((updatedList) => {
+      setItems(updatedList);
+    });
+
+    const unsubFridge = StorageService.onFridgeChange((updatedFridge) => {
+      setFridgeCount(updatedFridge.length);
+    });
+
+    const unsubVocab = VocabularyService.onVocabularyCascade(async () => {
+      await loadShoppingList();
+      await loadFridgeCount();
+    });
+
+    return () => {
+      unsubShopping();
+      unsubFridge();
+      unsubVocab();
+    };
   }, [loadShoppingList, loadFridgeCount]);
 
   // Statistiques
@@ -178,6 +197,13 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
     } catch (e) {
       Alert.alert('Erreur', "Impossible d'ajouter cet article.");
     }
+  };
+
+  const handlePressPlus = () => {
+    const trimmedName = newItemName.trim();
+    if (!trimmedName) return;
+    setPendingUnrecognizedName(trimmedName);
+    setIsQualifyModalVisible(true);
   };
 
   const handleAddItem = async () => {
@@ -491,9 +517,8 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
                 onChangeText={setNewItemName}
                 context="shopping"
                 clearOnSelect
-                keepFocusOnSelect
                 returnKeyType="done"
-                onSubmitEditing={() => handleAddItem()}
+                onSubmitEditing={handlePressPlus}
                 onSelectIngredient={(ing, details) => {
                   handleAddItemWithCanonical(ing, details);
                 }}
@@ -512,7 +537,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
                   styles.addButton,
                   !newItemName.trim() && styles.addButtonDisabled,
                 ]}
-                onPress={() => handleAddItem()}
+                onPress={handlePressPlus}
                 disabled={!newItemName.trim()}
               >
                 <Ionicons name="add" size={24} color="#FFFFFF" />
@@ -931,10 +956,26 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
         context="shopping"
         onClose={() => setIsQualifyModalVisible(false)}
         onAttachAsSynonym={(canonical) => {
-          handleAddItemWithCanonical(canonical);
+          handleAddItemWithCanonical(canonical, {
+            quantity: newItemQuantity.trim() || undefined,
+            unit: newItemUnit.trim() || undefined,
+          });
+          setIsQualifyModalVisible(false);
+          setPendingUnrecognizedName('');
+          setNewItemName('');
+          setNewItemQuantity('');
+          setNewItemUnit('');
         }}
         onCreateCanonical={(created) => {
-          handleAddItemWithCanonical(created);
+          handleAddItemWithCanonical(created, {
+            quantity: newItemQuantity.trim() || undefined,
+            unit: newItemUnit.trim() || undefined,
+          });
+          setIsQualifyModalVisible(false);
+          setPendingUnrecognizedName('');
+          setNewItemName('');
+          setNewItemQuantity('');
+          setNewItemUnit('');
         }}
       />
     </SafeAreaView>
@@ -945,6 +986,7 @@ const styles = createDynamicStyles((colors, shadows) => ({
   pinnedSuggestionsContainer: {
     paddingHorizontal: 16,
     marginBottom: 8,
+    zIndex: 1,
   },
   suggestionsTitle: {
     fontSize: 12,
@@ -1102,12 +1144,15 @@ const styles = createDynamicStyles((colors, shadows) => ({
     padding: 12,
     borderWidth: 1,
     borderColor: colors.borderLight,
+    zIndex: 1000,
     ...shadows.small,
+    elevation: 10,
   },
   quickAddMainRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
+    zIndex: 1001,
   },
   nameInput: {
     height: 48,
@@ -1196,6 +1241,7 @@ const styles = createDynamicStyles((colors, shadows) => ({
   },
   scrollArea: {
     flex: 1,
+    zIndex: 1,
   },
   scrollContent: {
     paddingHorizontal: 16,

@@ -437,7 +437,6 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
                   onChangeText={setIngredientInputText}
                   context="search"
                   clearOnSelect
-                  keepFocusOnSelect
                   showSearchIcon
                   onSelectIngredient={(item) => handleAddIngredient(item.canonicalName)}
                 />

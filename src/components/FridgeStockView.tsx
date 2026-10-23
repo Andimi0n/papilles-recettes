@@ -58,13 +58,6 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
     VocabularyService.getSyncList()
   );
 
-  // Chargement et synchronisation du vocabulaire canonique
-  useEffect(() => {
-    VocabularyService.getAll().then((vocab) => {
-      setCanonicalVocabulary(vocab);
-    });
-  }, []);
-
   // Chargement du stock des étagères
   const loadStock = useCallback(async () => {
     try {
@@ -80,9 +73,31 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
     }
   }, [onFridgeCountChange]);
 
+  // Chargement et synchronisation du stock et du vocabulaire canonique
   useEffect(() => {
     loadStock();
-  }, [loadStock]);
+    VocabularyService.getAll().then((vocab) => {
+      setCanonicalVocabulary(vocab);
+    });
+
+    const unsubFridge = StorageService.onFridgeChange((updatedStock) => {
+      setItems(updatedStock);
+      if (onFridgeCountChange) {
+        onFridgeCountChange(updatedStock.length);
+      }
+    });
+
+    const unsubVocab = VocabularyService.onVocabularyCascade(async () => {
+      await loadStock();
+      const updatedVocab = await VocabularyService.getAll();
+      setCanonicalVocabulary(updatedVocab);
+    });
+
+    return () => {
+      unsubFridge();
+      unsubVocab();
+    };
+  }, [loadStock, onFridgeCountChange]);
 
   // Groupement des aliments par rayon
   const groupedByAisle = useMemo(() => {
@@ -172,6 +187,13 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
   }, [items, canonicalVocabulary]);
 
   // Actions utilisateur
+  const handlePressPlus = () => {
+    const raw = newItemName.trim();
+    if (!raw) return;
+    setPendingUnrecognizedName(raw);
+    setIsQualifyModalVisible(true);
+  };
+
   const handleAddItem = async (nameToAdd?: string, aisleToAdd?: ShoppingAisle, canonicalIdToAdd?: string) => {
     const raw = (nameToAdd || newItemName).trim();
     if (!raw) return;
@@ -301,10 +323,9 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
             value={newItemName}
             onChangeText={setNewItemName}
             clearOnSelect
-            keepFocusOnSelect
             returnKeyType="done"
             context="stock"
-            onSubmitEditing={() => handleAddItem()}
+            onSubmitEditing={handlePressPlus}
             onSelectIngredient={(ing) => {
               handleAddItem(ing.canonicalName, ing.defaultAisle, ing.id);
             }}
@@ -315,7 +336,7 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
               styles.addButton,
               !newItemName.trim() && styles.addButtonDisabled,
             ]}
-            onPress={() => handleAddItem()}
+            onPress={handlePressPlus}
             disabled={!newItemName.trim()}
           >
             <Ionicons name="add" size={24} color="#FFFFFF" />
@@ -610,9 +631,15 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
         onClose={() => setIsQualifyModalVisible(false)}
         onAttachAsSynonym={(canonical) => {
           handleAddItem(canonical.canonicalName, canonical.defaultAisle, canonical.id);
+          setIsQualifyModalVisible(false);
+          setPendingUnrecognizedName('');
+          setNewItemName('');
         }}
         onCreateCanonical={(created) => {
           handleAddItem(created.canonicalName, created.defaultAisle, created.id);
+          setIsQualifyModalVisible(false);
+          setPendingUnrecognizedName('');
+          setNewItemName('');
         }}
       />
     </View>
@@ -667,13 +694,15 @@ const styles = createDynamicStyles((colors, shadows) => ({
     padding: 12,
     borderWidth: 1,
     borderColor: colors.borderLight,
-    zIndex: 50,
+    zIndex: 1000,
     ...shadows.small,
+    elevation: 10,
   },
   quickAddMainRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
+    zIndex: 1001,
   },
   nameInput: {
     height: 48,
@@ -716,6 +745,7 @@ const styles = createDynamicStyles((colors, shadows) => ({
   pinnedSuggestionsContainer: {
     paddingHorizontal: 16,
     marginBottom: 8,
+    zIndex: 1,
   },
   suggestionsTitle: {
     fontSize: 12,

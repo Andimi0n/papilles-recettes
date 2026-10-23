@@ -367,6 +367,7 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
       updated[index].unit = details.unit;
     }
     setIngredients(updated);
+    setActiveIngIndex(null);
   };
 
   const handleQualifyIngredientSuccess = (canonical: CanonicalIngredient) => {
