@@ -74,9 +74,7 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
     mealTime: MealTime;
     isPassed?: boolean;
   } | null>(null);
-  const [selectedDayKey, setSelectedDayKey] = useState<string>('');
   const scrollViewRef = useRef<ScrollView>(null);
-  const dayPositions = useRef<Record<string, number>>({});
 
   // --- ÉTAT DU SUIVI DES REPAS (JOURNAL) ---
   const todayStr = useMemo(() => getLocalDateString(), []);
@@ -132,13 +130,6 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
   const daySlots: PlannerDaySlot[] = useMemo(() => {
     return getPlannerDaySlots(plannerSettings.mode, plannerSettings.startDay);
   }, [plannerSettings.mode, plannerSettings.startDay]);
-
-  // Synchronise le jour sélectionné si la liste des créneaux change
-  useEffect(() => {
-    if (daySlots.length > 0 && (!selectedDayKey || !daySlots.some((s) => s.key === selectedDayKey))) {
-      setSelectedDayKey(daySlots[0].key);
-    }
-  }, [daySlots, selectedDayKey]);
 
   // Détection du prochain repas en mode dynamique
   const nextUpcomingSlotKey = useMemo(() => {
@@ -387,14 +378,6 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
       );
     } catch (e) {
       Alert.alert('Erreur', 'Impossible de générer la liste de courses.');
-    }
-  };
-
-  const scrollToDay = (dayKey: string) => {
-    setSelectedDayKey(dayKey);
-    const y = dayPositions.current[dayKey];
-    if (typeof y === 'number' && scrollViewRef.current) {
-      scrollViewRef.current.scrollTo({ y: Math.max(0, y - 20), animated: true });
     }
   };
 
@@ -728,121 +711,74 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
         </ScrollView>
       ) : (
         /* VUE 2 : MENU PRÉVISIONNEL DE LA SEMAINE (PLANNING) */
-        <View style={{ flex: 1 }}>
+        <ScrollView
+          ref={scrollViewRef}
+          style={styles.calendarScroll}
+          contentContainerStyle={styles.calendarContent}
+          showsVerticalScrollIndicator={false}
+        >
           {/* Barre d'état du mode de planification & Bouton Options rapide */}
-          <View style={styles.modeBarWrapper}>
-            <View style={styles.modeBar}>
-              <View style={styles.modeIndicator}>
-                <Ionicons
-                  name={plannerSettings.mode === 'dynamic' ? 'flash' : 'calendar'}
-                  size={14}
-                  color={colors.primary}
-                />
-                <Text style={styles.modeIndicatorText}>
-                  {plannerSettings.mode === 'dynamic'
-                    ? 'Planning Dynamique (dès aujourd’hui)'
-                    : `Planning Fixe (${plannerSettings.startDay} à ${
-                        ORDERED_DAYS_OF_WEEK[
-                          (ORDERED_DAYS_OF_WEEK.indexOf(plannerSettings.startDay) + 6) % 7
-                        ]
-                      })`}
-                </Text>
-              </View>
-              <TouchableOpacity
-                style={styles.modeSwitchBtn}
-                onPress={() => setIsConfigModalVisible(true)}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="options-outline" size={13} color={colors.primary} />
-                <Text style={styles.modeSwitchBtnText}>Options</Text>
-              </TouchableOpacity>
+          <View style={styles.modeBar}>
+            <View style={styles.modeIndicator}>
+              <Ionicons
+                name={plannerSettings.mode === 'dynamic' ? 'flash' : 'calendar'}
+                size={14}
+                color={colors.primary}
+              />
+              <Text style={styles.modeIndicatorText}>
+                {plannerSettings.mode === 'dynamic'
+                  ? 'Planning Dynamique (dès aujourd’hui)'
+                  : `Planning Fixe (${plannerSettings.startDay} à ${
+                      ORDERED_DAYS_OF_WEEK[
+                        (ORDERED_DAYS_OF_WEEK.indexOf(plannerSettings.startDay) + 6) % 7
+                      ]
+                    })`}
+              </Text>
             </View>
-          </View>
-
-          {/* Bouton phare : Générer la liste de courses de la semaine */}
-          <View style={styles.actionBannerWrapper}>
             <TouchableOpacity
-              style={styles.generateBtn}
-              onPress={handleGenerateShoppingList}
-              activeOpacity={0.88}
+              style={styles.modeSwitchBtn}
+              onPress={() => setIsConfigModalVisible(true)}
+              activeOpacity={0.7}
             >
-              <View style={styles.generateIconCircle}>
-                <Ionicons name="cart" size={20} color="#FFFFFF" />
-              </View>
-              <View style={styles.generateTextCol}>
-                <Text style={styles.generateBtnTitle}>Générer la liste de courses</Text>
-                <Text style={styles.generateBtnSubtitle}>
-                  Fusionne tous les ingrédients de vos repas planifiés
-                </Text>
-              </View>
-              <Ionicons name="arrow-forward-circle" size={24} color="#FFFFFF" />
+              <Ionicons name="options-outline" size={13} color={colors.primary} />
+              <Text style={styles.modeSwitchBtnText}>Options</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Navigation rapide par jour (Pills horizontaux) */}
-          <View style={styles.daysTabStrip}>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.daysTabContent}
-            >
-              {daySlots.map((slot) => {
-                const hasMeals =
-                  Boolean(weeklyPlan[slot.lunchKey]) || Boolean(weeklyPlan[slot.dinnerKey]);
-                const isSel = selectedDayKey === slot.key;
-                return (
-                  <TouchableOpacity
-                    key={slot.key}
-                    style={[styles.dayTabPill, isSel && styles.dayTabPillActive]}
-                    onPress={() => scrollToDay(slot.key)}
-                  >
-                    <Text
-                      style={[
-                        styles.dayTabPillText,
-                        isSel && styles.dayTabPillTextActive,
-                      ]}
-                    >
-                      {slot.tabPillLabel}
-                    </Text>
-                    {hasMeals && (
-                      <View
-                        style={[
-                          styles.dayMealDot,
-                          isSel && { backgroundColor: '#FFFFFF' },
-                        ]}
-                      />
-                    )}
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          </View>
+          {/* Bouton phare : Générer la liste de courses de la semaine (scrollable) */}
+          <TouchableOpacity
+            style={styles.generateBtn}
+            onPress={handleGenerateShoppingList}
+            activeOpacity={0.88}
+          >
+            <View style={styles.generateIconCircle}>
+              <Ionicons name="cart" size={20} color="#FFFFFF" />
+            </View>
+            <View style={styles.generateTextCol}>
+              <Text style={styles.generateBtnTitle}>Générer la liste de courses</Text>
+              <Text style={styles.generateBtnSubtitle}>
+                Fusionne tous les ingrédients de vos repas planifiés
+              </Text>
+            </View>
+            <Ionicons name="arrow-forward-circle" size={24} color="#FFFFFF" />
+          </TouchableOpacity>
 
           {/* Calendrier complet défilant des 7 jours */}
-          <ScrollView
-            ref={scrollViewRef}
-            style={styles.calendarScroll}
-            contentContainerStyle={styles.calendarContent}
-            showsVerticalScrollIndicator={false}
-          >
-            {daySlots.map((slot) => {
-              const lunchMeal = weeklyPlan[slot.lunchKey];
-              const dinnerMeal = weeklyPlan[slot.dinnerKey];
+          {daySlots.map((slot) => {
+            const lunchMeal = weeklyPlan[slot.lunchKey];
+            const dinnerMeal = weeklyPlan[slot.dinnerKey];
 
-              const isLunchPassed = slot.isLunchPassed;
-              const isDinnerPassed = slot.isDinnerPassed;
+            const isLunchPassed = slot.isLunchPassed;
+            const isDinnerPassed = slot.isDinnerPassed;
 
-              const isLunchNext = nextUpcomingSlotKey === slot.lunchKey;
-              const isDinnerNext = nextUpcomingSlotKey === slot.dinnerKey;
+            const isLunchNext = nextUpcomingSlotKey === slot.lunchKey;
+            const isDinnerNext = nextUpcomingSlotKey === slot.dinnerKey;
 
-              return (
-                <View
-                  key={slot.key}
-                  style={styles.dayCard}
-                  onLayout={(e) => {
-                    dayPositions.current[slot.key] = e.nativeEvent.layout.y;
-                  }}
-                >
+            return (
+              <View
+                key={slot.key}
+                style={styles.dayCard}
+              >
                   {/* En-tête du jour */}
                   <View style={styles.dayHeader}>
                     <View style={styles.dayHeaderLeft}>
@@ -1204,7 +1140,6 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
               );
             })}
           </ScrollView>
-        </View>
       )}
 
       {/* Modal de sélection de recette pour le planning prévisionnel */}
@@ -1705,10 +1640,6 @@ const styles = createDynamicStyles((colors, shadows) => ({
     color: colors.textMuted,
     fontStyle: 'italic',
   },
-  actionBannerWrapper: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
   generateBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1740,49 +1671,14 @@ const styles = createDynamicStyles((colors, shadows) => ({
     fontSize: 11,
     marginTop: 1,
   },
-  daysTabStrip: {
-    paddingVertical: 8,
-  },
-  daysTabContent: {
-    paddingHorizontal: 16,
-    gap: 8,
-  },
-  dayTabPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: colors.cardBackground,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-  },
-  dayTabPillActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  dayTabPillText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.textSecondary,
-  },
-  dayTabPillTextActive: {
-    color: '#FFFFFF',
-  },
-  dayMealDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.secondary,
-  },
   calendarScroll: {
     flex: 1,
   },
   calendarContent: {
     paddingHorizontal: 16,
+    paddingTop: 8,
     paddingBottom: 40,
-    gap: 16,
+    gap: 14,
   },
   dayCard: {
     backgroundColor: colors.cardBackground,
@@ -1918,11 +1814,6 @@ const styles = createDynamicStyles((colors, shadows) => ({
     fontSize: 13,
     fontWeight: '600',
     color: colors.primary,
-  },
-  modeBarWrapper: {
-    paddingHorizontal: 16,
-    paddingTop: 2,
-    paddingBottom: 4,
   },
   modeBar: {
     flexDirection: 'row',
