@@ -71,12 +71,27 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
   {
     name: 'Champignon de Paris',
     aisle: 'Fruits & Légumes',
-    aliases: ['champignon', 'champignons', 'champignons de paris', 'champignon de paris frais', 'champignons eminces', 'champignons frais', 'bolet', 'cepe', 'girolle'],
+    aliases: ['champignon', 'champignons', 'champignons de paris', 'champignon de paris frais', 'champignons eminces', 'champignons frais', 'champignon blanc', 'champignons blancs'],
+  },
+  {
+    name: 'Cèpe',
+    aisle: 'Fruits & Légumes',
+    aliases: ['cepes', 'bolet', 'bolets', 'cepe frais', 'cepes frais'],
+  },
+  {
+    name: 'Girolle',
+    aisle: 'Fruits & Légumes',
+    aliases: ['girolles', 'chanterelle', 'chanterelles'],
   },
   {
     name: 'Salade',
     aisle: 'Fruits & Légumes',
-    aliases: ['salades', 'laitue', 'roquette', 'batavia', 'mache', 'mesclun', 'feuilles de salade'],
+    aliases: ['salades', 'laitue', 'batavia', 'mache', 'mesclun', 'feuilles de salade', 'jeunes pousses', 'salade verte'],
+  },
+  {
+    name: 'Roquette',
+    aisle: 'Fruits & Légumes',
+    aliases: ['pousses de roquette', 'feuilles de roquette', 'jeunes pousses de roquette'],
   },
   {
     name: 'Concombre',
@@ -127,12 +142,22 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
   {
     name: 'Potimarron',
     aisle: 'Fruits & Légumes',
-    aliases: ['potimarrons', 'courge', 'butternut', 'potiron', 'courge butternut'],
+    aliases: ['potimarrons', 'potiron', 'potirons'],
+  },
+  {
+    name: 'Courge butternut',
+    aisle: 'Fruits & Légumes',
+    aliases: ['butternut', 'courges butternut', 'courge', 'doubeurre'],
   },
   {
     name: 'Citron',
     aisle: 'Fruits & Légumes',
-    aliases: ['citrons', 'jus de citron', 'zeste de citron', 'citron jaune', 'citron vert', 'lime'],
+    aliases: ['citrons', 'jus de citron', 'zeste de citron', 'citron jaune', 'citrons jaunes'],
+  },
+  {
+    name: 'Citron vert',
+    aisle: 'Fruits & Légumes',
+    aliases: ['citrons verts', 'lime', 'limes', 'jus de citron vert', 'zeste de citron vert'],
   },
   {
     name: 'Pomme',
@@ -207,13 +232,25 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
   {
     name: 'Mozzarella',
     aisle: 'Produits Frais & Crèmerie',
-    aliases: ['mozza', 'boule de mozzarella', 'mozzarella di bufala', 'burrata'],
+    aliases: ['mozza', 'boule de mozzarella', 'mozzarella di bufala'],
+    allergen: 'lait',
+  },
+  {
+    name: 'Burrata',
+    aisle: 'Produits Frais & Crèmerie',
+    aliases: ['burrata di bufala', 'boule de burrata'],
     allergen: 'lait',
   },
   {
     name: 'Emmental',
     aisle: 'Produits Frais & Crèmerie',
-    aliases: ['gruyere', 'comte', 'beaufort', 'fromage a pate dure'],
+    aliases: ['gruyere', 'emmental francais', 'fromage a pate dure'],
+    allergen: 'lait',
+  },
+  {
+    name: 'Comté',
+    aisle: 'Produits Frais & Crèmerie',
+    aliases: ['comte', 'beaufort', 'comte jeune', 'comte affine'],
     allergen: 'lait',
   },
   {
@@ -276,7 +313,12 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
   {
     name: 'Bœuf',
     aisle: 'Boucherie & Poissonnerie',
-    aliases: ['boeuf', 'steak', 'steaks', 'steak hache', 'steaks haches', 'viande hachee', 'viande bovine', 'bavette', 'entrecote', 'rumsteck', 'paleron', 'bourguignon'],
+    aliases: ['boeuf', 'viande bovine', 'bavette', 'entrecote', 'rumsteck', 'paleron', 'bourguignon', 'morceaux de boeuf'],
+  },
+  {
+    name: 'Steak haché',
+    aisle: 'Boucherie & Poissonnerie',
+    aliases: ['steaks haches', 'steak', 'steaks', 'viande hachee', 'viande de boeuf hachee'],
   },
   {
     name: 'Lardons',
@@ -301,7 +343,17 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
   {
     name: 'Saucisse',
     aisle: 'Boucherie & Poissonnerie',
-    aliases: ['saucisses', 'chipolata', 'chipolatas', 'merguez', 'saucisse de toulouse', 'saucisse de morteau', 'saucisse de montbeliard', 'chorizo'],
+    aliases: ['saucisses', 'chipolata', 'chipolatas', 'saucisse de toulouse', 'saucisse de morteau', 'saucisse de montbeliard', 'chair a saucisse'],
+  },
+  {
+    name: 'Merguez',
+    aisle: 'Boucherie & Poissonnerie',
+    aliases: ['merguez de boeuf', 'merguez d agneau'],
+  },
+  {
+    name: 'Chorizo',
+    aisle: 'Boucherie & Poissonnerie',
+    aliases: ['chorizo doux', 'chorizo fort', 'tranches de chorizo', 'des de chorizo'],
   },
   {
     name: 'Veau',
@@ -365,6 +417,11 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
     aisle: 'Épicerie & Condiments',
     aliases: ['farines', 'farine de ble', 'farine t55', 'farine t45', 'farine fluide'],
     allergen: 'gluten',
+  },
+  {
+    name: 'Fécule de maïs',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['fecule de mais', 'maizena', 'fecule'],
   },
   {
     name: 'Sucre',
@@ -447,7 +504,19 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
   {
     name: 'Chocolat noir',
     aisle: 'Épicerie & Condiments',
-    aliases: ['chocolat', 'chocolat patissier', 'tablette de chocolat', 'tablette de chocolat noir', 'chocolat en poudre'],
+    aliases: ['chocolat', 'chocolat patissier', 'tablette de chocolat noir', 'chocolat dessert', 'chocolat noir patissier'],
+  },
+  {
+    name: 'Chocolat au lait',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['tablette de chocolat au lait', 'chocolat au lait patissier'],
+    allergen: 'lait',
+  },
+  {
+    name: 'Chocolat blanc',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['tablette de chocolat blanc', 'chocolat blanc patissier'],
+    allergen: 'lait',
   },
   {
     name: 'Vanille',
@@ -541,19 +610,39 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
   {
     name: 'Cacahuètes',
     aisle: 'Épicerie & Condiments',
-    aliases: ['cacahuete', 'cacahuetes', 'arachide', 'arachides', 'beurre de cacahuete', 'beurre de cacahuetes', 'huile d arachide'],
+    aliases: ['cacahuete', 'cacahuetes', 'arachide', 'arachides', 'beurre de cacahuete', 'beurre de cacahuetes'],
     allergen: 'arachides',
+  },
+  {
+    name: 'Huile d\'arachide',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['huile d arachide', 'huile arachide'],
+    allergen: 'arachides',
+    isPantryStaple: true,
   },
   {
     name: 'Sésame',
     aisle: 'Épicerie & Condiments',
-    aliases: ['sesame', 'graines de sesame', 'graine de sesame', 'huile de sesame', 'tahini', 'tahin'],
+    aliases: ['sesame', 'graines de sesame', 'graine de sesame', 'tahini', 'tahin'],
     allergen: 'sesame',
+  },
+  {
+    name: 'Huile de sésame',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['huile de sesame', 'huile sesame'],
+    allergen: 'sesame',
+    isPantryStaple: true,
   },
   {
     name: 'Noix',
     aisle: 'Épicerie & Condiments',
-    aliases: ['noix', 'cerneaux de noix', 'huile de noix'],
+    aliases: ['noix', 'cerneaux de noix'],
+    allergen: 'fruits_a_coque',
+  },
+  {
+    name: 'Huile de noix',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['huile de noix'],
     allergen: 'fruits_a_coque',
   },
   {
