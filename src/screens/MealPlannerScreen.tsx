@@ -969,8 +969,6 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
                         >
                           {isLunchPassed
                             ? 'Déjeuner (Déjà passé • Toucher pour forcer)'
-                            : isLunchNext
-                            ? 'Prévoir le déjeuner • Prochain repas 🎯'
                             : 'Prévoir le déjeuner'}
                         </Text>
                       </TouchableOpacity>
@@ -1133,8 +1131,6 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
                         >
                           {isDinnerPassed
                             ? 'Dîner (Déjà passé • Toucher pour forcer)'
-                            : isDinnerNext
-                            ? 'Prévoir le dîner • Prochain repas 🎯'
                             : 'Prévoir le dîner'}
                         </Text>
                       </TouchableOpacity>
@@ -1909,6 +1905,8 @@ const styles = createDynamicStyles((colors, shadows) => ({
   slotCardNextHighlight: {
     borderColor: colors.primary,
     borderWidth: 1.5,
+    borderStyle: 'dashed',
+    backgroundColor: colors.primaryLight,
   },
   slotFilledCardPassed: {
     backgroundColor: colors.backgroundSecondary,
