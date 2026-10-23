@@ -194,6 +194,24 @@ async function main() {
   assert.ok(valNum.error.includes('quantités'));
   console.log('✓ Rejet d\'un nom contenant des quantités chiffrées ("200g de sumac")');
 
+  // Acceptation des farines normalisées (T55, T45, T65)
+  const valT55 = UnifiedIngredientService.validateNewIngredient({
+    canonicalName: 'Farine de blé T55',
+    defaultAisle: 'Épicerie & Condiments',
+    isPantryStaple: false,
+  });
+  assert.strictEqual(valT55.valid, true, 'Farine de blé T55 doit être acceptée');
+  console.log('✓ Acceptation de "Farine de blé T55" (type de farine normalisé)');
+
+  // Rejet d'un nombre isolé en début
+  const valIsoNum = UnifiedIngredientService.validateNewIngredient({
+    canonicalName: '2 citrons',
+    defaultAisle: 'Fruits & Légumes',
+    isPantryStaple: false,
+  });
+  assert.strictEqual(valIsoNum.valid, false, 'Les quantités isolées en début doivent être rejetées');
+  console.log('✓ Rejet d\'un nom débutant par un chiffre isolé ("2 citrons")');
+
   // Rejet doublon exact
   const valDup = UnifiedIngredientService.validateNewIngredient({
     canonicalName: 'Carotte',
@@ -282,6 +300,14 @@ async function main() {
   const fauxAmi = detectProbableAllergenFamily('lait de coco');
   assert.strictEqual(fauxAmi, null, 'Le lait de coco ne doit pas activer l\'allergène laitier');
   console.log('✓ Faux ami "lait de coco" -> aucun allergène laitier erroné');
+
+  // Test strict de non faux-positif (frontières de mots INCO)
+  assert.strictEqual(detectProbableAllergenFamily('Salade de laitue'), null);
+  assert.strictEqual(detectProbableAllergenFamily('Râble de lapin'), null);
+  assert.strictEqual(detectProbableAllergenFamily('Tablette de chocolat'), null);
+  assert.strictEqual(detectProbableAllergenFamily('Gorge de porc'), null);
+  assert.strictEqual(detectProbableAllergenFamily('Sauce barbecue'), null);
+  console.log('✓ Zéro faux positif INCO confirmé sur laitue, râble de lapin, tablette de chocolat, gorge de porc, barbecue');
 
   // =========================================================================
   // TEST 7 : Blocage strict des ingrédients non qualifiés en recette (Section 8)

@@ -3,7 +3,7 @@ import { ShoppingAisle } from '../types/shopping';
 import { VocabularyService } from './vocabularyService';
 import { StorageService } from './storageService';
 import { normalizeString } from '../utils/helpers';
-import { stemWord } from '../utils/searchEngine';
+import { stemWord, levenshteinDistance } from '../utils/searchEngine';
 import { normalizeIngredient } from '../utils/ingredientNormalizer';
 import { classifyIngredientAisle } from '../utils/aisleClassifier';
 import {
@@ -53,8 +53,9 @@ export function frenchPhonetic(str: string): string {
   s = s.replace(/oeu|eau|eaux|aux|au/g, 'o');
   s = s.replace(/ph/g, 'f');
   s = s.replace(/qu|ck|k/g, 'c');
-  s = s.replace(/ai|ei|ez|er|et/g, 'e');
+  // Les diphtongues nasales composées doivent être évaluées avant les voyelles simples
   s = s.replace(/ain|ein|aim|in|yn|ym/g, 'in');
+  s = s.replace(/ai|ei|ez|er|et/g, 'e');
   s = s.replace(/an|am|en|em/g, 'an');
   s = s.replace(/on|om/g, 'on');
   s = s.replace(/ou/g, 'u');
@@ -193,23 +194,23 @@ export const UnifiedIngredientService = {
         bestLabel = 'Synonyme répertorié';
         matchedText = normQuery;
       }
-      // 2. Prononciation phonétique identique (ex: "voeu" -> "veau")
-      else if (queryPhonetic && queryPhonetic.length >= 2 && queryPhonetic === itemPhonetic) {
-        bestScore = 91;
-        bestReason = 'typo';
-        bestLabel = 'Prononciation très proche';
-        matchedText = item.canonicalName;
-      }
-      // 3. Équivalence de pluriel / singulier (Stemming)
+      // 2. Équivalence de pluriel / singulier (Stemming prioritaire sur la phonétique)
       else if (queryStem === itemStem || (itemNorm.endsWith('s') && itemNorm.slice(0, -1) === normQuery) || (normQuery.endsWith('s') && normQuery.slice(0, -1) === itemNorm)) {
         bestScore = 92;
         bestReason = 'stem';
         bestLabel = 'Variante singulier / pluriel';
         matchedText = item.canonicalName;
       }
+      // 3. Prononciation phonétique identique (ex: "voeu" -> "veau")
+      else if (queryPhonetic && queryPhonetic.length >= 2 && queryPhonetic === itemPhonetic) {
+        bestScore = 91;
+        bestReason = 'typo';
+        bestLabel = 'Prononciation très proche';
+        matchedText = item.canonicalName;
+      }
       // 4. Distance de Levenshtein sur le nom canonique
       else {
-        const distCanon = this.calculateLevenshtein(normQuery, itemNorm);
+        const distCanon = levenshteinDistance(normQuery, itemNorm);
         if (normQuery.length >= 4 && distCanon === 1) {
           bestScore = 86;
           bestReason = 'typo';
@@ -236,6 +237,16 @@ export const UnifiedIngredientService = {
             break;
           }
 
+          const aliasStem = stemWord(alias);
+          if (queryStem === aliasStem) {
+            if (bestScore < 90) {
+              bestScore = 90;
+              bestReason = 'stem';
+              bestLabel = `Variante de "${alias}"`;
+              matchedText = alias;
+            }
+          }
+
           const aliasPhonetic = frenchPhonetic(alias);
           if (queryPhonetic && queryPhonetic.length >= 2 && queryPhonetic === aliasPhonetic) {
             if (bestScore < 89) {
@@ -246,17 +257,7 @@ export const UnifiedIngredientService = {
             }
           }
 
-          const aliasStem = stemWord(alias);
-          if (queryStem === aliasStem) {
-            if (bestScore < 89) {
-              bestScore = 89;
-              bestReason = 'stem';
-              bestLabel = `Variante de "${alias}"`;
-              matchedText = alias;
-            }
-          }
-
-          const distAlias = this.calculateLevenshtein(normQuery, alias);
+          const distAlias = levenshteinDistance(normQuery, alias);
           if (normQuery.length >= 4 && distAlias === 1) {
             if (bestScore < 84) {
               bestScore = 84;
@@ -420,9 +421,13 @@ export const UnifiedIngredientService = {
         aliases: Array.from(nextAliases),
       });
 
+      // Synchronisation rétroactive immédiate des occurrences existantes
+      await this.linkUnrecognizedItemsToNewCanonical(updated);
+
       return { success: true, updated };
-    } catch (e: any) {
-      return { success: false, error: e?.message || 'Erreur lors de l\'enregistrement du synonyme.' };
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'Erreur lors de l\'enregistrement du synonyme.';
+      return { success: false, error: message };
     }
   },
 
@@ -439,8 +444,14 @@ export const UnifiedIngredientService = {
       return { valid: false, error: 'Le nom de l\'ingrédient doit comporter entre 3 et 50 caractères.' };
     }
 
-    if (/\d{2,}/.test(rawName)) {
-      return { valid: false, error: 'Le nom ne doit pas contenir de quantités chiffrées (ex: 200g, 2).' };
+    // Rejet des quantités et unités chiffrées tout en autorisant les farines normalisées (T45, T55, T65, T80, T110, T150)
+    const cleanForDigits = rawName.replace(/\bT\d{2,3}\b/gi, '');
+    if (
+      /^\d+([.,]\d+)?\s*(g|kg|ml|cl|l|càs|càc|cuillères?|pincées?|gousses?|tranches?|sachets?|pots?|boîtes?)?\s+/i.test(cleanForDigits) ||
+      /\b\d+([.,]\d+)?\s*(g|kg|ml|cl|l)\b/i.test(cleanForDigits) ||
+      /\d{2,}/.test(cleanForDigits)
+    ) {
+      return { valid: false, error: 'Le nom ne doit pas contenir de quantités ou d\'unités de mesure (ex: 200g, 2).' };
     }
 
     const normName = normalizeString(rawName);
@@ -524,7 +535,7 @@ export const UnifiedIngredientService = {
     // Avertissement de similarité Levenshtein si proche d'un terme existant
     let warning: string | undefined;
     for (const item of list) {
-      const dist = this.calculateLevenshtein(normName, item.normalizedName);
+      const dist = levenshteinDistance(normName, item.normalizedName);
       if (normName.length >= 4 && dist <= 2) {
         warning = `Un ingrédient portant un nom proche (« ${item.canonicalName} ») existe déjà. S'agit-il du même aliment ?`;
         break;
@@ -567,99 +578,110 @@ export const UnifiedIngredientService = {
       await this.linkUnrecognizedItemsToNewCanonical(created);
 
       return { success: true, ingredient: created };
-    } catch (e: any) {
-      return { success: false, error: e?.message || 'Erreur lors de la création de l\'ingrédient.' };
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'Erreur lors de la création de l\'ingrédient.';
+      return { success: false, error: message };
     }
   },
 
   /**
    * Synchronisation rétroactive : rattache les recettes et articles existants
    * qui portaient ce nom mais n'avaient pas de canonicalId (Section 8.5).
+   * Sérialisée via le mutex de cascade pour prévenir toute race condition.
    */
   async linkUnrecognizedItemsToNewCanonical(newIngredient: CanonicalIngredient): Promise<void> {
-    try {
-      const normTarget = newIngredient.normalizedName;
+    return StorageService.runWithCascadeMutex(async () => {
+      try {
+        const normTarget = newIngredient.normalizedName;
+        const aliasesSet = new Set((newIngredient.aliases || []).map((a) => normalizeString(a)));
 
-      // 1. Recettes sauvegardées
-      const recipes = await StorageService.getRecipes();
-      let recipesModified = false;
-      const updatedRecipes = recipes.map((recipe) => {
-        let recipeChanged = false;
-        const nextIngredients = recipe.ingredients.map((ing) => {
-          if (!ing.canonicalId && ing.name) {
-            const normIngName = normalizeString(ing.name);
-            if (normIngName === normTarget || normIngName === `${normTarget}s`) {
-              recipeChanged = true;
+        const isTargetMatch = (rawItemName: string): boolean => {
+          const norm = normalizeString(rawItemName);
+          if (!norm) return false;
+          if (norm === normTarget) return true;
+          if (normTarget.endsWith('s') ? norm === normTarget.slice(0, -1) : norm === `${normTarget}s`) return true;
+          if (aliasesSet.has(norm)) return true;
+          return false;
+        };
+
+        // 1. Recettes sauvegardées
+        const recipes = await StorageService.getRecipes();
+        let recipesModified = false;
+        const updatedRecipes = recipes.map((recipe) => {
+          let recipeChanged = false;
+          const nextIngredients = recipe.ingredients.map((ing) => {
+            if (!ing.canonicalId && ing.name) {
+              if (isTargetMatch(ing.name)) {
+                recipeChanged = true;
+                return {
+                  ...ing,
+                  canonicalId: newIngredient.id,
+                  isPantryStaple:
+                    typeof ing.isPantryStaple === 'boolean'
+                      ? ing.isPantryStaple
+                      : newIngredient.isPantryStaple,
+                };
+              }
+            }
+            return ing;
+          });
+
+          if (recipeChanged) {
+            recipesModified = true;
+            return { ...recipe, ingredients: nextIngredients };
+          }
+          return recipe;
+        });
+
+        if (recipesModified) {
+          await StorageService.saveAllRecipes(updatedRecipes);
+        }
+
+        // 2. Étagères (stock frigo / placard)
+        const fridgeItems = await StorageService.getFridgeItems();
+        let fridgeModified = false;
+        const updatedFridge = fridgeItems.map((item) => {
+          if (!item.canonicalId && item.name) {
+            if (isTargetMatch(item.name)) {
+              fridgeModified = true;
               return {
-                ...ing,
+                ...item,
                 canonicalId: newIngredient.id,
-                isPantryStaple:
-                  typeof ing.isPantryStaple === 'boolean'
-                    ? ing.isPantryStaple
-                    : newIngredient.isPantryStaple,
+                aisle: newIngredient.defaultAisle,
               };
             }
           }
-          return ing;
+          return item;
         });
 
-        if (recipeChanged) {
-          recipesModified = true;
-          return { ...recipe, ingredients: nextIngredients };
+        if (fridgeModified) {
+          await StorageService.saveFridgeItems(updatedFridge);
         }
-        return recipe;
-      });
 
-      if (recipesModified) {
-        await StorageService.saveAllRecipes(updatedRecipes);
-      }
-
-      // 2. Étagères (stock frigo / placard)
-      const fridgeItems = await StorageService.getFridgeItems();
-      let fridgeModified = false;
-      const updatedFridge = fridgeItems.map((item) => {
-        if (!item.canonicalId && item.name) {
-          const normItemName = normalizeString(item.name);
-          if (normItemName === normTarget || normItemName === `${normTarget}s`) {
-            fridgeModified = true;
-            return {
-              ...item,
-              canonicalId: newIngredient.id,
-              aisle: newIngredient.defaultAisle,
-            };
+        // 3. Liste de courses
+        const shoppingList = await StorageService.getShoppingList();
+        let shoppingModified = false;
+        const updatedShopping = shoppingList.map((item) => {
+          if (!item.canonicalId && item.name) {
+            if (isTargetMatch(item.name)) {
+              shoppingModified = true;
+              return {
+                ...item,
+                canonicalId: newIngredient.id,
+                aisle: newIngredient.defaultAisle,
+              };
+            }
           }
+          return item;
+        });
+
+        if (shoppingModified) {
+          await StorageService.saveShoppingList(updatedShopping);
         }
-        return item;
-      });
-
-      if (fridgeModified) {
-        await StorageService.saveFridgeItems(updatedFridge);
+      } catch (e) {
+        console.warn('Avertissement : synchronisation rétroactive partielle suite à la création:', e);
       }
-
-      // 3. Liste de courses
-      const shoppingList = await StorageService.getShoppingList();
-      let shoppingModified = false;
-      const updatedShopping = shoppingList.map((item) => {
-        if (!item.canonicalId && item.name) {
-          const normShopName = normalizeString(item.name);
-          if (normShopName === normTarget || normShopName === `${normTarget}s`) {
-            shoppingModified = true;
-            return {
-              ...item,
-              canonicalId: newIngredient.id,
-              aisle: newIngredient.defaultAisle,
-            };
-          }
-        }
-        return item;
-      });
-
-      if (shoppingModified) {
-        await StorageService.saveShoppingList(updatedShopping);
-      }
-    } catch (e) {
-      console.warn('Avertissement : synchronisation rétroactive partielle suite à la création:', e);
-    }
+    });
   },
 
   /**
@@ -682,49 +704,5 @@ export const UnifiedIngredientService = {
       suggestedAllergen,
       suggestedIsPantryStaple,
     };
-  },
-
-  /**
-   * Distance de Levenshtein optimisée O(min(M, N)).
-   */
-  calculateLevenshtein(a: string, b: string): number {
-    if (a === b) return 0;
-    if (a.length === 0) return b.length;
-    if (b.length === 0) return a.length;
-
-    if (a.length > b.length) {
-      const tmp = a;
-      a = b;
-      b = tmp;
-    }
-
-    const aLen = a.length;
-    const bLen = b.length;
-    let prevRow = new Array(aLen + 1);
-    let currRow = new Array(aLen + 1);
-
-    for (let i = 0; i <= aLen; i++) {
-      prevRow[i] = i;
-    }
-
-    for (let j = 1; j <= bLen; j++) {
-      currRow[0] = j;
-      const bChar = b[j - 1];
-
-      for (let i = 1; i <= aLen; i++) {
-        const cost = a[i - 1] === bChar ? 0 : 1;
-        currRow[i] = Math.min(
-          currRow[i - 1] + 1,
-          prevRow[i] + 1,
-          prevRow[i - 1] + cost
-        );
-      }
-
-      for (let i = 0; i <= aLen; i++) {
-        prevRow[i] = currRow[i];
-      }
-    }
-
-    return prevRow[aLen];
   },
 };

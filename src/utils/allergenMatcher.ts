@@ -75,7 +75,7 @@ export function detectProbableAllergenFamily(rawName: string): AllergenFamily | 
   for (const [family, roots] of Object.entries(INCO_FAMILY_KEY_ROOTS) as [AllergenFamily, string[]][]) {
     for (const root of roots) {
       const rootRegex = new RegExp(`(^|\\s|['’])${root}(s|es)?(\\s|$|['’])`, 'i');
-      if (rootRegex.test(rawNormStr) || rawNormStr.includes(root)) {
+      if (rootRegex.test(rawNormStr)) {
         // Garde-fous faux amis connus : boissons, crèmes et beurres végétaux non laitiers
         if (
           family === 'lait' &&

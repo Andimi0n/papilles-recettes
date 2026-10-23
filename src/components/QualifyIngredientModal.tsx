@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { CanonicalIngredient, AllergenFamily, ALLERGEN_FAMILIES } from '../types/vocabulary';
 import { ShoppingAisle } from '../types/shopping';
@@ -52,6 +53,7 @@ export const QualifyIngredientModal: React.FC<QualifyIngredientModalProps> = ({
   onCreateCanonical,
 }) => {
   const { colors, isDark } = useTheme();
+  const insets = useSafeAreaInsets();
 
   // État local du formulaire de création
   const [canonicalNameInput, setCanonicalNameInput] = useState('');
@@ -118,6 +120,16 @@ export const QualifyIngredientModal: React.FC<QualifyIngredientModalProps> = ({
       .map((s) => s.trim())
       .filter((s) => s.length > 0);
 
+    // Préservation automatique du libellé brut initial comme premier alias
+    const trimmedRaw = rawName.trim();
+    if (
+      trimmedRaw.length > 0 &&
+      trimmedRaw.toLowerCase() !== canonicalNameInput.trim().toLowerCase() &&
+      !rawAliases.some((a) => a.toLowerCase() === trimmedRaw.toLowerCase())
+    ) {
+      rawAliases.unshift(trimmedRaw);
+    }
+
     setErrorMessage(null);
     setIsSubmitting(true);
 
@@ -154,7 +166,7 @@ export const QualifyIngredientModal: React.FC<QualifyIngredientModalProps> = ({
           <TouchableOpacity style={styles.backdropTouchable} onPress={onClose} activeOpacity={1} />
         </View>
 
-        <View style={styles.modalCard}>
+        <View style={[styles.modalCard, { paddingBottom: Math.max(24, insets.bottom + 12) }]}>
           {/* Header */}
           <View style={styles.headerRow}>
             <View style={styles.headerLeft}>
@@ -241,11 +253,24 @@ export const QualifyIngredientModal: React.FC<QualifyIngredientModalProps> = ({
                     autoCapitalize="sentences"
                   />
                   {parentSearchQuery.length > 0 && (
-                    <TouchableOpacity onPress={() => setParentSearchQuery('')} style={styles.manualSearchClear}>
+                    <TouchableOpacity
+                      onPress={() => setParentSearchQuery('')}
+                      style={styles.manualSearchClear}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    >
                       <Ionicons name="close-circle" size={16} color={colors.textMuted} />
                     </TouchableOpacity>
                   )}
                 </View>
+
+                {parentSearchQuery.trim().length >= 2 && parentSearchResults.length === 0 && (
+                  <View style={styles.parentSearchEmpty}>
+                    <Ionicons name="information-circle-outline" size={15} color={colors.textMuted} />
+                    <Text style={styles.parentSearchEmptyText}>
+                      Aucun aliment trouvé pour « {parentSearchQuery.trim()} ». Créez-le ci-dessous.
+                    </Text>
+                  </View>
+                )}
 
                 {parentSearchResults.length > 0 && (
                   <View style={styles.parentSearchResultsList}>
@@ -310,7 +335,12 @@ export const QualifyIngredientModal: React.FC<QualifyIngredientModalProps> = ({
               {/* 2. Rayon de supermarché */}
               <View style={styles.formGroup}>
                 <Text style={styles.fieldLabel}>Rayon de supermarché :</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.aislesScroll}>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  keyboardShouldPersistTaps="handled"
+                  contentContainerStyle={styles.aislesScroll}
+                >
                   {ALL_AISLES.map((aisle) => {
                     const isSelected = selectedAisle === aisle;
                     const config = AISLE_CONFIGS[aisle];
@@ -887,5 +917,23 @@ const styles = createDynamicStyles((colors) => ({
     fontSize: 11,
     fontWeight: '600',
     color: colors.primary,
+  },
+  parentSearchEmpty: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    backgroundColor: colors.cardBackground,
+    borderRadius: 8,
+    marginTop: 6,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  parentSearchEmptyText: {
+    flex: 1,
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
   },
 }));

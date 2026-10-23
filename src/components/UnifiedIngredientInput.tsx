@@ -48,6 +48,7 @@ export interface UnifiedIngredientInputProps {
   onSubmitEditing?: () => void;
   returnKeyType?: ReturnKeyTypeOptions;
   showSearchIcon?: boolean;
+  onRequestQualify?: (rawName: string) => void;
 }
 
 export const UnifiedIngredientInput: React.FC<UnifiedIngredientInputProps> = ({
@@ -69,6 +70,7 @@ export const UnifiedIngredientInput: React.FC<UnifiedIngredientInputProps> = ({
   onSubmitEditing,
   returnKeyType = 'done',
   showSearchIcon = false,
+  onRequestQualify,
 }) => {
   const { colors } = useTheme();
   const { width: windowWidth } = useWindowDimensions();
@@ -81,6 +83,15 @@ export const UnifiedIngredientInput: React.FC<UnifiedIngredientInputProps> = ({
   const inputRef = useRef<TextInput>(null);
   const blurTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isSelectingRef = useRef(false);
+
+  // Nettoyage de sécurité au démontage pour éviter les fuites mémoire
+  useEffect(() => {
+    return () => {
+      if (blurTimeoutRef.current) {
+        clearTimeout(blurTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Largeur responsive et confortable pour le menu déroulant
   const dropdownWidth = Math.min(380, Math.max(280, windowWidth - 36));
@@ -124,7 +135,6 @@ export const UnifiedIngredientInput: React.FC<UnifiedIngredientInputProps> = ({
 
     VocabularyService.incrementUsage(item.id).catch(() => {});
     setSuggestions([]);
-    setIsFocused(false);
 
     const details = extractedDetails
       ? { quantity: extractedDetails.quantity, unit: extractedDetails.unit }
@@ -134,16 +144,23 @@ export const UnifiedIngredientInput: React.FC<UnifiedIngredientInputProps> = ({
       onSelectIngredient(item, details);
     }
 
-    // Sortie immédiate de la barre de recherche (blur + fermeture clavier)
-    inputRef.current?.blur();
-    try {
-      Keyboard.dismiss();
-    } catch (_) {}
-
-    setTimeout(() => {
-      isSelectingRef.current = false;
+    // Respect strict de keepFocusOnSelect pour la saisie prédictive en chaîne
+    if (keepFocusOnSelect) {
+      setIsFocused(true);
+      setTimeout(() => {
+        inputRef.current?.focus();
+        isSelectingRef.current = false;
+      }, 50);
+    } else {
       setIsFocused(false);
-    }, 100);
+      inputRef.current?.blur();
+      try {
+        Keyboard.dismiss();
+      } catch (_) {}
+      setTimeout(() => {
+        isSelectingRef.current = false;
+      }, 100);
+    }
   };
 
   // Ouverture du modal de qualification stricte
@@ -153,18 +170,28 @@ export const UnifiedIngredientInput: React.FC<UnifiedIngredientInputProps> = ({
       clearTimeout(blurTimeoutRef.current);
       blurTimeoutRef.current = null;
     }
+    setSuggestions([]);
+    if (onRequestQualify) {
+      onRequestQualify(nameToQualify);
+      setTimeout(() => {
+        isSelectingRef.current = false;
+      }, 100);
+      return;
+    }
     setPendingUnrecognizedName(nameToQualify);
     setIsQualifyModalVisible(true);
-    setSuggestions([]);
   };
 
   // Soumission au clavier (Touche Entrée / Valider / Done)
-  // IMPOSSIBILITÉ de valider une entrée brute hors lexique :
-  // - Si reconnu : valide l'ingrédient officiel
-  // - Si non reconnu : ouvre obligatoirement le modal de qualification
   const handleSubmitEditing = () => {
     const raw = value.trim();
     if (!raw) {
+      onSubmitEditing?.();
+      return;
+    }
+
+    // En contexte de simple recherche/filtrage, ne jamais bloquer avec le modal de création
+    if (context === 'search') {
       onSubmitEditing?.();
       return;
     }
@@ -176,7 +203,7 @@ export const UnifiedIngredientInput: React.FC<UnifiedIngredientInputProps> = ({
       return;
     }
 
-    // 2. Si non reconnu, impossible de valider à l'aveugle : ouvre le modal de qualification stricte
+    // 2. Si non reconnu, ouvre la qualification
     openQualifyModal(raw);
   };
 
@@ -320,22 +347,25 @@ export const UnifiedIngredientInput: React.FC<UnifiedIngredientInputProps> = ({
         </View>
       )}
 
-      {/* Modal de qualification stricte (Passeport Ingrédient) */}
-      <QualifyIngredientModal
-        visible={isQualifyModalVisible}
-        rawName={pendingUnrecognizedName}
-        context={context}
-        onClose={() => {
-          setIsQualifyModalVisible(false);
-          isSelectingRef.current = false;
-        }}
-        onAttachAsSynonym={(canonical) => {
-          handleSelectCanonical(canonical);
-        }}
-        onCreateCanonical={(created) => {
-          handleSelectCanonical(created);
-        }}
-      />
+      {/* Modal de qualification stricte (Passeport Ingrédient) si non délégué au parent */}
+      {!onRequestQualify && (
+        <QualifyIngredientModal
+          visible={isQualifyModalVisible}
+          rawName={pendingUnrecognizedName}
+          context={context}
+          onClose={() => {
+            setIsQualifyModalVisible(false);
+            isSelectingRef.current = false;
+            setIsFocused(false);
+          }}
+          onAttachAsSynonym={(canonical) => {
+            handleSelectCanonical(canonical);
+          }}
+          onCreateCanonical={(created) => {
+            handleSelectCanonical(created);
+          }}
+        />
+      )}
     </View>
   );
 };

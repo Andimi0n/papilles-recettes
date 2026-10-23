@@ -24,6 +24,7 @@ export type VocabularyCascadeEvent =
       type: 'merge';
       sourceId: string;
       targetId: string;
+      sourceIngredient?: CanonicalIngredient;
       targetIngredient: CanonicalIngredient;
     }
   | {
@@ -738,6 +739,7 @@ export const VocabularyService = {
       type: 'merge',
       sourceId,
       targetId,
+      sourceIngredient: source,
       targetIngredient: updatedTarget,
     });
     return updatedTarget;

@@ -356,7 +356,7 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
     const updated = [...ingredients];
     updated[index] = {
       ...updated[index],
-      name: item.canonicalName,
+      name: updated[index].name.trim() || item.canonicalName,
       canonicalId: item.id,
       isPantryStaple: item.isPantryStaple ?? updated[index].isPantryStaple,
     };
@@ -371,12 +371,38 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
   };
 
   const handleQualifyIngredientSuccess = (canonical: CanonicalIngredient) => {
+    const updated = [...ingredients];
     if (pendingQualifyIndex !== null && pendingQualifyIndex >= 0 && pendingQualifyIndex < ingredients.length) {
-      handleSelectCanonicalIngredient(pendingQualifyIndex, canonical);
+      const current = updated[pendingQualifyIndex];
+      updated[pendingQualifyIndex] = {
+        ...current,
+        name: current.name.trim() || canonical.canonicalName,
+        canonicalId: canonical.id,
+        isPantryStaple: canonical.isPantryStaple ?? current.isPantryStaple,
+      };
+      setIngredients(updated);
     }
     setIsQualifyModalVisible(false);
     setPendingQualifyIndex(null);
     setPendingUnrecognizedName('');
+
+    // Chaînage automatique si d'autres ingrédients restent à qualifier
+    const syncList = VocabularyService.getSyncList();
+    const nextUnrecIdx = updated.findIndex((ing) => {
+      const trimmed = ing.name.trim();
+      if (!trimmed) return false;
+      if (ing.canonicalId && syncList.some((c) => c.id === ing.canonicalId)) return false;
+      const res = UnifiedIngredientService.resolveRecognizedIngredient(trimmed);
+      return !res.isRecognized;
+    });
+
+    if (nextUnrecIdx >= 0) {
+      setTimeout(() => {
+        setPendingQualifyIndex(nextUnrecIdx);
+        setPendingUnrecognizedName(updated[nextUnrecIdx].name.trim());
+        setIsQualifyModalVisible(true);
+      }, 150);
+    }
   };
 
   const handleToggleIngredientStaple = (index: number) => {
@@ -471,7 +497,7 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
       if (res.isRecognized && res.canonical) {
         validatedIngredients.push({
           ...ing,
-          name: res.canonical.canonicalName,
+          name: ing.name.trim() || res.canonical.canonicalName,
           canonicalId: res.canonical.id,
           isPantryStaple: res.canonical.isPantryStaple ?? ing.isPantryStaple,
         });
@@ -1015,6 +1041,11 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
                     placeholder="Ex: Farine"
                     placeholderTextColor={colors.textMuted}
                     context="recipe"
+                    onRequestQualify={(raw) => {
+                      setPendingQualifyIndex(index);
+                      setPendingUnrecognizedName(raw);
+                      setIsQualifyModalVisible(true);
+                    }}
                     onFocus={() => setActiveIngIndex(index)}
                     onBlur={() => setActiveIngIndex(null)}
                   />
@@ -1049,7 +1080,7 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
                   {ing.name.trim().length >= 2 && (
                     Boolean(ing.canonicalId || UnifiedIngredientService.resolveRecognizedIngredient(ing.name).isRecognized) ? (
                       <View style={styles.lexiconBadgeOk}>
-                        <Ionicons name="checkmark-circle" size={12} color="#16A34A" />
+                        <Ionicons name="checkmark-circle" size={12} color={colors.primary} />
                         <Text style={styles.lexiconBadgeOkText}>Lexique</Text>
                       </View>
                     ) : (
@@ -1061,8 +1092,9 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
                           setIsQualifyModalVisible(true);
                         }}
                         activeOpacity={0.7}
+                        hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
                       >
-                        <Ionicons name="alert-circle" size={12} color="#D97706" />
+                        <Ionicons name="alert-circle" size={12} color={colors.amber} />
                         <Text style={styles.lexiconBadgeWarnText}>À qualifier</Text>
                       </TouchableOpacity>
                     )
@@ -1521,8 +1553,8 @@ const styles = createDynamicStyles((colors, shadows) => ({
     borderColor: colors.primary,
   },
   flagChipActiveOptional: {
-    backgroundColor: '#D9770620',
-    borderColor: '#D97706',
+    backgroundColor: colors.amber + '20',
+    borderColor: colors.amber,
   },
   flagChipText: {
     fontSize: 11,
@@ -1534,7 +1566,7 @@ const styles = createDynamicStyles((colors, shadows) => ({
     fontWeight: '700',
   },
   flagChipTextActiveOptional: {
-    color: '#D97706',
+    color: colors.amber,
     fontWeight: '700',
   },
   lexiconBadgeOk: {
@@ -1544,13 +1576,13 @@ const styles = createDynamicStyles((colors, shadows) => ({
     paddingHorizontal: 7,
     paddingVertical: 3,
     borderRadius: 8,
-    backgroundColor: '#16A34A15',
+    backgroundColor: colors.primary + '15',
     borderWidth: 1,
-    borderColor: '#16A34A30',
+    borderColor: colors.primary + '30',
   },
   lexiconBadgeOkText: {
     fontSize: 10.5,
-    color: '#16A34A',
+    color: colors.primary,
     fontWeight: '600',
   },
   lexiconBadgeWarn: {
@@ -1560,13 +1592,13 @@ const styles = createDynamicStyles((colors, shadows) => ({
     paddingHorizontal: 7,
     paddingVertical: 3,
     borderRadius: 8,
-    backgroundColor: '#D9770618',
+    backgroundColor: colors.amber + '18',
     borderWidth: 1,
-    borderColor: '#D9770640',
+    borderColor: colors.amber + '40',
   },
   lexiconBadgeWarnText: {
     fontSize: 10.5,
-    color: '#D97706',
+    color: colors.amber,
     fontWeight: '700',
   },
   ingredientColumnsHeader: {

@@ -188,10 +188,7 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
 
   // Actions utilisateur
   const handlePressPlus = () => {
-    const raw = newItemName.trim();
-    if (!raw) return;
-    setPendingUnrecognizedName(raw);
-    setIsQualifyModalVisible(true);
+    handleAddItem();
   };
 
   const handleAddItem = async (nameToAdd?: string, aisleToAdd?: ShoppingAisle, canonicalIdToAdd?: string) => {
@@ -323,9 +320,14 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
             value={newItemName}
             onChangeText={setNewItemName}
             clearOnSelect
+            keepFocusOnSelect
             returnKeyType="done"
             context="stock"
-            onSubmitEditing={handlePressPlus}
+            onRequestQualify={(name) => {
+              setPendingUnrecognizedName(name);
+              setIsQualifyModalVisible(true);
+            }}
+            onSubmitEditing={() => handleAddItem()}
             onSelectIngredient={(ing) => {
               handleAddItem(ing.canonicalName, ing.defaultAisle, ing.id);
             }}
@@ -336,7 +338,7 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
               styles.addButton,
               !newItemName.trim() && styles.addButtonDisabled,
             ]}
-            onPress={handlePressPlus}
+            onPress={() => handleAddItem()}
             disabled={!newItemName.trim()}
           >
             <Ionicons name="add" size={24} color="#FFFFFF" />
@@ -375,6 +377,7 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
             contentContainerStyle={styles.suggestionsScroll}
           >
             {availableSuggestions.slice(0, 15).map((sug) => (

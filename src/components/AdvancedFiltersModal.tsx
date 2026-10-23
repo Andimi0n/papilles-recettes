@@ -138,9 +138,8 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
   const [draftMinRating, setDraftMinRating] = useState<number>(minRating);
   const [draftOnlyDoable, setDraftOnlyDoable] = useState<boolean>(onlyDoableWithStock);
 
-  // Saisie et autocomplétion pour les ingrédients
+  // Saisie pour les ingrédients
   const [ingredientInputText, setIngredientInputText] = useState('');
-  const [autocompleteSuggestions, setAutocompleteSuggestions] = useState<CanonicalIngredient[]>([]);
 
   // Synchronise les brouillons dès l'ouverture du modal
   useEffect(() => {
@@ -156,7 +155,6 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
       setDraftMinRating(minRating);
       setDraftOnlyDoable(onlyDoableWithStock);
       setIngredientInputText('');
-      setAutocompleteSuggestions([]);
     }
   }, [
     visible,
@@ -171,22 +169,6 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
     onlyDoableWithStock,
   ]);
 
-  // Recherche synchrone d'ingrédients canoniques pendant la frappe
-  const handleIngredientTextChange = (text: string) => {
-    setIngredientInputText(text);
-    const clean = text.trim();
-    if (clean.length >= 2) {
-      const matches = VocabularyService.search(clean, 6);
-      // Exclure les ingrédients déjà présents dans draftIngredients
-      const filtered = matches.filter(
-        (m) => !draftIngredients.some((ing) => ing.toLowerCase() === m.canonicalName.toLowerCase())
-      );
-      setAutocompleteSuggestions(filtered);
-    } else {
-      setAutocompleteSuggestions([]);
-    }
-  };
-
   const handleAddIngredient = (name: string) => {
     const trimmed = name.trim();
     if (!trimmed) return;
@@ -195,7 +177,6 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
       setDraftIngredients((prev) => [...prev, formatted]);
     }
     setIngredientInputText('');
-    setAutocompleteSuggestions([]);
   };
 
   const handleRemoveIngredient = (name: string) => {
@@ -278,7 +259,6 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
     setDraftMinRating(0);
     setDraftOnlyDoable(false);
     setIngredientInputText('');
-    setAutocompleteSuggestions([]);
   };
 
   const handleApply = () => {
@@ -1014,41 +994,6 @@ const styles = createDynamicStyles((colors, shadows) => ({
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: 6,
-  },
-  autocompleteSuggestionsContainer: {
-    marginTop: 10,
-    padding: 10,
-    backgroundColor: colors.cardBackground,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  suggestionsHeaderLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: colors.textMuted,
-    marginBottom: 6,
-  },
-  suggestionsWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-  },
-  suggestionChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: colors.primaryLight,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.primary + '33',
-  },
-  suggestionChipText: {
-    fontSize: 12.5,
-    fontWeight: '600',
-    color: colors.primary,
   },
   selectedIngredientsContainer: {
     marginTop: 12,

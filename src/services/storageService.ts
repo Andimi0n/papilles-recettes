@@ -482,6 +482,29 @@ export const StorageService = {
    * vers les recettes, le stock et la liste de courses.
    * Sérialisé via mutex pour prévenir tout risque de collision AsyncStorage.
    */
+  async runWithCascadeMutex<T>(task: () => Promise<T>): Promise<T> {
+    return new Promise((resolve, reject) => {
+      cascadeMutexQueue = cascadeMutexQueue
+        .then(() => task())
+        .then(resolve)
+        .catch(reject);
+    });
+  },
+
+  subscribeFridge(listener: StorageListener<FridgeItem[]>): () => void {
+    fridgeListeners.push(listener);
+    return () => {
+      fridgeListeners = fridgeListeners.filter((l) => l !== listener);
+    };
+  },
+
+  subscribeShopping(listener: StorageListener<ShoppingItem[]>): () => void {
+    shoppingListeners.push(listener);
+    return () => {
+      shoppingListeners = shoppingListeners.filter((l) => l !== listener);
+    };
+  },
+
   async handleVocabularyCascade(event: VocabularyCascadeEvent): Promise<{
     recipesUpdated: number;
     shoppingUpdated: number;
@@ -532,16 +555,17 @@ export const StorageService = {
                   }
                 }
               } else if (event.type === 'merge') {
-                const isSource = ing.canonicalId === event.sourceId ||
-                  normalizeString(ing.name) === normalizeString(event.sourceId);
+                const isSource =
+                  ing.canonicalId === event.sourceId ||
+                  (event.sourceIngredient && (
+                    normalizeString(ing.name) === event.sourceIngredient.normalizedName ||
+                    (event.sourceIngredient.aliases && event.sourceIngredient.aliases.includes(normalizeString(ing.name)))
+                  ));
                 if (isSource) {
                   hasRecipeChange = true;
                   return {
                     ...ing,
                     canonicalId: event.targetId,
-                    name: normalizeString(ing.name) === normalizeString(event.sourceId)
-                      ? event.targetIngredient.canonicalName
-                      : ing.name,
                   };
                 }
               } else if (event.type === 'delete') {
@@ -609,8 +633,12 @@ export const StorageService = {
                 }
               }
             } else if (event.type === 'merge') {
-              const isSource = item.canonicalId === event.sourceId ||
-                normalizeString(item.name) === normalizeString(event.sourceId);
+              const isSource =
+                item.canonicalId === event.sourceId ||
+                (event.sourceIngredient && (
+                  normalizeString(item.name) === event.sourceIngredient.normalizedName ||
+                  (event.sourceIngredient.aliases && event.sourceIngredient.aliases.includes(normalizeString(item.name)))
+                ));
               if (isSource) {
                 fridgeUpdated++;
                 hasAnyFridgeChange = true;
@@ -716,8 +744,12 @@ export const StorageService = {
                 }
               }
             } else if (event.type === 'merge') {
-              const isSource = item.canonicalId === event.sourceId ||
-                normalizeString(item.name) === normalizeString(event.sourceId);
+              const isSource =
+                item.canonicalId === event.sourceId ||
+                (event.sourceIngredient && (
+                  normalizeString(item.name) === event.sourceIngredient.normalizedName ||
+                  (event.sourceIngredient.aliases && event.sourceIngredient.aliases.includes(normalizeString(item.name)))
+                ));
               if (isSource) {
                 shoppingUpdated++;
                 hasAnyShoppingChange = true;
@@ -1018,8 +1050,7 @@ export const StorageService = {
    */
   async clearAllShoppingItems(): Promise<ShoppingItem[]> {
     try {
-      await AsyncStorage.setItem(SHOPPING_LIST_KEY, JSON.stringify([]));
-      return [];
+      return await this.saveShoppingList([]);
     } catch (e) {
       console.error('Erreur vidage liste courses:', e);
       throw e;
@@ -1231,8 +1262,7 @@ export const StorageService = {
    */
   async clearFridge(): Promise<FridgeItem[]> {
     try {
-      await AsyncStorage.setItem(FRIDGE_ITEMS_KEY, JSON.stringify([]));
-      return [];
+      return await this.saveFridgeItems([]);
     } catch (e) {
       console.error('Erreur vidage frigo:', e);
       throw e;

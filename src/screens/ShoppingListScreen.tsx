@@ -200,10 +200,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
   };
 
   const handlePressPlus = () => {
-    const trimmedName = newItemName.trim();
-    if (!trimmedName) return;
-    setPendingUnrecognizedName(trimmedName);
-    setIsQualifyModalVisible(true);
+    handleAddItem();
   };
 
   const handleAddItem = async () => {
@@ -517,8 +514,13 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
                 onChangeText={setNewItemName}
                 context="shopping"
                 clearOnSelect
+                keepFocusOnSelect
                 returnKeyType="done"
-                onSubmitEditing={handlePressPlus}
+                onRequestQualify={(name) => {
+                  setPendingUnrecognizedName(name);
+                  setIsQualifyModalVisible(true);
+                }}
+                onSubmitEditing={() => handleAddItem()}
                 onSelectIngredient={(ing, details) => {
                   handleAddItemWithCanonical(ing, details);
                 }}
@@ -537,7 +539,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
                   styles.addButton,
                   !newItemName.trim() && styles.addButtonDisabled,
                 ]}
-                onPress={handlePressPlus}
+                onPress={() => handleAddItem()}
                 disabled={!newItemName.trim()}
               >
                 <Ionicons name="add" size={24} color="#FFFFFF" />
@@ -595,6 +597,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
                 contentContainerStyle={styles.suggestionsScroll}
               >
                 {availableSuggestions.slice(0, 15).map((sug) => (
