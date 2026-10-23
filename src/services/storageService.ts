@@ -18,7 +18,7 @@ import { createShoppingItemFromIngredient, mergeShoppingItems } from '../utils/s
 import { classifyIngredientAisle } from '../utils/aisleClassifier';
 import { normalizeIngredient } from '../utils/ingredientNormalizer';
 import { isKnownDefaultPantryStaple } from '../data/canonicalVocabulary';
-import { VocabularyService } from './vocabularyService';
+import { VocabularyService, VocabularyCascadeEvent } from './vocabularyService';
 import { CanonicalIngredient } from '../types/vocabulary';
 
 const RECIPES_STORAGE_KEY = '@papilles_recipes_v4';
@@ -454,6 +454,272 @@ export const StorageService = {
    */
   async migrateRecipesToCanonicalV1(): Promise<{ recipesUpdated: number; shoppingUpdated: number; fridgeUpdated: number }> {
     return this.runCanonicalVocabularyMigration(false);
+  },
+
+  /**
+   * Propage en cascade les modifications structurelles du lexique
+   * (promotions, fusions, suppressions, renommages de rayon)
+   * vers les recettes, le stock et la liste de courses.
+   */
+  async handleVocabularyCascade(event: VocabularyCascadeEvent): Promise<{
+    recipesUpdated: number;
+    shoppingUpdated: number;
+    fridgeUpdated: number;
+  }> {
+    let recipesUpdated = 0;
+    let shoppingUpdated = 0;
+    let fridgeUpdated = 0;
+
+    const vocabList = VocabularyService.getSyncList();
+
+    // 1. Traitement des Recettes (@papilles_recipes_v4)
+    try {
+      const recipesData = await AsyncStorage.getItem(RECIPES_STORAGE_KEY);
+      if (recipesData) {
+        const recipes: Recipe[] = JSON.parse(recipesData);
+        if (Array.isArray(recipes)) {
+          let hasAnyRecipeChange = false;
+          const updatedRecipes = recipes.map((recipe) => {
+            let hasRecipeChange = false;
+            const updatedIngredients = (recipe.ingredients || []).map((ing) => {
+              if (event.type === 'promote') {
+                if (event.parentIds.includes(ing.canonicalId || '')) {
+                  const recheck = normalizeIngredient({ name: ing.name });
+                  if (recheck.canonicalId === event.newIngredient.id) {
+                    hasRecipeChange = true;
+                    return {
+                      ...ing,
+                      canonicalId: event.newIngredient.id,
+                      isPantryStaple:
+                        event.newIngredient.isPantryStaple !== undefined
+                          ? event.newIngredient.isPantryStaple
+                          : ing.isPantryStaple,
+                    };
+                  }
+                }
+              } else if (event.type === 'merge') {
+                if (ing.canonicalId === event.sourceId) {
+                  hasRecipeChange = true;
+                  return {
+                    ...ing,
+                    canonicalId: event.targetId,
+                  };
+                }
+              } else if (event.type === 'delete') {
+                if (ing.canonicalId === event.deletedId) {
+                  hasRecipeChange = true;
+                  const recheck = normalizeIngredient({ name: ing.name });
+                  return {
+                    ...ing,
+                    canonicalId: recheck.canonicalId,
+                  };
+                }
+              } else if (event.type === 'reset') {
+                const recheck = normalizeIngredient(ing);
+                if (recheck.canonicalId !== ing.canonicalId) {
+                  hasRecipeChange = true;
+                  return {
+                    ...ing,
+                    canonicalId: recheck.canonicalId,
+                  };
+                }
+              }
+              return ing;
+            });
+
+            if (hasRecipeChange) {
+              recipesUpdated++;
+              hasAnyRecipeChange = true;
+              return {
+                ...recipe,
+                ingredients: updatedIngredients,
+                updatedAt: new Date().toISOString(),
+              };
+            }
+            return recipe;
+          });
+
+          if (hasAnyRecipeChange) {
+            await AsyncStorage.setItem(RECIPES_STORAGE_KEY, JSON.stringify(updatedRecipes));
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Erreur cascade recettes:', e);
+    }
+
+    // 2. Traitement du Stock Frigo / Placard (@papilles_fridge_items_v1)
+    try {
+      const fridgeData = await AsyncStorage.getItem(FRIDGE_ITEMS_KEY);
+      if (fridgeData) {
+        const fridgeItems: FridgeItem[] = JSON.parse(fridgeData);
+        if (Array.isArray(fridgeItems)) {
+          let hasAnyFridgeChange = false;
+          const updatedFridge = fridgeItems.map((item) => {
+            if (event.type === 'promote') {
+              if (event.parentIds.includes(item.canonicalId || '')) {
+                const recheck = normalizeIngredient({ name: item.name });
+                if (recheck.canonicalId === event.newIngredient.id) {
+                  fridgeUpdated++;
+                  hasAnyFridgeChange = true;
+                  return {
+                    ...item,
+                    canonicalId: event.newIngredient.id,
+                    aisle: event.newIngredient.defaultAisle,
+                  };
+                }
+              }
+            } else if (event.type === 'merge') {
+              if (item.canonicalId === event.sourceId) {
+                fridgeUpdated++;
+                hasAnyFridgeChange = true;
+                return {
+                  ...item,
+                  canonicalId: event.targetId,
+                  aisle: event.targetIngredient.defaultAisle,
+                };
+              }
+            } else if (event.type === 'update') {
+              if (item.canonicalId === event.updatedIngredient.id) {
+                if (item.aisle !== event.updatedIngredient.defaultAisle) {
+                  fridgeUpdated++;
+                  hasAnyFridgeChange = true;
+                  return {
+                    ...item,
+                    aisle: event.updatedIngredient.defaultAisle,
+                  };
+                }
+              }
+            } else if (event.type === 'delete') {
+              if (item.canonicalId === event.deletedId) {
+                fridgeUpdated++;
+                hasAnyFridgeChange = true;
+                const recheck = normalizeIngredient({ name: item.name });
+                const canonDef = recheck.canonicalId ? vocabList.find((v) => v.id === recheck.canonicalId) : undefined;
+                return {
+                  ...item,
+                  canonicalId: recheck.canonicalId,
+                  aisle: canonDef?.defaultAisle || item.aisle,
+                };
+              }
+            } else if (event.type === 'reset') {
+              const recheck = normalizeIngredient({ name: item.name });
+              const canonDef = recheck.canonicalId ? vocabList.find((v) => v.id === recheck.canonicalId) : undefined;
+              if (recheck.canonicalId !== item.canonicalId || (canonDef && canonDef.defaultAisle !== item.aisle)) {
+                fridgeUpdated++;
+                hasAnyFridgeChange = true;
+                return {
+                  ...item,
+                  canonicalId: recheck.canonicalId,
+                  aisle: canonDef?.defaultAisle || item.aisle,
+                };
+              }
+            }
+            return item;
+          });
+
+          if (hasAnyFridgeChange) {
+            await AsyncStorage.setItem(FRIDGE_ITEMS_KEY, JSON.stringify(updatedFridge));
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Erreur cascade stock:', e);
+    }
+
+    // 3. Traitement de la Liste de Courses (@papilles_shopping_list_v1)
+    try {
+      const shoppingData = await AsyncStorage.getItem(SHOPPING_LIST_KEY);
+      if (shoppingData) {
+        const shoppingItems: ShoppingItem[] = JSON.parse(shoppingData);
+        if (Array.isArray(shoppingItems)) {
+          let hasAnyShoppingChange = false;
+          const updatedShopping = shoppingItems.map((item) => {
+            if (event.type === 'promote') {
+              if (event.parentIds.includes(item.canonicalId || '')) {
+                const recheck = normalizeIngredient({ name: item.name });
+                if (recheck.canonicalId === event.newIngredient.id) {
+                  shoppingUpdated++;
+                  hasAnyShoppingChange = true;
+                  return {
+                    ...item,
+                    name: event.newIngredient.canonicalName,
+                    canonicalId: event.newIngredient.id,
+                    aisle: event.newIngredient.defaultAisle,
+                  };
+                }
+              }
+            } else if (event.type === 'merge') {
+              if (item.canonicalId === event.sourceId) {
+                shoppingUpdated++;
+                hasAnyShoppingChange = true;
+                return {
+                  ...item,
+                  name: event.targetIngredient.canonicalName,
+                  canonicalId: event.targetId,
+                  aisle: event.targetIngredient.defaultAisle,
+                };
+              }
+            } else if (event.type === 'update') {
+              if (item.canonicalId === event.updatedIngredient.id) {
+                let changed = false;
+                const nextItem = { ...item };
+                if (
+                  event.previousIngredient.canonicalName === item.name &&
+                  event.updatedIngredient.canonicalName !== item.name
+                ) {
+                  nextItem.name = event.updatedIngredient.canonicalName;
+                  changed = true;
+                }
+                if (event.updatedIngredient.defaultAisle !== item.aisle) {
+                  nextItem.aisle = event.updatedIngredient.defaultAisle;
+                  changed = true;
+                }
+                if (changed) {
+                  shoppingUpdated++;
+                  hasAnyShoppingChange = true;
+                  return nextItem;
+                }
+              }
+            } else if (event.type === 'delete') {
+              if (item.canonicalId === event.deletedId) {
+                shoppingUpdated++;
+                hasAnyShoppingChange = true;
+                const recheck = normalizeIngredient({ name: item.name });
+                const canonDef = recheck.canonicalId ? vocabList.find((v) => v.id === recheck.canonicalId) : undefined;
+                return {
+                  ...item,
+                  canonicalId: recheck.canonicalId,
+                  aisle: canonDef?.defaultAisle || item.aisle,
+                };
+              }
+            } else if (event.type === 'reset') {
+              const recheck = normalizeIngredient({ name: item.name });
+              const canonDef = recheck.canonicalId ? vocabList.find((v) => v.id === recheck.canonicalId) : undefined;
+              if (recheck.canonicalId !== item.canonicalId || (canonDef && canonDef.defaultAisle !== item.aisle)) {
+                shoppingUpdated++;
+                hasAnyShoppingChange = true;
+                return {
+                  ...item,
+                  canonicalId: recheck.canonicalId,
+                  name: recheck.canonicalId ? recheck.name : item.name,
+                  aisle: canonDef?.defaultAisle || item.aisle,
+                };
+              }
+            }
+            return item;
+          });
+
+          if (hasAnyShoppingChange) {
+            await AsyncStorage.setItem(SHOPPING_LIST_KEY, JSON.stringify(updatedShopping));
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Erreur cascade courses:', e);
+    }
+
+    return { recipesUpdated, shoppingUpdated, fridgeUpdated };
   },
 
   // ==========================================
@@ -1448,3 +1714,9 @@ export const StorageService = {
     }
   },
 };
+
+// Enregistrer la synchronisation en cascade automatique pour propager
+// immédiatement toute mutation du vocabulaire canonique vers les recettes, le stock et les courses.
+VocabularyService.onVocabularyCascade(async (event) => {
+  await StorageService.handleVocabularyCascade(event);
+});

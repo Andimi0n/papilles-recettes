@@ -156,6 +156,9 @@ npm run test:shopping
 # Tests de conformité des allergènes INCO & racines sémantiques
 npm run test:allergens
 
+# Tests de propagation en cascade du lexique (promotions, fusions, rayons)
+npm run test:cascade
+
 # Vérification stricte des types TypeScript (0 erreur requise)
 npx tsc --noEmit
 

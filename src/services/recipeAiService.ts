@@ -3,7 +3,7 @@ import { Platform } from 'react-native';
 import { Recipe, Category, Difficulty, RecipeIdea } from '../types/recipe';
 import { normalizeIngredients } from '../utils/ingredientNormalizer';
 
-let SecureStore: typeof import('expo-secure-store') | null = null;
+let SecureStore: any = null;
 try {
   SecureStore = require('expo-secure-store');
 } catch {

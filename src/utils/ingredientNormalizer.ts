@@ -206,6 +206,11 @@ export function clearNormalizationCache(): void {
   CACHED_LOOKUP_INDEX = null;
 }
 
+// Invalidation automatique des caches mémoire à chaque modification du vocabulaire
+VocabularyService.registerOnSaveCallback(() => {
+  clearNormalizationCache();
+});
+
 /**
  * Normalise un nom d'ingrédient individuel par rapport au vocabulaire canonique.
  * Applique la cascade stricte « Lexique-First » :
@@ -277,7 +282,31 @@ export function normalizeIngredient(raw: {
   };
 
   // =========================================================================
+  // ÉTAPE 1 : LOOKUP DIRECT LEXIQUE (O(1)) - Le « Vrai » Lexique-First
+  // Priorité absolue sur le terme brut normalisé typographiquement (sans regex destructive).
+  // Garantit que "Crème fraîche", "Légumes surgelés", "Poudre d'amande", "Noix de muscade",
+  // "Vin blanc" matchent IMMÉDIATEMENT sans aucune altération de leurs adjectifs constitutifs.
+  // De plus, si un synonyme a été détaché pour devenir un terme canonique autonome, ce match
+  // direct immédiat prévaut sur un ancien canonicalId obsolète.
+  // =========================================================================
+  const directMatch = lookupIndex.exactMap.get(strippedNorm);
+  if (directMatch) {
+    return saveCache({
+      name: directMatch.canonicalName,
+      quantity: raw.quantity,
+      unit: raw.unit,
+      originalName,
+      wasNormalized: directMatch.canonicalName !== originalName.trim(),
+      canonicalId: directMatch.id,
+      matchedAlias: strippedNorm,
+      isPantryStaple: resolveStaple(directMatch),
+      isOptional: resolvedOptional,
+    });
+  }
+
+  // =========================================================================
   // ÉTAPE 0 : Si un canonicalId valide est déjà fourni en amont
+  // Pris en compte uniquement si le terme n'avait pas de match exact direct prioritaire.
   // =========================================================================
   if (raw.canonicalId) {
     const existingById = vocabList.find((v) => v.id === raw.canonicalId);
@@ -293,27 +322,6 @@ export function normalizeIngredient(raw: {
         isOptional: resolvedOptional,
       });
     }
-  }
-
-  // =========================================================================
-  // ÉTAPE 1 : LOOKUP DIRECT LEXIQUE (O(1)) - Le « Vrai » Lexique-First
-  // Priorité absolue sur le terme brut normalisé typographiquement (sans regex destructive).
-  // Garantit que "Crème fraîche", "Légumes surgelés", "Poudre d'amande", "Noix de muscade",
-  // "Vin blanc" matchent IMMÉDIATEMENT sans aucune altération de leurs adjectifs constitutifs.
-  // =========================================================================
-  const directMatch = lookupIndex.exactMap.get(strippedNorm);
-  if (directMatch) {
-    return saveCache({
-      name: directMatch.canonicalName,
-      quantity: raw.quantity,
-      unit: raw.unit,
-      originalName,
-      wasNormalized: directMatch.canonicalName !== originalName.trim(),
-      canonicalId: directMatch.id,
-      matchedAlias: strippedNorm,
-      isPantryStaple: resolveStaple(directMatch),
-      isOptional: resolvedOptional,
-    });
   }
 
   // =========================================================================

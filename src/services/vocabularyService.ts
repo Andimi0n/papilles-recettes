@@ -13,10 +13,40 @@ import { classifyIngredientAisle } from '../utils/aisleClassifier';
 
 const VOCABULARY_STORAGE_KEY = '@papilles_canonical_vocabulary_v1';
 
+export type VocabularyCascadeEvent =
+  | {
+      type: 'promote';
+      parentIds: string[];
+      newIngredient: CanonicalIngredient;
+      detachedAliases: string[];
+    }
+  | {
+      type: 'merge';
+      sourceId: string;
+      targetId: string;
+      targetIngredient: CanonicalIngredient;
+    }
+  | {
+      type: 'update';
+      updatedIngredient: CanonicalIngredient;
+      previousIngredient: CanonicalIngredient;
+    }
+  | {
+      type: 'delete';
+      deletedId: string;
+    }
+  | {
+      type: 'reset';
+    };
+
+export type VocabularyCascadeListener = (event: VocabularyCascadeEvent) => Promise<void> | void;
+
 // Cache en mémoire pour garantir 0 ms de latence sur l'autocomplétion pendant la frappe
 let memoryCache: CanonicalIngredient[] | null = null;
 let isInitializing = false;
 let initPromise: Promise<CanonicalIngredient[]> | null = null;
+let cascadeListeners: VocabularyCascadeListener[] = [];
+let onSaveCallback: (() => void) | null = null;
 
 export const VocabularyService = {
   /**
@@ -236,10 +266,49 @@ export const VocabularyService = {
   },
 
   /**
+   * Enregistre un callback de notification déclenché immédiatement lors de saveAll
+   * (utilisé par ingredientNormalizer pour vider ses caches mémoire sans cycle d'import)
+   */
+  registerOnSaveCallback(cb: () => void): void {
+    onSaveCallback = cb;
+  },
+
+  /**
+   * Enregistre un écouteur de cascade pour propager les changements structurels du lexique
+   * (promotions, fusions, suppressions, renommages de rayon) vers les recettes, le stock et les courses.
+   */
+  onVocabularyCascade(listener: VocabularyCascadeListener): () => void {
+    cascadeListeners.push(listener);
+    return () => {
+      cascadeListeners = cascadeListeners.filter((l) => l !== listener);
+    };
+  },
+
+  /**
+   * Notifie tous les écouteurs d'un événement de cascade
+   */
+  async notifyCascade(event: VocabularyCascadeEvent): Promise<void> {
+    for (const listener of cascadeListeners) {
+      try {
+        await listener(event);
+      } catch (err) {
+        console.error('Erreur listener cascade vocabulaire:', err);
+      }
+    }
+  },
+
+  /**
    * Sauvegarde l'état actuel de la liste dans le cache et AsyncStorage
    */
   async saveAll(list: CanonicalIngredient[]): Promise<void> {
     memoryCache = list;
+    if (onSaveCallback) {
+      try {
+        onSaveCallback();
+      } catch (e) {
+        console.error('Erreur onSaveCallback vocabulaire:', e);
+      }
+    }
     await AsyncStorage.setItem(VOCABULARY_STORAGE_KEY, JSON.stringify(list));
   },
 
@@ -396,6 +465,7 @@ export const VocabularyService = {
     const now = new Date().toISOString();
     let sourceAisle: ShoppingAisle | undefined;
     const detachedAliases: string[] = [];
+    const affectedParentIds: string[] = [];
 
     // Mots composants le terme promu (ex: ["noix", "de", "muscade"])
     const normTokens = norm.split(/\s+/).filter((t) => t.length > 1);
@@ -417,6 +487,8 @@ export const VocabularyService = {
       if (!hasMatchingAlias) {
         return item;
       }
+
+      affectedParentIds.push(item.id);
 
       if (!sourceAisle) {
         sourceAisle = item.defaultAisle;
@@ -498,8 +570,14 @@ export const VocabularyService = {
         ? isPantryStaple
         : isKnownDefaultPantryStaple(cleanName);
 
+    const baseSlug = generateCanonicalSlugId(cleanName);
+    const existingWithSlug = list.some((i) => i.id === baseSlug);
+    const uniqueId = existingWithSlug
+      ? `${baseSlug}_${Date.now()}`
+      : baseSlug;
+
     const newEntry: CanonicalIngredient = {
-      id: `ing_custom_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      id: uniqueId,
       canonicalName: formattedName,
       normalizedName: norm,
       aliases: Array.from(newAliasSet),
@@ -513,6 +591,12 @@ export const VocabularyService = {
 
     const finalList = [newEntry, ...updatedList];
     await this.saveAll(finalList);
+    await this.notifyCascade({
+      type: 'promote',
+      parentIds: affectedParentIds,
+      newIngredient: newEntry,
+      detachedAliases,
+    });
     return newEntry;
   },
 
@@ -587,6 +671,11 @@ export const VocabularyService = {
     const nextList = [...list];
     nextList[idx] = updatedItem;
     await this.saveAll(nextList);
+    await this.notifyCascade({
+      type: 'update',
+      updatedIngredient: updatedItem,
+      previousIngredient: current,
+    });
     return updatedItem;
   },
 
@@ -609,6 +698,10 @@ export const VocabularyService = {
     const list = await this.getAll();
     const nextList = list.filter((i) => i.id !== id);
     await this.saveAll(nextList);
+    await this.notifyCascade({
+      type: 'delete',
+      deletedId: id,
+    });
   },
 
   /**
@@ -640,6 +733,12 @@ export const VocabularyService = {
       .map((i) => (i.id === targetId ? updatedTarget : i));
 
     await this.saveAll(nextList);
+    await this.notifyCascade({
+      type: 'merge',
+      sourceId,
+      targetId,
+      targetIngredient: updatedTarget,
+    });
     return updatedTarget;
   },
 
@@ -664,6 +763,9 @@ export const VocabularyService = {
   async resetToDefaults(): Promise<void> {
     const defaults = getInitialCanonicalVocabulary();
     await this.saveAll(defaults);
+    await this.notifyCascade({
+      type: 'reset',
+    });
   },
 
   /**
