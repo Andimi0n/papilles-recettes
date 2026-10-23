@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { CanonicalIngredient, AllergenFamily, ALLERGEN_FAMILIES } from '../types/vocabulary';
 import { ShoppingAisle } from '../types/shopping';
 import { AISLE_CONFIGS } from '../utils/aisleClassifier';
+import { normalizeString } from '../utils/helpers';
 import { VocabularyService } from '../services/vocabularyService';
 import {
   UnifiedIngredientService,
@@ -113,6 +114,47 @@ export const QualifyIngredientModal: React.FC<QualifyIngredientModalProps> = ({
     }
   };
 
+  // Détection si le terme est actuellement rattaché comme synonyme d'un ingrédient parent
+  const parentWithAlias = useMemo(() => {
+    if (!visible) return null;
+    const nameToTest = (canonicalNameInput.trim() || rawName.trim()).toLowerCase();
+    if (nameToTest.length < 2) return null;
+    const norm = normalizeString(nameToTest);
+    const list = VocabularyService.getSyncList();
+    return (
+      list.find(
+        (i) => i.normalizedName !== norm && i.aliases && i.aliases.includes(norm)
+      ) || null
+    );
+  }, [visible, canonicalNameInput, rawName]);
+
+  // Action : Détacher et promouvoir directement ce synonyme en ingrédient canonique
+  const handlePromoteExistingAlias = async () => {
+    if (!parentWithAlias) return;
+    setIsSubmitting(true);
+    setErrorMessage(null);
+    try {
+      const cleanName = canonicalNameInput.trim() || rawName.trim();
+      const promoted = await VocabularyService.promoteAliasToCanonical(
+        cleanName,
+        selectedAisle || parentWithAlias.defaultAisle,
+        undefined,
+        isPantryStaple
+      );
+      if (selectedAllergen) {
+        await VocabularyService.updateAllergenFamily(promoted.id, selectedAllergen);
+      }
+      await UnifiedIngredientService.linkUnrecognizedItemsToNewCanonical(promoted);
+      onCreateCanonical(promoted);
+      onClose();
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Impossible de détacher ce synonyme.';
+      setErrorMessage(msg);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   // Action : Créer un nouvel ingrédient canonique
   const handleCreateNew = async () => {
     const rawAliases = extraAliasesInput
@@ -139,6 +181,7 @@ export const QualifyIngredientModal: React.FC<QualifyIngredientModalProps> = ({
       allergen: selectedAllergen,
       isPantryStaple,
       aliases: rawAliases,
+      allowPromoteAlias: true,
     });
 
     setIsSubmitting(false);
@@ -186,6 +229,35 @@ export const QualifyIngredientModal: React.FC<QualifyIngredientModalProps> = ({
           </View>
 
           <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            {/* CARTE DE PROMOTION D'UN SYNONYME EXISTANT (DÉTACHEMENT EN 1 CLIC) */}
+            {parentWithAlias && (
+              <View style={styles.promoteCard}>
+                <View style={styles.promoteCardHeader}>
+                  <View style={styles.promoteIconBadge}>
+                    <Ionicons name="sparkles" size={16} color="#FFFFFF" />
+                  </View>
+                  <View style={styles.promoteTextColumn}>
+                    <Text style={styles.promoteCardTitle}>Synonyme déjà répertorié</Text>
+                    <Text style={styles.promoteCardSubtitle}>
+                      « {canonicalNameInput || rawName} » est actuellement associé comme synonyme de « {parentWithAlias.canonicalName} ».
+                    </Text>
+                  </View>
+                </View>
+
+                <TouchableOpacity
+                  style={styles.promoteActionBtn}
+                  onPress={handlePromoteExistingAlias}
+                  disabled={isSubmitting}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="arrow-up-circle-outline" size={17} color="#FFFFFF" style={{ marginRight: 6 }} />
+                  <Text style={styles.promoteActionBtnText}>
+                    Détacher et promouvoir en ingrédient principal
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
             {/* SECTION 1 : SUGGESTIONS ET RECHERCHE DE SYNONYMES */}
             <View style={styles.synonymsSection}>
               <View style={styles.sectionTitleRow}>
@@ -935,5 +1007,56 @@ const styles = createDynamicStyles((colors) => ({
     fontSize: 12,
     color: colors.textSecondary,
     fontStyle: 'italic',
+  },
+  promoteCard: {
+    backgroundColor: colors.primary + '12',
+    borderWidth: 1,
+    borderColor: colors.primary + '35',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 16,
+  },
+  promoteCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    marginBottom: 12,
+  },
+  promoteIconBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 1,
+  },
+  promoteTextColumn: {
+    flex: 1,
+  },
+  promoteCardTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.primary,
+    marginBottom: 3,
+  },
+  promoteCardSubtitle: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    lineHeight: 16,
+  },
+  promoteActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+  },
+  promoteActionBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 }));

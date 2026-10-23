@@ -33,6 +33,7 @@ export interface NewIngredientCandidate {
   allergen?: AllergenFamily | null;
   isPantryStaple: boolean;
   aliases?: string[];
+  allowPromoteAlias?: boolean;
 }
 
 export interface ValidationResult {
@@ -40,6 +41,7 @@ export interface ValidationResult {
   error?: string;
   warning?: string;
   formattedName?: string;
+  parentOfAlias?: CanonicalIngredient;
 }
 
 /**
@@ -488,10 +490,11 @@ export const UnifiedIngredientService = {
 
     // Conflit alias existant
     const parentWithAlias = list.find((i) => i.aliases && i.aliases.includes(normName));
-    if (parentWithAlias) {
+    if (parentWithAlias && !candidate.allowPromoteAlias) {
       return {
         valid: false,
         error: `« ${rawName} » est déjà un synonyme de « ${parentWithAlias.canonicalName} ».`,
+        parentOfAlias: parentWithAlias,
       };
     }
 
