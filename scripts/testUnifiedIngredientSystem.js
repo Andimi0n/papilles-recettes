@@ -283,6 +283,45 @@ async function main() {
   assert.strictEqual(fauxAmi, null, 'Le lait de coco ne doit pas activer l\'allergène laitier');
   console.log('✓ Faux ami "lait de coco" -> aucun allergène laitier erroné');
 
+  // =========================================================================
+  // TEST 7 : Blocage strict des ingrédients non qualifiés en recette (Section 8)
+  // =========================================================================
+  console.log('\n--- Test 7 : Blocage strict des ingrédients non qualifiés en recette ---');
+
+  // Simulation d'une saisie brute non cataloguée ("fenouil sauvage") sans sélection dans la liste
+  const rawInput = 'fenouil sauvage';
+  const resolutionBefore = UnifiedIngredientService.resolveRecognizedIngredient(rawInput);
+  assert.strictEqual(resolutionBefore.isRecognized, false, 'Un terme brut inconnu ne doit pas être reconnu');
+
+  // Une recette contenant ce terme brut sans canonicalId est interceptée
+  const testRecipeIngredients = [
+    { id: 'ing_1', name: 'Carotte', canonicalId: 'ing_canon_carotte' },
+    { id: 'ing_2', name: rawInput, canonicalId: undefined },
+  ];
+
+  const uncatalogued = testRecipeIngredients.find(
+    (i) => !i.canonicalId || !UnifiedIngredientService.resolveRecognizedIngredient(i.name).isRecognized
+  );
+  assert.ok(uncatalogued, 'L\'ingrédient non catalogué doit être intercepté avant sauvegarde');
+  assert.strictEqual(uncatalogued.name, rawInput);
+  console.log(`✓ Saisie brute "${rawInput}" correctement interceptée : sauvegarde bloquée tant qu'elle n'est pas qualifiée`);
+
+  // Qualification du terme comme synonyme d'un ingrédient existant (ou création)
+  const fenouilCanon =
+    VocabularyService.getSyncList().find((c) => c.canonicalName === 'Fenouil') ||
+    (await UnifiedIngredientService.registerNewCanonicalIngredient({
+      canonicalName: 'Fenouil',
+      defaultAisle: 'Fruits & Légumes',
+      allergen: null,
+      isPantryStaple: false,
+    })).ingredient;
+
+  await UnifiedIngredientService.addAliasToCanonical(fenouilCanon.id, rawInput);
+  const resolutionAfter = UnifiedIngredientService.resolveRecognizedIngredient(rawInput);
+  assert.strictEqual(resolutionAfter.isRecognized, true, 'Après qualification, le terme doit être reconnu');
+  assert.strictEqual(resolutionAfter.canonical.id, fenouilCanon.id);
+  console.log(`✓ Après qualification de "${rawInput}", la recette peut être enregistrée avec son canonicalId officiel`);
+
   console.log('\n🎉 TOUS LES TESTS DU SYSTÈME UNIFIÉ D\'ENTRÉE D\'INGRÉDIENTS ONT RÉUSSI (0 ERREUR) !');
 
   if (fs.existsSync(tmpDir)) {

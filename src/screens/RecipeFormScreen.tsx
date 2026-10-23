@@ -22,6 +22,8 @@ import { generateUniqueId, normalizeString } from '../utils/helpers';
 import { normalizeIngredient } from '../utils/ingredientNormalizer';
 import { CanonicalIngredient } from '../types/vocabulary';
 import { IngredientAutocompleteInput } from '../components/IngredientAutocompleteInput';
+import { QualifyIngredientModal } from '../components/QualifyIngredientModal';
+import { UnifiedIngredientService } from '../services/unifiedIngredientService';
 import { VocabularyService } from '../services/vocabularyService';
 import { isKnownDefaultPantryStaple } from '../data/canonicalVocabulary';
 import {
@@ -207,14 +209,18 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
       if (extracted.userNote) setUserNote(extracted.userNote.trim());
       if (extracted.ingredients && extracted.ingredients.length > 0) {
         setIngredients(
-          extracted.ingredients.map((ing, idx) => ({
-            id: generateUniqueId(`ing_text_${idx + 1}`),
-            name: ing.name,
-            quantity: ing.quantity,
-            unit: ing.unit,
-            isPantryStaple: ing.isPantryStaple,
-            isOptional: ing.isOptional,
-          }))
+          extracted.ingredients.map((ing, idx) => {
+            const res = UnifiedIngredientService.resolveRecognizedIngredient(ing.name);
+            return {
+              id: generateUniqueId(`ing_text_${idx + 1}`),
+              name: res.isRecognized && res.canonical ? res.canonical.canonicalName : ing.name,
+              canonicalId: res.isRecognized && res.canonical ? res.canonical.id : undefined,
+              quantity: ing.quantity,
+              unit: ing.unit,
+              isPantryStaple: ing.isPantryStaple ?? res.canonical?.isPantryStaple,
+              isOptional: ing.isOptional,
+            };
+          })
         );
       }
       if (extracted.steps && extracted.steps.length > 0) {
@@ -272,6 +278,11 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
   );
   // Focus actif pour élévation prioritaire du dongle de suggestions
   const [activeIngIndex, setActiveIngIndex] = useState<number | null>(null);
+
+  // État de qualification obligatoire d'ingrédient non répertorié (Section 8)
+  const [isQualifyModalVisible, setIsQualifyModalVisible] = useState(false);
+  const [pendingQualifyIndex, setPendingQualifyIndex] = useState<number | null>(null);
+  const [pendingUnrecognizedName, setPendingUnrecognizedName] = useState('');
 
   // Steps state
   const [steps, setSteps] = useState<RecipeStep[]>(
@@ -358,6 +369,15 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
     setIngredients(updated);
   };
 
+  const handleQualifyIngredientSuccess = (canonical: CanonicalIngredient) => {
+    if (pendingQualifyIndex !== null && pendingQualifyIndex >= 0 && pendingQualifyIndex < ingredients.length) {
+      handleSelectCanonicalIngredient(pendingQualifyIndex, canonical);
+    }
+    setIsQualifyModalVisible(false);
+    setPendingQualifyIndex(null);
+    setPendingUnrecognizedName('');
+  };
+
   const handleToggleIngredientStaple = (index: number) => {
     const updated = [...ingredients];
     updated[index] = {
@@ -415,8 +435,8 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
       return;
     }
 
-    const validIngredients = ingredients.filter((i) => i.name.trim().length > 0);
-    if (validIngredients.length === 0) {
+    const nonEmptyIngredients = ingredients.filter((i) => i.name.trim().length > 0);
+    if (nonEmptyIngredients.length === 0) {
       Alert.alert('Ingrédient requis', 'Veuillez renseigner au moins un ingrédient.');
       return;
     }
@@ -427,10 +447,51 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
       return;
     }
 
+    // CONFORMITÉ STRICTE AU LEXIQUE (Section 8) :
+    // Chaque ingrédient de la recette DOIT impérativement appartenir au lexique canonique.
+    // Si un ingrédient n'est pas encore qualifié, la sauvegarde est bloquée et le modal s'ouvre.
+    const syncList = VocabularyService.getSyncList();
+    const validatedIngredients: Ingredient[] = [];
+    let firstUnrecognized: { index: number; name: string } | null = null;
+
+    for (let i = 0; i < ingredients.length; i++) {
+      const ing = ingredients[i];
+      const trimmedName = ing.name.trim();
+      if (!trimmedName) continue;
+
+      // 1. Déjà doté d'un canonicalId vérifié dans le lexique
+      if (ing.canonicalId && syncList.some((c) => c.id === ing.canonicalId)) {
+        validatedIngredients.push(ing);
+        continue;
+      }
+
+      // 2. Tentative de résolution directe O(1) via le service unifié
+      const res = UnifiedIngredientService.resolveRecognizedIngredient(trimmedName);
+      if (res.isRecognized && res.canonical) {
+        validatedIngredients.push({
+          ...ing,
+          name: res.canonical.canonicalName,
+          canonicalId: res.canonical.id,
+          isPantryStaple: res.canonical.isPantryStaple ?? ing.isPantryStaple,
+        });
+        continue;
+      }
+
+      // 3. Ingrédient non répertorié : blocage de la sauvegarde et qualification requise
+      firstUnrecognized = { index: i, name: trimmedName };
+      break;
+    }
+
+    if (firstUnrecognized) {
+      setPendingQualifyIndex(firstUnrecognized.index);
+      setPendingUnrecognizedName(firstUnrecognized.name);
+      setIsQualifyModalVisible(true);
+      return;
+    }
+
     const recipe: Recipe = {
       id: initialRecipe?.id || generateUniqueId('rec'),
       title: title.trim(),
-
       description: description.trim(),
       category,
       difficulty,
@@ -445,14 +506,13 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
       isFavorite: initialRecipe?.isFavorite || false,
       createdAt: initialRecipe?.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      ingredients: validIngredients,
+      ingredients: validatedIngredients,
       steps: validSteps.map((s, idx) => ({ ...s, order: idx + 1 })),
     };
 
-    // Enregistrement silencieux et incrémentation de l'usage dans le vocabulaire
-    validIngredients.forEach((ing) => {
-      const clean = ing.name.trim();
-      VocabularyService.incrementUsage(clean).catch(() => {});
+    // Incrémentation de l'usage dans le vocabulaire
+    validatedIngredients.forEach((ing) => {
+      VocabularyService.incrementUsage(ing.canonicalId || ing.name).catch(() => {});
     });
 
     onSave(recipe);
@@ -984,6 +1044,29 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
 
                 {/* Organisation par sections (Livre de Chef) */}
                 <View style={styles.ingredientFlagsRow}>
+                  {/* Badge statut Lexique */}
+                  {ing.name.trim().length >= 2 && (
+                    Boolean(ing.canonicalId || UnifiedIngredientService.resolveRecognizedIngredient(ing.name).isRecognized) ? (
+                      <View style={styles.lexiconBadgeOk}>
+                        <Ionicons name="checkmark-circle" size={12} color="#16A34A" />
+                        <Text style={styles.lexiconBadgeOkText}>Lexique</Text>
+                      </View>
+                    ) : (
+                      <TouchableOpacity
+                        style={styles.lexiconBadgeWarn}
+                        onPress={() => {
+                          setPendingQualifyIndex(index);
+                          setPendingUnrecognizedName(ing.name.trim());
+                          setIsQualifyModalVisible(true);
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons name="alert-circle" size={12} color="#D97706" />
+                        <Text style={styles.lexiconBadgeWarnText}>À qualifier</Text>
+                      </TouchableOpacity>
+                    )
+                  )}
+
                   <TouchableOpacity
                     style={[
                       styles.flagChip,
@@ -1134,6 +1217,24 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
         </View>
       </View>
     </Modal>
+
+    {/* Modal de qualification stricte (Passeport Ingrédient) */}
+    <QualifyIngredientModal
+      visible={isQualifyModalVisible}
+      rawName={pendingUnrecognizedName}
+      context="recipe"
+      onClose={() => {
+        setIsQualifyModalVisible(false);
+        setPendingQualifyIndex(null);
+        setPendingUnrecognizedName('');
+      }}
+      onAttachAsSynonym={(canonical) => {
+        handleQualifyIngredientSuccess(canonical);
+      }}
+      onCreateCanonical={(created) => {
+        handleQualifyIngredientSuccess(created);
+      }}
+    />
   </SafeAreaView>
   );
 };
@@ -1432,6 +1533,38 @@ const styles = createDynamicStyles((colors, shadows) => ({
     fontWeight: '700',
   },
   flagChipTextActiveOptional: {
+    color: '#D97706',
+    fontWeight: '700',
+  },
+  lexiconBadgeOk: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 8,
+    backgroundColor: '#16A34A15',
+    borderWidth: 1,
+    borderColor: '#16A34A30',
+  },
+  lexiconBadgeOkText: {
+    fontSize: 10.5,
+    color: '#16A34A',
+    fontWeight: '600',
+  },
+  lexiconBadgeWarn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 8,
+    backgroundColor: '#D9770618',
+    borderWidth: 1,
+    borderColor: '#D9770640',
+  },
+  lexiconBadgeWarnText: {
+    fontSize: 10.5,
     color: '#D97706',
     fontWeight: '700',
   },
