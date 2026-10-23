@@ -938,8 +938,8 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_007_5",
-        "name": "Biscuits à la cuillère",
-        "canonicalId": "ing_canon_biscuits_a_la_cuillere",
+        "name": "Biscuit à la cuillère",
+        "canonicalId": "ing_canon_biscuit_a_la_cuillere",
         "quantity": "24",
         "unit": "",
         "isPantryStaple": false,
@@ -3760,8 +3760,8 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_028_4",
-        "name": "Olives",
-        "canonicalId": "ing_canon_olives",
+        "name": "Olive",
+        "canonicalId": "ing_canon_olive",
         "quantity": "1",
         "unit": "pot",
         "isPantryStaple": false,
@@ -3886,8 +3886,8 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_029_3",
-        "name": "Olives",
-        "canonicalId": "ing_canon_olives",
+        "name": "Olive",
+        "canonicalId": "ing_canon_olive",
         "quantity": "150",
         "unit": "g",
         "isPantryStaple": false,
@@ -4008,8 +4008,8 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_030_2",
-        "name": "Lardons",
-        "canonicalId": "ing_canon_lardons",
+        "name": "Lardon",
+        "canonicalId": "ing_canon_lardon",
         "quantity": "100",
         "unit": "g",
         "isPantryStaple": false,
@@ -4913,7 +4913,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_038_8",
-        "name": "Crepe dentelle soit 9 petits papiers dores",
+        "name": "Crepe dentelle soit 9 petits papiers",
         "quantity": "",
         "unit": "",
         "isPantryStaple": false,
@@ -5538,7 +5538,8 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_042_8",
-        "name": "Haricots rouges egouttes",
+        "name": "Haricot rouge",
+        "canonicalId": "ing_canon_haricot_rouge",
         "quantity": "1",
         "unit": "boîte",
         "isPantryStaple": false,
@@ -5821,6 +5822,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       {
         "id": "ing_rec_top100_044_6",
         "name": "Harissa",
+        "canonicalId": "ing_canon_harissa",
         "quantity": "1",
         "unit": "c. à café",
         "isPantryStaple": false,
@@ -5873,8 +5875,8 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_044_12",
-        "name": "Pois chiches",
-        "canonicalId": "ing_canon_pois_chiches",
+        "name": "Pois chiche",
+        "canonicalId": "ing_canon_pois_chiche",
         "quantity": "400",
         "unit": "g",
         "isPantryStaple": false,
@@ -8058,8 +8060,8 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_059_5",
-        "name": "Lardons",
-        "canonicalId": "ing_canon_lardons",
+        "name": "Lardon",
+        "canonicalId": "ing_canon_lardon",
         "quantity": "400",
         "unit": "g",
         "isPantryStaple": false,
@@ -8356,9 +8358,10 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_061_4",
-        "name": "Petite poignee d olives noires",
+        "name": "Olive",
+        "canonicalId": "ing_canon_olive",
         "quantity": "1",
-        "unit": "",
+        "unit": "poignée",
         "isPantryStaple": false,
         "isOptional": false
       },
@@ -8833,9 +8836,10 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_064_9",
-        "name": "Branche de thym",
+        "name": "Thym",
+        "canonicalId": "ing_canon_thym",
         "quantity": "1",
-        "unit": "",
+        "unit": "branche",
         "isPantryStaple": true,
         "isOptional": false
       },
@@ -9065,8 +9069,8 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_066_1",
-        "name": "Crevettes",
-        "canonicalId": "ing_canon_crevettes",
+        "name": "Crevette",
+        "canonicalId": "ing_canon_crevette",
         "quantity": "300",
         "unit": "g",
         "isPantryStaple": false,
@@ -9433,9 +9437,10 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_069_6",
-        "name": "Noisette de beurre",
+        "name": "Beurre",
+        "canonicalId": "ing_canon_beurre",
         "quantity": "1",
-        "unit": "",
+        "unit": "noisette",
         "isPantryStaple": false,
         "isOptional": false
       }
@@ -9995,8 +10000,8 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_074_2",
-        "name": "Lardons",
-        "canonicalId": "ing_canon_lardons",
+        "name": "Lardon",
+        "canonicalId": "ing_canon_lardon",
         "quantity": "200",
         "unit": "g",
         "isPantryStaple": false,
@@ -10549,7 +10554,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_078_3",
-        "name": "Rondelle de pain de mie grille",
+        "name": "Rondelle de pain de mie",
         "quantity": "1",
         "unit": "",
         "isPantryStaple": false,
@@ -11926,7 +11931,7 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_089_5",
-        "name": "Eau ou de lait tiede",
+        "name": "Eau ou de lait",
         "quantity": "8",
         "unit": "cl",
         "isPantryStaple": true,
@@ -12177,8 +12182,8 @@ export const INITIAL_RECIPES: Recipe[] = [
       },
       {
         "id": "ing_rec_top100_091_5",
-        "name": "Biscuits à la cuillère",
-        "canonicalId": "ing_canon_biscuits_a_la_cuillere",
+        "name": "Biscuit à la cuillère",
+        "canonicalId": "ing_canon_biscuit_a_la_cuillere",
         "quantity": "24",
         "unit": "",
         "isPantryStaple": false,
@@ -13249,8 +13254,8 @@ export const INITIAL_RECIPES: Recipe[] = [
     "ingredients": [
       {
         "id": "ing_rec_top100_099_1",
-        "name": "Biscuits à la cuillère",
-        "canonicalId": "ing_canon_biscuits_a_la_cuillere",
+        "name": "Biscuit à la cuillère",
+        "canonicalId": "ing_canon_biscuit_a_la_cuillere",
         "quantity": "200",
         "unit": "g",
         "isPantryStaple": false,
