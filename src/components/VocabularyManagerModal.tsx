@@ -299,7 +299,7 @@ export const VocabularyManagerModal: React.FC<VocabularyManagerModalProps> = ({
   const handleResetDefaults = () => {
     Alert.alert(
       'Réinitialiser le lexique',
-      'Cette action rechargera les ~350 ingrédients canoniques d\'origine. Vos modifications personnalisées seront écrasées. Continuer ?',
+      'Cette action va recharger les 208 ingrédients canoniques certifiés par défaut. Vos ajouts et modifications personnalisées seront réinitialisés. Continuer ?',
       [
         { text: 'Annuler', style: 'cancel' },
         {
@@ -309,7 +309,7 @@ export const VocabularyManagerModal: React.FC<VocabularyManagerModalProps> = ({
             try {
               await VocabularyService.resetToDefaults();
               await loadData();
-              Alert.alert('Succès', 'Le lexique d\'ingrédients a été réinitialisé.');
+              Alert.alert('Succès', 'Le lexique d\'ingrédients a été réinitialisé avec les 208 termes certifiés.');
             } catch (e) {
               Alert.alert('Erreur', 'Impossible de réinitialiser le lexique.');
             }
@@ -349,9 +349,20 @@ export const VocabularyManagerModal: React.FC<VocabularyManagerModalProps> = ({
               </Text>
             </View>
 
-            <TouchableOpacity onPress={handleOpenAdd} style={styles.addBtn} activeOpacity={0.8}>
-              <Ionicons name="add" size={22} color="#FFFFFF" />
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <TouchableOpacity
+                onPress={handleResetDefaults}
+                style={styles.headerBtn}
+                activeOpacity={0.7}
+                accessibilityLabel="Réinitialiser le lexique par défaut"
+              >
+                <Ionicons name="refresh-outline" size={22} color={colors.textSecondary} />
+              </TouchableOpacity>
+
+              <TouchableOpacity onPress={handleOpenAdd} style={styles.addBtn} activeOpacity={0.8}>
+                <Ionicons name="add" size={22} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Barre de recherche */}

@@ -78,6 +78,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   const [isImportModalVisible, setIsImportModalVisible] = useState(false);
   const [importJsonText, setImportJsonText] = useState('');
   const [isImporting, setIsImporting] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
 
   const loadInitialSettings = async () => {
     try {
@@ -385,6 +386,67 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
               if (onRecipesReloadNeeded) onRecipesReloadNeeded();
             } catch (e) {
               Alert.alert('Erreur', 'Impossible de réinitialiser.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleResetVocabulary = () => {
+    Alert.alert(
+      'Réinitialiser le lexique',
+      'Cette action va recharger les 208 ingrédients canoniques certifiés par défaut. Vos ajouts et personnalisations d\'ingrédients seront réinitialisés. Continuer ?',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Réinitialiser',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await VocabularyService.resetToDefaults();
+              await loadInitialSettings();
+              Alert.alert('Succès', 'Le lexique a été réinitialisé avec les 208 ingrédients certifiés.');
+            } catch (e) {
+              Alert.alert('Erreur', 'Impossible de réinitialiser le lexique.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleFullFactoryReset = () => {
+    Alert.alert(
+      'Remise à zéro complète ?',
+      "Cette action va réinitialiser l'application à son état d'origine :\n\n• Rechargement des 100 recettes cultes Marmiton normalisées\n• Rechargement des 208 ingrédients de référence\n• Vidage complet de la liste de courses\n• Vidage complet du stock (étagères)\n• Vidage du planning hebdomadaire\n\nIdéal pour repartir sur une base 100% saine après une phase de test. Continuer ?",
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Tout réinitialiser',
+          style: 'destructive',
+          onPress: async () => {
+            setIsResetting(true);
+            try {
+              await VocabularyService.resetToDefaults();
+              await StorageService.resetToDemoRecipes();
+              await StorageService.clearAllShoppingItems();
+              await StorageService.clearFridge();
+              await StorageService.clearWeeklyPlan();
+
+              if (onRecipesReloadNeeded) {
+                await onRecipesReloadNeeded();
+              }
+              await loadInitialSettings();
+
+              Alert.alert(
+                'Application réinitialisée !',
+                'Votre carnet a été restauré à l\'état d\'usine avec les 100 recettes cultes et le référentiel complet de 208 ingrédients.'
+              );
+            } catch (e: any) {
+              Alert.alert('Erreur', e?.message || 'Impossible de réinitialiser.');
+            } finally {
+              setIsResetting(false);
             }
           },
         },
@@ -1006,9 +1068,9 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
             </Text>
 
             <View style={styles.dataActionsColumn}>
-              {/* Bouton : Consulter & Gérer le lexique */}
+              {/* Bouton 1 : Consulter & Gérer le lexique */}
               <TouchableOpacity
-                style={[styles.dataActionBtn, { borderBottomWidth: 0 }]}
+                style={styles.dataActionBtn}
                 onPress={() => setIsVocabModalVisible(true)}
                 activeOpacity={0.7}
               >
@@ -1018,6 +1080,20 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                   <Text style={styles.dataActionDesc}>
                     {vocabCount > 0 ? `${vocabCount} ingrédients canoniques répertoriés` : 'Consulter, renommer, fusionner'}
                   </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+              </TouchableOpacity>
+
+              {/* Bouton 2 : Réinitialiser le lexique par défaut */}
+              <TouchableOpacity
+                style={[styles.dataActionBtn, { borderBottomWidth: 0 }]}
+                onPress={handleResetVocabulary}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="refresh-outline" size={20} color={colors.primary} />
+                <View style={styles.dataActionInfo}>
+                  <Text style={styles.dataActionTitle}>Réinitialiser le lexique d'origine</Text>
+                  <Text style={styles.dataActionDesc}>Recharge les 208 ingrédients et alias certifiés</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
               </TouchableOpacity>
@@ -1076,7 +1152,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.dataActionBtn, { borderBottomWidth: 0 }]}
+                style={styles.dataActionBtn}
                 onPress={handleResetDemo}
                 activeOpacity={0.7}
               >
@@ -1086,6 +1162,24 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                     Réinitialiser les recettes Marmiton
                   </Text>
                   <Text style={styles.dataActionDesc}>Recharge le catalogue culte par défaut</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+              </TouchableOpacity>
+
+              {/* Bouton de remise à zéro complète pour purger les tests */}
+              <TouchableOpacity
+                style={[styles.dataActionBtn, { borderBottomWidth: 0 }]}
+                onPress={handleFullFactoryReset}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="trash-bin-outline" size={18} color={colors.danger} />
+                <View style={styles.dataActionInfo}>
+                  <Text style={[styles.dataActionTitle, { color: colors.danger }]}>
+                    Remise à zéro complète (Nettoyer les tests)
+                  </Text>
+                  <Text style={styles.dataActionDesc}>
+                    Recharge recettes & lexique, vide courses, stock et planning
+                  </Text>
                 </View>
                 <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
               </TouchableOpacity>
