@@ -637,7 +637,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
   {
     name: 'Poudre d\'amande',
     aisle: 'Boulangerie & Pâtisserie',
-    aliases: ['poudre d amande', 'amandes en poudre', 'amande effilee', 'amandes effilees'],
+    aliases: ['poudre d amande', 'amandes en poudre', 'amande en poudre', 'farine d amande'],
     allergen: 'fruits_a_coque',
   },
 

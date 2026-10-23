@@ -42,28 +42,19 @@ const FORBIDDEN_ISOLATED_ALIASES = new Set([
   'poudre', 'puree', 'creme', 'pate', 'petit', 'gros', 'grand', 'morceau',
 ]);
 
-// Parsing brut des éléments du lexique
-const items = [];
-const itemRegex = /{\s*name:\s*[\x27"]([^\x27"]+)[\x27"],\s*aisle:\s*[\x27"]([^\x27"]+)[\x27"](?:,\s*aliases:\s*(\[[^\]]*\]))?(?:,\s*allergen:\s*[\x27"]([^\x27"]+)[\x27"])?(?:,\s*isPantryStaple:\s*(true|false))?/g;
+// Extraction et évaluation directe du tableau RAW_SEED_INGREDIENTS
+const matchSeed = content.match(/const RAW_SEED_INGREDIENTS[^=]*=\s*(\[[\s\S]*?\n\];)/);
+if (!matchSeed) {
+  console.error("❌ ERREUR : Impossible d'extraire RAW_SEED_INGREDIENTS de canonicalVocabulary.ts");
+  process.exit(1);
+}
 
-let match;
-while ((match = itemRegex.exec(content)) !== null) {
-  let aliases = [];
-  if (match[3]) {
-    try {
-      aliases = eval(match[3]);
-    } catch (e) {
-      aliases = [];
-    }
-  }
-
-  items.push({
-    name: match[1],
-    aisle: match[2],
-    aliases,
-    allergen: match[4] || null,
-    isPantryStaple: match[5] === 'true',
-  });
+let items = [];
+try {
+  items = eval(matchSeed[1]);
+} catch (e) {
+  console.error("❌ ERREUR lors de l'évaluation de RAW_SEED_INGREDIENTS :", e.message);
+  process.exit(1);
 }
 
 console.log(`\n🔍 AUDIT DU LEXIQUE CANONIQUE (${items.length} ingrédients analysés)\n`);
