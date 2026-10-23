@@ -825,12 +825,12 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
                       <Text style={styles.slotTimeLabel}>Midi</Text>
                       {isLunchPassed && (
                         <View style={styles.passedPillBadge}>
-                          <Text style={styles.passedPillText}>Passé</Text>
+                          <Text style={styles.passedPillText} numberOfLines={1}>Passé</Text>
                         </View>
                       )}
                       {isLunchNext && (
                         <View style={styles.nextPillBadge}>
-                          <Text style={styles.nextPillText}>Prochain</Text>
+                          <Text style={styles.nextPillText} numberOfLines={1}>Proch.</Text>
                         </View>
                       )}
                     </View>
@@ -989,12 +989,12 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
                       <Text style={styles.slotTimeLabel}>Soir</Text>
                       {isDinnerPassed && (
                         <View style={styles.passedPillBadge}>
-                          <Text style={styles.passedPillText}>Passé</Text>
+                          <Text style={styles.passedPillText} numberOfLines={1}>Passé</Text>
                         </View>
                       )}
                       {isDinnerNext && (
                         <View style={styles.nextPillBadge}>
-                          <Text style={styles.nextPillText}>Prochain</Text>
+                          <Text style={styles.nextPillText} numberOfLines={1}>Proch.</Text>
                         </View>
                       )}
                     </View>
@@ -1724,7 +1724,7 @@ const styles = createDynamicStyles((colors, shadows) => ({
     gap: 10,
   },
   slotTimeBadge: {
-    width: 48,
+    width: 50,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1893,12 +1893,15 @@ const styles = createDynamicStyles((colors, shadows) => ({
     paddingVertical: 1.5,
     borderRadius: 4,
     marginTop: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   nextPillText: {
-    fontSize: 8,
+    fontSize: 7.5,
     fontWeight: '800',
     color: '#FFFFFF',
     textTransform: 'uppercase',
+    letterSpacing: 0.2,
   },
   slotPassedWrapper: {
     opacity: 0.65,
