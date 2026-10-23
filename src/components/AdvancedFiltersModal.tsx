@@ -440,7 +440,6 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
                   keepFocusOnSelect
                   showSearchIcon
                   onSelectIngredient={(item) => handleAddIngredient(item.canonicalName)}
-                  onKeepFreeText={(name) => handleAddIngredient(name)}
                 />
 
                 {/* Puces des ingrédients actuellement sélectionnés */}

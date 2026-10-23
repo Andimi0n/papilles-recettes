@@ -214,24 +214,6 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
     }
   };
 
-  const handleAddFreeTextItem = async (freeName: string) => {
-    const trimmed = freeName.trim();
-    if (!trimmed) return;
-    const formatted = trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
-    const resolvedAisle = selectedAisle || classifyIngredientAisle(formatted);
-    try {
-      const updated = await StorageService.addFridgeItem(formatted, resolvedAisle, undefined);
-      setItems(updated);
-      if (onFridgeCountChange) {
-        onFridgeCountChange(updated.length);
-      }
-      setNewItemName('');
-      setSelectedAisle(null);
-    } catch (e) {
-      Alert.alert('Erreur', "Impossible d'ajouter cet aliment à vos étagères.");
-    }
-  };
-
   const handleDeleteItem = async (id: string) => {
     try {
       const updated = await StorageService.removeFridgeItem(id);
@@ -312,8 +294,8 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
       <View style={styles.quickAddCard}>
         <View style={styles.quickAddMainRow}>
           <IngredientAutocompleteInput
-            containerStyle={{ flex: 1, marginRight: 8, zIndex: 99 }}
-            style={[styles.nameInput, { width: '100%', marginRight: 0 }]}
+            containerStyle={{ flex: 1, zIndex: 99 }}
+            style={styles.nameInput}
             placeholder="Ajouter un aliment (placards, frigo, épices...)"
             placeholderTextColor={colors.textMuted}
             value={newItemName}
@@ -325,9 +307,6 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
             onSubmitEditing={() => handleAddItem()}
             onSelectIngredient={(ing) => {
               handleAddItem(ing.canonicalName, ing.defaultAisle, ing.id);
-            }}
-            onKeepFreeText={(freeName) => {
-              handleAddFreeTextItem(freeName);
             }}
           />
 
@@ -635,9 +614,6 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
         onCreateCanonical={(created) => {
           handleAddItem(created.canonicalName, created.defaultAisle, created.id);
         }}
-        onKeepFreeText={(freeName) => {
-          handleAddFreeTextItem(freeName);
-        }}
       />
     </View>
   );
@@ -700,18 +676,17 @@ const styles = createDynamicStyles((colors, shadows) => ({
     gap: 10,
   },
   nameInput: {
-    flex: 1,
-    height: 42,
+    height: 48,
     backgroundColor: colors.surfaceAlt,
-    borderRadius: 10,
+    borderRadius: 12,
     paddingHorizontal: 14,
-    fontSize: 14,
+    fontSize: 15,
     color: colors.textPrimary,
   },
   addButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 10,
+    width: 48,
+    height: 48,
+    borderRadius: 12,
     backgroundColor: colors.primary,
     justifyContent: 'center',
     alignItems: 'center',

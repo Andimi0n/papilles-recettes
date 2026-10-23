@@ -21,6 +21,12 @@ export interface ClosestCanonicalMatch {
   matchedText: string;
 }
 
+export interface DropdownSuggestionItem {
+  item: CanonicalIngredient;
+  isFuzzySuggestion?: boolean;
+  suggestionLabel?: string;
+}
+
 export interface NewIngredientCandidate {
   canonicalName: string;
   defaultAisle: ShoppingAisle;
@@ -34,6 +40,29 @@ export interface ValidationResult {
   error?: string;
   warning?: string;
   formattedName?: string;
+}
+
+/**
+ * Normalisation phonétique simplifiée pour le français culinaire.
+ * Permet de faire converger des graphies phonétiquement proches (ex: "voeu" -> "veau").
+ */
+export function frenchPhonetic(str: string): string {
+  let s = normalizeString(str);
+  if (!s) return '';
+  // Équivalences voyelles phonétiques courantes en français
+  s = s.replace(/oeu|eau|eaux|aux|au/g, 'o');
+  s = s.replace(/ph/g, 'f');
+  s = s.replace(/qu|ck|k/g, 'c');
+  s = s.replace(/ai|ei|ez|er|et/g, 'e');
+  s = s.replace(/ain|ein|aim|in|yn|ym/g, 'in');
+  s = s.replace(/an|am|en|em/g, 'an');
+  s = s.replace(/on|om/g, 'on');
+  s = s.replace(/ou/g, 'u');
+  s = s.replace(/ch|sh/g, 'x');
+  s = s.replace(/gu(?=[eiaou])/g, 'g');
+  // Éliminer les consonnes doubles répétées
+  s = s.replace(/(.)\1+/g, '$1');
+  return s;
 }
 
 /**
@@ -142,6 +171,7 @@ export const UnifiedIngredientService = {
     if (!normQuery || normQuery.length < 2) return [];
 
     const queryStem = stemWord(normQuery);
+    const queryPhonetic = frenchPhonetic(cleanName);
     const queryTokens = normQuery.split(/\s+/).filter((t) => t.length >= 3);
 
     const list = VocabularyService.getSyncList();
@@ -150,6 +180,7 @@ export const UnifiedIngredientService = {
     for (const item of list) {
       const itemNorm = item.normalizedName;
       const itemStem = stemWord(itemNorm);
+      const itemPhonetic = frenchPhonetic(itemNorm);
       let bestScore = 0;
       let bestReason: ClosestCanonicalMatch['reason'] = 'family';
       let bestLabel = 'Famille proche';
@@ -162,14 +193,21 @@ export const UnifiedIngredientService = {
         bestLabel = 'Synonyme répertorié';
         matchedText = normQuery;
       }
-      // 2. Équivalence de pluriel / singulier (Stemming)
+      // 2. Prononciation phonétique identique (ex: "voeu" -> "veau")
+      else if (queryPhonetic && queryPhonetic.length >= 2 && queryPhonetic === itemPhonetic) {
+        bestScore = 91;
+        bestReason = 'typo';
+        bestLabel = 'Prononciation très proche';
+        matchedText = item.canonicalName;
+      }
+      // 3. Équivalence de pluriel / singulier (Stemming)
       else if (queryStem === itemStem || (itemNorm.endsWith('s') && itemNorm.slice(0, -1) === normQuery) || (normQuery.endsWith('s') && normQuery.slice(0, -1) === itemNorm)) {
         bestScore = 92;
         bestReason = 'stem';
         bestLabel = 'Variante singulier / pluriel';
         matchedText = item.canonicalName;
       }
-      // 3. Distance de Levenshtein sur le nom canonique
+      // 4. Distance de Levenshtein sur le nom canonique
       else {
         const distCanon = this.calculateLevenshtein(normQuery, itemNorm);
         if (normQuery.length >= 4 && distCanon === 1) {
@@ -177,15 +215,15 @@ export const UnifiedIngredientService = {
           bestReason = 'typo';
           bestLabel = 'Orthographe très proche';
           matchedText = item.canonicalName;
-        } else if (normQuery.length >= 7 && distCanon <= 2 && normQuery[0] === itemNorm[0]) {
-          bestScore = 78;
+        } else if (normQuery.length >= 4 && distCanon <= 2 && normQuery[0] === itemNorm[0]) {
+          bestScore = 82;
           bestReason = 'typo';
           bestLabel = 'Variante orthographique';
           matchedText = item.canonicalName;
         }
       }
 
-      // 4. Examen approfondi des alias de l'ingrédient
+      // 5. Examen approfondi des alias de l'ingrédient
       if (bestScore < 90 && item.aliases) {
         for (const alias of item.aliases) {
           if (!alias || alias.length < 3) continue;
@@ -196,6 +234,16 @@ export const UnifiedIngredientService = {
             bestLabel = `Synonyme de "${item.canonicalName}"`;
             matchedText = alias;
             break;
+          }
+
+          const aliasPhonetic = frenchPhonetic(alias);
+          if (queryPhonetic && queryPhonetic.length >= 2 && queryPhonetic === aliasPhonetic) {
+            if (bestScore < 89) {
+              bestScore = 89;
+              bestReason = 'typo';
+              bestLabel = `Prononciation proche de "${alias}"`;
+              matchedText = alias;
+            }
           }
 
           const aliasStem = stemWord(alias);
@@ -210,15 +258,15 @@ export const UnifiedIngredientService = {
 
           const distAlias = this.calculateLevenshtein(normQuery, alias);
           if (normQuery.length >= 4 && distAlias === 1) {
-            if (bestScore < 83) {
-              bestScore = 83;
+            if (bestScore < 84) {
+              bestScore = 84;
               bestReason = 'typo';
               bestLabel = `Proche du synonyme "${alias}"`;
               matchedText = alias;
             }
-          } else if (normQuery.length >= 7 && distAlias <= 2 && normQuery[0] === alias[0]) {
-            if (bestScore < 76) {
-              bestScore = 76;
+          } else if (normQuery.length >= 4 && distAlias <= 2 && normQuery[0] === alias[0]) {
+            if (bestScore < 78) {
+              bestScore = 78;
               bestReason = 'typo';
               bestLabel = `Proche du synonyme "${alias}"`;
               matchedText = alias;
@@ -262,6 +310,44 @@ export const UnifiedIngredientService = {
     const results = Array.from(scoredMap.values());
     results.sort((a, b) => b.similarity - a.similarity);
     return results.slice(0, limit);
+  },
+
+  /**
+   * Retourne une liste qualitative de suggestions pour le menu déroulant :
+   * 1. Correspondances directes (nom canonique ou alias débutant ou contenant le terme)
+   * 2. Suggestions phonétiques et d'orthographe proche (ex: "voeu" -> "Veau", "tomatte" -> "Tomate")
+   */
+  getQualitativeDropdownSuggestions(query: string, limit = 6): DropdownSuggestionItem[] {
+    const trimmed = query.trim();
+    if (!trimmed || trimmed.length < 2) return [];
+
+    const directMatches = VocabularyService.search(trimmed, limit);
+    const seenIds = new Set<string>();
+    const results: DropdownSuggestionItem[] = [];
+
+    // 1. Ajouter d'abord les correspondances directes
+    for (const item of directMatches) {
+      seenIds.add(item.id);
+      results.push({ item });
+    }
+
+    // 2. Si la liste n'est pas pleine, compléter avec les suggestions phonétiques et proches
+    if (results.length < limit) {
+      const closest = this.findClosestCanonicalMatches(trimmed, limit);
+      for (const cm of closest) {
+        if (!seenIds.has(cm.item.id)) {
+          seenIds.add(cm.item.id);
+          results.push({
+            item: cm.item,
+            isFuzzySuggestion: true,
+            suggestionLabel: cm.label,
+          });
+        }
+        if (results.length >= limit) break;
+      }
+    }
+
+    return results;
   },
 
   /**

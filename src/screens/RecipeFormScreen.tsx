@@ -358,26 +358,6 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
     setIngredients(updated);
   };
 
-  const handleKeepFreeTextIngredient = (
-    index: number,
-    freeName: string,
-    details?: { quantity?: string; unit?: string }
-  ) => {
-    const updated = [...ingredients];
-    updated[index] = {
-      ...updated[index],
-      name: freeName,
-      canonicalId: undefined,
-    };
-    if (details?.quantity && !updated[index].quantity) {
-      updated[index].quantity = details.quantity;
-    }
-    if (details?.unit && !updated[index].unit) {
-      updated[index].unit = details.unit;
-    }
-    setIngredients(updated);
-  };
-
   const handleToggleIngredientStaple = (index: number) => {
     const updated = [...ingredients];
     updated[index] = {
@@ -963,7 +943,6 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
                     value={ing.name}
                     onChangeText={(val) => handleUpdateIngredient(index, 'name', val)}
                     onSelectIngredient={(canon, details) => handleSelectCanonicalIngredient(index, canon, details)}
-                    onKeepFreeText={(freeName, details) => handleKeepFreeTextIngredient(index, freeName, details)}
                     onAutoExtractedDetails={(extracted) => {
                       if (extracted.quantity && !ing.quantity) {
                         handleUpdateIngredient(index, 'quantity', extracted.quantity);

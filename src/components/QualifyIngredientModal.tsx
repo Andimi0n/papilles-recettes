@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { CanonicalIngredient, AllergenFamily, ALLERGEN_FAMILIES } from '../types/vocabulary';
 import { ShoppingAisle } from '../types/shopping';
 import { AISLE_CONFIGS } from '../utils/aisleClassifier';
+import { VocabularyService } from '../services/vocabularyService';
 import {
   UnifiedIngredientService,
   ClosestCanonicalMatch,
@@ -29,7 +30,6 @@ export interface QualifyIngredientModalProps {
   onClose: () => void;
   onAttachAsSynonym: (canonical: CanonicalIngredient, aliasAdded: string) => void;
   onCreateCanonical: (newIngredient: CanonicalIngredient) => void;
-  onKeepFreeText?: (name: string) => void;
 }
 
 const ALL_AISLES: ShoppingAisle[] = [
@@ -50,7 +50,6 @@ export const QualifyIngredientModal: React.FC<QualifyIngredientModalProps> = ({
   onClose,
   onAttachAsSynonym,
   onCreateCanonical,
-  onKeepFreeText,
 }) => {
   const { colors, isDark } = useTheme();
 
@@ -63,11 +62,21 @@ export const QualifyIngredientModal: React.FC<QualifyIngredientModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  // Recherche libre d'un ingrédient parent existant pour association de synonyme
+  const [parentSearchQuery, setParentSearchQuery] = useState('');
+  const [isParentSearchOpen, setIsParentSearchOpen] = useState(false);
+
   // Recherche des correspondances les plus proches
   const closestMatches: ClosestCanonicalMatch[] = useMemo(() => {
     if (!visible || !rawName || rawName.trim().length < 2) return [];
-    return UnifiedIngredientService.findClosestCanonicalMatches(rawName, 3);
+    return UnifiedIngredientService.findClosestCanonicalMatches(rawName, 4);
   }, [visible, rawName]);
+
+  // Résultats de la recherche manuelle d'ingrédient parent
+  const parentSearchResults: CanonicalIngredient[] = useMemo(() => {
+    if (!parentSearchQuery || parentSearchQuery.trim().length < 2) return [];
+    return VocabularyService.search(parentSearchQuery.trim(), 4);
+  }, [parentSearchQuery]);
 
   // Initialisation dès que le modal s'ouvre avec un nouveau nom
   useEffect(() => {
@@ -83,13 +92,15 @@ export const QualifyIngredientModal: React.FC<QualifyIngredientModalProps> = ({
       setExtraAliasesInput('');
       setErrorMessage(null);
       setIsSubmitting(false);
+      setParentSearchQuery('');
+      setIsParentSearchOpen(false);
     }
   }, [visible, rawName]);
 
-  // Action : Associer comme synonyme
-  const handleSelectSynonym = async (match: ClosestCanonicalMatch) => {
+  // Action : Associer comme synonyme à un ingrédient donné
+  const handleSelectSynonym = async (targetIngredient: CanonicalIngredient) => {
     setIsSubmitting(true);
-    const result = await UnifiedIngredientService.addAliasToCanonical(match.item.id, rawName);
+    const result = await UnifiedIngredientService.addAliasToCanonical(targetIngredient.id, rawName);
     setIsSubmitting(false);
 
     if (result.success && result.updated) {
@@ -128,29 +139,6 @@ export const QualifyIngredientModal: React.FC<QualifyIngredientModalProps> = ({
     }
   };
 
-  // Action : Garder sans enregistrer
-  const handleKeepFreeText = () => {
-    if (onKeepFreeText) {
-      onKeepFreeText(rawName.trim());
-    }
-    onClose();
-  };
-
-  const getContextLabel = () => {
-    switch (context) {
-      case 'recipe':
-        return 'Garder pour cette recette uniquement';
-      case 'shopping':
-        return 'Garder sur ma liste de courses uniquement';
-      case 'stock':
-        return 'Garder dans mes étagères uniquement';
-      case 'search':
-        return 'Rechercher avec ce libellé tel quel';
-      default:
-        return 'Garder tel quel (usage ponctuel hors lexique)';
-    }
-  };
-
   const detectedAllergen = useMemo(() => {
     if (!rawName) return null;
     return UnifiedIngredientService.getSuggestedDefaults(rawName).suggestedAllergen;
@@ -186,60 +174,116 @@ export const QualifyIngredientModal: React.FC<QualifyIngredientModalProps> = ({
           </View>
 
           <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-            {/* SECTION 1 : SUGGESTIONS DE SYNONYMES PROCHES */}
-            {closestMatches.length > 0 && (
-              <View style={styles.synonymsSection}>
-                <View style={styles.sectionTitleRow}>
-                  <Ionicons name="bulb-outline" size={16} color={colors.primary} />
-                  <Text style={styles.sectionTitle}>Vouliez-vous dire l'un de ces aliments ?</Text>
-                </View>
-                <Text style={styles.sectionExplanation}>
-                  Vous pouvez associer « {rawName} » en 1 clic comme synonyme d'un ingrédient existant :
+            {/* SECTION 1 : SUGGESTIONS ET RECHERCHE DE SYNONYMES */}
+            <View style={styles.synonymsSection}>
+              <View style={styles.sectionTitleRow}>
+                <Ionicons name="link-outline" size={16} color={colors.primary} />
+                <Text style={styles.sectionTitle}>
+                  Associer « {rawName} » comme synonyme
                 </Text>
+              </View>
 
-                <View style={styles.matchesList}>
-                  {closestMatches.map((match) => {
-                    const aisleConfig = AISLE_CONFIGS[match.item.defaultAisle] || AISLE_CONFIGS['Autre'];
-                    return (
-                      <View key={match.item.id} style={styles.matchCard}>
-                        <View style={styles.matchCardHeader}>
+              {closestMatches.length > 0 && (
+                <>
+                  <Text style={styles.sectionExplanation}>
+                    Suggestions d'aliments proches trouvées dans le lexique :
+                  </Text>
+                  <View style={styles.matchesList}>
+                    {closestMatches.map((match) => {
+                      const aisleConfig = AISLE_CONFIGS[match.item.defaultAisle] || AISLE_CONFIGS['Autre'];
+                      return (
+                        <View key={match.item.id} style={styles.matchCard}>
+                          <View style={styles.matchCardHeader}>
+                            <View style={[styles.aisleBadge, { backgroundColor: aisleConfig.bgColor }]}>
+                              <Ionicons name={aisleConfig.iconName as any} size={13} color={aisleConfig.color} />
+                            </View>
+                            <View style={styles.matchTextColumn}>
+                              <Text style={styles.matchItemName}>{match.item.canonicalName}</Text>
+                              <Text style={styles.matchItemReason}>
+                                {match.label} ({match.item.defaultAisle})
+                              </Text>
+                            </View>
+                          </View>
+
+                          <TouchableOpacity
+                            style={styles.matchActionBtn}
+                            onPress={() => handleSelectSynonym(match.item)}
+                            disabled={isSubmitting}
+                            activeOpacity={0.8}
+                          >
+                            <Ionicons name="add-circle" size={16} color={colors.primary} />
+                            <Text style={styles.matchActionBtnText}>
+                              Associer comme synonyme de « {match.item.canonicalName} »
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
+                      );
+                    })}
+                  </View>
+                </>
+              )}
+
+              {/* Barre de recherche manuelle d'un aliment existant */}
+              <View style={styles.manualSearchContainer}>
+                <Text style={styles.manualSearchPrompt}>
+                  {closestMatches.length > 0
+                    ? 'Ou rechercher un autre aliment du lexique auquel l\'associer :'
+                    : 'Rechercher l\'ingrédient officiel auquel rattacher ce synonyme :'}
+                </Text>
+                <View style={styles.manualSearchInputWrapper}>
+                  <Ionicons name="search" size={15} color={colors.textMuted} style={styles.manualSearchIcon} />
+                  <TextInput
+                    style={styles.manualSearchInput}
+                    placeholder="Ex: Veau, Oignon, Riz..."
+                    placeholderTextColor={colors.textMuted}
+                    value={parentSearchQuery}
+                    onChangeText={setParentSearchQuery}
+                    autoCapitalize="sentences"
+                  />
+                  {parentSearchQuery.length > 0 && (
+                    <TouchableOpacity onPress={() => setParentSearchQuery('')} style={styles.manualSearchClear}>
+                      <Ionicons name="close-circle" size={16} color={colors.textMuted} />
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                {parentSearchResults.length > 0 && (
+                  <View style={styles.parentSearchResultsList}>
+                    {parentSearchResults.map((parent) => {
+                      const aisleConfig = AISLE_CONFIGS[parent.defaultAisle] || AISLE_CONFIGS['Autre'];
+                      return (
+                        <TouchableOpacity
+                          key={parent.id}
+                          style={styles.parentSearchItem}
+                          onPress={() => handleSelectSynonym(parent)}
+                          disabled={isSubmitting}
+                          activeOpacity={0.7}
+                        >
                           <View style={[styles.aisleBadge, { backgroundColor: aisleConfig.bgColor }]}>
-                            <Ionicons name={aisleConfig.iconName as any} size={13} color={aisleConfig.color} />
+                            <Ionicons name={aisleConfig.iconName as any} size={12} color={aisleConfig.color} />
                           </View>
                           <View style={styles.matchTextColumn}>
-                            <Text style={styles.matchItemName}>{match.item.canonicalName}</Text>
-                            <Text style={styles.matchItemReason}>
-                              {match.label} ({match.item.defaultAisle})
-                            </Text>
+                            <Text style={styles.parentSearchName}>{parent.canonicalName}</Text>
+                            <Text style={styles.parentSearchAisle}>{parent.defaultAisle}</Text>
                           </View>
-                        </View>
-
-                        <TouchableOpacity
-                          style={styles.matchActionBtn}
-                          onPress={() => handleSelectSynonym(match)}
-                          disabled={isSubmitting}
-                          activeOpacity={0.8}
-                        >
-                          <Ionicons name="add-circle" size={16} color={colors.primary} />
-                          <Text style={styles.matchActionBtnText}>
-                            Associer comme synonyme de « {match.item.canonicalName} »
-                          </Text>
+                          <View style={styles.parentSearchAction}>
+                            <Ionicons name="add-circle" size={16} color={colors.primary} />
+                            <Text style={styles.parentSearchActionText}>Associer</Text>
+                          </View>
                         </TouchableOpacity>
-                      </View>
-                    );
-                  })}
-                </View>
+                      );
+                    })}
+                  </View>
+                )}
               </View>
-            )}
+            </View>
 
             {/* SECTION 2 : CRÉATION D'UN NOUVEL INGRÉDIENT (PASSEPORT) */}
             <View style={styles.passportSection}>
               <View style={styles.sectionTitleRow}>
                 <Ionicons name="create-outline" size={16} color={colors.primary} />
                 <Text style={styles.sectionTitle}>
-                  {closestMatches.length > 0
-                    ? `Ou créer « ${rawName} » comme nouvel ingrédient :`
-                    : `Créer « ${rawName} » dans le lexique officiel :`}
+                  Ou créer « {rawName} » comme nouvel ingrédient :
                 </Text>
               </View>
 
@@ -407,18 +451,6 @@ export const QualifyIngredientModal: React.FC<QualifyIngredientModalProps> = ({
               >
                 <Ionicons name="checkmark-sharp" size={18} color="#FFFFFF" />
                 <Text style={styles.createBtnText}>Enregistrer dans mon lexique</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* SECTION 3 : GARDER SANS ENREGISTRER (HORS LEXIQUE) */}
-            <View style={styles.freeTextSection}>
-              <TouchableOpacity
-                style={styles.freeTextBtn}
-                onPress={handleKeepFreeText}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="return-down-forward-outline" size={16} color={colors.textSecondary} />
-                <Text style={styles.freeTextBtnText}>{getContextLabel()}</Text>
               </TouchableOpacity>
             </View>
           </ScrollView>
@@ -783,20 +815,77 @@ const styles = createDynamicStyles((colors) => ({
     fontWeight: '700',
     color: '#FFFFFF',
   },
-  freeTextSection: {
-    alignItems: 'center',
-    paddingVertical: 6,
+  manualSearchContainer: {
+    marginTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderLight,
+    paddingTop: 10,
   },
-  freeTextBtn: {
+  manualSearchPrompt: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginBottom: 6,
+  },
+  manualSearchInputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 14,
+    backgroundColor: colors.cardBackground,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    height: 40,
   },
-  freeTextBtnText: {
-    fontSize: 12.5,
+  manualSearchIcon: {
+    marginRight: 6,
+  },
+  manualSearchInput: {
+    flex: 1,
+    fontSize: 13,
+    color: colors.textPrimary,
+    paddingVertical: 4,
+  },
+  manualSearchClear: {
+    padding: 2,
+  },
+  parentSearchResultsList: {
+    marginTop: 6,
+    backgroundColor: colors.cardBackground,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    overflow: 'hidden',
+  },
+  parentSearchItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderBottomWidth: 0.5,
+    borderBottomColor: colors.borderLight,
+  },
+  parentSearchName: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  parentSearchAisle: {
+    fontSize: 10.5,
     color: colors.textSecondary,
-    textDecorationLine: 'underline',
+    marginTop: 1,
+  },
+  parentSearchAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    backgroundColor: colors.primary + '14',
+  },
+  parentSearchActionText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.primary,
   },
 }));

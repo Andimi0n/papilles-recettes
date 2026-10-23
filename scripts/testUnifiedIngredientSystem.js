@@ -57,7 +57,7 @@ async function main() {
 
   const { VocabularyService } = require(path.join(tmpDir, 'services/vocabularyService.js'));
   const { StorageService } = require(path.join(tmpDir, 'services/storageService.js'));
-  const { UnifiedIngredientService } = require(path.join(tmpDir, 'services/unifiedIngredientService.js'));
+  const { UnifiedIngredientService, frenchPhonetic } = require(path.join(tmpDir, 'services/unifiedIngredientService.js'));
   const { detectProbableAllergenFamily } = require(path.join(tmpDir, 'utils/allergenMatcher.js'));
 
   console.log('🧪 Lancement des tests stricts du Système Unifié d\'Entrée d\'Ingrédients (Section 8)...\n');
@@ -117,6 +117,20 @@ async function main() {
   assert.ok(matchesFarine.length > 0);
   assert.strictEqual(matchesFarine[0].item.canonicalName, 'Farine');
   console.log(`✓ "farine de chataigne" suggère en premier "${matchesFarine[0].item.canonicalName}" (${matchesFarine[0].label})`);
+
+  // Rapprochement phonétique ("voeu" -> "Veau")
+  assert.strictEqual(frenchPhonetic('voeu'), frenchPhonetic('veau'), 'frenchPhonetic("voeu") doit égaler frenchPhonetic("veau")');
+  const matchesVoeu = UnifiedIngredientService.findClosestCanonicalMatches('voeu', 3);
+  assert.ok(matchesVoeu.length > 0, '"voeu" doit trouver une correspondance phonétique');
+  assert.strictEqual(matchesVoeu[0].item.canonicalName, 'Veau');
+  console.log(`✓ "voeu" suggère en premier "${matchesVoeu[0].item.canonicalName}" (${matchesVoeu[0].label})`);
+
+  // Suggestions qualitatives pour le menu déroulant ("voeu" -> "Veau")
+  const dropSuggestionsVoeu = UnifiedIngredientService.getQualitativeDropdownSuggestions('voeu', 5);
+  const foundVeau = dropSuggestionsVoeu.find((s) => s.item.canonicalName === 'Veau');
+  assert.ok(foundVeau, 'Le menu déroulant qualitatif doit inclure Veau pour "voeu"');
+  assert.strictEqual(foundVeau.isFuzzySuggestion, true);
+  console.log('✓ Le menu déroulant qualitatif propose "Veau" dès la saisie de "voeu"');
 
   // Terme sans rapport (sumac) -> aucun faux positif
   const matchesSumac = UnifiedIngredientService.findClosestCanonicalMatches('sumac', 3);

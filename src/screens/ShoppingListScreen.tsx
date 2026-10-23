@@ -180,32 +180,6 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
     }
   };
 
-  const handleAddItemDirect = async (
-    rawName: string,
-    extractedDetails?: { quantity?: string; unit?: string }
-  ) => {
-    const trimmed = rawName.trim();
-    if (!trimmed) return;
-    const qty = newItemQuantity.trim() || extractedDetails?.quantity || undefined;
-    const unit = newItemUnit.trim() || extractedDetails?.unit || undefined;
-
-    try {
-      const updated = await StorageService.addCustomShoppingItem(
-        trimmed,
-        qty,
-        unit,
-        selectedAisle || undefined
-      );
-      setItems(updated);
-      setNewItemName('');
-      setNewItemQuantity('');
-      setNewItemUnit('');
-      setSelectedAisle(null);
-    } catch (e) {
-      Alert.alert('Erreur', "Impossible d'ajouter cet article.");
-    }
-  };
-
   const handleAddItem = async () => {
     const trimmedName = newItemName.trim();
     if (!trimmedName) return;
@@ -509,8 +483,8 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
           <View style={styles.quickAddCard}>
             <View style={styles.quickAddMainRow}>
               <UnifiedIngredientInput
-                containerStyle={{ flex: 1, marginRight: 8, zIndex: 99 }}
-                style={[styles.nameInput, { width: '100%', marginRight: 0 }]}
+                containerStyle={{ flex: 1, zIndex: 99 }}
+                style={styles.nameInput}
                 placeholder="Ajouter un article (ex: Pommes, Lait...)"
                 placeholderTextColor={colors.textMuted}
                 value={newItemName}
@@ -522,9 +496,6 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
                 onSubmitEditing={() => handleAddItem()}
                 onSelectIngredient={(ing, details) => {
                   handleAddItemWithCanonical(ing, details);
-                }}
-                onKeepFreeText={(freeName, details) => {
-                  handleAddItemDirect(freeName, details);
                 }}
                 onAutoExtractedDetails={(extracted) => {
                   if (extracted.quantity && !newItemQuantity) {
@@ -965,9 +936,6 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
         onCreateCanonical={(created) => {
           handleAddItemWithCanonical(created);
         }}
-        onKeepFreeText={(freeName) => {
-          handleAddItemDirect(freeName);
-        }}
       />
     </SafeAreaView>
   );
@@ -1142,18 +1110,17 @@ const styles = createDynamicStyles((colors, shadows) => ({
     gap: 10,
   },
   nameInput: {
-    flex: 1,
-    height: 42,
+    height: 48,
     backgroundColor: colors.surfaceAlt,
-    borderRadius: 10,
+    borderRadius: 12,
     paddingHorizontal: 14,
-    fontSize: 14,
+    fontSize: 15,
     color: colors.textPrimary,
   },
   addButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 10,
+    width: 48,
+    height: 48,
+    borderRadius: 12,
     backgroundColor: colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
