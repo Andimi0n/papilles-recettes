@@ -128,14 +128,12 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
   const [draftTimeFilterMode, setDraftTimeFilterMode] = useState<TimeFilterMode>(timeFilterMode || 'max');
   const [timeInputString, setTimeInputString] = useState<string>(initialTime !== null ? String(initialTime) : '');
 
+  const [draftMinRating, setDraftMinRating] = useState<number>(minRating);
   const [draftDifficulties, setDraftDifficulties] = useState<Difficulty[]>(difficulties);
   const [draftIngredients, setDraftIngredients] = useState<string[]>(selectedIngredients);
   const [draftIngredientMatchMode, setDraftIngredientMatchMode] = useState<'all' | 'any'>(
     ingredientMatchMode
   );
-  const [draftVegetarian, setDraftVegetarian] = useState<boolean>(onlyVegetarian);
-  const [draftMinRating, setDraftMinRating] = useState<number>(minRating);
-  const [draftOnlyDoable, setDraftOnlyDoable] = useState<boolean>(onlyDoableWithStock);
 
   // Saisie et autocomplétion pour les ingrédients
   const [ingredientInputText, setIngredientInputText] = useState('');
@@ -148,12 +146,10 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
       setDraftTargetTotalTime(activeTime);
       setDraftTimeFilterMode(timeFilterMode || 'max');
       setTimeInputString(activeTime !== null ? String(activeTime) : '');
+      setDraftMinRating(minRating);
       setDraftDifficulties(difficulties);
       setDraftIngredients(selectedIngredients);
       setDraftIngredientMatchMode(ingredientMatchMode);
-      setDraftVegetarian(onlyVegetarian);
-      setDraftMinRating(minRating);
-      setDraftOnlyDoable(onlyDoableWithStock);
       setIngredientInputText('');
       setAutocompleteSuggestions([]);
     }
@@ -162,12 +158,10 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
     targetTotalTime,
     timeFilterMode,
     maxTotalTime,
+    minRating,
     difficulties,
     selectedIngredients,
     ingredientMatchMode,
-    onlyVegetarian,
-    minRating,
-    onlyDoableWithStock,
   ]);
 
   // Recherche synchrone d'ingrédients canoniques pendant la frappe
@@ -270,12 +264,10 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
     setDraftTargetTotalTime(null);
     setDraftTimeFilterMode('max');
     setTimeInputString('');
+    setDraftMinRating(0);
     setDraftDifficulties([]);
     setDraftIngredients([]);
     setDraftIngredientMatchMode('all');
-    setDraftVegetarian(false);
-    setDraftMinRating(0);
-    setDraftOnlyDoable(false);
     setIngredientInputText('');
     setAutocompleteSuggestions([]);
   };
@@ -288,9 +280,7 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
       difficulties: draftDifficulties,
       selectedIngredients: draftIngredients,
       ingredientMatchMode: draftIngredientMatchMode,
-      onlyVegetarian: draftVegetarian,
       minRating: draftMinRating,
-      onlyDoableWithStock: draftOnlyDoable,
     });
     onClose();
   };
@@ -314,19 +304,14 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
       result = result.filter((r) => selectedCategories.includes(r.category));
     }
 
-    // Filtre végétarien
-    if (draftVegetarian) {
+    // Filtre végétarien (synchronisé depuis la barre d'accueil)
+    if (onlyVegetarian) {
       result = result.filter((r) => r.isVegetarian);
     }
 
-    // Filtre stock (recettes 100% faisables)
-    if (draftOnlyDoable && doableRecipesMap) {
+    // Filtre stock (recettes 100% faisables, synchronisé depuis la barre d'accueil)
+    if (onlyDoableWithStock && doableRecipesMap) {
       result = result.filter((r) => doableRecipesMap.get(r.id)?.isDoable);
-    }
-
-    // Filtre note minimale
-    if (draftMinRating > 0) {
-      result = result.filter((r) => r.rating >= draftMinRating);
     }
 
     // Filtre temps total (rapide <= ou mijoté >=)
@@ -334,6 +319,11 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
       result = result.filter((r) =>
         recipeMatchesTime(r, draftTargetTotalTime, draftTimeFilterMode)
       );
+    }
+
+    // Filtre note minimale
+    if (draftMinRating > 0) {
+      result = result.filter((r) => r.rating >= draftMinRating);
     }
 
     // Filtre difficultés
@@ -353,11 +343,11 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
     recipes,
     searchQuery,
     selectedCategories,
-    draftVegetarian,
-    draftOnlyDoable,
-    draftMinRating,
+    onlyVegetarian,
+    onlyDoableWithStock,
     draftTargetTotalTime,
     draftTimeFilterMode,
+    draftMinRating,
     draftDifficulties,
     draftIngredients,
     draftIngredientMatchMode,
@@ -412,160 +402,7 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
             >
-              {/* SECTION 1 : FILTRER PAR INGRÉDIENTS (FAMILLE 2) */}
-              <View style={styles.sectionCard}>
-                <View style={styles.sectionHeader}>
-                  <Ionicons name="nutrition-outline" size={17} color={colors.secondary} />
-                  <Text style={styles.sectionTitle}>Ingrédients souhaités</Text>
-                  {draftIngredients.length > 0 && (
-                    <View style={styles.countBadge}>
-                      <Text style={styles.countBadgeText}>{draftIngredients.length}</Text>
-                    </View>
-                  )}
-                </View>
-                <Text style={styles.sectionDescription}>
-                  Trouvez des recettes contenant spécifiquement ces ingrédients.
-                </Text>
-
-                {/* Champ de saisie d'ingrédients avec autocomplétion */}
-                <View style={styles.inputRow}>
-                  <Ionicons
-                    name="search-outline"
-                    size={17}
-                    color={colors.textMuted}
-                    style={styles.inputSearchIcon}
-                  />
-                  <TextInput
-                    style={styles.ingredientInput}
-                    value={ingredientInputText}
-                    onChangeText={handleIngredientTextChange}
-                    placeholder="Ajouter un ingrédient (ex: Courgette, Tomate...)"
-                    placeholderTextColor={colors.textMuted}
-                    returnKeyType="done"
-                    onSubmitEditing={() => handleAddIngredient(ingredientInputText)}
-                    autoCorrect={false}
-                    autoCapitalize="sentences"
-                  />
-                  {ingredientInputText.trim().length > 0 && (
-                    <TouchableOpacity
-                      style={styles.addIngredientBtn}
-                      onPress={() => handleAddIngredient(ingredientInputText)}
-                      activeOpacity={0.8}
-                    >
-                      <Ionicons name="add" size={18} color="#FFFFFF" />
-                    </TouchableOpacity>
-                  )}
-                </View>
-
-                {/* Suggestions issues de l'autocomplétion pendant la frappe */}
-                {autocompleteSuggestions.length > 0 && (
-                  <View style={styles.autocompleteSuggestionsContainer}>
-                    <Text style={styles.suggestionsHeaderLabel}>Suggestions du lexique :</Text>
-                    <View style={styles.suggestionsWrap}>
-                      {autocompleteSuggestions.map((item) => (
-                        <TouchableOpacity
-                          key={item.id}
-                          style={styles.suggestionChip}
-                          onPress={() => handleAddIngredient(item.canonicalName)}
-                          activeOpacity={0.7}
-                        >
-                          <Ionicons name="add-circle" size={14} color={colors.primary} />
-                          <Text style={styles.suggestionChipText}>{item.canonicalName}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  </View>
-                )}
-
-                {/* Puces des ingrédients actuellement sélectionnés */}
-                {draftIngredients.length > 0 ? (
-                  <View style={styles.selectedIngredientsContainer}>
-                    <Text style={styles.selectedIngredientsLabel}>Ingrédients inclus :</Text>
-                    <View style={styles.selectedIngredientsWrap}>
-                      {draftIngredients.map((ing) => (
-                        <View key={ing} style={styles.selectedIngredientChip}>
-                          <Text style={styles.selectedIngredientChipText}>{ing}</Text>
-                          <TouchableOpacity
-                            onPress={() => handleRemoveIngredient(ing)}
-                            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                            style={styles.removeChipBtn}
-                          >
-                            <Ionicons name="close" size={14} color="#FFFFFF" />
-                          </TouchableOpacity>
-                        </View>
-                      ))}
-                    </View>
-
-                    {/* Règle de correspondance si au moins 2 ingrédients sélectionnés (ET vs OU) */}
-                    {draftIngredients.length >= 2 && (
-                      <View style={styles.matchModeContainer}>
-                        <Text style={styles.matchModeLabel}>Règle de combinaison :</Text>
-                        <View style={styles.matchModeSegmented}>
-                          <TouchableOpacity
-                            style={[
-                              styles.matchModeBtn,
-                              draftIngredientMatchMode === 'all' && styles.matchModeBtnActive,
-                            ]}
-                            onPress={() => setDraftIngredientMatchMode('all')}
-                            activeOpacity={0.8}
-                          >
-                            <Text
-                              style={[
-                                styles.matchModeBtnText,
-                                draftIngredientMatchMode === 'all' && styles.matchModeBtnTextActive,
-                              ]}
-                            >
-                              Tous (ET)
-                            </Text>
-                          </TouchableOpacity>
-
-                          <TouchableOpacity
-                            style={[
-                              styles.matchModeBtn,
-                              draftIngredientMatchMode === 'any' && styles.matchModeBtnActive,
-                            ]}
-                            onPress={() => setDraftIngredientMatchMode('any')}
-                            activeOpacity={0.8}
-                          >
-                            <Text
-                              style={[
-                                styles.matchModeBtnText,
-                                draftIngredientMatchMode === 'any' && styles.matchModeBtnTextActive,
-                              ]}
-                            >
-                              Au moins un (OU)
-                            </Text>
-                          </TouchableOpacity>
-                        </View>
-                        <Text style={styles.matchModeExplanation}>
-                          {draftIngredientMatchMode === 'all'
-                            ? 'La recette doit obligatoirement inclure tous ces ingrédients.'
-                            : 'La recette peut inclure n’importe lequel de ces ingrédients.'}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                ) : (
-                  /* Suggestions d'ingrédients populaires rapides si rien n'est sélectionné */
-                  <View style={styles.popularSuggestionsContainer}>
-                    <Text style={styles.popularLabel}>Suggestions fréquentes en 1 clic :</Text>
-                    <View style={styles.popularWrap}>
-                      {POPULAR_INGREDIENT_SUGGESTIONS.map((item) => (
-                        <TouchableOpacity
-                          key={item}
-                          style={styles.popularChip}
-                          onPress={() => handleAddIngredient(item)}
-                          activeOpacity={0.7}
-                        >
-                          <Text style={styles.popularChipText}>{item}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  </View>
-                )}
-              </View>
-
-              {/* SECTION 2 : TEMPS TOTAL (ENTRÉE LIBRE, MODE RAPIDE ≤ / MIJOTÉ ≥, RACCOURCIS) */}
+              {/* SECTION 1 : TEMPS TOTAL (RAPIDE ≤ / MIJOTÉ ≥, RACCOURCIS) */}
               <View style={styles.sectionCard}>
                 <View style={styles.sectionHeader}>
                   <Ionicons
@@ -728,7 +565,81 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
                 </View>
               </View>
 
-              {/* SECTION 3 : NIVEAU DE DIFFICULTÉ (1 SEULE LIGNE, BASCULE AU RE-CLIC) */}
+              {/* SECTION 2 : NOTE MINIMALE */}
+              <View style={styles.sectionCard}>
+                <View style={styles.sectionHeader}>
+                  <Ionicons name="star" size={17} color={colors.amber} />
+                  <Text style={styles.sectionTitle}>Note minimale</Text>
+                  {draftMinRating > 0 ? (
+                    <View style={[styles.countBadge, { backgroundColor: isDark ? '#78350F' : '#FEF3C7' }]}>
+                      <Text style={[styles.countBadgeText, { color: colors.amber }]}>
+                        {`≥ ${draftMinRating % 1 === 0 ? draftMinRating : draftMinRating.toFixed(1)} ★`}
+                      </Text>
+                    </View>
+                  ) : (
+                    <Text style={styles.sectionHeaderHint}>Toutes les notes</Text>
+                  )}
+                </View>
+                <Text style={styles.sectionDescription}>
+                  Affichez uniquement les recettes recevant au moins cette note moyenne.
+                </Text>
+
+                <View style={styles.ratingStarsBox}>
+                  <StarRating
+                    rating={draftMinRating}
+                    size={28}
+                    interactive
+                    onRatingChange={(newVal) => setDraftMinRating(newVal)}
+                    showClear={false}
+                    showScore={false}
+                  />
+                  <Text style={styles.ratingValueText}>
+                    {draftMinRating > 0
+                      ? `≥ ${draftMinRating % 1 === 0 ? draftMinRating : draftMinRating.toFixed(1)} étoiles et plus`
+                      : 'Toutes les notes (aucun filtre)'}
+                  </Text>
+                </View>
+
+                {/* Raccourcis rapides pré-définis */}
+                <View style={styles.ratingPresetsRow}>
+                  {[
+                    { label: 'Toutes', value: 0 },
+                    { label: '≥ 3 ★', value: 3.0 },
+                    { label: '≥ 3,5 ★', value: 3.5 },
+                    { label: '≥ 4 ★', value: 4.0 },
+                    { label: '≥ 4,5 ★', value: 4.5 },
+                  ].map((preset) => {
+                    const isSelected = draftMinRating === preset.value;
+                    return (
+                      <TouchableOpacity
+                        key={preset.label}
+                        style={[styles.ratingPresetChip, isSelected && styles.ratingPresetChipActive]}
+                        onPress={() => setDraftMinRating(isSelected && preset.value > 0 ? 0 : preset.value)}
+                        activeOpacity={0.75}
+                      >
+                        {preset.value > 0 && (
+                          <Ionicons
+                            name="star"
+                            size={12}
+                            color={isSelected ? '#FFFFFF' : colors.amber}
+                            style={{ marginRight: 4 }}
+                          />
+                        )}
+                        <Text
+                          style={[
+                            styles.ratingPresetChipText,
+                            isSelected && styles.ratingPresetChipTextActive,
+                          ]}
+                        >
+                          {preset.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+
+              {/* SECTION 3 : NIVEAU DE DIFFICULTÉ */}
               <View style={styles.sectionCard}>
                 <View style={styles.sectionHeader}>
                   <Ionicons name="bar-chart-outline" size={17} color={colors.primary} />
@@ -779,99 +690,157 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
                 </View>
               </View>
 
-              {/* SECTION 4 : PRÉFÉRENCES & RÉGIME */}
+              {/* SECTION 4 : INGRÉDIENTS SOUHAITÉS */}
               <View style={styles.sectionCard}>
                 <View style={styles.sectionHeader}>
-                  <Ionicons name="options-outline" size={17} color={colors.primary} />
-                  <Text style={styles.sectionTitle}>Régime & Stock</Text>
+                  <Ionicons name="nutrition-outline" size={17} color={colors.secondary} />
+                  <Text style={styles.sectionTitle}>Ingrédients souhaités</Text>
+                  {draftIngredients.length > 0 && (
+                    <View style={styles.countBadge}>
+                      <Text style={styles.countBadgeText}>{draftIngredients.length}</Text>
+                    </View>
+                  )}
                 </View>
                 <Text style={styles.sectionDescription}>
-                  Préférences rapides synchronisées avec la barre d'accueil.
+                  Trouvez des recettes contenant spécifiquement ces ingrédients.
                 </Text>
 
-                {/* Végétarien & Stock Toggles */}
-                <View style={styles.preferenceTogglesWrap}>
-                  <TouchableOpacity
-                    style={[
-                      styles.preferenceToggleBtn,
-                      draftVegetarian && styles.preferenceToggleBtnActiveVege,
-                    ]}
-                    onPress={() => setDraftVegetarian(!draftVegetarian)}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons
-                      name="leaf"
-                      size={16}
-                      color={draftVegetarian ? '#FFFFFF' : (isDark ? '#4ADE80' : '#15803D')}
-                    />
-                    <Text
-                      style={[
-                        styles.preferenceToggleText,
-                        draftVegetarian && styles.preferenceToggleTextActive,
-                      ]}
+                {/* Champ de saisie d'ingrédients avec autocomplétion */}
+                <View style={styles.inputRow}>
+                  <Ionicons
+                    name="search-outline"
+                    size={17}
+                    color={colors.textMuted}
+                    style={styles.inputSearchIcon}
+                  />
+                  <TextInput
+                    style={styles.ingredientInput}
+                    value={ingredientInputText}
+                    onChangeText={handleIngredientTextChange}
+                    placeholder="Ajouter un ingrédient (ex: Courgette, Tomate...)"
+                    placeholderTextColor={colors.textMuted}
+                    returnKeyType="done"
+                    onSubmitEditing={() => handleAddIngredient(ingredientInputText)}
+                    autoCorrect={false}
+                    autoCapitalize="sentences"
+                  />
+                  {ingredientInputText.trim().length > 0 && (
+                    <TouchableOpacity
+                      style={styles.addIngredientBtn}
+                      onPress={() => handleAddIngredient(ingredientInputText)}
+                      activeOpacity={0.8}
                     >
-                      Végétarien uniquement
-                    </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.preferenceToggleBtn,
-                      draftOnlyDoable && styles.preferenceToggleBtnActiveStock,
-                    ]}
-                    onPress={() => setDraftOnlyDoable(!draftOnlyDoable)}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons
-                      name="restaurant"
-                      size={16}
-                      color={draftOnlyDoable ? '#FFFFFF' : colors.primary}
-                    />
-                    <Text
-                      style={[
-                        styles.preferenceToggleText,
-                        draftOnlyDoable && styles.preferenceToggleTextActive,
-                      ]}
-                    >
-                      En stock uniquement
-                    </Text>
-                  </TouchableOpacity>
+                      <Ionicons name="add" size={18} color="#FFFFFF" />
+                    </TouchableOpacity>
+                  )}
                 </View>
 
-                {/* Note minimale (Système interactif d'étoiles propre sans liste verticale encombrante) */}
-                <View style={styles.ratingSubSection}>
-                  <View style={styles.ratingHeaderRow}>
-                    <View style={styles.ratingTitleWrap}>
-                      <Ionicons name="star" size={15} color={colors.amber} style={{ marginRight: 6 }} />
-                      <Text style={styles.ratingSubLabel}>Note minimale</Text>
+                {/* Suggestions issues de l'autocomplétion pendant la frappe */}
+                {autocompleteSuggestions.length > 0 && (
+                  <View style={styles.autocompleteSuggestionsContainer}>
+                    <Text style={styles.suggestionsHeaderLabel}>Suggestions du lexique :</Text>
+                    <View style={styles.suggestionsWrap}>
+                      {autocompleteSuggestions.map((item) => (
+                        <TouchableOpacity
+                          key={item.id}
+                          style={styles.suggestionChip}
+                          onPress={() => handleAddIngredient(item.canonicalName)}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons name="add-circle" size={14} color={colors.primary} />
+                          <Text style={styles.suggestionChipText}>{item.canonicalName}</Text>
+                        </TouchableOpacity>
+                      ))}
                     </View>
-                    <Text style={styles.ratingValueText}>
-                      {draftMinRating > 0
-                        ? `≥ ${draftMinRating % 1 === 0 ? draftMinRating : draftMinRating.toFixed(1)} ★`
-                        : 'Toutes les notes'}
-                    </Text>
                   </View>
+                )}
 
-                  <View style={styles.ratingStarsBox}>
-                    <StarRating
-                      rating={draftMinRating}
-                      size={26}
-                      interactive
-                      onRatingChange={(newVal) => setDraftMinRating(newVal)}
-                      showClear={draftMinRating > 0}
-                    />
-                    {draftMinRating > 0 && (
-                      <TouchableOpacity
-                        onPress={() => setDraftMinRating(0)}
-                        style={styles.ratingResetBtn}
-                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      >
-                        <Ionicons name="close-circle" size={15} color={colors.textMuted} />
-                        <Text style={styles.ratingResetBtnText}>Effacer</Text>
-                      </TouchableOpacity>
+                {/* Puces des ingrédients actuellement sélectionnés */}
+                {draftIngredients.length > 0 ? (
+                  <View style={styles.selectedIngredientsContainer}>
+                    <Text style={styles.selectedIngredientsLabel}>Ingrédients inclus :</Text>
+                    <View style={styles.selectedIngredientsWrap}>
+                      {draftIngredients.map((ing) => (
+                        <View key={ing} style={styles.selectedIngredientChip}>
+                          <Text style={styles.selectedIngredientChipText}>{ing}</Text>
+                          <TouchableOpacity
+                            onPress={() => handleRemoveIngredient(ing)}
+                            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                            style={styles.removeChipBtn}
+                          >
+                            <Ionicons name="close" size={14} color="#FFFFFF" />
+                          </TouchableOpacity>
+                        </View>
+                      ))}
+                    </View>
+
+                    {/* Règle de correspondance si au moins 2 ingrédients sélectionnés (ET vs OU) */}
+                    {draftIngredients.length >= 2 && (
+                      <View style={styles.matchModeContainer}>
+                        <Text style={styles.matchModeLabel}>Règle de combinaison :</Text>
+                        <View style={styles.matchModeSegmented}>
+                          <TouchableOpacity
+                            style={[
+                              styles.matchModeBtn,
+                              draftIngredientMatchMode === 'all' && styles.matchModeBtnActive,
+                            ]}
+                            onPress={() => setDraftIngredientMatchMode('all')}
+                            activeOpacity={0.8}
+                          >
+                            <Text
+                              style={[
+                                styles.matchModeBtnText,
+                                draftIngredientMatchMode === 'all' && styles.matchModeBtnTextActive,
+                              ]}
+                            >
+                              Tous (ET)
+                            </Text>
+                          </TouchableOpacity>
+
+                          <TouchableOpacity
+                            style={[
+                              styles.matchModeBtn,
+                              draftIngredientMatchMode === 'any' && styles.matchModeBtnActive,
+                            ]}
+                            onPress={() => setDraftIngredientMatchMode('any')}
+                            activeOpacity={0.8}
+                          >
+                            <Text
+                              style={[
+                                styles.matchModeBtnText,
+                                draftIngredientMatchMode === 'any' && styles.matchModeBtnTextActive,
+                              ]}
+                            >
+                              Au moins un (OU)
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
+                        <Text style={styles.matchModeExplanation}>
+                          {draftIngredientMatchMode === 'all'
+                            ? 'La recette doit obligatoirement inclure tous ces ingrédients.'
+                            : 'La recette peut inclure n’importe lequel de ces ingrédients.'}
+                        </Text>
+                      </View>
                     )}
                   </View>
-                </View>
+                ) : (
+                  /* Suggestions d'ingrédients populaires rapides si rien n'est sélectionné */
+                  <View style={styles.popularSuggestionsContainer}>
+                    <Text style={styles.popularLabel}>Suggestions fréquentes en 1 clic :</Text>
+                    <View style={styles.popularWrap}>
+                      {POPULAR_INGREDIENT_SUGGESTIONS.map((item) => (
+                        <TouchableOpacity
+                          key={item}
+                          style={styles.popularChip}
+                          onPress={() => handleAddIngredient(item)}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={styles.popularChipText}>{item}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                )}
               </View>
             </ScrollView>
 
@@ -1368,91 +1337,50 @@ const styles = createDynamicStyles((colors, shadows) => ({
     borderRadius: 3,
     backgroundColor: '#FFFFFF',
   },
-  preferenceTogglesWrap: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 12,
-  },
-  preferenceToggleBtn: {
-    flex: 1,
-    flexDirection: 'row',
+  ratingStarsBox: {
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 10,
-    paddingHorizontal: 8,
-    borderRadius: 12,
-    backgroundColor: colors.cardBackground,
+    backgroundColor: colors.surfaceAlt,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: colors.border,
-  },
-  preferenceToggleBtnActiveVege: {
-    backgroundColor: '#15803D',
-    borderColor: '#15803D',
-  },
-  preferenceToggleBtnActiveStock: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  preferenceToggleText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  preferenceToggleTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
-  ratingSubSection: {
-    marginTop: 4,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  ratingHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  ratingTitleWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  ratingSubLabel: {
-    fontSize: 12.5,
-    fontWeight: '600',
-    color: colors.textPrimary,
+    borderColor: colors.borderLight,
+    marginBottom: 12,
+    gap: 6,
   },
   ratingValueText: {
-    fontSize: 12.5,
+    fontSize: 13,
     fontWeight: '700',
     color: colors.amber,
   },
-  ratingStarsBox: {
+  ratingPresetsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  ratingPresetChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: colors.cardBackground,
-    paddingVertical: 8,
+    paddingVertical: 7,
     paddingHorizontal: 12,
-    borderRadius: 12,
+    borderRadius: 10,
+    backgroundColor: colors.cardBackground,
     borderWidth: 1,
     borderColor: colors.border,
   },
-  ratingResetBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    backgroundColor: colors.background,
+  ratingPresetChipActive: {
+    backgroundColor: colors.amber,
+    borderColor: colors.amber,
   },
-  ratingResetBtnText: {
-    fontSize: 11.5,
+  ratingPresetChipText: {
+    fontSize: 12.5,
     fontWeight: '600',
-    color: colors.textMuted,
+    color: colors.textPrimary,
+  },
+  ratingPresetChipTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '700',
   },
   footerSafeArea: {
     borderTopWidth: 1,
