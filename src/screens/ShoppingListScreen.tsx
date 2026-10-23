@@ -14,14 +14,22 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { ShoppingItem, ShoppingAisle } from '../types/shopping';
+import { CanonicalIngredient } from '../types/vocabulary';
 import { Recipe } from '../types/recipe';
 import { StorageService } from '../services/storageService';
 import { VocabularyService } from '../services/vocabularyService';
+import {
+  UnifiedIngredientService,
+  CANONICAL_QUICK_SUGGESTIONS,
+} from '../services/unifiedIngredientService';
 import { createDynamicStyles } from '../theme/colors';
 import { useTheme } from '../theme/ThemeContext';
 import { AISLE_CONFIGS, ALL_AISLES } from '../utils/aisleClassifier';
 import { groupItemsByAisle, formatShoppingListForShare } from '../utils/shoppingAggregator';
+import { normalizeString } from '../utils/helpers';
 import { FridgeStockView } from '../components/FridgeStockView';
+import { UnifiedIngredientInput } from '../components/UnifiedIngredientInput';
+import { QualifyIngredientModal } from '../components/QualifyIngredientModal';
 
 interface ShoppingListScreenProps {
   onNavigateToRecipes?: (options?: { onlyDoable?: boolean }) => void;
@@ -57,9 +65,36 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
   const [newItemUnit, setNewItemUnit] = useState('');
   const [selectedAisle, setSelectedAisle] = useState<ShoppingAisle | null>(null);
   const [isAislePickerVisible, setIsAislePickerVisible] = useState(false);
+  const [isQualifyModalVisible, setIsQualifyModalVisible] = useState(false);
+  const [pendingUnrecognizedName, setPendingUnrecognizedName] = useState('');
 
   // Section des articles cochés repliée/dépliée
   const [showCompleted, setShowCompleted] = useState(false);
+
+  // Suggestions d'articles rapides indispensables pour les courses (alignées sur le lexique)
+  const availableSuggestions: CanonicalIngredient[] = useMemo(() => {
+    const existingNorm = new Set(
+      items.filter((i) => !i.isChecked).map((i) => normalizeString(i.name))
+    );
+    const syncList = VocabularyService.getSyncList();
+    const vocabMap = new Map<string, CanonicalIngredient>();
+    syncList.forEach((ing) => vocabMap.set(ing.normalizedName, ing));
+
+    const suggestions: CanonicalIngredient[] = [];
+    const addedIds = new Set<string>();
+
+    for (const name of CANONICAL_QUICK_SUGGESTIONS) {
+      const norm = normalizeString(name);
+      if (existingNorm.has(norm)) continue;
+      const ing = vocabMap.get(norm);
+      if (ing && !addedIds.has(ing.id)) {
+        addedIds.add(ing.id);
+        suggestions.push(ing);
+      }
+    }
+
+    return suggestions;
+  }, [items]);
 
   // Chargement de la liste de courses
   const loadShoppingList = useCallback(async () => {
@@ -118,15 +153,47 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
     }
   };
 
-  const handleAddItem = async () => {
-    const trimmedName = newItemName.trim();
-    if (!trimmedName) return;
+  const handleAddItemWithCanonical = async (
+    ing: CanonicalIngredient,
+    extractedDetails?: { quantity?: string; unit?: string }
+  ) => {
+    const qty = newItemQuantity.trim() || extractedDetails?.quantity || undefined;
+    const unit = newItemUnit.trim() || extractedDetails?.unit || undefined;
+    const aisle = selectedAisle || ing.defaultAisle;
 
     try {
       const updated = await StorageService.addCustomShoppingItem(
-        trimmedName,
-        newItemQuantity.trim() || undefined,
-        newItemUnit.trim() || undefined,
+        ing.canonicalName,
+        qty,
+        unit,
+        aisle,
+        ing.id
+      );
+      setItems(updated);
+      VocabularyService.incrementUsage(ing.id).catch(() => {});
+      setNewItemName('');
+      setNewItemQuantity('');
+      setNewItemUnit('');
+      setSelectedAisle(null);
+    } catch (e) {
+      Alert.alert('Erreur', "Impossible d'ajouter cet article.");
+    }
+  };
+
+  const handleAddItemDirect = async (
+    rawName: string,
+    extractedDetails?: { quantity?: string; unit?: string }
+  ) => {
+    const trimmed = rawName.trim();
+    if (!trimmed) return;
+    const qty = newItemQuantity.trim() || extractedDetails?.quantity || undefined;
+    const unit = newItemUnit.trim() || extractedDetails?.unit || undefined;
+
+    try {
+      const updated = await StorageService.addCustomShoppingItem(
+        trimmed,
+        qty,
+        unit,
         selectedAisle || undefined
       );
       setItems(updated);
@@ -137,6 +204,24 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
     } catch (e) {
       Alert.alert('Erreur', "Impossible d'ajouter cet article.");
     }
+  };
+
+  const handleAddItem = async () => {
+    const trimmedName = newItemName.trim();
+    if (!trimmedName) return;
+
+    // Vérifier si reconnu
+    const resolution = UnifiedIngredientService.resolveRecognizedIngredient(trimmedName);
+    if (resolution.isRecognized && resolution.canonical) {
+      return handleAddItemWithCanonical(resolution.canonical, {
+        quantity: resolution.extractedQuantity,
+        unit: resolution.extractedUnit,
+      });
+    }
+
+    // Si non reconnu, ouvre le modal de qualification stricte
+    setPendingUnrecognizedName(trimmedName);
+    setIsQualifyModalVisible(true);
   };
 
   // Déplacer un article individuel vers les étagères
@@ -423,14 +508,32 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
           {/* Barre d'ajout rapide vérouillée en haut */}
           <View style={styles.quickAddCard}>
             <View style={styles.quickAddMainRow}>
-              <TextInput
-                style={styles.nameInput}
+              <UnifiedIngredientInput
+                containerStyle={{ flex: 1, marginRight: 8, zIndex: 99 }}
+                style={[styles.nameInput, { width: '100%', marginRight: 0 }]}
                 placeholder="Ajouter un article (ex: Pommes, Lait...)"
                 placeholderTextColor={colors.textMuted}
                 value={newItemName}
                 onChangeText={setNewItemName}
-                onSubmitEditing={handleAddItem}
+                context="shopping"
+                clearOnSelect
+                keepFocusOnSelect
                 returnKeyType="done"
+                onSubmitEditing={() => handleAddItem()}
+                onSelectIngredient={(ing, details) => {
+                  handleAddItemWithCanonical(ing, details);
+                }}
+                onKeepFreeText={(freeName, details) => {
+                  handleAddItemDirect(freeName, details);
+                }}
+                onAutoExtractedDetails={(extracted) => {
+                  if (extracted.quantity && !newItemQuantity) {
+                    setNewItemQuantity(extracted.quantity);
+                  }
+                  if (extracted.unit && !newItemUnit) {
+                    setNewItemUnit(extracted.unit);
+                  }
+                }}
               />
 
               <TouchableOpacity
@@ -438,7 +541,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
                   styles.addButton,
                   !newItemName.trim() && styles.addButtonDisabled,
                 ]}
-                onPress={handleAddItem}
+                onPress={() => handleAddItem()}
                 disabled={!newItemName.trim()}
               >
                 <Ionicons name="add" size={24} color="#FFFFFF" />
@@ -488,6 +591,30 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
               </TouchableOpacity>
             </View>
           </View>
+
+          {/* Ajout rapide en 1 clic vérouillé sous le bloc d'ajout */}
+          {availableSuggestions.length > 0 && (
+            <View style={styles.pinnedSuggestionsContainer}>
+              <Text style={styles.suggestionsTitle}>Ajout rapide en 1 clic :</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.suggestionsScroll}
+              >
+                {availableSuggestions.slice(0, 15).map((sug) => (
+                  <TouchableOpacity
+                    key={sug.id}
+                    style={styles.suggestionChip}
+                    onPress={() => handleAddItemWithCanonical(sug)}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="add" size={13} color={colors.primary} />
+                    <Text style={styles.suggestionChipText}>{sug.canonicalName}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          )}
 
           {/* Barre de partage rapide direct */}
           {totalCount > 0 && (
@@ -825,11 +952,59 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
           </View>
         </TouchableOpacity>
       </Modal>
+
+      {/* Modal de qualification stricte (Passeport Ingrédient) */}
+      <QualifyIngredientModal
+        visible={isQualifyModalVisible}
+        rawName={pendingUnrecognizedName}
+        context="shopping"
+        onClose={() => setIsQualifyModalVisible(false)}
+        onAttachAsSynonym={(canonical) => {
+          handleAddItemWithCanonical(canonical);
+        }}
+        onCreateCanonical={(created) => {
+          handleAddItemWithCanonical(created);
+        }}
+        onKeepFreeText={(freeName) => {
+          handleAddItemDirect(freeName);
+        }}
+      />
     </SafeAreaView>
   );
 };
 
 const styles = createDynamicStyles((colors, shadows) => ({
+  pinnedSuggestionsContainer: {
+    paddingHorizontal: 16,
+    marginBottom: 8,
+  },
+  suggestionsTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.textSecondary,
+    marginBottom: 6,
+  },
+  suggestionsScroll: {
+    gap: 8,
+    paddingRight: 16,
+  },
+  suggestionChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: colors.cardBackground,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    ...shadows.small,
+  },
+  suggestionChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
   safeArea: {
     flex: 1,
     backgroundColor: colors.background,

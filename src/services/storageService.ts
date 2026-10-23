@@ -234,6 +234,19 @@ export const StorageService = {
   },
 
   /**
+   * Sauvegarde l'ensemble complet des recettes (ex: suite à une synchronisation ou cascade)
+   */
+  async saveAllRecipes(recipes: Recipe[]): Promise<Recipe[]> {
+    try {
+      await AsyncStorage.setItem(RECIPES_STORAGE_KEY, JSON.stringify(recipes));
+      return recipes;
+    } catch (error) {
+      console.error('Erreur lors de la sauvegarde globale des recettes:', error);
+      throw error;
+    }
+  },
+
+  /**
    * Met à jour la note et éventuellement le commentaire/astuce d'une recette.
    */
   async updateRecipeRating(id: string, rating: number, userNote?: string): Promise<Recipe[]> {

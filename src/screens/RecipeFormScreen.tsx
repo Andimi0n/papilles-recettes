@@ -337,7 +337,11 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
     setIngredients(updated);
   };
 
-  const handleSelectCanonicalIngredient = (index: number, item: CanonicalIngredient) => {
+  const handleSelectCanonicalIngredient = (
+    index: number,
+    item: CanonicalIngredient,
+    details?: { quantity?: string; unit?: string }
+  ) => {
     const updated = [...ingredients];
     updated[index] = {
       ...updated[index],
@@ -345,6 +349,32 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
       canonicalId: item.id,
       isPantryStaple: item.isPantryStaple ?? updated[index].isPantryStaple,
     };
+    if (details?.quantity && !updated[index].quantity) {
+      updated[index].quantity = details.quantity;
+    }
+    if (details?.unit && !updated[index].unit) {
+      updated[index].unit = details.unit;
+    }
+    setIngredients(updated);
+  };
+
+  const handleKeepFreeTextIngredient = (
+    index: number,
+    freeName: string,
+    details?: { quantity?: string; unit?: string }
+  ) => {
+    const updated = [...ingredients];
+    updated[index] = {
+      ...updated[index],
+      name: freeName,
+      canonicalId: undefined,
+    };
+    if (details?.quantity && !updated[index].quantity) {
+      updated[index].quantity = details.quantity;
+    }
+    if (details?.unit && !updated[index].unit) {
+      updated[index].unit = details.unit;
+    }
     setIngredients(updated);
   };
 
@@ -932,7 +962,8 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
                     style={[styles.textInput, styles.ingNameInput]}
                     value={ing.name}
                     onChangeText={(val) => handleUpdateIngredient(index, 'name', val)}
-                    onSelectIngredient={(canon) => handleSelectCanonicalIngredient(index, canon)}
+                    onSelectIngredient={(canon, details) => handleSelectCanonicalIngredient(index, canon, details)}
+                    onKeepFreeText={(freeName, details) => handleKeepFreeTextIngredient(index, freeName, details)}
                     onAutoExtractedDetails={(extracted) => {
                       if (extracted.quantity && !ing.quantity) {
                         handleUpdateIngredient(index, 'quantity', extracted.quantity);
@@ -943,6 +974,7 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
                     }}
                     placeholder="Ex: Farine"
                     placeholderTextColor={colors.textMuted}
+                    context="recipe"
                     onFocus={() => setActiveIngIndex(index)}
                     onBlur={() => setActiveIngIndex(null)}
                   />

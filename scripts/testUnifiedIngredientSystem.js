@@ -1,0 +1,286 @@
+#!/usr/bin/env node
+
+/**
+ * Papilles - Test de validation unitaire du Système Unifié d'Entrée d'Ingrédients
+ * (Section 8 du Lexique Canonique : résolution, suggestions de synonymes, Passeport Ingrédient, rétroactivité)
+ */
+
+const path = require('path');
+const fs = require('fs');
+const assert = require('assert');
+const { execSync } = require('child_process');
+
+async function main() {
+  console.log('🔄 Compilation temporaire des modules TypeScript pour le test du système unifié...');
+  const tmpDir = path.join(__dirname, '../.tmp_test_unified_input');
+
+  try {
+    const tscBin = path.join(__dirname, '../node_modules/.bin/tsc');
+    execSync(
+      `"${tscBin}" src/services/unifiedIngredientService.ts src/services/vocabularyService.ts src/services/storageService.ts src/utils/ingredientNormalizer.ts src/utils/allergenMatcher.ts src/utils/shoppingAggregator.ts src/utils/stockMatcher.ts src/data/canonicalVocabulary.ts src/data/initialRecipes.ts --outDir "${tmpDir}" --module commonjs --target es2020 --skipLibCheck --esModuleInterop --ignoreConfig`,
+      { stdio: 'pipe' }
+    );
+  } catch (err) {
+    console.error('Erreur lors de la compilation :', err.message);
+    process.exit(1);
+  }
+
+  // Mock pour react-native dans l'environnement de test Node.js pur
+  const ReactNativeMock = {
+    Platform: { OS: 'ios', select: (obj) => obj.ios || obj.default },
+  };
+  require.cache[require.resolve('react-native')] = {
+    exports: ReactNativeMock,
+  };
+
+  // Configuration du mock AsyncStorage en mémoire
+  const memoryStore = new Map();
+  const AsyncStorageMock = {
+    getItem: async (key) => memoryStore.get(key) || null,
+    setItem: async (key, val) => {
+      memoryStore.set(key, val);
+      return null;
+    },
+    removeItem: async (key) => {
+      memoryStore.delete(key);
+      return null;
+    },
+    clear: async () => {
+      memoryStore.clear();
+      return null;
+    },
+  };
+
+  require.cache[require.resolve('@react-native-async-storage/async-storage')] = {
+    exports: { default: AsyncStorageMock, ...AsyncStorageMock },
+  };
+
+  const { VocabularyService } = require(path.join(tmpDir, 'services/vocabularyService.js'));
+  const { StorageService } = require(path.join(tmpDir, 'services/storageService.js'));
+  const { UnifiedIngredientService } = require(path.join(tmpDir, 'services/unifiedIngredientService.js'));
+  const { detectProbableAllergenFamily } = require(path.join(tmpDir, 'utils/allergenMatcher.js'));
+
+  console.log('🧪 Lancement des tests stricts du Système Unifié d\'Entrée d\'Ingrédients (Section 8)...\n');
+
+  // Initialisation du vocabulaire canonique
+  await VocabularyService.getAll();
+
+  // =========================================================================
+  // TEST 1 : Résolution directe d'ingrédients reconnus (O(1)) et extraction
+  // =========================================================================
+  console.log('--- Test 1 : Résolution directe et extraction fluide ---');
+
+  // Ingrédient canonique exact
+  const res1 = UnifiedIngredientService.resolveRecognizedIngredient('Carotte');
+  assert.strictEqual(res1.isRecognized, true, 'Carotte doit être reconnue');
+  assert.strictEqual(res1.canonical.canonicalName, 'Carotte');
+  assert.strictEqual(res1.canonical.id, 'ing_canon_carotte');
+  console.log('✓ "Carotte" résolu directement vers ing_canon_carotte');
+
+  // Synonyme répertorié
+  const res2 = UnifiedIngredientService.resolveRecognizedIngredient('patates');
+  assert.strictEqual(res2.isRecognized, true, 'patates doit être reconnu via les alias de Pomme de terre');
+  assert.strictEqual(res2.canonical.canonicalName, 'Pomme de terre');
+  console.log('✓ "patates" résolu vers Pomme de terre via ses alias');
+
+  // Extraction quantité et unité incorporées
+  const res3 = UnifiedIngredientService.resolveRecognizedIngredient('2 oignons blancs émincés');
+  assert.strictEqual(res3.isRecognized, true);
+  assert.strictEqual(res3.canonical.canonicalName, 'Oignon');
+  assert.strictEqual(res3.extractedQuantity, '2');
+  console.log('✓ "2 oignons blancs émincés" résolu vers Oignon avec quantité 2 extraite');
+
+  // Ingrédient non répertorié
+  const res4 = UnifiedIngredientService.resolveRecognizedIngredient('topinambour');
+  assert.strictEqual(res4.isRecognized, false, 'topinambour ne doit pas être reconnu dans le seed');
+  console.log('✓ "topinambour" correctement identifié comme non répertorié');
+
+  // =========================================================================
+  // TEST 2 : Suggestions de synonymes proches (Levenshtein, pluriels, racines)
+  // =========================================================================
+  console.log('\n--- Test 2 : Suggestions intelligentes de synonymes proches ---');
+
+  // Faute de frappe légère (Levenshtein 1)
+  const matchesTypo = UnifiedIngredientService.findClosestCanonicalMatches('tomattes', 3);
+  assert.ok(matchesTypo.length > 0, 'tomattes doit suggérer Tomate');
+  assert.strictEqual(matchesTypo[0].item.canonicalName, 'Tomate');
+  console.log(`✓ "tomattes" suggère en premier "${matchesTypo[0].item.canonicalName}" (${matchesTypo[0].label})`);
+
+  // Variante orthographique
+  const matchesEchalote = UnifiedIngredientService.findClosestCanonicalMatches('echalotte', 3);
+  assert.ok(matchesEchalote.length > 0);
+  assert.strictEqual(matchesEchalote[0].item.canonicalName, 'Échalote');
+  console.log(`✓ "echalotte" suggère en premier "${matchesEchalote[0].item.canonicalName}" (${matchesEchalote[0].label})`);
+
+  // Déclinaison sémantique / famille
+  const matchesFarine = UnifiedIngredientService.findClosestCanonicalMatches('farine de chataigne', 3);
+  assert.ok(matchesFarine.length > 0);
+  assert.strictEqual(matchesFarine[0].item.canonicalName, 'Farine');
+  console.log(`✓ "farine de chataigne" suggère en premier "${matchesFarine[0].item.canonicalName}" (${matchesFarine[0].label})`);
+
+  // Terme sans rapport (sumac) -> aucun faux positif
+  const matchesSumac = UnifiedIngredientService.findClosestCanonicalMatches('sumac', 3);
+  assert.strictEqual(matchesSumac.length, 0, 'sumac ne doit pas avoir de faux rapprochement forcé');
+  console.log('✓ "sumac" n\'impose aucun faux rapprochement avec un aliment existant');
+
+  // =========================================================================
+  // TEST 3 : Association d'un nouveau synonyme & Garde-fous (Section 8.3)
+  // =========================================================================
+  console.log('\n--- Test 3 : Association de synonyme et garde-fous stricts ---');
+
+  // Association valide
+  const addAliasRes = await UnifiedIngredientService.addAliasToCanonical(
+    'ing_canon_pomme_de_terre',
+    'bintje speciale'
+  );
+  assert.strictEqual(addAliasRes.success, true);
+  assert.ok(addAliasRes.updated.aliases.includes('bintje speciale'));
+  assert.ok(addAliasRes.updated.aliases.includes('bintje speciales')); // Pluriel généré
+  console.log('✓ "bintje speciale" associé avec succès comme synonyme de Pomme de terre');
+
+  // Vérification de résolution immédiate
+  const resolveAlias = UnifiedIngredientService.resolveRecognizedIngredient('bintje speciale');
+  assert.strictEqual(resolveAlias.isRecognized, true);
+  assert.strictEqual(resolveAlias.canonical.id, 'ing_canon_pomme_de_terre');
+  console.log('✓ "bintje speciale" résout désormais immédiatement vers Pomme de terre');
+
+  // Rejet de terme générique interdit (FORBIDDEN_ISOLATED_ALIASES)
+  const genericRes = await UnifiedIngredientService.addAliasToCanonical('ing_canon_pomme_de_terre', 'blanc');
+  assert.strictEqual(genericRes.success, false);
+  assert.ok(genericRes.error.includes('générique'));
+  console.log('✓ Rejet strict d\'un terme générique isolé ("blanc") comme synonyme');
+
+  // Rejet du vol de nom canonique d'un autre ingrédient
+  const stealCanonRes = await UnifiedIngredientService.addAliasToCanonical('ing_canon_pomme_de_terre', 'Carotte');
+  assert.strictEqual(stealCanonRes.success, false);
+  assert.ok(stealCanonRes.error.includes('nom canonique officiel'));
+  console.log('✓ Rejet strict du vol de nom canonique d\'un autre ingrédient ("Carotte")');
+
+  // =========================================================================
+  // TEST 4 : Validation stricte du Passeport Ingrédient (Section 8.3 & 8.4)
+  // =========================================================================
+  console.log('\n--- Test 4 : Validations bloquantes du Passeport Ingrédient ---');
+
+  // Rejet nom vide ou trop court
+  const valShort = UnifiedIngredientService.validateNewIngredient({
+    canonicalName: 'a',
+    defaultAisle: 'Épicerie & Condiments',
+    isPantryStaple: false,
+  });
+  assert.strictEqual(valShort.valid, false);
+  console.log('✓ Rejet d\'un nom trop court (< 3 caractères)');
+
+  // Rejet nom avec quantités chiffrées
+  const valNum = UnifiedIngredientService.validateNewIngredient({
+    canonicalName: '200g de sumac',
+    defaultAisle: 'Épicerie & Condiments',
+    isPantryStaple: false,
+  });
+  assert.strictEqual(valNum.valid, false);
+  assert.ok(valNum.error.includes('quantités'));
+  console.log('✓ Rejet d\'un nom contenant des quantités chiffrées ("200g de sumac")');
+
+  // Rejet doublon exact
+  const valDup = UnifiedIngredientService.validateNewIngredient({
+    canonicalName: 'Carotte',
+    defaultAisle: 'Fruits & Légumes',
+    isPantryStaple: false,
+  });
+  assert.strictEqual(valDup.valid, false);
+  assert.ok(valDup.error.includes('existe déjà'));
+  console.log('✓ Rejet d\'un doublon exact ("Carotte")');
+
+  // Rejet conflit singulier/pluriel
+  const valPlural = UnifiedIngredientService.validateNewIngredient({
+    canonicalName: 'Carottes',
+    defaultAisle: 'Fruits & Légumes',
+    isPantryStaple: false,
+  });
+  assert.strictEqual(valPlural.valid, false);
+  assert.ok(valPlural.error.includes('singulier / pluriel'));
+  console.log('✓ Rejet d\'un conflit singulier/pluriel ("Carottes" vs "Carotte")');
+
+  // =========================================================================
+  // TEST 5 : Création qualifiée & Rétroactivité (Section 8.5)
+  // =========================================================================
+  console.log('\n--- Test 5 : Création d\'ingrédient & Synchronisation rétroactive ---');
+
+  // Préparation de données non résolues dans AsyncStorage avant la création
+  const existingRecipe = {
+    id: 'rec_test_topinambour',
+    title: 'Velouté d\'hiver',
+    description: 'Une soupe réconfortante',
+    category: 'plats',
+    servings: 4,
+    prepTime: 10,
+    cookTime: 20,
+    difficulty: 'facile',
+    ingredients: [
+      { id: 'ing_topi_1', name: 'Topinambour', quantity: '500', unit: 'g' }, // canonicalId undefined !
+    ],
+    steps: ['Éplucher', 'Cuire'],
+  };
+  await StorageService.saveAllRecipes([existingRecipe]);
+
+  const existingFridge = [
+    { id: 'fridge_topi_1', name: 'Topinambour', aisle: 'Autre', createdAt: new Date().toISOString() }, // canonicalId undefined !
+  ];
+  await StorageService.saveFridgeItems(existingFridge);
+
+  // Création officielle de "Topinambour"
+  const createRes = await UnifiedIngredientService.registerNewCanonicalIngredient({
+    canonicalName: 'Topinambour',
+    defaultAisle: 'Fruits & Légumes',
+    allergen: null, // aucun allergène
+    isPantryStaple: false,
+    aliases: ['topinambours'],
+  });
+
+  assert.strictEqual(createRes.success, true);
+  assert.ok(createRes.ingredient.id.startsWith('ing_custom_topinambour'));
+  assert.strictEqual(createRes.ingredient.isCustom, true);
+  console.log(`✓ Nouvel ingrédient créé : "${createRes.ingredient.canonicalName}" (${createRes.ingredient.id})`);
+
+  // Vérification de la rétroactivité immédiate (Section 8.5)
+  const reloadedRecipes = await StorageService.getRecipes();
+  const reloadedIng = reloadedRecipes[0].ingredients[0];
+  assert.strictEqual(reloadedIng.canonicalId, createRes.ingredient.id, 'La recette doit être rétroactivement liée !');
+  console.log('✓ Recette existante rétroactivement liée au nouvel identifiant canonique');
+
+  const reloadedFridge = await StorageService.getFridgeItems();
+  assert.strictEqual(reloadedFridge[0].canonicalId, createRes.ingredient.id, 'Le stock doit être rétroactivement lié !');
+  assert.strictEqual(reloadedFridge[0].aisle, 'Fruits & Légumes', 'Le rayon du stock doit adopter le rayon canonique');
+  console.log('✓ Stock existant rétroactivement lié et rayon mis à jour');
+
+  // =========================================================================
+  // TEST 6 : Détection des racines d'allergènes pour le pré-remplissage du Passeport
+  // =========================================================================
+  console.log('\n--- Test 6 : Détection des racines d\'allergènes pour le Passeport ---');
+
+  const allLait = detectProbableAllergenFamily('sauce béchamel maison');
+  assert.strictEqual(allLait, 'lait');
+  console.log('✓ "sauce béchamel maison" -> détection automatique de l\'allergène lait');
+
+  const allNoisette = detectProbableAllergenFamily('coulis de noisettes torréfiées');
+  assert.strictEqual(allNoisette, 'fruits_a_coque');
+  console.log('✓ "coulis de noisettes" -> détection automatique de l\'allergène fruits_a_coque');
+
+  const fauxAmi = detectProbableAllergenFamily('lait de coco');
+  assert.strictEqual(fauxAmi, null, 'Le lait de coco ne doit pas activer l\'allergène laitier');
+  console.log('✓ Faux ami "lait de coco" -> aucun allergène laitier erroné');
+
+  console.log('\n🎉 TOUS LES TESTS DU SYSTÈME UNIFIÉ D\'ENTRÉE D\'INGRÉDIENTS ONT RÉUSSI (0 ERREUR) !');
+
+  if (fs.existsSync(tmpDir)) {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+}
+
+main().catch((err) => {
+  const tmpDir = path.join(__dirname, '../.tmp_test_unified_input');
+  if (fs.existsSync(tmpDir)) {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+  console.error('\n❌ Échec du test :', err);
+  process.exit(1);
+});

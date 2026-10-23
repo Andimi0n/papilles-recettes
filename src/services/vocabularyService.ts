@@ -355,7 +355,8 @@ export const VocabularyService = {
     }
 
     const now = new Date().toISOString();
-    const uniqueId = `ing_custom_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    const slug = generateCanonicalSlugId(cleanName).replace('ing_canon_', '');
+    const uniqueId = `ing_custom_${slug}_${Date.now().toString(36)}`;
     const aisle = item.defaultAisle || classifyIngredientAisle(cleanName);
 
     // Collecter les noms canoniques et alias des autres ingrédients pour interdire tout conflit

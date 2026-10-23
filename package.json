@@ -39,7 +39,8 @@
     "test:shopping": "node scripts/testShoppingAggregator.js",
     "test:allergens": "node scripts/testAllergenMatcher.js",
     "test:cascade": "node scripts/testVocabularyCascade.js",
-    "test": "npm run validate:lexicon && npm run test:stock && npm run test:shopping && npm run test:allergens && npm run test:cascade"
+    "test:unified-input": "node scripts/testUnifiedIngredientSystem.js",
+    "test": "npm run validate:lexicon && npm run test:stock && npm run test:shopping && npm run test:allergens && npm run test:cascade && npm run test:unified-input"
   },
   "overrides": {
     "braces": "^3.0.3",

@@ -152,6 +152,7 @@ papilles-recettes/
     │   ├── storageService.ts   # AsyncStorage & SecureStore wrapper, sanitization, export/import
     │   ├── recipeAiService.ts  # Gemini multimodal extraction & connectivity check
     │   ├── vocabularyService.ts # Canonical vocabulary persistence, CRUD, autocomplete index
+    │   ├── unifiedIngredientService.ts # Unified resolution, synonym suggestion & Section 8 validation
     │   └── marmitonService.ts  # Marmiton web import parser
     ├── utils/                  # Algorithmic utilities & data helpers
     │   ├── aisleClassifier.ts  # Rule-based supermarket aisle classifier for ingredients

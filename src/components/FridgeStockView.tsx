@@ -22,6 +22,11 @@ import { normalizeString } from '../utils/helpers';
 import { normalizeIngredient } from '../utils/ingredientNormalizer';
 import { VocabularyService } from '../services/vocabularyService';
 import { IngredientAutocompleteInput } from './IngredientAutocompleteInput';
+import {
+  UnifiedIngredientService,
+  CANONICAL_QUICK_SUGGESTIONS,
+} from '../services/unifiedIngredientService';
+import { QualifyIngredientModal } from './QualifyIngredientModal';
 
 interface FridgeStockViewProps {
   recipes: Recipe[];
@@ -31,34 +36,6 @@ interface FridgeStockViewProps {
   onFridgeCountChange?: (count: number) => void;
   onNavigateToDoableRecipes?: () => void;
 }
-
-const CANONICAL_QUICK_SUGGESTIONS = [
-  'Œufs',
-  'Beurre',
-  'Lait',
-  'Farine',
-  'Pâtes',
-  'Riz',
-  'Huile d\'olive',
-  'Crème fraîche',
-  'Fromage râpé',
-  'Tomate',
-  'Oignon',
-  'Ail',
-  'Carotte',
-  'Courgette',
-  'Pomme de terre',
-  'Poulet',
-  'Thon',
-  'Sel',
-  'Poivre',
-  'Sucre',
-  'Moutarde',
-  'Chocolat noir',
-  'Jambon',
-  'Lardons',
-  'Échalote',
-];
 
 export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
   recipes,
@@ -75,6 +52,8 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
   const [selectedAisle, setSelectedAisle] = useState<ShoppingAisle | null>(null);
   const [isAislePickerVisible, setIsAislePickerVisible] = useState(false);
   const [justCopiedId, setJustCopiedId] = useState<string | null>(null);
+  const [isQualifyModalVisible, setIsQualifyModalVisible] = useState(false);
+  const [pendingUnrecognizedName, setPendingUnrecognizedName] = useState('');
   const [canonicalVocabulary, setCanonicalVocabulary] = useState<CanonicalIngredient[]>(() =>
     VocabularyService.getSyncList()
   );
@@ -197,6 +176,18 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
     const raw = (nameToAdd || newItemName).trim();
     if (!raw) return;
 
+    // Si aucun ID canonique n'est fourni, on vérifie via le service unifié
+    if (!canonicalIdToAdd) {
+      const resolution = UnifiedIngredientService.resolveRecognizedIngredient(raw);
+      if (resolution.isRecognized && resolution.canonical) {
+        return handleAddItem(resolution.canonical.canonicalName, resolution.canonical.defaultAisle, resolution.canonical.id);
+      } else {
+        setPendingUnrecognizedName(raw);
+        setIsQualifyModalVisible(true);
+        return;
+      }
+    }
+
     // Normalisation de l'ingrédient
     const normalized = normalizeIngredient({ name: raw, canonicalId: canonicalIdToAdd });
     const resolvedCanonicalId = canonicalIdToAdd || normalized.canonicalId;
@@ -213,6 +204,24 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
       const updated = await StorageService.addFridgeItem(name, resolvedAisle, resolvedCanonicalId);
       setItems(updated);
       VocabularyService.incrementUsage(resolvedCanonicalId || name).catch(() => {});
+      if (onFridgeCountChange) {
+        onFridgeCountChange(updated.length);
+      }
+      setNewItemName('');
+      setSelectedAisle(null);
+    } catch (e) {
+      Alert.alert('Erreur', "Impossible d'ajouter cet aliment à vos étagères.");
+    }
+  };
+
+  const handleAddFreeTextItem = async (freeName: string) => {
+    const trimmed = freeName.trim();
+    if (!trimmed) return;
+    const formatted = trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+    const resolvedAisle = selectedAisle || classifyIngredientAisle(formatted);
+    try {
+      const updated = await StorageService.addFridgeItem(formatted, resolvedAisle, undefined);
+      setItems(updated);
       if (onFridgeCountChange) {
         onFridgeCountChange(updated.length);
       }
@@ -312,9 +321,13 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
             clearOnSelect
             keepFocusOnSelect
             returnKeyType="done"
+            context="stock"
             onSubmitEditing={() => handleAddItem()}
             onSelectIngredient={(ing) => {
               handleAddItem(ing.canonicalName, ing.defaultAisle, ing.id);
+            }}
+            onKeepFreeText={(freeName) => {
+              handleAddFreeTextItem(freeName);
             }}
           />
 
@@ -609,6 +622,23 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
           </View>
         </TouchableOpacity>
       </Modal>
+
+      {/* Modal de qualification stricte (Passeport Ingrédient) */}
+      <QualifyIngredientModal
+        visible={isQualifyModalVisible}
+        rawName={pendingUnrecognizedName}
+        context="stock"
+        onClose={() => setIsQualifyModalVisible(false)}
+        onAttachAsSynonym={(canonical) => {
+          handleAddItem(canonical.canonicalName, canonical.defaultAisle, canonical.id);
+        }}
+        onCreateCanonical={(created) => {
+          handleAddItem(created.canonicalName, created.defaultAisle, created.id);
+        }}
+        onKeepFreeText={(freeName) => {
+          handleAddFreeTextItem(freeName);
+        }}
+      />
     </View>
   );
 };

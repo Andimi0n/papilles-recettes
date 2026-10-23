@@ -47,7 +47,7 @@ export interface RecipeAllergenEvaluation {
  * Racines sémantiques clés des 14 familles d'allergènes INCO (Arbitrage 5 - Sécurité Sanitaire)
  * Permet de prévenir à 100% les faux négatifs sur des ingrédients hors seed (sauce béchamel, coulis de noisette...)
  */
-const INCO_FAMILY_KEY_ROOTS: Record<AllergenFamily, string[]> = {
+export const INCO_FAMILY_KEY_ROOTS: Record<AllergenFamily, string[]> = {
   lait: ['lait', 'creme', 'fromage', 'beurre', 'yaourt', 'yogourt', 'lact', 'bechamel', 'mascarpone', 'ricotta', 'mozzarella', 'parmesan', 'cheddar', 'comte', 'gruyere', 'gouda', 'roquefort'],
   gluten: ['farine', 'ble', 'orge', 'seigle', 'avoine', 'epeautre', 'semoule', 'pain', 'chapelure', 'pates', 'tagliatelle', 'spaghetti', 'biscuit', 'brioche'],
   oeufs: ['oeuf', 'jaune d oeuf', 'blanc d oeuf', 'mayonnaise'],
@@ -63,6 +63,48 @@ const INCO_FAMILY_KEY_ROOTS: Record<AllergenFamily, string[]> = {
   lupin: ['lupin'],
   sulfites: ['sulfite', 'vin blanc', 'vin rouge', 'champagne', 'porto'],
 };
+
+/**
+ * Détecte si un nom d'ingrédient hors lexique contient une racine sémantique d'allergène INCO.
+ * Intègre les protections contre les faux amis végétaux (beurre de cacahuète, lait de coco, etc.).
+ */
+export function detectProbableAllergenFamily(rawName: string): AllergenFamily | null {
+  if (!rawName || !rawName.trim()) return null;
+  const rawNormStr = normalizeString(rawName);
+
+  for (const [family, roots] of Object.entries(INCO_FAMILY_KEY_ROOTS) as [AllergenFamily, string[]][]) {
+    for (const root of roots) {
+      const rootRegex = new RegExp(`(^|\\s|['’])${root}(s|es)?(\\s|$|['’])`, 'i');
+      if (rootRegex.test(rawNormStr) || rawNormStr.includes(root)) {
+        // Garde-fous faux amis connus : boissons, crèmes et beurres végétaux non laitiers
+        if (
+          family === 'lait' &&
+          (rawNormStr.includes('coco') ||
+            rawNormStr.includes('soja') ||
+            rawNormStr.includes('amande') ||
+            rawNormStr.includes('avoine') ||
+            rawNormStr.includes('riz') ||
+            rawNormStr.includes('cacahuete') ||
+            rawNormStr.includes('cacahouete') ||
+            rawNormStr.includes('arachide') ||
+            rawNormStr.includes('marron') ||
+            rawNormStr.includes('chataigne') ||
+            rawNormStr.includes('tournesol') ||
+            rawNormStr.includes('karite') ||
+            rawNormStr.includes('noisette'))
+        ) {
+          continue;
+        }
+        if (family === 'fruits_a_coque' && (rawNormStr.includes('muscade') || rawNormStr.includes('coco'))) {
+          continue;
+        }
+        return family;
+      }
+    }
+  }
+
+  return null;
+}
 
 /**
  * Prépare et indexe en mémoire les allergènes de l'utilisateur pour une vérification sub-milliseconde

@@ -24,6 +24,7 @@ import {
 import { useTheme } from '../theme/ThemeContext';
 import { createDynamicStyles } from '../theme/colors';
 import { StarRating } from './StarRating';
+import { UnifiedIngredientInput } from './UnifiedIngredientInput';
 
 interface AdvancedFiltersModalProps {
   visible: boolean;
@@ -427,55 +428,20 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
                   Trouvez des recettes contenant spécifiquement ces ingrédients.
                 </Text>
 
-                {/* Champ de saisie d'ingrédients avec autocomplétion */}
-                <View style={styles.inputRow}>
-                  <Ionicons
-                    name="search-outline"
-                    size={17}
-                    color={colors.textMuted}
-                    style={styles.inputSearchIcon}
-                  />
-                  <TextInput
-                    style={styles.ingredientInput}
-                    value={ingredientInputText}
-                    onChangeText={handleIngredientTextChange}
-                    placeholder="Ajouter un ingrédient (ex: Courgette, Tomate...)"
-                    placeholderTextColor={colors.textMuted}
-                    returnKeyType="done"
-                    onSubmitEditing={() => handleAddIngredient(ingredientInputText)}
-                    autoCorrect={false}
-                    autoCapitalize="sentences"
-                  />
-                  {ingredientInputText.trim().length > 0 && (
-                    <TouchableOpacity
-                      style={styles.addIngredientBtn}
-                      onPress={() => handleAddIngredient(ingredientInputText)}
-                      activeOpacity={0.8}
-                    >
-                      <Ionicons name="add" size={18} color="#FFFFFF" />
-                    </TouchableOpacity>
-                  )}
-                </View>
-
-                {/* Suggestions issues de l'autocomplétion pendant la frappe */}
-                {autocompleteSuggestions.length > 0 && (
-                  <View style={styles.autocompleteSuggestionsContainer}>
-                    <Text style={styles.suggestionsHeaderLabel}>Suggestions du lexique :</Text>
-                    <View style={styles.suggestionsWrap}>
-                      {autocompleteSuggestions.map((item) => (
-                        <TouchableOpacity
-                          key={item.id}
-                          style={styles.suggestionChip}
-                          onPress={() => handleAddIngredient(item.canonicalName)}
-                          activeOpacity={0.7}
-                        >
-                          <Ionicons name="add-circle" size={14} color={colors.primary} />
-                          <Text style={styles.suggestionChipText}>{item.canonicalName}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  </View>
-                )}
+                {/* Champ de saisie d'ingrédients unifié */}
+                <UnifiedIngredientInput
+                  containerStyle={{ zIndex: 99, marginBottom: 10 }}
+                  placeholder="Ajouter un ingrédient (ex: Courgette, Tomate...)"
+                  placeholderTextColor={colors.textMuted}
+                  value={ingredientInputText}
+                  onChangeText={setIngredientInputText}
+                  context="search"
+                  clearOnSelect
+                  keepFocusOnSelect
+                  showSearchIcon
+                  onSelectIngredient={(item) => handleAddIngredient(item.canonicalName)}
+                  onKeepFreeText={(name) => handleAddIngredient(name)}
+                />
 
                 {/* Puces des ingrédients actuellement sélectionnés */}
                 {draftIngredients.length > 0 ? (
