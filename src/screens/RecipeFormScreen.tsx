@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -283,6 +283,7 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
   const [isQualifyModalVisible, setIsQualifyModalVisible] = useState(false);
   const [pendingQualifyIndex, setPendingQualifyIndex] = useState<number | null>(null);
   const [pendingUnrecognizedName, setPendingUnrecognizedName] = useState('');
+  const isSubmittingRef = useRef(false);
 
   // Steps state
   const [steps, setSteps] = useState<RecipeStep[]>(
@@ -386,22 +387,29 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
     setPendingQualifyIndex(null);
     setPendingUnrecognizedName('');
 
-    // Chaînage automatique si d'autres ingrédients restent à qualifier
-    const syncList = VocabularyService.getSyncList();
-    const nextUnrecIdx = updated.findIndex((ing) => {
-      const trimmed = ing.name.trim();
-      if (!trimmed) return false;
-      if (ing.canonicalId && syncList.some((c) => c.id === ing.canonicalId)) return false;
-      const res = UnifiedIngredientService.resolveRecognizedIngredient(trimmed);
-      return !res.isRecognized;
-    });
+    // N'enchaîner vers la suite que si la qualification a été déclenchée par une tentative de sauvegarde globale
+    if (isSubmittingRef.current) {
+      const syncList = VocabularyService.getSyncList();
+      const nextUnrecIdx = updated.findIndex((ing) => {
+        const trimmed = ing.name.trim();
+        if (!trimmed) return false;
+        if (ing.canonicalId && syncList.some((c) => c.id === ing.canonicalId)) return false;
+        const res = UnifiedIngredientService.resolveRecognizedIngredient(trimmed);
+        return !res.isRecognized;
+      });
 
-    if (nextUnrecIdx >= 0) {
-      setTimeout(() => {
-        setPendingQualifyIndex(nextUnrecIdx);
-        setPendingUnrecognizedName(updated[nextUnrecIdx].name.trim());
-        setIsQualifyModalVisible(true);
-      }, 150);
+      if (nextUnrecIdx >= 0) {
+        setTimeout(() => {
+          setPendingQualifyIndex(nextUnrecIdx);
+          setPendingUnrecognizedName(updated[nextUnrecIdx].name.trim());
+          setIsQualifyModalVisible(true);
+        }, 150);
+      } else {
+        // Tous les ingrédients sont désormais qualifiés : enregistrement automatique final
+        setTimeout(() => {
+          handleSubmit(updated);
+        }, 100);
+      }
     }
   };
 
@@ -456,20 +464,27 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
   };
 
   // Save validation
-  const handleSubmit = () => {
+  const handleSubmit = (overrideIngredients?: unknown) => {
+    isSubmittingRef.current = true;
     if (!title.trim()) {
+      isSubmittingRef.current = false;
       Alert.alert('Titre manquant', 'Veuillez saisir au moins un titre pour la recette.');
       return;
     }
 
-    const nonEmptyIngredients = ingredients.filter((i) => i.name.trim().length > 0);
+    const currentIngredients = Array.isArray(overrideIngredients)
+      ? (overrideIngredients as Ingredient[])
+      : ingredients;
+    const nonEmptyIngredients = currentIngredients.filter((i) => i.name.trim().length > 0);
     if (nonEmptyIngredients.length === 0) {
+      isSubmittingRef.current = false;
       Alert.alert('Ingrédient requis', 'Veuillez renseigner au moins un ingrédient.');
       return;
     }
 
     const validSteps = steps.filter((s) => s.instruction.trim().length > 0);
     if (validSteps.length === 0) {
+      isSubmittingRef.current = false;
       Alert.alert('Étape requise', 'Veuillez renseigner au moins une étape de préparation.');
       return;
     }
@@ -481,8 +496,8 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
     const validatedIngredients: Ingredient[] = [];
     let firstUnrecognized: { index: number; name: string } | null = null;
 
-    for (let i = 0; i < ingredients.length; i++) {
-      const ing = ingredients[i];
+    for (let i = 0; i < currentIngredients.length; i++) {
+      const ing = currentIngredients[i];
       const trimmedName = ing.name.trim();
       if (!trimmedName) continue;
 
@@ -516,6 +531,7 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
       return;
     }
 
+    isSubmittingRef.current = false;
     const recipe: Recipe = {
       id: initialRecipe?.id || generateUniqueId('rec'),
       title: title.trim(),
@@ -1257,6 +1273,7 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
       rawName={pendingUnrecognizedName}
       context="recipe"
       onClose={() => {
+        isSubmittingRef.current = false;
         setIsQualifyModalVisible(false);
         setPendingQualifyIndex(null);
         setPendingUnrecognizedName('');

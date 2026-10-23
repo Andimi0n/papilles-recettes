@@ -877,6 +877,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                   onChangeText={setAllergenInputText}
                   clearOnSelect
                   returnKeyType="done"
+                  onRequestQualify={(raw) => handleInitiateAddIngredient(raw)}
                   onSubmitEditing={() => handleInitiateAddIngredient()}
                   onSelectIngredient={(ing) => {
                     handleInitiateAddIngredient(ing.canonicalName, ing);

@@ -418,6 +418,7 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
                   context="search"
                   clearOnSelect
                   showSearchIcon
+                  onSubmitEditing={() => handleAddIngredient(ingredientInputText)}
                   onSelectIngredient={(item) => handleAddIngredient(item.canonicalName)}
                 />
 
