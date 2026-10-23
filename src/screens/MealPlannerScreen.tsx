@@ -785,13 +785,17 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
                       <View
                         style={[
                           styles.dayBadge,
-                          slot.isToday && styles.dayBadgeToday,
+                          plannerSettings.mode === 'dynamic' &&
+                            slot.isToday &&
+                            styles.dayBadgeToday,
                         ]}
                       >
                         <Text
                           style={[
                             styles.dayBadgeText,
-                            slot.isToday && styles.dayBadgeTextToday,
+                            plannerSettings.mode === 'dynamic' &&
+                              slot.isToday &&
+                              styles.dayBadgeTextToday,
                           ]}
                         >
                           {slot.mainLabel}

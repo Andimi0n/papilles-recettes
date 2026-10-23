@@ -519,7 +519,7 @@ export function getPlannerDaySlots(
         dayName: day,
         mainLabel: day,
         tabPillLabel: day.slice(0, 3),
-        isToday: day === todayDayOfWeek,
+        isToday: false,
         isTomorrow: false,
         lunchKey: `${day}_lunch`,
         dinnerKey: `${day}_dinner`,
