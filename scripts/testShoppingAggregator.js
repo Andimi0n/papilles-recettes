@@ -176,6 +176,94 @@ async function main() {
   assert.strictEqual(farineItem.unit, 'kg');
   console.log('✓ Conversion métrique validée : 1 kg + 250 g = 1,25 kg');
 
+  // =========================================================================
+  // TEST SECTION 3 : Fractions Unicode, Fourchettes et Nouvelles Unités
+  // =========================================================================
+  console.log('\n--- Test 3 : Fractions Unicode, Fourchettes et Nouvelles Unités ---');
+
+  const unicodeAndRangeItems = [
+    {
+      id: 'u1',
+      name: 'Mâche',
+      canonicalId: 'ing_canon_mache',
+      quantity: '1',
+      unit: 'poignée',
+      isChecked: false,
+      aisle: 'Fruits & Légumes',
+      recipeTitle: 'Salade A',
+    },
+    {
+      id: 'u2',
+      name: 'Mâche',
+      canonicalId: 'ing_canon_mache',
+      quantity: '2',
+      unit: 'poignées',
+      isChecked: false,
+      aisle: 'Fruits & Légumes',
+      recipeTitle: 'Salade B',
+    },
+    {
+      id: 'u3',
+      name: 'Citron',
+      canonicalId: 'ing_canon_citron',
+      quantity: '½',
+      unit: '',
+      isChecked: false,
+      aisle: 'Fruits & Légumes',
+      recipeTitle: 'Sauce A',
+    },
+    {
+      id: 'u4',
+      name: 'Citron',
+      canonicalId: 'ing_canon_citron',
+      quantity: '½',
+      unit: '',
+      isChecked: false,
+      aisle: 'Fruits & Légumes',
+      recipeTitle: 'Sauce B',
+    },
+    {
+      id: 'u5',
+      name: 'Ail',
+      canonicalId: 'ing_canon_ail',
+      quantity: '2-3',
+      unit: 'gousses',
+      isChecked: false,
+      aisle: 'Fruits & Légumes',
+      recipeTitle: 'Plat A',
+    },
+    {
+      id: 'u6',
+      name: 'Ail',
+      canonicalId: 'ing_canon_ail',
+      quantity: '1',
+      unit: 'gousse',
+      isChecked: false,
+      aisle: 'Fruits & Légumes',
+      recipeTitle: 'Plat B',
+    },
+  ];
+
+  const mergedStep3 = mergeShoppingItems([], unicodeAndRangeItems);
+
+  // Vérification de la fusion de mâche en poignées
+  const macheItem = mergedStep3.find((i) => i.canonicalId === 'ing_canon_mache');
+  assert.ok(macheItem, 'Mâche doit être présente');
+  assert.strictEqual(macheItem.quantity, '3', '1 poignée + 2 poignées = 3 poignées');
+  console.log('✓ Unités informelles (poignées) fusionnées : 1 + 2 = 3 poignées');
+
+  // Vérification de l'addition des fractions Unicode
+  const citronItem = mergedStep3.find((i) => i.canonicalId === 'ing_canon_citron');
+  assert.ok(citronItem, 'Citron doit être présent');
+  assert.strictEqual(citronItem.quantity, '1', '½ + ½ = 1');
+  console.log('✓ Fractions typographiques Unicode (½ + ½) = 1 citron');
+
+  // Vérification de l'addition d'une fourchette (2-3 -> 2.5 + 1 = 3.5)
+  const ailItem = mergedStep3.find((i) => i.canonicalId === 'ing_canon_ail');
+  assert.ok(ailItem, 'Ail doit être présent');
+  assert.strictEqual(ailItem.quantity, '3,5', '2-3 (2,5) + 1 gousse = 3,5 gousses');
+  console.log('✓ Fourchette numérique (2-3 gousses + 1) = 3,5 gousses');
+
   console.log('\n🎉 TOUS LES TESTS DE SHOPPING AGGREGATOR ONT RÉUSSI (0 ERREUR) !');
 
   // Nettoyage

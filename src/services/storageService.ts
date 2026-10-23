@@ -35,6 +35,9 @@ const USER_ALLERGENS_KEY = '@papilles_user_allergens_v1';
 const ALLERGEN_FILTER_RECIPES_KEY = '@papilles_filter_allergens_recipes_v1';
 const ALLERGEN_EXCLUDE_AI_KEY = '@papilles_exclude_allergens_ai_v1';
 
+// File d'attente séquentielle (mutex async) pour sérialiser les cascades de vocabulaire et éviter tout conflit AsyncStorage
+let cascadeMutexQueue: Promise<any> = Promise.resolve();
+
 /**
  * Assainit une URL d'image pour s'assurer qu'elle n'exploite aucun protocole malveillant (SEC-09)
  */
@@ -460,8 +463,22 @@ export const StorageService = {
    * Propage en cascade les modifications structurelles du lexique
    * (promotions, fusions, suppressions, renommages de rayon)
    * vers les recettes, le stock et la liste de courses.
+   * Sérialisé via mutex pour prévenir tout risque de collision AsyncStorage.
    */
   async handleVocabularyCascade(event: VocabularyCascadeEvent): Promise<{
+    recipesUpdated: number;
+    shoppingUpdated: number;
+    fridgeUpdated: number;
+  }> {
+    return new Promise((resolve, reject) => {
+      cascadeMutexQueue = cascadeMutexQueue
+        .then(() => this._executeVocabularyCascade(event))
+        .then(resolve)
+        .catch(reject);
+    });
+  },
+
+  async _executeVocabularyCascade(event: VocabularyCascadeEvent): Promise<{
     recipesUpdated: number;
     shoppingUpdated: number;
     fridgeUpdated: number;

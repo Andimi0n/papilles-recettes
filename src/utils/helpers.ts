@@ -111,6 +111,38 @@ export function matchRecipeWithIngredients(
   };
 }
 
+const UNICODE_FRACTION_MAP: Record<string, string> = {
+  '½': '1/2',
+  '¼': '1/4',
+  '¾': '3/4',
+  '⅓': '1/3',
+  '⅔': '2/3',
+  '⅕': '1/5',
+  '⅖': '2/5',
+  '⅗': '3/5',
+  '⅘': '4/5',
+  '⅙': '1/6',
+  '⅚': '5/6',
+  '⅛': '1/8',
+  '⅜': '3/8',
+  '⅝': '5/8',
+  '⅞': '7/8',
+};
+
+/**
+ * Convertit les fractions typographiques Unicode (½, ¼, ¾...) en fractions ASCII ("1/2", "1/4"...)
+ */
+export function convertUnicodeFractions(str: string): string {
+  if (!str) return '';
+  let s = str;
+  for (const [frac, rep] of Object.entries(UNICODE_FRACTION_MAP)) {
+    if (s.includes(frac)) {
+      s = s.replace(new RegExp(frac, 'g'), ` ${rep} `);
+    }
+  }
+  return s.replace(/\s+/g, ' ').trim();
+}
+
 /**
  * Calcule et formate la quantité d'un ingrédient en fonction du ratio de portions
  */
@@ -126,7 +158,7 @@ export function scaleQuantity(
   const ratio = targetServings / baseServings;
   if (ratio === 1) return rawQty;
 
-  const trimmed = rawQty.trim().replace(',', '.');
+  const trimmed = convertUnicodeFractions(rawQty.trim()).replace(',', '.');
 
   // Fractions simples ex: "1/2", "3/4"
   const fractionMatch = trimmed.match(/^(\d+)\s*\/\s*(\d+)$/);

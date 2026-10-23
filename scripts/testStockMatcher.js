@@ -68,6 +68,30 @@ async function main() {
   assert.strictEqual(normPotCreme.unit, 'pot');
   console.log('✓ "1 pot de crème fraîche" extrait quantité 1, unité pot, résolu Crème fraîche');
 
+  const normFractionUnicode = normalizeIngredient({ name: '½ citron' });
+  assert.strictEqual(normFractionUnicode.name, 'Citron');
+  assert.strictEqual(normFractionUnicode.canonicalId, 'ing_canon_citron');
+  assert.strictEqual(normFractionUnicode.quantity, '1/2');
+  console.log('✓ "½ citron" extrait fraction Unicode 1/2 et résolu vers Citron');
+
+  const normPoigneeMache = normalizeIngredient({ name: '1 belle poignée de mâche' });
+  assert.strictEqual(normPoigneeMache.name, 'Mâche');
+  assert.strictEqual(normPoigneeMache.canonicalId, 'ing_canon_mache');
+  assert.strictEqual(normPoigneeMache.unit, 'poignée');
+  console.log('✓ "1 belle poignée de mâche" extrait contenant poignée et résolu vers Mâche');
+
+  const normBranchesCeleri = normalizeIngredient({ name: '3 branches de céleri' });
+  assert.strictEqual(normBranchesCeleri.name, 'Céleri');
+  assert.strictEqual(normBranchesCeleri.canonicalId, 'ing_canon_celeri');
+  assert.strictEqual(normBranchesCeleri.unit, 'branche');
+  assert.strictEqual(normBranchesCeleri.quantity, '3');
+  console.log('✓ "3 branches de céleri" extrait quantité 3, unité branche et résolu vers Céleri');
+
+  const normAubergineGrillee = normalizeIngredient({ name: 'aubergines grillées' });
+  assert.strictEqual(normAubergineGrillee.name, 'Aubergine');
+  assert.strictEqual(normAubergineGrillee.canonicalId, 'ing_canon_aubergine');
+  console.log('✓ "aubergines grillées" élague le qualificatif grillé et résolu vers Aubergine');
+
   // =========================================================================
   // TEST SECTION 2 : Stock Matcher et correspondances d'inventaire
   // =========================================================================

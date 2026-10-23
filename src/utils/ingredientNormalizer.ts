@@ -1,7 +1,7 @@
 import { NormalizationResult, CanonicalIngredient } from '../types/vocabulary';
 import { VocabularyService } from '../services/vocabularyService';
 import { isKnownDefaultPantryStaple } from '../data/canonicalVocabulary';
-import { normalizeString } from './helpers';
+import { normalizeString, convertUnicodeFractions } from './helpers';
 import { stemWord, levenshteinDistance } from './searchEngine';
 
 // Expressions indiquant un ingrédient facultatif ou décoratif (sur chaîne normalisée ou brute)
@@ -27,10 +27,17 @@ const CONTAINER_PREFIXES: { regex: RegExp; unitLabel: string }[] = [
   { regex: /^(?:une?|[0-9]+(?:\/[0-9]+)?(?:\.[0-9]+)?|\d+)?\s*(?:c\.?\s*a\s*cafe|cuilleres?\s+a\s+cafe)\s+de?\s*/i, unitLabel: 'c. à café' },
   { regex: /^(?:une?|[0-9]+(?:\/[0-9]+)?(?:\.[0-9]+)?|\d+)?\s*(?:verres?|tasses?)\s+de?\s*/i, unitLabel: 'verre' },
   { regex: /^(?:un\s+)?(?:filet\s+d['e]?|goutte\s+de)\s*/i, unitLabel: 'filet' },
+  { regex: /^(?:une?|[0-9]+(?:\/[0-9]+)?(?:\.[0-9]+)?|\d+)?\s*(?:petites?|grosses?|belles?|grandes?)?\s*(?:poignees?)\s+de?\s*/i, unitLabel: 'poignée' },
+  { regex: /^(?:une?|[0-9]+(?:\/[0-9]+)?(?:\.[0-9]+)?|\d+)?\s*(?:belles?|grandes?|petites?)?\s*(?:branches?)\s+de?\s*/i, unitLabel: 'branche' },
+  { regex: /^(?:une?|[0-9]+(?:\/[0-9]+)?(?:\.[0-9]+)?|\d+)?\s*(?:petites?|grosses?|belles?)?\s*(?:bottes?)\s+de?\s*/i, unitLabel: 'botte' },
+  { regex: /^(?:une?|[0-9]+(?:\/[0-9]+)?(?:\.[0-9]+)?|\d+)?\s*(?:pointes?\s+de\s+couteau\s+de?)\s*/i, unitLabel: 'pointe' },
+  { regex: /^(?:une?|[0-9]+(?:\/[0-9]+)?(?:\.[0-9]+)?|\d+)?\s*(?:traits?)\s+d['e]?\s*/i, unitLabel: 'trait' },
+  { regex: /^(?:un\s+|le\s+|les\s+|[0-9]+)?\s*(?:zestes?)\s+d['e]?\s*/i, unitLabel: 'zeste' },
+  { regex: /^(?:une?|[0-9]+)?\s*(?:belles?|grosses?)?\s*(?:noisettes?)\s+de?\s*/i, unitLabel: 'noisette' },
 ];
 
-// Préfixes de quantité au début du nom (ex: "2 carottes")
-const LEADING_QUANTITY_REGEX = /^([0-9]+(?:\/[0-9]+)?(?:\.[0-9]+)?)\s+(.*)$/;
+// Préfixes de quantité au début du nom (ex: "2 carottes", "1/2 citron", "2-3 carottes")
+const LEADING_QUANTITY_REGEX = /^([0-9]+(?:\/[0-9]+)?(?:\.[0-9]+)?(?:\s*(?:-|–|à|a)\s*[0-9]+(?:\/[0-9]+)?(?:\.[0-9]+)?)?)\s+(.*)$/i;
 
 // Adjectifs et découpes superflus formulés en minuscules sans accents
 const QUALIFIER_PATTERNS: RegExp[] = [
@@ -64,6 +71,18 @@ const QUALIFIER_PATTERNS: RegExp[] = [
   /\bdecortique?e?s?\b/gi,
   /\bdenoyaute?e?s?\b/gi,
   /\bprecuit(?:e|s|es)?\b/gi,
+  /\bgrille(?:e|s|es)?\b/gi,
+  /\bdore(?:e|s|es)?\b/gi,
+  /\bseche(?:e|s|es)?\b/gi,
+  /\begoutte(?:e|s|es)?\b/gi,
+  /\bblanchi(?:e|s|es)?\b/gi,
+  /\bmixe(?:e|s|es)?\b/gi,
+  /\btamise(?:e|s|es)?\b/gi,
+  /\btiede(?:s)?\b/gi,
+  /\bbouillant(?:e|s|es)?\b/gi,
+  /\bal\s+dente\b/gi,
+  /\bfarcie(?:s)?\b/gi,
+  /\bde\s+saison\b/gi,
 ];
 
 export function stemPhrase(str: string): string {
@@ -80,7 +99,7 @@ function extractQuantityAndContainer(raw: string): {
   extractedQuantity?: string;
   extractedUnit?: string;
 } {
-  let s = normalizeString(raw);
+  let s = convertUnicodeFractions(normalizeString(raw));
   let extractedQuantity: string | undefined;
   let extractedUnit: string | undefined;
 
@@ -119,7 +138,7 @@ function cleanRawIngredientString(raw: string): {
   extractedUnit?: string;
   extractedOptional?: boolean;
 } {
-  let norm = normalizeString(raw);
+  let norm = convertUnicodeFractions(normalizeString(raw));
   let extractedOptional: boolean | undefined;
 
   // 0. Détecter si l'ingrédient est mentionné comme facultatif ou décoratif
@@ -438,9 +457,21 @@ export function normalizeIngredient(raw: {
 
     for (const item of vocabList) {
       const dist = levenshteinDistance(item.normalizedName, cleanedNorm);
-      const maxAllowed = cleanedNorm.length >= 7 ? 2 : 1;
+      // Garde-fous renforcés :
+      // - 4 lettres : distance 1 autorisée UNIQUEMENT si la première lettre est identique
+      // - 5 à 7 lettres : distance 1 autorisée
+      // - >= 8 lettres : distance 2 autorisée si première lettre identique, sinon distance 1
+      const isFirstLetterSame = item.normalizedName.charAt(0) === cleanedNorm.charAt(0);
+      let maxAllowed = 0;
+      if (cleanedNorm.length === 4) {
+        maxAllowed = isFirstLetterSame ? 1 : 0;
+      } else if (cleanedNorm.length >= 8) {
+        maxAllowed = isFirstLetterSame ? 2 : 1;
+      } else {
+        maxAllowed = 1;
+      }
 
-      if (dist <= maxAllowed && dist < bestDistance) {
+      if (maxAllowed > 0 && dist <= maxAllowed && dist < bestDistance) {
         bestDistance = dist;
         bestMatch = item;
       }

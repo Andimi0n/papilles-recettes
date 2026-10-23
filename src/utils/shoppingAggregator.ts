@@ -1,16 +1,35 @@
 import { Ingredient } from '../types/recipe';
 import { ShoppingItem, ShoppingAisle } from '../types/shopping';
 import { classifyIngredientAisle, ALL_AISLES } from './aisleClassifier';
-import { normalizeString, scaleQuantity, generateUniqueId } from './helpers';
+import { normalizeString, scaleQuantity, generateUniqueId, convertUnicodeFractions } from './helpers';
 import { normalizeIngredient } from './ingredientNormalizer';
 import { VocabularyService } from '../services/vocabularyService';
 
 /**
- * Tente de convertir une quantité textuelle en valeur numérique (ex: "250", "1.5", "1/2")
+ * Tente de convertir une quantité textuelle en valeur numérique (ex: "250", "1.5", "1/2", "½", "2 à 3")
  */
 function parseNumericQuantity(qtyStr?: string): number | null {
   if (!qtyStr || !qtyStr.trim()) return null;
-  const trimmed = qtyStr.trim().replace(',', '.');
+  const trimmed = convertUnicodeFractions(qtyStr.trim()).replace(',', '.');
+
+  // Fourchette simple "2-3" ou "2 à 3" -> moyenne arithmétique
+  const range = trimmed.match(/^(\d+(?:\.\d+)?)\s*(?:-|–|à|a)\s*(\d+(?:\.\d+)?)$/i);
+  if (range) {
+    const min = parseFloat(range[1]);
+    const max = parseFloat(range[2]);
+    if (!isNaN(min) && !isNaN(max)) {
+      return (min + max) / 2;
+    }
+  }
+
+  // Nombre composé avec fraction "1 1/2"
+  const mixed = trimmed.match(/^(\d+)\s+(\d+)\s*\/\s*(\d+)$/);
+  if (mixed) {
+    const whole = parseFloat(mixed[1]);
+    const n = parseFloat(mixed[2]);
+    const d = parseFloat(mixed[3]);
+    return d !== 0 ? whole + n / d : null;
+  }
 
   // Fraction simple "1/2"
   const frac = trimmed.match(/^(\d+)\s*\/\s*(\d+)$/);
@@ -59,6 +78,14 @@ function normalizeUnitKey(unit?: string): string {
   if (['morceau', 'morceaux'].includes(u)) return 'morceau';
   if (['filet', 'filets'].includes(u)) return 'filet';
   if (['sachet', 'sachets'].includes(u)) return 'sachet';
+  if (['poignee', 'poignees'].includes(u)) return 'poignée';
+  if (['branche', 'branches'].includes(u)) return 'branche';
+  if (['botte', 'bottes'].includes(u)) return 'botte';
+  if (['pointe', 'pointes'].includes(u)) return 'pointe';
+  if (['trait', 'traits'].includes(u)) return 'trait';
+  if (['zeste', 'zestes'].includes(u)) return 'zeste';
+  if (['noisette', 'noisettes'].includes(u)) return 'noisette';
+  if (['goutte', 'gouttes'].includes(u)) return 'goutte';
   return u;
 }
 

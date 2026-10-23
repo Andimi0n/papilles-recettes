@@ -95,6 +95,15 @@ async function main() {
   assert.strictEqual(coulisNoisette.allergenFamily, 'fruits_a_coque');
   console.log('✓ "coulis de noisettes torréfiées" correctement détecté comme fruits à coque');
 
+  // Termes végétaux non laitiers (faux amis "beurre", "crème", "lait")
+  const beurreCacahuete = isIngredientAllergen('beurre de cacahuète artisanal', prepared);
+  assert.strictEqual(beurreCacahuete.isAllergen, false, '"beurre de cacahuète" ne doit PAS déclencher l\'allergène lait');
+  const cremeMarrons = isIngredientAllergen('crème de marrons d\'Ardèche', prepared);
+  assert.strictEqual(cremeMarrons.isAllergen, false, '"crème de marrons" ne doit PAS déclencher l\'allergène lait');
+  const laitRiz = isIngredientAllergen('lait de riz bio', prepared);
+  assert.strictEqual(laitRiz.isAllergen, false, '"lait de riz" ne doit PAS déclencher l\'allergène lait');
+  console.log('✓ Faux amis végétaux (beurre de cacahuète, crème de marrons, lait de riz) ne déclenchent pas l\'allergène lait');
+
   // =========================================================================
   // TEST SECTION 3 : Évaluation de recette et indicateur de précaution
   // =========================================================================

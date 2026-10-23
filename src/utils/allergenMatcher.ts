@@ -244,8 +244,23 @@ export function isIngredientAllergen(
         for (const root of roots) {
           const rootRegex = new RegExp(`(^|\\s|['’])${root}(s|es)?(\\s|$|['’])`, 'i');
           if (rootRegex.test(rawNormStr) || rawNormStr.includes(root)) {
-            // Garde-fous faux amis connus : boissons végétales
-            if (activeFam === 'lait' && (rawNormStr.includes('coco') || rawNormStr.includes('soja') || rawNormStr.includes('amande') || rawNormStr.includes('avoine'))) {
+            // Garde-fous faux amis connus : boissons, crèmes et beurres végétaux non laitiers
+            if (
+              activeFam === 'lait' &&
+              (rawNormStr.includes('coco') ||
+                rawNormStr.includes('soja') ||
+                rawNormStr.includes('amande') ||
+                rawNormStr.includes('avoine') ||
+                rawNormStr.includes('riz') ||
+                rawNormStr.includes('cacahuete') ||
+                rawNormStr.includes('cacahouete') ||
+                rawNormStr.includes('arachide') ||
+                rawNormStr.includes('marron') ||
+                rawNormStr.includes('chataigne') ||
+                rawNormStr.includes('tournesol') ||
+                rawNormStr.includes('karite') ||
+                rawNormStr.includes('noisette'))
+            ) {
               continue;
             }
             if (activeFam === 'fruits_a_coque' && (rawNormStr.includes('muscade') || rawNormStr.includes('coco'))) {
