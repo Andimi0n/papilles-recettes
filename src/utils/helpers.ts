@@ -223,8 +223,12 @@ export function scaleQuantity(
   baseServings: number,
   targetServings: number
 ): string {
-  if (!rawQty || !rawQty.trim() || baseServings <= 0 || targetServings <= 0) {
+  if (!rawQty || !rawQty.trim() || baseServings <= 0 || targetServings < 0) {
     return rawQty || '';
+  }
+
+  if (targetServings === 0) {
+    return '0';
   }
 
   const ratio = targetServings / baseServings;
