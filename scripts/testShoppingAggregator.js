@@ -26,6 +26,7 @@ async function main() {
   const {
     createShoppingItemFromIngredient,
     mergeShoppingItems,
+    groupItemsByAisle,
   } = require(path.join(tmpDir, 'utils/shoppingAggregator.js'));
 
   console.log('🧪 Lancement des tests de shoppingAggregator (Arbitrages 2 & 3)...');
@@ -263,6 +264,67 @@ async function main() {
   assert.ok(ailItem, 'Ail doit être présent');
   assert.strictEqual(ailItem.quantity, '3,5', '2-3 (2,5) + 1 gousse = 3,5 gousses');
   console.log('✓ Fourchette numérique (2-3 gousses + 1) = 3,5 gousses');
+
+  // =========================================================================
+  // TEST SECTION 4 : groupItemsByAisle
+  // =========================================================================
+  console.log('\n--- Test 4 : Regroupement des articles par rayon ---');
+
+  const itemsToGroup = [
+    { id: 'g1', name: 'Carotte', aisle: 'Fruits & Légumes' },
+    { id: 'g2', name: 'Lait', aisle: 'Produits Frais & Crèmerie' },
+    { id: 'g3', name: 'Pain', aisle: 'Boulangerie & Pâtisserie' },
+    { id: 'g4', name: 'Pomme', aisle: 'Fruits & Légumes' },
+    { id: 'g5', name: 'Essuie-tout', aisle: 'Autre' },
+    { id: 'g6', name: 'Produit Inconnu' }, // Pas d'aisle fourni
+  ];
+
+  const grouped = groupItemsByAisle(itemsToGroup);
+
+  // Vérification de la présence des rayons
+  assert.ok(grouped.find(g => g.aisle === 'Fruits & Légumes'), 'Le rayon Fruits & Légumes doit exister');
+  assert.ok(grouped.find(g => g.aisle === 'Produits Frais & Crèmerie'), 'Le rayon Produits Frais & Crèmerie doit exister');
+  assert.ok(grouped.find(g => g.aisle === 'Boulangerie & Pâtisserie'), 'Le rayon Boulangerie & Pâtisserie doit exister');
+  assert.ok(grouped.find(g => g.aisle === 'Autre'), 'Le rayon Autre doit exister');
+
+  // Vérification du contenu des rayons
+  const fruitsLegumes = grouped.find(g => g.aisle === 'Fruits & Légumes');
+  assert.strictEqual(fruitsLegumes.items.length, 2, 'Il doit y avoir 2 articles dans Fruits & Légumes');
+  assert.strictEqual(fruitsLegumes.items[0].name, 'Carotte', 'Le premier article doit être Carotte');
+  assert.strictEqual(fruitsLegumes.items[1].name, 'Pomme', 'Le deuxième article doit être Pomme');
+  console.log('✓ Articles correctement regroupés dans leurs rayons respectifs');
+
+  // Vérification du comportement par défaut pour les articles sans rayon ou rayon inconnu
+  const autreRayon = grouped.find(g => g.aisle === 'Autre');
+  assert.strictEqual(autreRayon.items.length, 2, 'Il doit y avoir 2 articles dans le rayon Autre (un explicite, un fallback)');
+  assert.strictEqual(autreRayon.items[1].name, 'Produit Inconnu', 'L\'article sans rayon doit tomber dans "Autre"');
+  console.log('✓ Comportement de repli validé : les articles sans rayon atterrissent dans "Autre"');
+
+  // Vérification de l'ordre (doit respecter ALL_AISLES)
+  const allAislesOrder = [
+    'Fruits & Légumes',
+    'Boucherie & Poissonnerie',
+    'Produits Frais & Crèmerie',
+    'Boulangerie & Pâtisserie',
+    'Épicerie & Condiments',
+    'Surgelés',
+    'Boissons',
+    'Autre',
+  ];
+
+  let previousIndex = -1;
+  grouped.forEach(group => {
+      const currentIndex = allAislesOrder.indexOf(group.aisle);
+      assert.ok(currentIndex > previousIndex, `L'ordre des rayons est incorrect: ${group.aisle} ne devrait pas apparaître ici.`);
+      previousIndex = currentIndex;
+  });
+  console.log('✓ L\'ordre des rayons respecte ALL_AISLES');
+
+  // Vérification qu'aucun rayon vide n'est renvoyé
+  const emptyAisles = grouped.filter(g => g.items.length === 0);
+  assert.strictEqual(emptyAisles.length, 0, 'Il ne doit y avoir aucun rayon vide');
+  console.log('✓ Aucun rayon vide n\'est renvoyé');
+
 
   console.log('\n🎉 TOUS LES TESTS DE SHOPPING AGGREGATOR ONT RÉUSSI (0 ERREUR) !');
 
