@@ -6,11 +6,20 @@ import {
   TouchableOpacity,
   Image,
   Alert,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Recipe } from '../types/recipe';
-import { DayOfWeek, MealTime, PlannedMeal, WeeklyPlanMap } from '../types/planner';
+import {
+  DayOfWeek,
+  MealTime,
+  PlannedMeal,
+  WeeklyPlanMap,
+  PlannerSettings,
+  PlannerMode,
+  DEFAULT_PLANNER_SETTINGS,
+} from '../types/planner';
 import { MealLogEntry, MealLogMap, DayMealLogSummary } from '../types/mealLog';
 import { StorageService } from '../services/storageService';
 import { createDynamicStyles } from '../theme/colors';
@@ -22,18 +31,13 @@ import {
   getLocalDateString,
   addDaysToDateString,
   formatMealLogDateFrench,
+  formatShortDateFrench,
   getDayOfWeekFromDateString,
+  getPlannerDaySlots,
+  PlannerDaySlot,
+  ORDERED_DAYS_OF_WEEK,
 } from '../utils/helpers';
 
-const DAYS_OF_WEEK: DayOfWeek[] = [
-  'Lundi',
-  'Mardi',
-  'Mercredi',
-  'Jeudi',
-  'Vendredi',
-  'Samedi',
-  'Dimanche',
-];
 
 interface MealPlannerScreenProps {
   recipes: Recipe[];
@@ -58,15 +62,19 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
     }
   }, [initialTab]);
 
-  // --- ÉTAT DU PLANNING HEBDOMADAIRE ---
+  // --- ÉTAT DU PLANNING HEBDOMADAIRE & RÉGLAGES ---
   const [weeklyPlan, setWeeklyPlan] = useState<WeeklyPlanMap>({});
+  const [plannerSettings, setPlannerSettings] = useState<PlannerSettings>(DEFAULT_PLANNER_SETTINGS);
+  const [isConfigModalVisible, setIsConfigModalVisible] = useState(false);
   const [activeSlot, setActiveSlot] = useState<{
-    day: DayOfWeek;
+    slotKey: string;
+    dayLabel: string;
+    dayName: DayOfWeek;
+    dateStr?: string;
     mealTime: MealTime;
+    isPassed?: boolean;
   } | null>(null);
-  const [selectedDayTab, setSelectedDayTab] = useState<DayOfWeek>('Lundi');
   const scrollViewRef = useRef<ScrollView>(null);
-  const dayPositions = useRef<Record<string, number>>({});
 
   // --- ÉTAT DU SUIVI DES REPAS (JOURNAL) ---
   const todayStr = useMemo(() => getLocalDateString(), []);
@@ -85,11 +93,15 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
     entry: null,
   });
 
-  // Chargement du planning prévisionnel
+  // Chargement du planning prévisionnel et des réglages de planification
   const loadPlan = useCallback(async () => {
     try {
-      const data = await StorageService.getWeeklyPlan();
+      const [data, settings] = await Promise.all([
+        StorageService.getWeeklyPlan(),
+        StorageService.getPlannerSettings(),
+      ]);
       setWeeklyPlan(data);
+      setPlannerSettings(settings);
     } catch (e) {
       console.error('Erreur chargement planning:', e);
     }
@@ -114,10 +126,50 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
     loadMealLogs();
   }, [loadPlan, loadMealLogs]);
 
-  // Nombre de repas programmés au total (sur 14 créneaux)
+  // Génération des 7 créneaux journaliers (Fixe ou Dynamique)
+  const daySlots: PlannerDaySlot[] = useMemo(() => {
+    return getPlannerDaySlots(plannerSettings.mode, plannerSettings.startDay);
+  }, [plannerSettings.mode, plannerSettings.startDay]);
+
+  // Détection du prochain repas en mode dynamique
+  const nextUpcomingSlotKey = useMemo(() => {
+    if (plannerSettings.mode !== 'dynamic') return null;
+    for (const slot of daySlots) {
+      if (!slot.isLunchPassed) {
+        return slot.lunchKey;
+      }
+      if (!slot.isDinnerPassed) {
+        return slot.dinnerKey;
+      }
+    }
+    return null;
+  }, [plannerSettings.mode, daySlots]);
+
+  // Nombre de repas programmés au total dans la période active (sur 14 créneaux)
   const plannedCount = useMemo(() => {
-    return Object.values(weeklyPlan).filter(Boolean).length;
-  }, [weeklyPlan]);
+    return daySlots.reduce((count, slot) => {
+      return count + (weeklyPlan[slot.lunchKey] ? 1 : 0) + (weeklyPlan[slot.dinnerKey] ? 1 : 0);
+    }, 0);
+  }, [weeklyPlan, daySlots]);
+
+  // Gestion des changements de réglages depuis le modal rapide
+  const handleChangeMode = async (mode: PlannerMode) => {
+    try {
+      const updated = await StorageService.savePlannerSettings({ mode });
+      setPlannerSettings(updated);
+    } catch (e) {
+      console.error('Erreur changement mode:', e);
+    }
+  };
+
+  const handleChangeStartDay = async (startDay: DayOfWeek) => {
+    try {
+      const updated = await StorageService.savePlannerSettings({ startDay });
+      setPlannerSettings(updated);
+    } catch (e) {
+      console.error('Erreur changement jour début:', e);
+    }
+  };
 
   // --- GESTION DU SUIVI DES REPAS (JOURNAL) ---
   const handleOpenQuickLog = (date: string, mealTime: MealTime) => {
@@ -173,22 +225,37 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
   const selectedLunch = mealLogs[`${selectedDate}_lunch`];
   const selectedDinner = mealLogs[`${selectedDate}_dinner`];
 
-  // Si une recette était programmée au planning pour ce jour
-  const plannedLunchForDay = weeklyPlan[`${currentDayOfWeek}_lunch`];
-  const plannedDinnerForDay = weeklyPlan[`${currentDayOfWeek}_dinner`];
+  // Si une recette était programmée au planning pour ce jour (compatible mode dynamique et fixe)
+  const plannedLunchForDay = weeklyPlan[`${selectedDate}_lunch`] || weeklyPlan[`${currentDayOfWeek}_lunch`];
+  const plannedDinnerForDay = weeklyPlan[`${selectedDate}_dinner`] || weeklyPlan[`${currentDayOfWeek}_dinner`];
 
   // --- GESTION DU PLANNING HEBDOMADAIRE ---
-  const handleOpenPicker = (day: DayOfWeek, mealTime: MealTime) => {
-    setActiveSlot({ day, mealTime });
+  const handleOpenPicker = (
+    slotKey: string,
+    dayLabel: string,
+    dayName: DayOfWeek,
+    mealTime: MealTime,
+    isPassed?: boolean,
+    dateStr?: string
+  ) => {
+    setActiveSlot({
+      slotKey,
+      dayLabel,
+      dayName,
+      mealTime,
+      isPassed,
+      dateStr,
+    });
   };
 
   const handleSaveRecipeToSlot = async (recipe: Recipe, servings: number) => {
     if (!activeSlot) return;
-    const { day, mealTime } = activeSlot;
+    const { slotKey, dayName, mealTime, dateStr } = activeSlot;
     const meal: PlannedMeal = {
       id: generateUniqueId('plan_meal'),
-      day,
+      day: dayName,
       mealTime,
+      date: dateStr,
       recipeId: recipe.id,
       recipeTitle: recipe.title,
       recipeImageUrl: recipe.imageUrl,
@@ -196,7 +263,7 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
     };
 
     try {
-      const nextPlan = await StorageService.setWeeklyMeal(day, mealTime, meal);
+      const nextPlan = await StorageService.setWeeklyMeal(slotKey, mealTime, meal);
       setWeeklyPlan(nextPlan);
     } catch (e) {
       Alert.alert('Erreur', 'Impossible de planifier cette recette.');
@@ -207,18 +274,19 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
 
   const handleSaveCustomMealToSlot = async (title: string, servings: number) => {
     if (!activeSlot) return;
-    const { day, mealTime } = activeSlot;
+    const { slotKey, dayName, mealTime, dateStr } = activeSlot;
     const meal: PlannedMeal = {
       id: generateUniqueId('plan_custom'),
-      day,
+      day: dayName,
       mealTime,
+      date: dateStr,
       recipeTitle: title,
       servings,
       customNote: title,
     };
 
     try {
-      const nextPlan = await StorageService.setWeeklyMeal(day, mealTime, meal);
+      const nextPlan = await StorageService.setWeeklyMeal(slotKey, mealTime, meal);
       setWeeklyPlan(nextPlan);
     } catch (e) {
       Alert.alert('Erreur', 'Impossible de planifier ce repas.');
@@ -227,9 +295,9 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
     }
   };
 
-  const handleRemoveMealFromSlot = async (day: DayOfWeek, mealTime: MealTime) => {
+  const handleRemoveMealFromSlot = async (slotKey: string, mealTime: MealTime) => {
     try {
-      const nextPlan = await StorageService.setWeeklyMeal(day, mealTime, null);
+      const nextPlan = await StorageService.setWeeklyMeal(slotKey, mealTime, null);
       setWeeklyPlan(nextPlan);
     } catch (e) {
       Alert.alert('Erreur', 'Impossible de supprimer ce repas.');
@@ -237,11 +305,10 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
   };
 
   const handleUpdateServings = async (
-    day: DayOfWeek,
+    slotKey: string,
     mealTime: MealTime,
     delta: number
   ) => {
-    const slotKey = `${day}_${mealTime}`;
     const meal = weeklyPlan[slotKey];
     if (!meal) return;
 
@@ -252,7 +319,7 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
     };
 
     try {
-      const nextPlan = await StorageService.setWeeklyMeal(day, mealTime, updatedMeal);
+      const nextPlan = await StorageService.setWeeklyMeal(slotKey, mealTime, updatedMeal);
       setWeeklyPlan(nextPlan);
     } catch (e) {
       console.error('Erreur mise à jour portions:', e);
@@ -270,7 +337,8 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
           text: 'Effacer le menu',
           style: 'destructive',
           onPress: async () => {
-            const nextPlan = await StorageService.clearWeeklyPlan();
+            const keysToClear = daySlots.flatMap((s) => [s.lunchKey, s.dinnerKey]);
+            const nextPlan = await StorageService.clearWeeklyPlan(keysToClear);
             setWeeklyPlan(nextPlan);
           },
         },
@@ -283,15 +351,17 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
     if (plannedCount === 0) {
       Alert.alert(
         'Aucun repas prévu',
-        'Ajoutez des recettes à votre planning de la semaine avant de générer la liste de courses.'
+        'Ajoutez des recettes à votre planning avant de générer la liste de courses.'
       );
       return;
     }
 
     try {
+      const keys = daySlots.flatMap((s) => [s.lunchKey, s.dinnerKey]);
       const { addedCount } = await StorageService.generateShoppingListFromWeeklyPlan(
         recipes,
-        weeklyPlan
+        weeklyPlan,
+        keys
       );
 
       Alert.alert(
@@ -308,14 +378,6 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
       );
     } catch (e) {
       Alert.alert('Erreur', 'Impossible de générer la liste de courses.');
-    }
-  };
-
-  const scrollToDay = (day: DayOfWeek) => {
-    setSelectedDayTab(day);
-    const y = dayPositions.current[day];
-    if (typeof y === 'number' && scrollViewRef.current) {
-      scrollViewRef.current.scrollTo({ y: Math.max(0, y - 20), animated: true });
     }
   };
 
@@ -649,90 +711,101 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
         </ScrollView>
       ) : (
         /* VUE 2 : MENU PRÉVISIONNEL DE LA SEMAINE (PLANNING) */
-        <View style={{ flex: 1 }}>
-          {/* Bouton phare : Générer la liste de courses de la semaine */}
-          <View style={styles.actionBannerWrapper}>
+        <ScrollView
+          ref={scrollViewRef}
+          style={styles.calendarScroll}
+          contentContainerStyle={styles.calendarContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Barre d'état du mode de planification & Bouton Options rapide */}
+          <View style={styles.modeBar}>
+            <View style={styles.modeIndicator}>
+              <Ionicons
+                name={plannerSettings.mode === 'dynamic' ? 'flash' : 'calendar'}
+                size={14}
+                color={colors.primary}
+              />
+              <Text style={styles.modeIndicatorText}>
+                {plannerSettings.mode === 'dynamic'
+                  ? 'Planning Dynamique (dès aujourd’hui)'
+                  : `Planning Fixe (${plannerSettings.startDay} à ${
+                      ORDERED_DAYS_OF_WEEK[
+                        (ORDERED_DAYS_OF_WEEK.indexOf(plannerSettings.startDay) + 6) % 7
+                      ]
+                    })`}
+              </Text>
+            </View>
             <TouchableOpacity
-              style={styles.generateBtn}
-              onPress={handleGenerateShoppingList}
-              activeOpacity={0.88}
+              style={styles.modeSwitchBtn}
+              onPress={() => setIsConfigModalVisible(true)}
+              activeOpacity={0.7}
             >
-              <View style={styles.generateIconCircle}>
-                <Ionicons name="cart" size={20} color="#FFFFFF" />
-              </View>
-              <View style={styles.generateTextCol}>
-                <Text style={styles.generateBtnTitle}>Générer la liste de courses</Text>
-                <Text style={styles.generateBtnSubtitle}>
-                  Fusionne tous les ingrédients de vos repas planifiés
-                </Text>
-              </View>
-              <Ionicons name="arrow-forward-circle" size={24} color="#FFFFFF" />
+              <Ionicons name="options-outline" size={13} color={colors.primary} />
+              <Text style={styles.modeSwitchBtnText}>Options</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Navigation rapide par jour (Pills horizontaux) */}
-          <View style={styles.daysTabStrip}>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.daysTabContent}
-            >
-              {DAYS_OF_WEEK.map((day) => {
-                const hasMeals =
-                  Boolean(weeklyPlan[`${day}_lunch`]) || Boolean(weeklyPlan[`${day}_dinner`]);
-                const isSel = selectedDayTab === day;
-                return (
-                  <TouchableOpacity
-                    key={day}
-                    style={[styles.dayTabPill, isSel && styles.dayTabPillActive]}
-                    onPress={() => scrollToDay(day)}
-                  >
-                    <Text
-                      style={[
-                        styles.dayTabPillText,
-                        isSel && styles.dayTabPillTextActive,
-                      ]}
-                    >
-                      {day.slice(0, 3)}
-                    </Text>
-                    {hasMeals && (
-                      <View
-                        style={[
-                          styles.dayMealDot,
-                          isSel && { backgroundColor: '#FFFFFF' },
-                        ]}
-                      />
-                    )}
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          </View>
-
-          {/* Calendrier complet défilant du Lundi au Dimanche */}
-          <ScrollView
-            ref={scrollViewRef}
-            style={styles.calendarScroll}
-            contentContainerStyle={styles.calendarContent}
-            showsVerticalScrollIndicator={false}
+          {/* Bouton phare : Générer la liste de courses de la semaine (scrollable) */}
+          <TouchableOpacity
+            style={styles.generateBtn}
+            onPress={handleGenerateShoppingList}
+            activeOpacity={0.88}
           >
-            {DAYS_OF_WEEK.map((day) => {
-              const lunchMeal = weeklyPlan[`${day}_lunch`];
-              const dinnerMeal = weeklyPlan[`${day}_dinner`];
+            <View style={styles.generateIconCircle}>
+              <Ionicons name="cart" size={20} color="#FFFFFF" />
+            </View>
+            <View style={styles.generateTextCol}>
+              <Text style={styles.generateBtnTitle}>Générer la liste de courses</Text>
+              <Text style={styles.generateBtnSubtitle}>
+                Fusionne tous les ingrédients de vos repas planifiés
+              </Text>
+            </View>
+            <Ionicons name="arrow-forward-circle" size={24} color="#FFFFFF" />
+          </TouchableOpacity>
 
-              return (
-                <View
-                  key={day}
-                  style={styles.dayCard}
-                  onLayout={(e) => {
-                    dayPositions.current[day] = e.nativeEvent.layout.y;
-                  }}
-                >
+          {/* Calendrier complet défilant des 7 jours */}
+          {daySlots.map((slot) => {
+            const lunchMeal = weeklyPlan[slot.lunchKey];
+            const dinnerMeal = weeklyPlan[slot.dinnerKey];
+
+            const isLunchPassed = slot.isLunchPassed;
+            const isDinnerPassed = slot.isDinnerPassed;
+
+            const isLunchNext = nextUpcomingSlotKey === slot.lunchKey;
+            const isDinnerNext = nextUpcomingSlotKey === slot.dinnerKey;
+
+            return (
+              <View
+                key={slot.key}
+                style={styles.dayCard}
+              >
                   {/* En-tête du jour */}
                   <View style={styles.dayHeader}>
-                    <View style={styles.dayBadge}>
-                      <Text style={styles.dayBadgeText}>{day}</Text>
+                    <View style={styles.dayHeaderLeft}>
+                      <View
+                        style={[
+                          styles.dayBadge,
+                          plannerSettings.mode === 'dynamic' &&
+                            slot.isToday &&
+                            styles.dayBadgeToday,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.dayBadgeText,
+                            plannerSettings.mode === 'dynamic' &&
+                              slot.isToday &&
+                              styles.dayBadgeTextToday,
+                          ]}
+                        >
+                          {slot.mainLabel}
+                        </Text>
+                      </View>
+                      {slot.dateLabel && (
+                        <Text style={styles.dayDateText}>• {slot.dateLabel}</Text>
+                      )}
                     </View>
+
                     <Text style={styles.dayCountHint}>
                       {[lunchMeal ? 'Midi' : null, dinnerMeal ? 'Soir' : null]
                         .filter(Boolean)
@@ -741,22 +814,55 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
                   </View>
 
                   {/* Créneau 1 : Midi ☀️ */}
-                  <View style={styles.mealSlotRow}>
+                  <View
+                    style={[
+                      styles.mealSlotRow,
+                      isLunchPassed && styles.slotPassedWrapper,
+                    ]}
+                  >
                     <View style={styles.slotTimeBadge}>
                       <Text style={styles.slotTimeEmoji}>☀️</Text>
                       <Text style={styles.slotTimeLabel}>Midi</Text>
+                      {isLunchPassed && (
+                        <View style={styles.passedPillBadge}>
+                          <Text style={styles.passedPillText} numberOfLines={1}>Passé</Text>
+                        </View>
+                      )}
+                      {isLunchNext && (
+                        <View style={styles.nextPillBadge}>
+                          <Text style={styles.nextPillText} numberOfLines={1}>Proch.</Text>
+                        </View>
+                      )}
                     </View>
 
                     {lunchMeal ? (
-                      <View style={styles.slotFilledCard}>
+                      <View
+                        style={[
+                          styles.slotFilledCard,
+                          isLunchPassed && styles.slotFilledCardPassed,
+                          isLunchNext && styles.slotCardNextHighlight,
+                        ]}
+                      >
                         {lunchMeal.recipeImageUrl ? (
                           <Image
                             source={{ uri: lunchMeal.recipeImageUrl }}
-                            style={styles.slotThumb}
+                            style={[
+                              styles.slotThumb,
+                              isLunchPassed && styles.slotThumbPassed,
+                            ]}
                           />
                         ) : (
-                          <View style={styles.slotThumbPlaceholder}>
-                            <Ionicons name="restaurant-outline" size={18} color={colors.primary} />
+                          <View
+                            style={[
+                              styles.slotThumbPlaceholder,
+                              isLunchPassed && styles.slotThumbPassed,
+                            ]}
+                          >
+                            <Ionicons
+                              name="restaurant-outline"
+                              size={18}
+                              color={isLunchPassed ? colors.textMuted : colors.primary}
+                            />
                           </View>
                         )}
 
@@ -770,13 +876,19 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
                           }}
                           activeOpacity={0.7}
                         >
-                          <Text style={styles.slotMealTitle} numberOfLines={1}>
+                          <Text
+                            style={[
+                              styles.slotMealTitle,
+                              isLunchPassed && styles.slotMealTitlePassed,
+                            ]}
+                            numberOfLines={1}
+                          >
                             {lunchMeal.recipeTitle}
                           </Text>
                           <View style={styles.slotServingsStepper}>
                             <TouchableOpacity
                               style={styles.slotStepBtn}
-                              onPress={() => handleUpdateServings(day, 'lunch', -1)}
+                              onPress={() => handleUpdateServings(slot.lunchKey, 'lunch', -1)}
                               hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                             >
                               <Ionicons name="remove" size={12} color={colors.primary} />
@@ -784,7 +896,7 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
                             <Text style={styles.slotServingsText}>{lunchMeal.servings} p.</Text>
                             <TouchableOpacity
                               style={styles.slotStepBtn}
-                              onPress={() => handleUpdateServings(day, 'lunch', 1)}
+                              onPress={() => handleUpdateServings(slot.lunchKey, 'lunch', 1)}
                               hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                             >
                               <Ionicons name="add" size={12} color={colors.primary} />
@@ -795,14 +907,23 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
                         <View style={styles.slotActionsCol}>
                           <TouchableOpacity
                             style={styles.slotIconBtn}
-                            onPress={() => handleOpenPicker(day, 'lunch')}
+                            onPress={() =>
+                              handleOpenPicker(
+                                slot.lunchKey,
+                                slot.mainLabel,
+                                slot.dayName,
+                                'lunch',
+                                isLunchPassed,
+                                slot.dateStr
+                              )
+                            }
                             hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                           >
                             <Ionicons name="swap-horizontal" size={18} color={colors.textSecondary} />
                           </TouchableOpacity>
                           <TouchableOpacity
                             style={styles.slotIconBtn}
-                            onPress={() => handleRemoveMealFromSlot(day, 'lunch')}
+                            onPress={() => handleRemoveMealFromSlot(slot.lunchKey, 'lunch')}
                             hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                           >
                             <Ionicons name="trash-outline" size={16} color={colors.danger} />
@@ -811,33 +932,99 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
                       </View>
                     ) : (
                       <TouchableOpacity
-                        style={styles.slotEmptyBtn}
-                        onPress={() => handleOpenPicker(day, 'lunch')}
+                        style={[
+                          styles.slotEmptyBtn,
+                          isLunchPassed && styles.slotEmptyBtnPassed,
+                          isLunchNext && styles.slotCardNextHighlight,
+                        ]}
+                        onPress={() =>
+                          handleOpenPicker(
+                            slot.lunchKey,
+                            slot.mainLabel,
+                            slot.dayName,
+                            'lunch',
+                            isLunchPassed,
+                            slot.dateStr
+                          )
+                        }
                         activeOpacity={0.7}
                       >
-                        <Ionicons name="add-circle-outline" size={18} color={colors.primary} />
-                        <Text style={styles.slotEmptyText}>Prévoir le déjeuner</Text>
+                        <Ionicons
+                          name={
+                            isLunchPassed
+                              ? 'time-outline'
+                              : isLunchNext
+                              ? 'arrow-forward-circle'
+                              : 'add-circle-outline'
+                          }
+                          size={18}
+                          color={isLunchPassed ? colors.textMuted : colors.primary}
+                        />
+                        <Text
+                          style={[
+                            styles.slotEmptyText,
+                            isLunchPassed && styles.slotEmptyTextPassed,
+                            isLunchNext && styles.slotEmptyTextNext,
+                          ]}
+                        >
+                          {isLunchPassed
+                            ? 'Déjeuner (Déjà passé • Toucher pour forcer)'
+                            : 'Prévoir le déjeuner'}
+                        </Text>
                       </TouchableOpacity>
                     )}
                   </View>
 
                   {/* Créneau 2 : Soir 🌙 */}
-                  <View style={styles.mealSlotRow}>
+                  <View
+                    style={[
+                      styles.mealSlotRow,
+                      isDinnerPassed && styles.slotPassedWrapper,
+                    ]}
+                  >
                     <View style={styles.slotTimeBadge}>
                       <Text style={styles.slotTimeEmoji}>🌙</Text>
                       <Text style={styles.slotTimeLabel}>Soir</Text>
+                      {isDinnerPassed && (
+                        <View style={styles.passedPillBadge}>
+                          <Text style={styles.passedPillText} numberOfLines={1}>Passé</Text>
+                        </View>
+                      )}
+                      {isDinnerNext && (
+                        <View style={styles.nextPillBadge}>
+                          <Text style={styles.nextPillText} numberOfLines={1}>Proch.</Text>
+                        </View>
+                      )}
                     </View>
 
                     {dinnerMeal ? (
-                      <View style={styles.slotFilledCard}>
+                      <View
+                        style={[
+                          styles.slotFilledCard,
+                          isDinnerPassed && styles.slotFilledCardPassed,
+                          isDinnerNext && styles.slotCardNextHighlight,
+                        ]}
+                      >
                         {dinnerMeal.recipeImageUrl ? (
                           <Image
                             source={{ uri: dinnerMeal.recipeImageUrl }}
-                            style={styles.slotThumb}
+                            style={[
+                              styles.slotThumb,
+                              isDinnerPassed && styles.slotThumbPassed,
+                            ]}
                           />
                         ) : (
-                          <View style={styles.slotThumbPlaceholder}>
-                            <Ionicons name="restaurant-outline" size={18} color={colors.primary} />
+                          <View
+                            style={[
+                              styles.slotThumbPlaceholder,
+                              isDinnerPassed && styles.slotThumbPassed,
+                            ]}
+                          >
+                            <Ionicons
+                              name="restaurant-outline"
+                              size={18}
+                              color={isDinnerPassed ? colors.textMuted : colors.primary}
+                            />
                           </View>
                         )}
 
@@ -851,13 +1038,19 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
                           }}
                           activeOpacity={0.7}
                         >
-                          <Text style={styles.slotMealTitle} numberOfLines={1}>
+                          <Text
+                            style={[
+                              styles.slotMealTitle,
+                              isDinnerPassed && styles.slotMealTitlePassed,
+                            ]}
+                            numberOfLines={1}
+                          >
                             {dinnerMeal.recipeTitle}
                           </Text>
                           <View style={styles.slotServingsStepper}>
                             <TouchableOpacity
                               style={styles.slotStepBtn}
-                              onPress={() => handleUpdateServings(day, 'dinner', -1)}
+                              onPress={() => handleUpdateServings(slot.dinnerKey, 'dinner', -1)}
                               hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                             >
                               <Ionicons name="remove" size={12} color={colors.primary} />
@@ -865,7 +1058,7 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
                             <Text style={styles.slotServingsText}>{dinnerMeal.servings} p.</Text>
                             <TouchableOpacity
                               style={styles.slotStepBtn}
-                              onPress={() => handleUpdateServings(day, 'dinner', 1)}
+                              onPress={() => handleUpdateServings(slot.dinnerKey, 'dinner', 1)}
                               hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                             >
                               <Ionicons name="add" size={12} color={colors.primary} />
@@ -876,14 +1069,23 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
                         <View style={styles.slotActionsCol}>
                           <TouchableOpacity
                             style={styles.slotIconBtn}
-                            onPress={() => handleOpenPicker(day, 'dinner')}
+                            onPress={() =>
+                              handleOpenPicker(
+                                slot.dinnerKey,
+                                slot.mainLabel,
+                                slot.dayName,
+                                'dinner',
+                                isDinnerPassed,
+                                slot.dateStr
+                              )
+                            }
                             hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                           >
                             <Ionicons name="swap-horizontal" size={18} color={colors.textSecondary} />
                           </TouchableOpacity>
                           <TouchableOpacity
                             style={styles.slotIconBtn}
-                            onPress={() => handleRemoveMealFromSlot(day, 'dinner')}
+                            onPress={() => handleRemoveMealFromSlot(slot.dinnerKey, 'dinner')}
                             hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                           >
                             <Ionicons name="trash-outline" size={16} color={colors.danger} />
@@ -892,12 +1094,45 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
                       </View>
                     ) : (
                       <TouchableOpacity
-                        style={styles.slotEmptyBtn}
-                        onPress={() => handleOpenPicker(day, 'dinner')}
+                        style={[
+                          styles.slotEmptyBtn,
+                          isDinnerPassed && styles.slotEmptyBtnPassed,
+                          isDinnerNext && styles.slotCardNextHighlight,
+                        ]}
+                        onPress={() =>
+                          handleOpenPicker(
+                            slot.dinnerKey,
+                            slot.mainLabel,
+                            slot.dayName,
+                            'dinner',
+                            isDinnerPassed,
+                            slot.dateStr
+                          )
+                        }
                         activeOpacity={0.7}
                       >
-                        <Ionicons name="add-circle-outline" size={18} color={colors.primary} />
-                        <Text style={styles.slotEmptyText}>Prévoir le dîner</Text>
+                        <Ionicons
+                          name={
+                            isDinnerPassed
+                              ? 'time-outline'
+                              : isDinnerNext
+                              ? 'arrow-forward-circle'
+                              : 'add-circle-outline'
+                          }
+                          size={18}
+                          color={isDinnerPassed ? colors.textMuted : colors.primary}
+                        />
+                        <Text
+                          style={[
+                            styles.slotEmptyText,
+                            isDinnerPassed && styles.slotEmptyTextPassed,
+                            isDinnerNext && styles.slotEmptyTextNext,
+                          ]}
+                        >
+                          {isDinnerPassed
+                            ? 'Dîner (Déjà passé • Toucher pour forcer)'
+                            : 'Prévoir le dîner'}
+                        </Text>
                       </TouchableOpacity>
                     )}
                   </View>
@@ -905,27 +1140,168 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
               );
             })}
           </ScrollView>
-        </View>
       )}
 
       {/* Modal de sélection de recette pour le planning prévisionnel */}
       <MealSlotPickerModal
         visible={Boolean(activeSlot)}
-        day={activeSlot?.day || null}
+        day={
+          activeSlot
+            ? `${activeSlot.dayLabel}${activeSlot.dateStr ? ' (' + formatShortDateFrench(activeSlot.dateStr) + ')' : ''}`
+            : null
+        }
         mealTime={activeSlot?.mealTime || null}
+        isPassed={activeSlot?.isPassed}
         recipes={recipes}
         currentMeal={
-          activeSlot ? weeklyPlan[`${activeSlot.day}_${activeSlot.mealTime}`] : undefined
+          activeSlot ? weeklyPlan[activeSlot.slotKey] : undefined
         }
         onSelectRecipe={handleSaveRecipeToSlot}
         onSelectCustomMeal={handleSaveCustomMealToSlot}
         onRemoveMeal={() => {
           if (activeSlot) {
-            handleRemoveMealFromSlot(activeSlot.day, activeSlot.mealTime);
+            handleRemoveMealFromSlot(activeSlot.slotKey, activeSlot.mealTime);
           }
         }}
         onClose={() => setActiveSlot(null)}
       />
+
+      {/* Modal de réglages rapides du planning (Fixe vs Dynamique) */}
+      <Modal
+        visible={isConfigModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setIsConfigModalVisible(false)}
+      >
+        <View style={styles.configModalBackdrop}>
+          <View style={styles.configModalDialog}>
+            <View style={styles.configModalHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Ionicons name="options" size={20} color={colors.primary} />
+                <Text style={styles.configModalTitle}>Organisation du Menu</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setIsConfigModalVisible(false)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="close" size={22} color={colors.textPrimary} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.configModalSubtitle}>
+              Choisissez votre mode d'organisation de la semaine :
+            </Text>
+
+            <View style={styles.modalModeRow}>
+              <TouchableOpacity
+                style={[
+                  styles.modalModeBtn,
+                  plannerSettings.mode === 'fixed' && styles.modalModeBtnActive,
+                ]}
+                onPress={() => handleChangeMode('fixed')}
+                activeOpacity={0.8}
+              >
+                <Ionicons
+                  name="calendar"
+                  size={18}
+                  color={plannerSettings.mode === 'fixed' ? colors.primary : colors.textSecondary}
+                />
+                <Text
+                  style={[
+                    styles.modalModeBtnText,
+                    plannerSettings.mode === 'fixed' && styles.modalModeBtnTextActive,
+                  ]}
+                >
+                  Fixe
+                </Text>
+                <Text style={styles.modalModeSubText}>Semaine de courses</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.modalModeBtn,
+                  plannerSettings.mode === 'dynamic' && styles.modalModeBtnActive,
+                ]}
+                onPress={() => handleChangeMode('dynamic')}
+                activeOpacity={0.8}
+              >
+                <Ionicons
+                  name="flash"
+                  size={18}
+                  color={plannerSettings.mode === 'dynamic' ? colors.primary : colors.textSecondary}
+                />
+                <Text
+                  style={[
+                    styles.modalModeBtnText,
+                    plannerSettings.mode === 'dynamic' && styles.modalModeBtnTextActive,
+                  ]}
+                >
+                  Dynamique
+                </Text>
+                <Text style={styles.modalModeSubText}>Dès aujourd'hui</Text>
+              </TouchableOpacity>
+            </View>
+
+            {plannerSettings.mode === 'fixed' ? (
+              <View style={styles.modalDaysSection}>
+                <Text style={styles.modalDaysTitle}>Premier jour de la semaine :</Text>
+                <Text style={styles.modalDaysSub}>
+                  Jour où vous commencez vos menus (ex: courses le mercredi) :
+                </Text>
+                <View style={styles.modalDaysGrid}>
+                  {ORDERED_DAYS_OF_WEEK.map((d) => {
+                    const isSelected = plannerSettings.startDay === d;
+                    return (
+                      <TouchableOpacity
+                        key={d}
+                        style={[
+                          styles.modalDayChip,
+                          isSelected && styles.modalDayChipActive,
+                        ]}
+                        onPress={() => handleChangeStartDay(d)}
+                        activeOpacity={0.7}
+                      >
+                        <Text
+                          style={[
+                            styles.modalDayChipText,
+                            isSelected && styles.modalDayChipTextActive,
+                          ]}
+                        >
+                          {d.slice(0, 3)}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+                <View style={styles.modalInfoBox}>
+                  <Ionicons name="information-circle-outline" size={15} color={colors.primary} />
+                  <Text style={styles.modalInfoText}>
+                    Planning du {plannerSettings.startDay} au{' '}
+                    {ORDERED_DAYS_OF_WEEK[
+                      (ORDERED_DAYS_OF_WEEK.indexOf(plannerSettings.startDay) + 6) % 7
+                    ]}
+                  </Text>
+                </View>
+              </View>
+            ) : (
+              <View style={styles.modalDynamicNotice}>
+                <Ionicons name="sparkles-outline" size={16} color={colors.primary} />
+                <Text style={styles.modalDynamicNoticeText}>
+                  Planning glissant sur 7 jours débutant au prochain repas selon l'heure. Les repas passés sont grisés tout en restant modifiables si vous souhaitez forcer un choix.
+                </Text>
+              </View>
+            )}
+
+            <TouchableOpacity
+              style={styles.modalDoneBtn}
+              onPress={() => setIsConfigModalVisible(false)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.modalDoneBtnText}>Enregistrer</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       {/* Modal de saisie rapide libre pour le suivi des repas (journal) */}
       <QuickMealLogModal
@@ -1264,10 +1640,6 @@ const styles = createDynamicStyles((colors, shadows) => ({
     color: colors.textMuted,
     fontStyle: 'italic',
   },
-  actionBannerWrapper: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
   generateBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1299,49 +1671,14 @@ const styles = createDynamicStyles((colors, shadows) => ({
     fontSize: 11,
     marginTop: 1,
   },
-  daysTabStrip: {
-    paddingVertical: 8,
-  },
-  daysTabContent: {
-    paddingHorizontal: 16,
-    gap: 8,
-  },
-  dayTabPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: colors.cardBackground,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-  },
-  dayTabPillActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  dayTabPillText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.textSecondary,
-  },
-  dayTabPillTextActive: {
-    color: '#FFFFFF',
-  },
-  dayMealDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.secondary,
-  },
   calendarScroll: {
     flex: 1,
   },
   calendarContent: {
     paddingHorizontal: 16,
+    paddingTop: 8,
     paddingBottom: 40,
-    gap: 16,
+    gap: 14,
   },
   dayCard: {
     backgroundColor: colors.cardBackground,
@@ -1383,7 +1720,7 @@ const styles = createDynamicStyles((colors, shadows) => ({
     gap: 10,
   },
   slotTimeBadge: {
-    width: 48,
+    width: 50,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1477,5 +1814,269 @@ const styles = createDynamicStyles((colors, shadows) => ({
     fontSize: 13,
     fontWeight: '600',
     color: colors.primary,
+  },
+  modeBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.cardBackground,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    ...shadows.card,
+  },
+  modeIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flex: 1,
+  },
+  modeIndicatorText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  modeSwitchBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.primaryLight,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  modeSwitchBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  dayHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  dayDateText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  dayBadgeToday: {
+    backgroundColor: colors.primary,
+  },
+  dayBadgeTextToday: {
+    color: '#FFFFFF',
+  },
+  passedPillBadge: {
+    backgroundColor: colors.backgroundSecondary,
+    paddingHorizontal: 5,
+    paddingVertical: 1.5,
+    borderRadius: 4,
+    marginTop: 2,
+    borderWidth: 0.5,
+    borderColor: colors.borderMedium,
+  },
+  passedPillText: {
+    fontSize: 8.5,
+    fontWeight: '700',
+    color: colors.textMuted,
+    textTransform: 'uppercase',
+  },
+  nextPillBadge: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 4,
+    paddingVertical: 1.5,
+    borderRadius: 4,
+    marginTop: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  nextPillText: {
+    fontSize: 7.5,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    textTransform: 'uppercase',
+    letterSpacing: 0.2,
+  },
+  slotPassedWrapper: {
+    opacity: 0.65,
+  },
+  slotCardNextHighlight: {
+    borderColor: colors.primary,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    backgroundColor: colors.primaryLight,
+  },
+  slotFilledCardPassed: {
+    backgroundColor: colors.backgroundSecondary,
+    borderColor: colors.borderLight,
+  },
+  slotThumbPassed: {
+    opacity: 0.7,
+  },
+  slotMealTitlePassed: {
+    color: colors.textSecondary,
+  },
+  slotEmptyBtnPassed: {
+    borderColor: colors.borderMedium,
+    backgroundColor: colors.backgroundSecondary,
+  },
+  slotEmptyTextPassed: {
+    color: colors.textMuted,
+    fontSize: 12,
+  },
+  slotEmptyTextNext: {
+    fontWeight: '700',
+  },
+  configModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.55)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  configModalDialog: {
+    width: '100%',
+    maxWidth: 380,
+    backgroundColor: colors.cardBackground,
+    borderRadius: 20,
+    padding: 20,
+    ...shadows.card,
+  },
+  configModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  configModalTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: colors.textPrimary,
+  },
+  configModalSubtitle: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginBottom: 14,
+    lineHeight: 18,
+  },
+  modalModeRow: {
+    flexDirection: 'row',
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: 12,
+    padding: 3,
+    gap: 4,
+    marginBottom: 14,
+  },
+  modalModeBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 10,
+    gap: 2,
+  },
+  modalModeBtnActive: {
+    backgroundColor: colors.cardBackground,
+    ...shadows.card,
+  },
+  modalModeBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  modalModeBtnTextActive: {
+    color: colors.primary,
+    fontWeight: '700',
+  },
+  modalModeSubText: {
+    fontSize: 10,
+    color: colors.textMuted,
+  },
+  modalDaysSection: {
+    marginBottom: 16,
+  },
+  modalDaysTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: 2,
+  },
+  modalDaysSub: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    marginBottom: 8,
+  },
+  modalDaysGrid: {
+    flexDirection: 'row',
+    gap: 6,
+    flexWrap: 'wrap',
+    marginBottom: 8,
+  },
+  modalDayChip: {
+    flex: 1,
+    minWidth: 38,
+    paddingVertical: 7,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.backgroundSecondary,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  modalDayChipActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  modalDayChipText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.textSecondary,
+  },
+  modalDayChipTextActive: {
+    color: '#FFFFFF',
+  },
+  modalInfoBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.primaryLight,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  modalInfoText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  modalDynamicNotice: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    backgroundColor: colors.primaryLight,
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  modalDynamicNoticeText: {
+    fontSize: 12,
+    color: colors.textPrimary,
+    lineHeight: 17,
+    flex: 1,
+  },
+  modalDoneBtn: {
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadows.card,
+  },
+  modalDoneBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
   },
 }));

@@ -1,5 +1,5 @@
 import { Recipe, Ingredient } from '../types/recipe';
-import { DayOfWeek } from '../types/planner';
+import { DayOfWeek, MealTime, PlannerMode } from '../types/planner';
 
 /**
  * Nettoie une chaîne de caractères (minuscule, sans accents, sans espaces superflus)
@@ -10,6 +10,78 @@ export function normalizeString(str: string): string {
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .trim();
+}
+
+/**
+ * Calcule la distance de Levenshtein entre deux chaînes normalisées.
+ * Optimisé en mémoire O(min(M, N)).
+ */
+export function levenshteinDistance(a: string, b: string): number {
+  if (a === b) return 0;
+  if (a.length === 0) return b.length;
+  if (b.length === 0) return a.length;
+
+  if (a.length > b.length) {
+    const tmp = a;
+    a = b;
+    b = tmp;
+  }
+
+  const aLen = a.length;
+  const bLen = b.length;
+  let prevRow = new Array(aLen + 1);
+  let currRow = new Array(aLen + 1);
+
+  for (let i = 0; i <= aLen; i++) {
+    prevRow[i] = i;
+  }
+
+  for (let j = 1; j <= bLen; j++) {
+    currRow[0] = j;
+    const bChar = b[j - 1];
+
+    for (let i = 1; i <= aLen; i++) {
+      const cost = a[i - 1] === bChar ? 0 : 1;
+      currRow[i] = Math.min(
+        currRow[i - 1] + 1,      // insertion
+        prevRow[i] + 1,          // suppression
+        prevRow[i - 1] + cost    // substitution
+      );
+    }
+
+    for (let i = 0; i <= aLen; i++) {
+      prevRow[i] = currRow[i];
+    }
+  }
+
+  return prevRow[aLen];
+}
+
+/**
+ * Normalisation avancée pour la recherche :
+ * - Minuscules, sans accents
+ * - Stemming simple pour le français (pluriels en -s, -x, etc.)
+ */
+export function stemWord(word: string): string {
+  const clean = normalizeString(word);
+  if (clean.length <= 3) return clean;
+
+  // Pluriels irréguliers courants
+  if (clean === 'oeufs') return 'oeuf';
+  if (clean === 'yeux') return 'oeil';
+  if (clean === 'ails') return 'ail';
+
+  // Pluriel en -x (gateaux -> gateau, choux -> chou, morceaux -> morceau)
+  if (clean.endsWith('x') && clean.length > 4) {
+    return clean.slice(0, -1);
+  }
+
+  // Pluriel en -s (tomates -> tomate, carottes -> carotte, lardons -> lardon)
+  if (clean.endsWith('s') && clean.length > 3) {
+    return clean.slice(0, -1);
+  }
+
+  return clean;
 }
 
 /**
@@ -441,6 +513,168 @@ export function formatMealLogDateFrench(dateStr: string): string {
     'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'
   ];
   return `${days[dateObj.getDay()]} ${d} ${months[m - 1]}`;
+}
+
+export interface PlannerDaySlot {
+  key: string;
+  dayName: DayOfWeek;
+  dateStr?: string;
+  mainLabel: string;
+  dateLabel?: string;
+  tabPillLabel: string;
+  isToday: boolean;
+  isTomorrow: boolean;
+  lunchKey: string;
+  dinnerKey: string;
+  isLunchPassed: boolean;
+  isDinnerPassed: boolean;
+}
+
+export const ORDERED_DAYS_OF_WEEK: DayOfWeek[] = [
+  'Lundi',
+  'Mardi',
+  'Mercredi',
+  'Jeudi',
+  'Vendredi',
+  'Samedi',
+  'Dimanche',
+];
+
+/**
+ * Retourne les 7 jours de la semaine réordonnés en commençant par startDay
+ */
+export function getOrderedDaysOfWeek(startDay: DayOfWeek = 'Lundi'): DayOfWeek[] {
+  const startIndex = ORDERED_DAYS_OF_WEEK.indexOf(startDay);
+  if (startIndex <= 0) return [...ORDERED_DAYS_OF_WEEK];
+  return [
+    ...ORDERED_DAYS_OF_WEEK.slice(startIndex),
+    ...ORDERED_DAYS_OF_WEEK.slice(0, startIndex),
+  ];
+}
+
+/**
+ * Formate une date courte en français (ex: "22 oct.", "3 nov.")
+ */
+export function formatShortDateFrench(dateStr: string): string {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const months = [
+    'janv.',
+    'févr.',
+    'mars',
+    'avr.',
+    'mai',
+    'juin',
+    'juil.',
+    'août',
+    'sept.',
+    'oct.',
+    'nov.',
+    'déc.',
+  ];
+  return `${d} ${months[m - 1]}`;
+}
+
+/**
+ * Indique si un créneau de repas (midi ou soir) est déjà passé par rapport à l'heure courante
+ */
+export function isMealPassed(
+  dateStr: string,
+  mealTime: MealTime,
+  now: Date = new Date()
+): boolean {
+  const todayStr = getLocalDateString(now);
+  if (dateStr < todayStr) return true;
+  if (dateStr > todayStr) return false;
+
+  // C'est aujourd'hui : comparaison de l'heure courante
+  const currentHour = now.getHours();
+  const currentMinutes = now.getMinutes();
+  const totalMinutes = currentHour * 60 + currentMinutes;
+
+  if (mealTime === 'lunch') {
+    // Déjeuner passé à partir de 14h00
+    return totalMinutes >= 14 * 60;
+  }
+
+  if (mealTime === 'dinner') {
+    // Dîner passé à partir de 21h30
+    return totalMinutes >= 21 * 60 + 30;
+  }
+
+  return false;
+}
+
+/**
+ * Génère les 7 créneaux journaliers selon le mode de planification (fixe ou dynamique)
+ */
+export function getPlannerDaySlots(
+  mode: PlannerMode,
+  startDay: DayOfWeek = 'Lundi',
+  now: Date = new Date()
+): PlannerDaySlot[] {
+  const todayStr = getLocalDateString(now);
+  const todayDayOfWeek = getDayOfWeekFromDateString(todayStr);
+
+  if (mode === 'fixed') {
+    const orderedDays = getOrderedDaysOfWeek(startDay);
+    return orderedDays.map((day) => {
+      return {
+        key: day,
+        dayName: day,
+        mainLabel: day,
+        tabPillLabel: day.slice(0, 3),
+        isToday: false,
+        isTomorrow: false,
+        lunchKey: `${day}_lunch`,
+        dinnerKey: `${day}_dinner`,
+        isLunchPassed: false,
+        isDinnerPassed: false,
+      };
+    });
+  }
+
+  // Mode dynamique : 7 jours glissants à partir d'aujourd'hui
+  const slots: PlannerDaySlot[] = [];
+  for (let i = 0; i < 7; i++) {
+    const dateStr = addDaysToDateString(todayStr, i);
+    const dayName = getDayOfWeekFromDateString(dateStr);
+    const dateLabel = formatShortDateFrench(dateStr);
+
+    let mainLabel: string;
+    let tabPillLabel: string;
+
+    if (i === 0) {
+      mainLabel = "Aujourd'hui";
+      tabPillLabel = 'Auj.';
+    } else if (i === 1) {
+      mainLabel = 'Demain';
+      tabPillLabel = 'Dem.';
+    } else if (i === 2) {
+      // Le jour qu'il sera après-demain
+      mainLabel = dayName;
+      tabPillLabel = dayName.slice(0, 3);
+    } else {
+      mainLabel = dayName;
+      tabPillLabel = dayName.slice(0, 3);
+    }
+
+    slots.push({
+      key: dateStr,
+      dayName,
+      dateStr,
+      mainLabel,
+      dateLabel,
+      tabPillLabel,
+      isToday: i === 0,
+      isTomorrow: i === 1,
+      lunchKey: `${dateStr}_lunch`,
+      dinnerKey: `${dateStr}_dinner`,
+      isLunchPassed: isMealPassed(dateStr, 'lunch', now),
+      isDinnerPassed: isMealPassed(dateStr, 'dinner', now),
+    });
+  }
+
+  return slots;
 }
 
 

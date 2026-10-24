@@ -1,8 +1,7 @@
 import { NormalizationResult, CanonicalIngredient } from '../types/vocabulary';
 import { VocabularyService } from '../services/vocabularyService';
 import { isKnownDefaultPantryStaple } from '../data/canonicalVocabulary';
-import { normalizeString, convertUnicodeFractions } from './helpers';
-import { stemWord, levenshteinDistance } from './searchEngine';
+import { normalizeString, convertUnicodeFractions, stemWord, levenshteinDistance } from './helpers';
 
 // Expressions indiquant un ingrédient facultatif ou décoratif (sur chaîne normalisée ou brute)
 const OPTIONAL_REGEX = /\b(?:facultatif|facultative|optionnel|optionnelle|au choix|selon les gouts?|selon votre gout|pour decorer|pour servir)\b/i;

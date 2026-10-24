@@ -25,7 +25,6 @@ import { StorageService } from '../services/storageService';
 import { Colors, Shadows, createDynamicStyles } from '../theme/colors';
 import { useTheme } from '../theme/ThemeContext';
 import { RecipeCard } from '../components/RecipeCard';
-import { StarRating } from '../components/StarRating';
 import { SearchBar } from '../components/SearchBar';
 import { CategoryPills } from '../components/CategoryPills';
 import { EmptyState } from '../components/EmptyState';
@@ -116,7 +115,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const [stockItems, setStockItems] = useState<FridgeItem[]>([]);
   const [isStockModalVisible, setIsStockModalVisible] = useState(false);
   const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
-  const [isRatingModalVisible, setIsRatingModalVisible] = useState(false);
   const [isMarmitonModalVisible, setIsMarmitonModalVisible] = useState(false);
 
   // Double bandeau de filtres rétractable au défilement (haute performance, 60fps via useNativeDriver)
@@ -279,12 +277,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       console.error('Erreur chargement allergènes sur HomeScreen:', e);
     }
   }, []);
-
-  const handleToggleAllergenFilter = useCallback(async () => {
-    const nextVal = !isAllergenFilterEnabled;
-    setIsAllergenFilterEnabled(nextVal);
-    await StorageService.setAllergenFilterEnabled(nextVal);
-  }, [isAllergenFilterEnabled]);
 
   useEffect(() => {
     loadTodayMeals();
@@ -658,10 +650,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           </View>
         )}
 
-        {/* Bandeau filtres avancés actifs (Temps max, Difficulté, Ingrédients) */}
+        {/* Bandeau filtres avancés actifs (Temps, Note, Difficulté, Ingrédients) */}
         {(targetTotalTime !== null ||
           selectedDifficulties.length > 0 ||
-          selectedIngredients.length > 0) && (
+          selectedIngredients.length > 0 ||
+          minRatingFilter > 0) && (
           <View style={styles.advancedFiltersActiveBanner}>
             <View style={styles.advancedFiltersActiveLeft}>
               <Ionicons name="options" size={16} color={colors.primary} style={{ marginRight: 6 }} />
@@ -682,6 +675,21 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                     </Text>
                     <TouchableOpacity
                       onPress={() => setTargetTotalTime(null)}
+                      hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                    >
+                      <Ionicons name="close-circle" size={14} color={colors.textSecondary} />
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {minRatingFilter > 0 && (
+                  <View style={styles.activePillChip}>
+                    <Ionicons name="star" size={12} color={colors.amber} />
+                    <Text style={styles.activePillChipText}>
+                      {`≥ ${minRatingFilter % 1 === 0 ? minRatingFilter : minRatingFilter.toFixed(1)} ★`}
+                    </Text>
+                    <TouchableOpacity
+                      onPress={() => setMinRatingFilter(0)}
                       hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                     >
                       <Ionicons name="close-circle" size={14} color={colors.textSecondary} />
@@ -728,6 +736,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 setTimeFilterMode('max');
                 setSelectedDifficulties([]);
                 setSelectedIngredients([]);
+                setMinRatingFilter(0);
               }}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               accessibilityLabel="Réinitialiser les filtres avancés"
@@ -1009,99 +1018,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               recipeCountByCategory={recipeCountByCategory}
             />
 
-            {/* Bandeau 2 : Filtres secondaires (Végé, Note interactive 5 étoiles, Tri, Reset) */}
+            {/* Bandeau 2 : Filtres rapides 1-clic & Tri */}
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.filterToolbarScroll}
             >
-              {/* Végétarien Toggle Pill */}
-              <TouchableOpacity
-                style={[styles.toolPill, onlyVegetarian && styles.vegeToolPillActive]}
-                onPress={() => setOnlyVegetarian(!onlyVegetarian)}
-                activeOpacity={0.7}
-              >
-                <Ionicons
-                  name="leaf"
-                  size={13}
-                  color={onlyVegetarian ? (isDark ? '#4ADE80' : '#15803D') : colors.textSecondary}
-                />
-                <Text style={[styles.toolPillText, onlyVegetarian && styles.vegeToolPillTextActive]}>
-                  Végé
-                </Text>
-              </TouchableOpacity>
-
-              {/* Filtre Allergènes Toggle Pill */}
-              {userAllergens.length > 0 && (
-                <TouchableOpacity
-                  style={[styles.toolPill, isAllergenFilterEnabled && styles.allergenToolPillActive]}
-                  onPress={handleToggleAllergenFilter}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons
-                    name={isAllergenFilterEnabled ? 'shield-checkmark' : 'shield-outline'}
-                    size={13}
-                    color={isAllergenFilterEnabled ? colors.primary : colors.textSecondary}
-                  />
-                  <Text style={[styles.toolPillText, isAllergenFilterEnabled && styles.allergenToolPillTextActive]}>
-                    {isAllergenFilterEnabled
-                      ? hiddenByAllergensCount > 0
-                        ? `Sans allergènes (${hiddenByAllergensCount})`
-                        : 'Sans allergènes'
-                      : 'Allergènes autorisés'}
-                  </Text>
-                </TouchableOpacity>
-              )}
-
-              {/* Mon Stock Toggle Pill (Recettes 100% faisables) */}
-              <TouchableOpacity
-                style={[styles.toolPill, onlyDoableWithStock && styles.stockToolPillActive]}
-                onPress={handleToggleDoableFilter}
-                activeOpacity={0.7}
-              >
-                <Ionicons
-                  name={onlyDoableWithStock ? 'restaurant' : 'restaurant-outline'}
-                  size={13}
-                  color={onlyDoableWithStock ? colors.primary : colors.textSecondary}
-                />
-                <Text style={[styles.toolPillText, onlyDoableWithStock && styles.stockToolPillTextActive]}>
-                  {doableCount > 0 ? `En stock (${doableCount})` : 'En stock'}
-                </Text>
-              </TouchableOpacity>
-
-              {/* Bouton Filtre Note (ouvre la modale pour choisir la note minimale) */}
-              <TouchableOpacity
-                style={[styles.toolPill, minRatingFilter > 0 && styles.ratingToolPillActive]}
-                onPress={() => setIsRatingModalVisible(true)}
-                activeOpacity={0.7}
-              >
-                <Ionicons
-                  name={minRatingFilter > 0 ? 'star' : 'star-outline'}
-                  size={13}
-                  color={minRatingFilter > 0 ? colors.amber : colors.textSecondary}
-                />
-                <Text style={[styles.toolPillText, minRatingFilter > 0 && styles.ratingToolPillTextActive]}>
-                  {minRatingFilter > 0
-                    ? `≥ ${minRatingFilter % 1 === 0 ? minRatingFilter : minRatingFilter.toFixed(1)} ★`
-                    : 'Note'}
-                </Text>
-                {minRatingFilter > 0 ? (
-                  <TouchableOpacity
-                    onPress={(e) => {
-                      e.stopPropagation();
-                      setMinRatingFilter(0);
-                    }}
-                    hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
-                    accessibilityLabel="Effacer le filtre de note"
-                  >
-                    <Ionicons name="close-circle" size={13} color={colors.amber} />
-                  </TouchableOpacity>
-                ) : (
-                  <Ionicons name="chevron-down" size={11} color={colors.textMuted} />
-                )}
-              </TouchableOpacity>
-
-              {/* Modal de Tri (labels courts et instinctifs) */}
+              {/* Sélecteur de Tri */}
               <TouchableOpacity
                 style={[styles.toolPill, styles.sortToolPill]}
                 onPress={() => setIsFilterModalVisible(true)}
@@ -1120,20 +1043,37 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 <Ionicons name="chevron-down" size={11} color={colors.textMuted} />
               </TouchableOpacity>
 
-              {/* Bouton Effacer les filtres si au moins un filtre est actif */}
-              {(minRatingFilter > 0 ||
-                onlyVegetarian ||
-                onlyDoableWithStock ||
-                (selectedCategories.length > 0 && !selectedCategories.includes('Tous'))) && (
-                <TouchableOpacity
-                  style={styles.resetFilterPill}
-                  onPress={handleResetAllFilters}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="close-circle" size={13} color={colors.textSecondary} />
-                  <Text style={styles.resetFilterPillText}>Effacer filtres</Text>
-                </TouchableOpacity>
-              )}
+              {/* Mon Stock Toggle Pill (Recettes 100% faisables) */}
+              <TouchableOpacity
+                style={[styles.toolPill, onlyDoableWithStock && styles.stockToolPillActive]}
+                onPress={handleToggleDoableFilter}
+                activeOpacity={0.7}
+              >
+                <Ionicons
+                  name={onlyDoableWithStock ? 'restaurant' : 'restaurant-outline'}
+                  size={13}
+                  color={onlyDoableWithStock ? colors.primary : colors.textSecondary}
+                />
+                <Text style={[styles.toolPillText, onlyDoableWithStock && styles.stockToolPillTextActive]}>
+                  {doableCount > 0 ? `En stock (${doableCount})` : 'En stock'}
+                </Text>
+              </TouchableOpacity>
+
+              {/* Végétarien Toggle Pill */}
+              <TouchableOpacity
+                style={[styles.toolPill, onlyVegetarian && styles.vegeToolPillActive]}
+                onPress={() => setOnlyVegetarian(!onlyVegetarian)}
+                activeOpacity={0.7}
+              >
+                <Ionicons
+                  name="leaf"
+                  size={13}
+                  color={onlyVegetarian ? (isDark ? '#4ADE80' : '#15803D') : colors.textSecondary}
+                />
+                <Text style={[styles.toolPillText, onlyVegetarian && styles.vegeToolPillTextActive]}>
+                  Végé
+                </Text>
+              </TouchableOpacity>
             </ScrollView>
           </Animated.View>
         </View>
@@ -1206,110 +1146,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           </View>
         </Modal>
 
-        {/* Modal Choix de la Note minimale (style harmonisé avec la modale de Tri) */}
-        <Modal
-          visible={isRatingModalVisible}
-          transparent={true}
-          animationType="fade"
-          onRequestClose={() => setIsRatingModalVisible(false)}
-        >
-          <View style={styles.modalBackdrop}>
-            <View style={styles.sortModalBox}>
-              <View style={styles.modalHeaderRow}>
-                <View style={styles.modalTitleWithIcon}>
-                  <Ionicons name="star" size={20} color={colors.amber} />
-                  <Text style={styles.sortModalTitle}>Filtrer par note</Text>
-                </View>
-                <TouchableOpacity
-                  onPress={() => setIsRatingModalVisible(false)}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  <Ionicons name="close" size={20} color={colors.textSecondary} />
-                </TouchableOpacity>
-              </View>
-
-              {/* Sélecteur d'étoiles interactif au centre avec feedback numérique */}
-              <View style={styles.ratingModalInteractiveBox}>
-                <StarRating
-                  rating={minRatingFilter}
-                  size={28}
-                  interactive={true}
-                  onRatingChange={(newVal) => setMinRatingFilter(newVal)}
-                  showScore={false}
-                  showClear={false}
-                />
-                <Text style={styles.ratingModalScoreText}>
-                  {minRatingFilter > 0
-                    ? `≥ ${minRatingFilter % 1 === 0 ? minRatingFilter : minRatingFilter.toFixed(1)} étoiles`
-                    : 'Toutes les notes (aucun filtre)'}
-                </Text>
-              </View>
-
-              {/* Options rapides pré-définies */}
-              {[
-                { value: 0, label: 'Toutes les notes' },
-                { value: 4.5, label: '4,5 étoiles et plus' },
-                { value: 4.0, label: '4,0 étoiles et plus' },
-                { value: 3.5, label: '3,5 étoiles et plus' },
-                { value: 3.0, label: '3,0 étoiles et plus' },
-              ].map((option) => {
-                const isSelected = minRatingFilter === option.value;
-                return (
-                  <TouchableOpacity
-                    key={option.value}
-                    style={[
-                      styles.sortOptionRow,
-                      isSelected && styles.sortOptionSelected,
-                    ]}
-                    onPress={() => {
-                      setMinRatingFilter(option.value);
-                      setIsRatingModalVisible(false);
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    <View style={styles.sortOptionLeft}>
-                      {option.value > 0 ? (
-                        <StarRating
-                          rating={option.value}
-                          size={14}
-                          interactive={false}
-                          showScore={false}
-                          showClear={false}
-                        />
-                      ) : (
-                        <Ionicons
-                          name="apps-outline"
-                          size={16}
-                          color={isSelected ? colors.primary : colors.textSecondary}
-                        />
-                      )}
-                      <Text
-                        style={[
-                          styles.sortOptionText,
-                          isSelected && styles.sortOptionTextActive,
-                        ]}
-                      >
-                        {option.label}
-                      </Text>
-                    </View>
-                    {isSelected && (
-                      <Ionicons name="checkmark" size={18} color={colors.primary} />
-                    )}
-                  </TouchableOpacity>
-                );
-              })}
-
-              <TouchableOpacity
-                style={styles.closeSortModalBtn}
-                onPress={() => setIsRatingModalVisible(false)}
-              >
-                <Text style={styles.closeSortModalText}>Fermer</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
-
-        {/* Modal Filtres Avancés (Famille 2 : Ingrédients, Temps total, Difficulté, Régime, Étoiles) */}
+        {/* Modal Filtres Avancés (Temps total, Note minimale, Difficulté, Ingrédients) */}
         <AdvancedFiltersModal
           visible={isAdvancedFiltersModalVisible}
           onClose={() => setIsAdvancedFiltersModalVisible(false)}
@@ -1319,18 +1156,14 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             difficulties: newDifficulties,
             selectedIngredients: newIngredients,
             ingredientMatchMode: newMatchMode,
-            onlyVegetarian: newVegetarian,
             minRating: newMinRating,
-            onlyDoableWithStock: newDoable,
           }) => {
             setTargetTotalTime(newTargetTime);
             setTimeFilterMode(newTimeMode);
             setSelectedDifficulties(newDifficulties);
             setSelectedIngredients(newIngredients);
             setIngredientMatchMode(newMatchMode);
-            if (newVegetarian !== undefined) setOnlyVegetarian(newVegetarian);
             if (newMinRating !== undefined) setMinRatingFilter(newMinRating);
-            if (newDoable !== undefined) setOnlyDoableWithStock(newDoable);
           }}
           onReset={() => {
             setTargetTotalTime(null);
@@ -1338,14 +1171,15 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             setSelectedDifficulties([]);
             setSelectedIngredients([]);
             setIngredientMatchMode('all');
+            setMinRatingFilter(0);
           }}
           targetTotalTime={targetTotalTime}
           timeFilterMode={timeFilterMode}
           difficulties={selectedDifficulties}
           selectedIngredients={selectedIngredients}
           ingredientMatchMode={ingredientMatchMode}
-          onlyVegetarian={onlyVegetarian}
           minRating={minRatingFilter}
+          onlyVegetarian={onlyVegetarian}
           onlyDoableWithStock={onlyDoableWithStock}
           recipes={recipes}
           doableRecipesMap={doableRecipesMap}
@@ -1667,10 +1501,6 @@ const styles = createDynamicStyles((colors, shadows) => ({
     backgroundColor: colors.primaryLight,
     borderColor: colors.primary,
   },
-  allergenToolPillActive: {
-    backgroundColor: colors.primaryLight,
-    borderColor: colors.primary,
-  },
   toolPillText: {
     fontSize: 12,
     fontWeight: '600',
@@ -1684,10 +1514,6 @@ const styles = createDynamicStyles((colors, shadows) => ({
     fontWeight: '700',
   },
   stockToolPillTextActive: {
-    color: colors.primary,
-    fontWeight: '700',
-  },
-  allergenToolPillTextActive: {
     color: colors.primary,
     fontWeight: '700',
   },
@@ -1803,31 +1629,6 @@ const styles = createDynamicStyles((colors, shadows) => ({
     color: colors.textSecondary,
     fontWeight: '600',
     fontSize: 14,
-  },
-  ratingToolPillActive: {
-    backgroundColor: colors.amberLight,
-    borderColor: colors.amber + '60',
-  },
-  ratingToolPillTextActive: {
-    color: colors.amber,
-    fontWeight: '700',
-  },
-  ratingModalInteractiveBox: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surfaceAlt,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-  },
-  ratingModalScoreText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    marginTop: 8,
   },
   aiModalBackdrop: {
     flex: 1,

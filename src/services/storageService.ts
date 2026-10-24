@@ -2,7 +2,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Recipe } from '../types/recipe';
 import { ShoppingItem, ShoppingAisle } from '../types/shopping';
 import { FridgeItem } from '../types/fridge';
-import { WeeklyPlanMap, PlannedMeal, DayOfWeek, MealTime } from '../types/planner';
+import {
+  WeeklyPlanMap,
+  PlannedMeal,
+  DayOfWeek,
+  MealTime,
+  PlannerSettings,
+  DEFAULT_PLANNER_SETTINGS,
+} from '../types/planner';
 import { MealLogEntry, MealLogMap, DayMealLogSummary } from '../types/mealLog';
 import { UserAllergenItem, AllergenFamily } from '../types/vocabulary';
 import { INITIAL_RECIPES } from '../data/initialRecipes';
@@ -34,6 +41,7 @@ const DEFAULT_SERVINGS_KEY = '@papilles_default_servings_v1';
 const USER_ALLERGENS_KEY = '@papilles_user_allergens_v1';
 const ALLERGEN_FILTER_RECIPES_KEY = '@papilles_filter_allergens_recipes_v1';
 const ALLERGEN_EXCLUDE_AI_KEY = '@papilles_exclude_allergens_ai_v1';
+const PLANNER_SETTINGS_KEY = '@papilles_planner_settings_v1';
 
 // File d'attente séquentielle (mutex async) pour sérialiser les cascades de vocabulaire et éviter tout conflit AsyncStorage
 let cascadeMutexQueue: Promise<any> = Promise.resolve();
@@ -1312,6 +1320,44 @@ export const StorageService = {
   // ==========================================
 
   /**
+   * Récupère les préférences de planification des menus (fixe vs dynamique, premier jour)
+   */
+  async getPlannerSettings(): Promise<PlannerSettings> {
+    try {
+      const data = await AsyncStorage.getItem(PLANNER_SETTINGS_KEY);
+      if (!data) return DEFAULT_PLANNER_SETTINGS;
+      const parsed = JSON.parse(data);
+      return {
+        mode: parsed?.mode === 'dynamic' ? 'dynamic' : 'fixed',
+        startDay: parsed?.startDay || 'Lundi',
+      };
+    } catch (e) {
+      console.error('Erreur lecture réglages planification:', e);
+      return DEFAULT_PLANNER_SETTINGS;
+    }
+  },
+
+  /**
+   * Sauvegarde les préférences de planification des menus
+   */
+  async savePlannerSettings(
+    settings: Partial<PlannerSettings>
+  ): Promise<PlannerSettings> {
+    try {
+      const current = await this.getPlannerSettings();
+      const updated: PlannerSettings = {
+        ...current,
+        ...settings,
+      };
+      await AsyncStorage.setItem(PLANNER_SETTINGS_KEY, JSON.stringify(updated));
+      return updated;
+    } catch (e) {
+      console.error('Erreur sauvegarde réglages planification:', e);
+      return DEFAULT_PLANNER_SETTINGS;
+    }
+  },
+
+  /**
    * Récupère le planning des repas de la semaine
    */
   async getWeeklyPlan(): Promise<WeeklyPlanMap> {
@@ -1340,16 +1386,16 @@ export const StorageService = {
   },
 
   /**
-   * Assigne ou retire un repas prévu pour un créneau (Jour + Midi/Soir)
+   * Assigne ou retire un repas prévu pour un créneau (Jour ou date + Midi/Soir)
    */
   async setWeeklyMeal(
-    day: DayOfWeek,
+    dayOrKey: DayOfWeek | string,
     mealTime: MealTime,
     meal: PlannedMeal | null
   ): Promise<WeeklyPlanMap> {
     try {
       const currentPlan = await this.getWeeklyPlan();
-      const slotKey = `${day}_${mealTime}`;
+      const slotKey = dayOrKey.includes('_') ? dayOrKey : `${dayOrKey}_${mealTime}`;
       const nextPlan = { ...currentPlan };
 
       if (meal) {
@@ -1367,12 +1413,19 @@ export const StorageService = {
   },
 
   /**
-   * Réinitialise le planning de la semaine
+   * Réinitialise le planning de la semaine (ou une sélection spécifique de créneaux)
    */
-  async clearWeeklyPlan(): Promise<WeeklyPlanMap> {
+  async clearWeeklyPlan(slotKeysToClear?: string[]): Promise<WeeklyPlanMap> {
     try {
-      await AsyncStorage.setItem(WEEKLY_PLAN_KEY, JSON.stringify({}));
-      return {};
+      if (!slotKeysToClear || slotKeysToClear.length === 0) {
+        await AsyncStorage.setItem(WEEKLY_PLAN_KEY, JSON.stringify({}));
+        return {};
+      }
+      const currentPlan = await this.getWeeklyPlan();
+      const nextPlan = { ...currentPlan };
+      slotKeysToClear.forEach((k) => delete nextPlan[k]);
+      await this.saveWeeklyPlan(nextPlan);
+      return nextPlan;
     } catch (e) {
       console.error('Erreur effacement planning semaine:', e);
       throw e;
@@ -1381,11 +1434,13 @@ export const StorageService = {
 
   /**
    * Fusionne l'intégralité des ingrédients des recettes programmées de la semaine
-   * avec calcul automatique selon le nombre de portions de chaque créneau
+   * avec calcul automatique selon le nombre de portions de chaque créneau.
+   * Si slotKeysFilter est fourni, seuls les créneaux spécifiés sont pris en compte.
    */
   async generateShoppingListFromWeeklyPlan(
     recipes: Recipe[],
-    plan: WeeklyPlanMap
+    plan: WeeklyPlanMap,
+    slotKeysFilter?: string[]
   ): Promise<{ updatedList: ShoppingItem[]; addedCount: number }> {
     try {
       const currentShoppingList = await this.getShoppingList();
@@ -1394,7 +1449,11 @@ export const StorageService = {
 
       const newItemsToMerge: ShoppingItem[] = [];
 
-      Object.values(plan).forEach((plannedMeal) => {
+      const relevantEntries = slotKeysFilter
+        ? slotKeysFilter.map((k) => plan[k]).filter(Boolean)
+        : Object.values(plan);
+
+      relevantEntries.forEach((plannedMeal) => {
         if (!plannedMeal || !plannedMeal.recipeId) return;
 
         const recipe = recipeMap.get(plannedMeal.recipeId);
@@ -1773,6 +1832,7 @@ export const StorageService = {
     const userAllergens = await this.getUserAllergens();
     const isAllergenFilterEnabled = await this.getAllergenFilterEnabled();
     const isAiAllergenExclusionEnabled = await this.getAiAllergenExclusionEnabled();
+    const plannerSettings = await this.getPlannerSettings();
     return JSON.stringify(
       {
         version: '1.2.0',
@@ -1785,6 +1845,7 @@ export const StorageService = {
         userAllergens,
         isAllergenFilterEnabled,
         isAiAllergenExclusionEnabled,
+        plannerSettings,
       },
       null,
       2
