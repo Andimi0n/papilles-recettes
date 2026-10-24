@@ -6,11 +6,6 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#1B3D2C"
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.andimi0n.papilles"
@@ -25,7 +20,6 @@
       },
       "predictiveBackGestureEnabled": false,
       "allowBackup": false,
-      "usesCleartextTraffic": false,
       "permissions": [
         "CAMERA",
         "READ_MEDIA_IMAGES"
@@ -35,7 +29,17 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-status-bar"
+      "expo-status-bar",
+      "expo-secure-store",
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#1B3D2C"
+        }
+      ]
     ]
   }
 }

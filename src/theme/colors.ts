@@ -246,13 +246,13 @@ export const Shadows = new Proxy({} as typeof LightShadows, {
  * Permet de définir des feuilles de styles StyleSheet qui se recalculent
  * automatiquement dès que l'utilisateur ou le système bascule de thème.
  */
-export function createDynamicStyles<T extends StyleSheet.NamedStyles<T> | StyleSheet.NamedStyles<any>>(
+export function createDynamicStyles<T extends Parameters<typeof StyleSheet.create>[0]>(
   factory: (colors: ThemeColors, shadows: typeof LightShadows) => T
-): T {
+): ReturnType<typeof StyleSheet.create<T>> {
   let cachedThemeId: ThemeId | '' = '';
   let cachedStyles: any = null;
 
-  return new Proxy({} as T, {
+  return new Proxy({} as ReturnType<typeof StyleSheet.create<T>>, {
     get(_target, prop: string) {
       if (cachedThemeId !== _activeThemeId || !cachedStyles) {
         cachedStyles = StyleSheet.create(factory(_activeColors, _activeShadows));
