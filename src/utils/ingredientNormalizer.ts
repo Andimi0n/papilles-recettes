@@ -40,6 +40,7 @@ const LEADING_QUANTITY_REGEX = /^([0-9]+(?:\/[0-9]+)?(?:\.[0-9]+)?(?:\s*(?:-|–
 
 // Adjectifs et découpes superflus formulés en minuscules sans accents
 const QUALIFIER_PATTERNS: RegExp[] = [
+  /\b(?:belles?|beaux?|petites?|petits?|grosses?|gros?|grandes?|grands?|fines?|fins?|bonnes?|bons?|jeunes?)\b/gi,
   /\s*\([^)]*\)/g, // Parenthèses descriptives
   /\b(?:et\s+)?coupe?e?s?\s+en\s+des\b/gi,
   /\b(?:et\s+)?coupe?e?s?\s+en\s+rondelles\b/gi,
@@ -494,7 +495,8 @@ export function normalizeIngredient(raw: {
   // ÉTAPE 5 : Repli Hors Lexique (canonicalId = undefined)
   // Formate au moins proprement le nom nettoyé avec une majuscule au début
   // =========================================================================
-  const fallbackTerm = cleanedNorm || originalName.trim();
+  const isOnlyAccentsRemoved = normalizeString(originalName) === cleanedNorm || normalizeString(originalName) === cleanedNorm + 's';
+  const fallbackTerm = isOnlyAccentsRemoved ? originalName.trim() : (cleanedNorm || originalName.trim());
   const formattedCleaned = fallbackTerm
     ? fallbackTerm.charAt(0).toUpperCase() + fallbackTerm.slice(1)
     : originalName.trim();
