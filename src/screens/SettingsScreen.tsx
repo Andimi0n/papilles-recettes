@@ -38,6 +38,55 @@ import {
 } from '../types/planner';
 import { normalizeString, generateUniqueId, ORDERED_DAYS_OF_WEEK } from '../utils/helpers';
 
+const isIngredientInAllergens = (
+  ing: CanonicalIngredient,
+  userAllergens: UserAllergenItem[],
+  famId: AllergenFamily
+) => {
+  return userAllergens.some((a) => {
+    const nameMatch = normalizeString(a.name) === normalizeString(ing.canonicalName);
+    const idMatch = Boolean(a.canonicalId && a.canonicalId === ing.id);
+    return nameMatch || (idMatch && a.allergenFamily === famId);
+  });
+};
+
+const removeAllergenFamilyIngredients = (
+  userAllergens: UserAllergenItem[],
+  famId: AllergenFamily,
+  associated: CanonicalIngredient[]
+) => {
+  const associatedNames = new Set(associated.map((i) => normalizeString(i.canonicalName)));
+  const associatedIds = new Set(associated.map((i) => i.id));
+  return userAllergens.filter((a) => {
+    if (a.allergenFamily === famId) return false;
+    if (associatedNames.has(normalizeString(a.name))) return false;
+    if (a.canonicalId && associatedIds.has(a.canonicalId)) return false;
+    return true;
+  });
+};
+
+const addAllergenFamilyIngredients = (
+  userAllergens: UserAllergenItem[],
+  famId: AllergenFamily,
+  associated: CanonicalIngredient[]
+) => {
+  const current = [...userAllergens];
+  let addedCount = 0;
+  for (const ing of associated) {
+    if (!isIngredientInAllergens(ing, current, famId)) {
+      current.push({
+        id: generateUniqueId('allg'),
+        name: ing.canonicalName,
+        canonicalId: ing.id,
+        allergenFamily: famId,
+        addedAt: new Date().toISOString(),
+      });
+      addedCount++;
+    }
+  }
+  return { updatedAllergens: current, addedCount };
+};
+
 export interface SettingsScreenProps {
   recipes: Recipe[];
   onRecipesReloadNeeded?: () => void;
@@ -195,13 +244,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
 
   const handleToggleAllergenFamily = async (fam: AllergenFamilyConfig) => {
     const associated = vocabList.filter((ing) => ing.allergen === fam.id);
-    const presentCount = associated.filter((ing) =>
-      userAllergens.some((a) => {
-        const nameMatch = normalizeString(a.name) === normalizeString(ing.canonicalName);
-        const idMatch = Boolean(a.canonicalId && a.canonicalId === ing.id);
-        return nameMatch || (idMatch && a.allergenFamily === fam.id);
-      })
-    ).length;
+    const presentCount = associated.filter((ing) => isIngredientInAllergens(ing, userAllergens, fam.id)).length;
     const isAllActive = associated.length > 0 && presentCount === associated.length;
 
     if (isAllActive) {
@@ -214,14 +257,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
             text: 'Retirer',
             style: 'destructive',
             onPress: async () => {
-              const associatedNames = new Set(associated.map((i) => normalizeString(i.canonicalName)));
-              const associatedIds = new Set(associated.map((i) => i.id));
-              const remaining = userAllergens.filter((a) => {
-                if (a.allergenFamily === fam.id) return false;
-                if (associatedNames.has(normalizeString(a.name))) return false;
-                if (a.canonicalId && associatedIds.has(a.canonicalId)) return false;
-                return true;
-              });
+              const remaining = removeAllergenFamilyIngredients(userAllergens, fam.id, associated);
               await StorageService.saveUserAllergens(remaining);
               setUserAllergens(remaining);
             },
@@ -229,27 +265,9 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
         ]
       );
     } else {
-      const current = [...userAllergens];
-      let addedCount = 0;
-      for (const ing of associated) {
-        const exists = current.some((a) => {
-          const nameMatch = normalizeString(a.name) === normalizeString(ing.canonicalName);
-          const idMatch = Boolean(a.canonicalId && a.canonicalId === ing.id);
-          return nameMatch || (idMatch && a.allergenFamily === fam.id);
-        });
-        if (!exists) {
-          current.push({
-            id: generateUniqueId('allg'),
-            name: ing.canonicalName,
-            canonicalId: ing.id,
-            allergenFamily: fam.id,
-            addedAt: new Date().toISOString(),
-          });
-          addedCount++;
-        }
-      }
-      await StorageService.saveUserAllergens(current);
-      setUserAllergens(current);
+      const { updatedAllergens, addedCount } = addAllergenFamilyIngredients(userAllergens, fam.id, associated);
+      await StorageService.saveUserAllergens(updatedAllergens);
+      setUserAllergens(updatedAllergens);
       Alert.alert(
         `${fam.emoji} ${fam.name}`,
         `${addedCount} ingrédient${addedCount > 1 ? 's' : ''} associé${addedCount > 1 ? 's' : ''} ajouté${addedCount > 1 ? 's' : ''} à vos allergies.`
