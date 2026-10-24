@@ -1824,15 +1824,28 @@ export const StorageService = {
    * Exporte l'intégralité des données sous forme de chaîne JSON formatée (recettes, courses, planning, suivi, frigo, allergènes)
    */
   async exportAllData(): Promise<string> {
-    const recipes = await this.getRecipes();
-    const shoppingList = await this.getShoppingList();
-    const weeklyPlan = await this.getWeeklyPlan();
-    const mealLogs = await this.getMealLogs();
-    const fridgeItems = await this.getFridgeItems();
-    const userAllergens = await this.getUserAllergens();
-    const isAllergenFilterEnabled = await this.getAllergenFilterEnabled();
-    const isAiAllergenExclusionEnabled = await this.getAiAllergenExclusionEnabled();
-    const plannerSettings = await this.getPlannerSettings();
+    const [
+      recipes,
+      shoppingList,
+      weeklyPlan,
+      mealLogs,
+      fridgeItems,
+      userAllergens,
+      isAllergenFilterEnabled,
+      isAiAllergenExclusionEnabled,
+      plannerSettings,
+    ] = await Promise.all([
+      this.getRecipes(),
+      this.getShoppingList(),
+      this.getWeeklyPlan(),
+      this.getMealLogs(),
+      this.getFridgeItems(),
+      this.getUserAllergens(),
+      this.getAllergenFilterEnabled(),
+      this.getAiAllergenExclusionEnabled(),
+      this.getPlannerSettings(),
+    ]);
+
     return JSON.stringify(
       {
         version: '1.2.0',
