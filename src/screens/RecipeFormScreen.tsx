@@ -31,6 +31,8 @@ import {
   ExtractedRecipeData,
   AiConnectionStatus,
 } from '../services/recipeAiService';
+import { useRecipeAiAnalysis } from '../hooks/useRecipeAiAnalysis';
+import { useRecipeAiConfig } from '../hooks/useRecipeAiConfig';
 
 interface RecipeFormScreenProps {
   initialRecipe?: Recipe | null;
@@ -118,132 +120,6 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
   );
 
   const [rawTextInput, setRawTextInput] = useState('');
-  const [isAnalyzingText, setIsAnalyzingText] = useState(false);
-  const [loadingStep, setLoadingStep] = useState('Analyse du texte...');
-  const [apiKey, setApiKey] = useState('');
-  const [isApiKeyModalVisible, setIsApiKeyModalVisible] = useState(false);
-  const [tempApiKeyInput, setTempApiKeyInput] = useState('');
-  const [isKeyVisible, setIsKeyVisible] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState<AiConnectionStatus | null>(null);
-  const [isCheckingConnection, setIsCheckingConnection] = useState(false);
-
-  useEffect(() => {
-    RecipeAiService.getApiKey().then((k) => setApiKey(k || ''));
-    setIsCheckingConnection(true);
-    RecipeAiService.checkConnection().then((st) => {
-      setConnectionStatus(st);
-      setIsCheckingConnection(false);
-    });
-  }, []);
-
-  const verifyAiStatus = async (keyToTest?: string) => {
-    setIsCheckingConnection(true);
-    try {
-      const status = await RecipeAiService.checkConnection(keyToTest);
-      setConnectionStatus(status);
-    } catch (e: any) {
-      setConnectionStatus({
-        ok: false,
-        code: 'UNKNOWN_ERROR',
-        message: e?.message || 'Erreur lors du test de connexion',
-      });
-    } finally {
-      setIsCheckingConnection(false);
-    }
-  };
-
-  const handleSaveApiKey = async () => {
-    try {
-      await RecipeAiService.setApiKey(tempApiKeyInput.trim());
-      setApiKey(tempApiKeyInput.trim());
-      setIsApiKeyModalVisible(false);
-      await verifyAiStatus(tempApiKeyInput.trim());
-    } catch (e) {
-      Alert.alert('Erreur', 'Impossible de sauvegarder la clé API.');
-    }
-  };
-
-  const handleFillSample = () => {
-    const sample = SAMPLE_RECIPES[Math.floor(Math.random() * SAMPLE_RECIPES.length)];
-    setRawTextInput(sample);
-  };
-
-  const handleAnalyzeText = async () => {
-    const trimmed = rawTextInput.trim();
-    if (!trimmed) {
-      Alert.alert(
-        'Texte requis',
-        'Veuillez coller ou saisir le texte de votre recette avant de lancer l\'analyse.'
-      );
-      return;
-    }
-
-    if (connectionStatus && !connectionStatus.ok) {
-      Alert.alert(
-        'IA indisponible',
-        `${connectionStatus.message}\n\nVeuillez vérifier votre connexion ou votre clé API.`
-      );
-      return;
-    }
-
-    setIsAnalyzingText(true);
-    setLoadingStep('Lecture et compréhension de votre texte...');
-
-    try {
-      setTimeout(() => setLoadingStep('Découpage et normalisation des ingrédients...'), 1200);
-      setTimeout(() => setLoadingStep('Autocomplétion des temps et portions...'), 2400);
-
-      const extracted: ExtractedRecipeData = await RecipeAiService.extractRecipeFromRawText(
-        trimmed,
-        apiKey
-      );
-
-      if (extracted.title) setTitle(extracted.title);
-      if (extracted.description) setDescription(extracted.description);
-      if (extracted.category) setCategory(extracted.category as Category);
-      if (extracted.difficulty) setDifficulty(extracted.difficulty as Difficulty);
-      if (extracted.prepTimeMinutes) setPrepTime(extracted.prepTimeMinutes.toString());
-      if (extracted.cookTimeMinutes) setCookTime(extracted.cookTimeMinutes.toString());
-      if (extracted.servings) setServings(extracted.servings);
-      if (extracted.isVegetarian !== undefined) setIsVegetarian(extracted.isVegetarian);
-      if (extracted.userNote) setUserNote(extracted.userNote.trim());
-      if (extracted.ingredients && extracted.ingredients.length > 0) {
-        setIngredients(
-          extracted.ingredients.map((ing, idx) => {
-            const res = UnifiedIngredientService.resolveRecognizedIngredient(ing.name);
-            return {
-              id: generateUniqueId(`ing_text_${idx + 1}`),
-              name: res.isRecognized && res.canonical ? res.canonical.canonicalName : ing.name,
-              canonicalId: res.isRecognized && res.canonical ? res.canonical.id : undefined,
-              quantity: ing.quantity,
-              unit: ing.unit,
-              isPantryStaple: ing.isPantryStaple ?? res.canonical?.isPantryStaple,
-              isOptional: ing.isOptional,
-            };
-          })
-        );
-      }
-      if (extracted.steps && extracted.steps.length > 0) {
-        setSteps(
-          extracted.steps.map((st, idx) => ({
-            id: generateUniqueId(`stp_text_${idx + 1}`),
-            order: st.order || idx + 1,
-            instruction: st.instruction,
-          }))
-        );
-      }
-      // Basculer directement en mode formulaire manuel pour révision et enregistrement !
-      setCreationMode('manual');
-    } catch (error: any) {
-      console.error('Erreur extraction texte:', error);
-      Alert.alert(
-        'Échec de l\'analyse',
-        error?.message || 'Une erreur est survenue lors de l\'analyse du texte.'
-      );
-    } finally {
-      setIsAnalyzingText(false);
-    }
-  };
 
   // Form states
   const [title, setTitle] = useState(initialRecipe?.title || '');
@@ -291,6 +167,44 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
       { id: 'stp_1', order: 1, instruction: '' },
     ]
   );
+
+  const {
+    apiKey,
+    setApiKey,
+    isApiKeyModalVisible,
+    setIsApiKeyModalVisible,
+    tempApiKeyInput,
+    setTempApiKeyInput,
+    isKeyVisible,
+    setIsKeyVisible,
+    connectionStatus,
+    isCheckingConnection,
+    verifyAiStatus,
+    handleSaveApiKey,
+  } = useRecipeAiConfig();
+
+  const { isAnalyzingText, loadingStep, handleAnalyzeText } = useRecipeAiAnalysis({
+    apiKey,
+    connectionStatus,
+    rawTextInput,
+    setTitle,
+    setDescription,
+    setCategory,
+    setDifficulty,
+    setPrepTime,
+    setCookTime,
+    setServings,
+    setIsVegetarian,
+    setUserNote,
+    setIngredients,
+    setSteps,
+    setCreationMode,
+  });
+
+  const handleFillSample = () => {
+    const sample = SAMPLE_RECIPES[Math.floor(Math.random() * SAMPLE_RECIPES.length)];
+    setRawTextInput(sample);
+  };
 
   // Image picker
   const handlePickImage = async () => {
