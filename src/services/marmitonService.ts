@@ -277,7 +277,7 @@ export const MarmitonService = {
     }
 
     // 2. Balises images de la galerie de photos de la recette
-    const imgTagRegex = /<img[^>]+class=["'][^"']*recipe-main-photo[^"']*["'][^>]+>/gi;
+    const imgTagRegex = /<img[^>]+class=["'][^"']*recipe-main-photo[^"']*["'][^>]*>/gi;
     let tagMatch;
     while ((tagMatch = imgTagRegex.exec(html)) !== null) {
       const tag = tagMatch[0];
