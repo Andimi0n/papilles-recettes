@@ -37,6 +37,34 @@ interface CapturedPhoto {
   base64: string;
 }
 
+export function buildPartialRecipe(extracted: ExtractedRecipeData, photos: CapturedPhoto[]): Partial<Recipe> {
+  return {
+    title: extracted.title || 'Recette scannée',
+    description: extracted.description || '',
+    category: extracted.category || 'Plat',
+    difficulty: extracted.difficulty || 'Moyen',
+    prepTimeMinutes: extracted.prepTimeMinutes || 15,
+    cookTimeMinutes: extracted.cookTimeMinutes || 20,
+    servings: extracted.servings || 4,
+    rating: 4.5,
+    userNote: extracted.userNote ? extracted.userNote.trim() : undefined,
+    isVegetarian: extracted.isVegetarian ?? false,
+    imageUrl: photos.length > 0 ? photos[0].uri : undefined, // Utilise la première photo comme couverture
+    availableImages: photos.map((p) => p.uri),
+    ingredients: (extracted.ingredients || []).map((ing, idx) => ({
+      id: generateUniqueId(`ing_scanned_${idx + 1}`),
+      name: ing.name,
+      quantity: ing.quantity,
+      unit: ing.unit,
+    })),
+    steps: (extracted.steps || []).map((st, idx) => ({
+      id: generateUniqueId(`stp_scanned_${idx + 1}`),
+      order: st.order || idx + 1,
+      instruction: st.instruction,
+    })),
+  };
+}
+
 export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
   onBack,
   onRecipeExtracted,
@@ -189,32 +217,7 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
       );
 
       // On transforme en recette partielle avec identifiants uniques
-      const partialRecipe: Partial<Recipe> = {
-        title: extracted.title || 'Recette scannée',
-        description: extracted.description || '',
-        category: extracted.category || 'Plat',
-        difficulty: extracted.difficulty || 'Moyen',
-        prepTimeMinutes: extracted.prepTimeMinutes || 15,
-        cookTimeMinutes: extracted.cookTimeMinutes || 20,
-        servings: extracted.servings || 4,
-        rating: 4.5,
-        userNote: extracted.userNote ? extracted.userNote.trim() : undefined,
-        isVegetarian: extracted.isVegetarian ?? false,
-        imageUrl: photos[0].uri, // Utilise la première photo comme couverture
-        availableImages: photos.map((p) => p.uri),
-        ingredients: (extracted.ingredients || []).map((ing, idx) => ({
-          id: generateUniqueId(`ing_scanned_${idx + 1}`),
-          name: ing.name,
-          quantity: ing.quantity,
-          unit: ing.unit,
-        })),
-        steps: (extracted.steps || []).map((st, idx) => ({
-          id: generateUniqueId(`stp_scanned_${idx + 1}`),
-          order: st.order || idx + 1,
-          instruction: st.instruction,
-        })),
-
-      };
+      const partialRecipe = buildPartialRecipe(extracted, photos);
 
       onRecipeExtracted(partialRecipe, photos[0].uri);
     } catch (error: any) {
