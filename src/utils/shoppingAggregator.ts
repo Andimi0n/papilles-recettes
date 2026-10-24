@@ -205,6 +205,13 @@ export function createShoppingItemFromIngredient(
   };
 }
 
+function mergeRecipeTitles(existingTitle?: string, newTitle?: string): string | undefined {
+  if (!newTitle) return existingTitle;
+  if (!existingTitle) return newTitle;
+  if (existingTitle.includes(newTitle)) return existingTitle;
+  return `${existingTitle}, ${newTitle}`;
+}
+
 /**
  * Fusionne intelligemment une liste d'ingrédients existants avec de nouveaux ingrédients
  * - Priorité O(1) par canonicalId sous nom canonique standardisé
@@ -234,14 +241,15 @@ export function mergeShoppingItems(
       if (item.isChecked) return false;
 
       if (newItem.canonicalId && item.canonicalId) {
-        if (newItem.canonicalId === item.canonicalId) {
-          // Vérifier si fusionnable (unités compatibles ou les deux sans quantité)
-          if (!newItem.quantity && !item.quantity) return true;
-          const u1 = normalizeUnitKey(item.unit);
-          const u2 = normalizeUnitKey(newItem.unit);
-          if (u1 === u2) return true;
-          if (sumMetricQuantities(1, u1, 1, u2) !== null) return true;
-        }
+        if (newItem.canonicalId !== item.canonicalId) return false;
+
+        // Vérifier si fusionnable (unités compatibles ou les deux sans quantité)
+        if (!newItem.quantity && !item.quantity) return true;
+        const u1 = normalizeUnitKey(item.unit);
+        const u2 = normalizeUnitKey(newItem.unit);
+        if (u1 === u2) return true;
+        if (sumMetricQuantities(1, u1, 1, u2) !== null) return true;
+
         return false;
       }
 
@@ -256,60 +264,53 @@ export function mergeShoppingItems(
       return false;
     });
 
-    if (matchIndex >= 0) {
-      const existing = result[matchIndex];
+    if (matchIndex < 0) {
+      result.push(newItem);
+      return;
+    }
 
-      // Fusion des titres de recettes sans doublon
-      let mergedRecipeTitle = existing.recipeTitle;
-      if (newItem.recipeTitle) {
-        if (!existing.recipeTitle) {
-          mergedRecipeTitle = newItem.recipeTitle;
-        } else if (!existing.recipeTitle.includes(newItem.recipeTitle)) {
-          mergedRecipeTitle = `${existing.recipeTitle}, ${newItem.recipeTitle}`;
-        }
-      }
+    const existing = result[matchIndex];
+    const mergedRecipeTitle = mergeRecipeTitles(existing.recipeTitle, newItem.recipeTitle);
 
-      // Cas 1 : Fonds de placard ou articles sans quantité (ex: "Sel", "Muscade")
-      if (!existing.quantity && !newItem.quantity) {
+    // Cas 1 : Fonds de placard ou articles sans quantité (ex: "Sel", "Muscade")
+    if (!existing.quantity && !newItem.quantity) {
+      result[matchIndex] = {
+        ...existing,
+        canonicalId: existing.canonicalId || newItem.canonicalId,
+        recipeTitle: mergedRecipeTitle,
+      };
+      return;
+    }
+
+    // Cas 2 : Addition mathématique numérique
+    const num1 = parseNumericQuantity(existing.quantity);
+    const num2 = parseNumericQuantity(newItem.quantity);
+
+    if (num1 !== null && num2 !== null) {
+      const metricSum = sumMetricQuantities(num1, existing.unit || '', num2, newItem.unit || '');
+      if (metricSum) {
         result[matchIndex] = {
           ...existing,
           canonicalId: existing.canonicalId || newItem.canonicalId,
+          quantity: metricSum.sumQty,
+          unit: metricSum.finalUnit || undefined,
           recipeTitle: mergedRecipeTitle,
         };
         return;
       }
-
-      // Cas 2 : Addition mathématique numérique
-      const num1 = parseNumericQuantity(existing.quantity);
-      const num2 = parseNumericQuantity(newItem.quantity);
-
-      if (num1 !== null && num2 !== null) {
-        const metricSum = sumMetricQuantities(num1, existing.unit || '', num2, newItem.unit || '');
-        if (metricSum) {
-          result[matchIndex] = {
-            ...existing,
-            canonicalId: existing.canonicalId || newItem.canonicalId,
-            quantity: metricSum.sumQty,
-            unit: metricSum.finalUnit || undefined,
-            recipeTitle: mergedRecipeTitle,
-          };
-          return;
-        }
-      }
-
-      // Cas 3 : Concaténation textuelle si unités complexes
-      const mergedQty = [existing.quantity, newItem.quantity]
-        .filter(Boolean)
-        .join(' + ');
-      result[matchIndex] = {
-        ...existing,
-        canonicalId: existing.canonicalId || newItem.canonicalId,
-        quantity: mergedQty || undefined,
-        recipeTitle: mergedRecipeTitle,
-      };
-    } else {
-      result.push(newItem);
     }
+
+    // Cas 3 : Concaténation textuelle si unités complexes
+    const mergedQty = [existing.quantity, newItem.quantity]
+      .filter(Boolean)
+      .join(' + ');
+
+    result[matchIndex] = {
+      ...existing,
+      canonicalId: existing.canonicalId || newItem.canonicalId,
+      quantity: mergedQty || undefined,
+      recipeTitle: mergedRecipeTitle,
+    };
   });
 
   return result;
