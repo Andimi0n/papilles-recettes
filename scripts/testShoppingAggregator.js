@@ -264,6 +264,149 @@ async function main() {
   assert.strictEqual(ailItem.quantity, '3,5', '2-3 (2,5) + 1 gousse = 3,5 gousses');
   console.log('✓ Fourchette numérique (2-3 gousses + 1) = 3,5 gousses');
 
+
+  // =========================================================================
+  // TEST SECTION 4 : Edge Cases & Uncovered Scenarios in mergeShoppingItems
+  // =========================================================================
+  console.log('\n--- Test 4 : Edge Cases & Uncovered Scenarios in mergeShoppingItems ---');
+
+  // Case 4.1: isChecked items should not be merged with new ones
+  const checkedExistingItems = [
+    {
+      id: 'e1',
+      name: 'Tomates',
+      canonicalId: 'ing_canon_tomates',
+      quantity: '2',
+      unit: 'pièces',
+      isChecked: true, // Already checked!
+      aisle: 'Fruits & Légumes',
+    }
+  ];
+  const newTomates = [
+    {
+      id: 'n1',
+      name: 'Tomates',
+      canonicalId: 'ing_canon_tomates',
+      quantity: '3',
+      unit: 'pièces',
+      isChecked: false,
+      aisle: 'Fruits & Légumes',
+    }
+  ];
+  const mergedChecked = mergeShoppingItems(checkedExistingItems, newTomates);
+  assert.strictEqual(mergedChecked.length, 2, 'Should result in 2 separate items because the existing one is checked');
+  assert.ok(mergedChecked.some(i => i.isChecked === true && i.quantity === '2'), 'Existing checked item preserved');
+  assert.ok(mergedChecked.some(i => i.isChecked === false && i.quantity === '3'), 'New unchecked item added separately');
+  console.log('✓ Checked items are ignored during merge (remain separate)');
+
+  // Case 4.2: Name-based matching (when canonicalId is missing)
+  const nameExistingItems = [
+    {
+      id: 'e2',
+      name: 'Épice secrète',
+      // No canonicalId
+      quantity: '1',
+      unit: 'c.à.s',
+      isChecked: false,
+    }
+  ];
+  const nameNewItems = [
+    {
+      id: 'n2',
+      name: 'épice secrète', // Case difference to test normalization
+      // No canonicalId
+      quantity: '2',
+      unit: 'c.à.s',
+      isChecked: false,
+    }
+  ];
+  const mergedNames = mergeShoppingItems(nameExistingItems, nameNewItems);
+  assert.strictEqual(mergedNames.length, 1, 'Should merge based on normalized name');
+  assert.strictEqual(mergedNames[0].quantity, '3', 'Quantities should add up (1 + 2 = 3)');
+  console.log('✓ Items without canonicalId merge correctly based on normalized name');
+
+  // Case 4.3: Textual concatenation (Case 3 in mergeShoppingItems)
+  const textExistingItems = [
+    {
+      id: 'e3',
+      name: 'Persil',
+      canonicalId: 'ing_canon_persil',
+      quantity: 'un peu',
+      unit: '',
+      isChecked: false,
+    }
+  ];
+  const textNewItems = [
+    {
+      id: 'n3',
+      name: 'Persil',
+      canonicalId: 'ing_canon_persil',
+      quantity: 'quelques brins',
+      unit: '',
+      isChecked: false,
+    }
+  ];
+  const mergedText = mergeShoppingItems(textExistingItems, textNewItems);
+  assert.strictEqual(mergedText.length, 1, 'Should merge text quantities');
+  assert.strictEqual(mergedText[0].quantity, 'un peu + quelques brins', 'Textual concatenation should apply');
+  console.log('✓ Non-numeric quantities are concatenated with " + "');
+
+  // Case 4.4: Incompatible units shouldn't merge (but wait, sumMetricQuantities or fallback check)
+  // Let's test items with same canonicalId but completely different/unconvertible units that aren't purely numerical
+  // Actually, sumMetricQuantities returns null if units are incompatible.
+  // Let's check how the code handles it. If canonicalId matches, but units are unconvertible, sumMetricQuantities returns null.
+  // Wait, if canonicalId matches:
+  // if (u1 === u2) return true;
+  // if (sumMetricQuantities(...) !== null) return true;
+  // If neither, matchIndex won't be found, so it pushes separately!
+  const diffUnitExistingItems = [
+    {
+      id: 'e4',
+      name: 'Carotte',
+      canonicalId: 'ing_canon_carotte',
+      quantity: '1',
+      unit: 'botte',
+      isChecked: false,
+    }
+  ];
+  const diffUnitNewItems = [
+    {
+      id: 'n4',
+      name: 'Carotte',
+      canonicalId: 'ing_canon_carotte',
+      quantity: '500',
+      unit: 'g',
+      isChecked: false,
+    }
+  ];
+  const mergedDiffUnits = mergeShoppingItems(diffUnitExistingItems, diffUnitNewItems);
+  assert.strictEqual(mergedDiffUnits.length, 2, 'Incompatible units should not merge (botte vs g)');
+  console.log('✓ Items with same canonicalId but incompatible units do not merge');
+
+  // Case 4.5: Filtering out null and 'eau' from newItems
+  const filterNewItems = [
+    null,
+    {
+      id: 'n5',
+      name: 'Eau',
+      canonicalId: 'ing_canon_eau',
+      quantity: '1',
+      unit: 'L',
+      isChecked: false,
+    },
+    {
+      id: 'n6',
+      name: 'Pomme',
+      canonicalId: 'ing_canon_pomme',
+      quantity: '2',
+      unit: 'pièces',
+      isChecked: false,
+    }
+  ];
+  const mergedFilter = mergeShoppingItems([], filterNewItems);
+  assert.strictEqual(mergedFilter.length, 1, 'Null items and "eau" should be filtered out');
+  assert.strictEqual(mergedFilter[0].canonicalId, 'ing_canon_pomme', 'Only valid items should remain');
+  console.log('✓ Null items and "eau" are successfully filtered out from newItems');
   console.log('\n🎉 TOUS LES TESTS DE SHOPPING AGGREGATOR ONT RÉUSSI (0 ERREUR) !');
 
   // Nettoyage
