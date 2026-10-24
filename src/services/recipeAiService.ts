@@ -72,7 +72,15 @@ async function fetchGeminiWithRetry(
   let attempt = 0;
   while (true) {
     attempt++;
-    const response = await fetch(url, options);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+    let response;
+    try {
+      response = await fetch(url, { ...options, signal: controller.signal });
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
     // Si succès ou erreur d'authentification/format (400, 401, 403), on ne retente pas
     if (response.ok || (response.status !== 503 && response.status !== 429)) {
