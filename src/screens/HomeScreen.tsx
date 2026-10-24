@@ -480,17 +480,16 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     // Tri
     result.sort((a, b) => {
       // En cours de recherche textuelle, les résultats les plus pertinents (score élevé) sont mis en avant
-      if (isSearching) {
-        if (sortBy === 'rating_desc') {
-          // Si les notes sont différentes, respecter la note, sinon départager par score de recherche
-          if (b.recipe.rating !== a.recipe.rating) {
-            return b.recipe.rating - a.recipe.rating;
-          }
-          return b.score - a.score;
+      if (isSearching && sortBy === 'rating_desc') {
+        // Si les notes sont différentes, respecter la note, sinon départager par score de recherche
+        if (b.recipe.rating !== a.recipe.rating) {
+          return b.recipe.rating - a.recipe.rating;
         }
-        if (sortBy === 'recent') {
-          return b.score - a.score;
-        }
+        return b.score - a.score;
+      }
+
+      if (isSearching && sortBy === 'recent') {
+        return b.score - a.score;
       }
 
       switch (sortBy) {
