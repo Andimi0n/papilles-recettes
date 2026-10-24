@@ -314,7 +314,7 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
         setImageUrl(result.assets[0].uri);
       }
     } catch (e) {
-      console.log('Erreur sélection image:', e);
+      console.error('Erreur sélection image:', e);
     }
   };
 
