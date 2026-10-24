@@ -44,8 +44,9 @@
     "test:allergens": "node scripts/testAllergenMatcher.js",
     "test:cascade": "node scripts/testVocabularyCascade.js",
     "test:unified-input": "node scripts/testUnifiedIngredientSystem.js",
-    "test": "npm run validate:lexicon && npm run test:stock && npm run test:shopping && npm run test:allergens && npm run test:cascade && npm run test:unified-input",
-    "lint": "expo lint"
+    "test": "npm run validate:lexicon && npm run test:stock && npm run test:shopping && npm run test:allergens && npm run test:cascade && npm run test:unified-input && npm run test:normalizer",
+    "lint": "expo lint",
+    "test:normalizer": "node scripts/testIngredientNormalizer.js"
   },
   "overrides": {
     "braces": "^3.0.3",
