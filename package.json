@@ -44,7 +44,8 @@
     "test:allergens": "node scripts/testAllergenMatcher.js",
     "test:cascade": "node scripts/testVocabularyCascade.js",
     "test:unified-input": "node scripts/testUnifiedIngredientSystem.js",
-    "test": "npm run validate:lexicon && npm run test:stock && npm run test:shopping && npm run test:allergens && npm run test:cascade && npm run test:unified-input",
+    "test:aisle": "node scripts/testAisleClassifier.js",
+    "test": "npm run validate:lexicon && npm run test:stock && npm run test:shopping && npm run test:allergens && npm run test:cascade && npm run test:unified-input && npm run test:aisle",
     "lint": "expo lint"
   },
   "overrides": {
