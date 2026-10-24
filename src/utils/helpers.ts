@@ -5,6 +5,7 @@ import { DayOfWeek, MealTime, PlannerMode } from '../types/planner';
  * Nettoie une chaîne de caractères (minuscule, sans accents, sans espaces superflus)
  */
 export function normalizeString(str: string): string {
+  if (!str) return '';
   return str
     .toLowerCase()
     .normalize('NFD')
