@@ -74,7 +74,7 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
     mealTime: MealTime;
     isPassed?: boolean;
   } | null>(null);
-  const scrollViewRef = useRef<ScrollView>(null);
+  const scrollViewRef = useRef<React.ElementRef<typeof ScrollView>>(null);
 
   // --- ÉTAT DU SUIVI DES REPAS (JOURNAL) ---
   const todayStr = useMemo(() => getLocalDateString(), []);
