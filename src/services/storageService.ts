@@ -1199,6 +1199,8 @@ export const StorageService = {
       const existingCanonicalIds = new Set(currentItems.map((i) => i.canonicalId).filter(Boolean));
       const existingNames = new Set(currentItems.map((i) => normalizeString(i.name)));
       const toAdd: FridgeItem[] = [];
+      const vocabList = VocabularyService.getSyncList();
+      const vocabMap = new Map(vocabList.map(v => [v.id, v]));
 
       names.forEach((name) => {
         const trimmed = name.trim();
@@ -1223,8 +1225,7 @@ export const StorageService = {
 
         let assignedAisle: ShoppingAisle | undefined;
         if (resolvedCanonicalId) {
-          const vocabList = VocabularyService.getSyncList();
-          const canonDef = vocabList.find((v) => v.id === resolvedCanonicalId);
+          const canonDef = vocabMap.get(resolvedCanonicalId);
           if (canonDef) assignedAisle = canonDef.defaultAisle;
         }
         if (!assignedAisle) {
