@@ -596,15 +596,27 @@ export const UnifiedIngredientService = {
     return StorageService.runWithCascadeMutex(async () => {
       try {
         const normTarget = newIngredient.normalizedName;
-        const aliasesSet = new Set((newIngredient.aliases || []).map((a) => normalizeString(a)));
+
+        const normTargetSingular = normTarget.endsWith('s') ? normTarget.slice(0, -1) : normTarget;
+        const normTargetPlural = normTarget.endsWith('s') ? normTarget : `${normTarget}s`;
+
+        const targetMatches = new Set([
+          normTarget,
+          normTargetSingular,
+          normTargetPlural,
+          ...(newIngredient.aliases || []).map((a) => normalizeString(a))
+        ]);
+
+        const normalizationCache = new Map<string, string>();
 
         const isTargetMatch = (rawItemName: string): boolean => {
-          const norm = normalizeString(rawItemName);
+          let norm = normalizationCache.get(rawItemName);
+          if (norm === undefined) {
+            norm = normalizeString(rawItemName);
+            normalizationCache.set(rawItemName, norm);
+          }
           if (!norm) return false;
-          if (norm === normTarget) return true;
-          if (normTarget.endsWith('s') ? norm === normTarget.slice(0, -1) : norm === `${normTarget}s`) return true;
-          if (aliasesSet.has(norm)) return true;
-          return false;
+          return targetMatches.has(norm);
         };
 
         // 1. Recettes sauvegardées
