@@ -787,7 +787,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
   // Pied de liste avec bouton Page suivante / précédente
   const listFooterElement = useMemo(() => {
-    if (filteredRecipes.length === 0) return null;
+    if (filteredRecipes.length === 0) return undefined;
 
     if (totalPages <= 1) {
       return (

@@ -314,7 +314,7 @@ export const ImportMarmitonModal: React.FC<ImportMarmitonModalProps> = ({
                             Entrez un plat pour explorer Marmiton et l'importer en un clic.
                           </Text>
                         </View>
-                      ) : null
+                      ) : undefined
                     }
                   />
                 </View>

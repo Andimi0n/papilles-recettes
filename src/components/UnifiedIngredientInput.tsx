@@ -80,7 +80,7 @@ export const UnifiedIngredientInput: React.FC<UnifiedIngredientInputProps> = ({
   const [isQualifyModalVisible, setIsQualifyModalVisible] = useState(false);
   const [pendingUnrecognizedName, setPendingUnrecognizedName] = useState('');
 
-  const inputRef = useRef<TextInput>(null);
+  const inputRef = useRef<React.ElementRef<typeof TextInput>>(null);
   const blurTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isSelectingRef = useRef(false);
 
