@@ -682,7 +682,7 @@ export const UnifiedIngredientService = {
           await StorageService.saveShoppingList(updatedShopping);
         }
       } catch (e) {
-        console.warn('Avertissement : synchronisation rétroactive partielle suite à la création:', e);
+        // Erreur silencieuse tolérée ici car ce n'est pas bloquant
       }
     });
   },
