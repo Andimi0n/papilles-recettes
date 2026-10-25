@@ -31,6 +31,7 @@ import {
   normalizeString,
 } from '../utils/helpers';
 import { prepareUserAllergens, evaluateRecipeAllergens } from '../utils/allergenMatcher';
+import { formatQuantityWithUnit } from '../constants/units';
 
 interface InlineStepTimer {
   id: string;
@@ -315,7 +316,8 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
       const ingredientList = recipe.ingredients
         .map((i) => {
           const scaled = scaleQuantity(i.quantity, recipe.servings || 4, currentServings);
-          return `• ${i.name} ${scaled ? `(${scaled} ${i.unit || ''})` : ''}`;
+          const formatted = formatQuantityWithUnit(scaled, i.unit);
+          return `• ${i.name} ${formatted ? `(${formatted})` : ''}`.trim();
         })
         .join('\n');
       const message = `Recette Papilles : ${recipe.title} (${currentServings} pers.)\n\nIngrédients :\n${ingredientList}\n\nTemps total : ${formatDuration(recipe.prepTimeMinutes + recipe.cookTimeMinutes)} - Note : ${recipe.rating}/5 ⭐`;
@@ -796,7 +798,7 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
                             isAllergen && !isChecked && { color: colors.danger, fontWeight: '700' },
                           ]}
                         >
-                          {scaledQty} {ing.unit || ''}
+                          {formatQuantityWithUnit(scaledQty, ing.unit)}
                         </Text>
                       ) : null}
                     </TouchableOpacity>
@@ -1143,7 +1145,7 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
                           </Text>
                           {scaledQty ? (
                             <Text style={[styles.shoppingItemQty, !isChecked && styles.shoppingItemNameMuted]}>
-                              {scaledQty} {ing.unit || ''}
+                              {formatQuantityWithUnit(scaledQty, ing.unit)}
                             </Text>
                           ) : null}
                         </TouchableOpacity>
