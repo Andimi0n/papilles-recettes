@@ -69,35 +69,6 @@ export function frenchPhonetic(str: string): string {
 }
 
 /**
- * Suggestions d'indispensables du quotidien 100% alignées sur le lexique canonique.
- * Partagées entre les Étagères (stock) et la Liste de courses.
- */
-export const CANONICAL_QUICK_SUGGESTIONS = [
-  'Œufs',
-  'Beurre',
-  'Lait',
-  'Farine',
-  'Pâtes',
-  'Riz',
-  'Huile d\'olive',
-  'Crème fraîche',
-  'Fromage râpé',
-  'Tomate',
-  'Oignon',
-  'Ail',
-  'Carotte',
-  'Courgette',
-  'Pomme de terre',
-  'Pain',
-  'Poulet',
-  'Jambon',
-  'Poivron',
-  'Champignon',
-  'Citron',
-  'Pomme',
-];
-
-/**
  * Service universel d'entrée d'ingrédient (Stocks, Courses, Recherche & Recettes).
  * Implémente rigoureusement les contraintes de la Section 8 :
  * - Zéro pollution silencieuse
@@ -106,6 +77,27 @@ export const CANONICAL_QUICK_SUGGESTIONS = [
  * - Rétroactivité immédiate lors de la création
  */
 export const UnifiedIngredientService = {
+  /**
+   * Retourne une liste dynamique des noms canoniques les plus pertinents
+   * à suggérer pour les ajouts rapides (Stock & Courses).
+   * Se base sur le vocabulaire actuel (incluant les modifications utilisateur),
+   * en privilégiant les indispensables (pantry staples) et les ingrédients les plus utilisés.
+   */
+  async getDynamicQuickSuggestions(limit: number = 24): Promise<string[]> {
+    const vocab = await VocabularyService.getAll();
+
+    // On clone et on trie selon la pertinence:
+    // 1. Les "Pantry Staples" (fonds de placard) sont prioritaires
+    // 2. Ensuite, tri par usageCount (les plus utilisés d'abord)
+    const sorted = [...vocab].sort((a, b) => {
+       if (a.isPantryStaple && !b.isPantryStaple) return -1;
+       if (!a.isPantryStaple && b.isPantryStaple) return 1;
+       return (b.usageCount || 0) - (a.usageCount || 0);
+    });
+
+    return sorted.slice(0, limit).map(item => item.canonicalName);
+  },
+
   /**
    * Détecte si un ingrédient brut correspond déjà à une entrée du lexique (direct ou via normaliseur).
    */
