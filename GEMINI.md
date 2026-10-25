@@ -9,8 +9,7 @@
 - **Interactive Rating System**: 0.5 to 5.0 star rating system (stars only, without redundant verbal labels) with inline interactive star filtering and instant sorting.
 - **Multimodal AI Recipe Scanner**: Extract recipes from camera captures, gallery photos (single/multi-photo recto & verso), or raw text using Google Gemini (`gemini-3.8-flash`) via a Bring-Your-Own-Key (BYOK) model.
 - **Smart Fridge Search ("Mon Frigo")**: In-memory matching engine that scores and surfaces recipes matching on-hand ingredients.
-- **Interactive Cooking Mode**: Step-by-step hands-free cooking assistant with dynamic ingredient quantity detection and rendering inline with instructions.
-- **Intelligent Recipe Linker**: Automatically detects ingredients that match titles of other saved recipes, injecting direct navigation links without polluting the main text structure.
+- **Interactive Cooking Mode**: Step-by-step hands-free cooking assistant with checkboxes for ingredients and instructions.
 - **Weekly Meal Planner & Daily Meal Tracking ("Suivi des repas")**:
   - Daily log of lunch & dinner with freeform text input (e.g. restaurant meals, takeout, leftovers, or home-cooked).
   - Quick home widget for one-tap daily logging.
