@@ -83,8 +83,8 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
   const processImage = async (uri: string): Promise<CapturedPhoto> => {
     const manipResult = await manipulateAsync(
       uri,
-      [{ resize: { width: 1400 } }],
-      { compress: 0.8, format: SaveFormat.JPEG, base64: true }
+      [{ resize: { width: 1024 } }],
+      { compress: 0.55, format: SaveFormat.JPEG, base64: true }
     );
 
     return {
