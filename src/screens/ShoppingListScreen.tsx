@@ -9,6 +9,7 @@ import {
   Linking,
   Platform,
   ScrollView,
+  SectionList,
   Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -664,12 +665,12 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
           )}
 
           {/* Contenu principal : liste par rayons */}
-          <ScrollView
-            style={styles.scrollArea}
-            contentContainerStyle={styles.scrollContent}
-            showsVerticalScrollIndicator={false}
-          >
-            {totalCount === 0 ? (
+          {totalCount === 0 ? (
+            <ScrollView
+              style={styles.scrollArea}
+              contentContainerStyle={styles.scrollContent}
+              showsVerticalScrollIndicator={false}
+            >
               <View style={styles.emptyContainer}>
                 <View style={styles.emptyIconCircle}>
                   <Ionicons name="cart-outline" size={46} color={colors.primary} />
@@ -704,99 +705,106 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
                   )}
                 </View>
               </View>
-            ) : (
-              <>
-                {/* Rayons contenant des articles actifs */}
-                {groupedActive.map(({ aisle, items: aisleItems }) => {
-                  const cfg = AISLE_CONFIGS[aisle] || AISLE_CONFIGS['Autre'];
-                  return (
-                    <View key={aisle} style={styles.aisleSection}>
-                      {/* En-tête du rayon */}
-                      <View style={styles.aisleHeaderRow}>
-                        <View
-                          style={[
-                            styles.aisleIconBox,
-                            { backgroundColor: isDark ? cfg.color + '26' : cfg.bgColor },
-                          ]}
-                        >
-                          <Ionicons name={cfg.iconName as any} size={15} color={cfg.color} />
-                        </View>
-                        <Text style={[styles.aisleTitle, { color: cfg.color }]}>
-                          {aisle}
-                        </Text>
-                        <View style={styles.aisleCountBadge}>
-                          <Text style={styles.aisleCountText}>{aisleItems.length}</Text>
-                        </View>
+            </ScrollView>
+          ) : (
+            <SectionList
+              style={styles.scrollArea}
+              contentContainerStyle={styles.scrollContent}
+              showsVerticalScrollIndicator={false}
+              sections={groupedActive.map(g => ({ title: g.aisle, data: g.items }))}
+              keyExtractor={(item, index) => item.id}
+              initialNumToRender={15}
+              maxToRenderPerBatch={15}
+              windowSize={5}
+              renderSectionHeader={({ section: { title, data } }) => {
+                const aisle = title as ShoppingAisle;
+                const cfg = AISLE_CONFIGS[aisle] || AISLE_CONFIGS['Autre'];
+                return (
+                  <View style={[styles.aisleSection, { marginTop: 14 }]}>
+                    <View style={styles.aisleHeaderRow}>
+                      <View
+                        style={[
+                          styles.aisleIconBox,
+                          { backgroundColor: isDark ? cfg.color + '26' : cfg.bgColor },
+                        ]}
+                      >
+                        <Ionicons name={cfg.iconName as any} size={15} color={cfg.color} />
                       </View>
-
-                      {/* Lignes d'articles du rayon */}
-                      <View style={styles.itemsCard}>
-                        {aisleItems.map((item, index) => (
-                          <View
-                            key={item.id}
-                            style={[
-                              styles.itemRow,
-                              index < aisleItems.length - 1 && styles.itemRowBorder,
-                            ]}
-                          >
-                            <TouchableOpacity
-                              style={styles.checkboxBtn}
-                              onPress={() => handleToggleItem(item.id)}
-                              activeOpacity={0.7}
-                            >
-                              <Ionicons
-                                name={item.isChecked ? 'checkmark-circle' : 'ellipse-outline'}
-                                size={23}
-                                color={item.isChecked ? colors.secondary : colors.border}
-                              />
-                            </TouchableOpacity>
-
-                            <TouchableOpacity
-                              style={styles.itemTextContainer}
-                              onPress={() => handleToggleItem(item.id)}
-                              activeOpacity={0.7}
-                            >
-                              <Text
-                                style={[
-                                  styles.itemName,
-                                  item.isChecked && styles.itemNameChecked,
-                                ]}
-                                numberOfLines={2}
-                              >
-                                {item.name}
-                              </Text>
-
-                              <View style={styles.itemMetaRow}>
-                                {(item.quantity || item.unit) && (
-                                  <Text style={styles.itemQuantity}>
-                                    {formatQuantityWithUnit(item.quantity, item.unit)}
-                                  </Text>
-                                )}
-                                {item.recipeTitle && (
-                                  <Text style={styles.itemOrigin} numberOfLines={1}>
-                                    • {item.recipeTitle}
-                                    {item.servings ? ` (${item.servings} p.)` : ''}
-                                  </Text>
-                                )}
-                              </View>
-                            </TouchableOpacity>
-
-                            <TouchableOpacity
-                              style={styles.deleteItemBtn}
-                              onPress={() => handleDeleteItem(item.id)}
-                              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                            >
-                              <Ionicons name="close" size={18} color={colors.textMuted} />
-                            </TouchableOpacity>
-                          </View>
-                        ))}
+                      <Text style={[styles.aisleTitle, { color: cfg.color }]}>
+                        {aisle}
+                      </Text>
+                      <View style={styles.aisleCountBadge}>
+                        <Text style={styles.aisleCountText}>{data.length}</Text>
                       </View>
                     </View>
-                  );
-                })}
+                  </View>
+                );
+              }}
+              renderItem={({ item, index, section }) => {
+                const isLast = index === section.data.length - 1;
+                return (
+                  <View style={index === 0 ? [styles.itemsCard, {borderBottomLeftRadius: isLast ? 14 : 0, borderBottomRightRadius: isLast ? 14 : 0}] : isLast ? [styles.itemsCard, {borderTopLeftRadius: 0, borderTopRightRadius: 0, borderTopWidth: 0}] : [styles.itemsCard, {borderRadius: 0, borderTopWidth: 0, borderBottomWidth: 0}]}>
+                    <View
+                      style={[
+                        styles.itemRow,
+                        !isLast && styles.itemRowBorder,
+                      ]}
+                    >
+                      <TouchableOpacity
+                        style={styles.checkboxBtn}
+                        onPress={() => handleToggleItem(item.id)}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons
+                          name={item.isChecked ? 'checkmark-circle' : 'ellipse-outline'}
+                          size={23}
+                          color={item.isChecked ? colors.secondary : colors.border}
+                        />
+                      </TouchableOpacity>
 
-                {/* Section repliable des articles déjà achetés */}
-                {completedItems.length > 0 && (
+                      <TouchableOpacity
+                        style={styles.itemTextContainer}
+                        onPress={() => handleToggleItem(item.id)}
+                        activeOpacity={0.7}
+                      >
+                        <Text
+                          style={[
+                            styles.itemName,
+                            item.isChecked && styles.itemNameChecked,
+                          ]}
+                          numberOfLines={2}
+                        >
+                          {item.name}
+                        </Text>
+
+                        <View style={styles.itemMetaRow}>
+                          {(item.quantity || item.unit) && (
+                            <Text style={styles.itemQuantity}>
+                              {formatQuantityWithUnit(item.quantity, item.unit)}
+                            </Text>
+                          )}
+                          {item.recipeTitle && (
+                            <Text style={styles.itemOrigin} numberOfLines={1}>
+                              • {item.recipeTitle}
+                              {item.servings ? ` (${item.servings} p.)` : ''}
+                            </Text>
+                          )}
+                        </View>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={styles.deleteItemBtn}
+                        onPress={() => handleDeleteItem(item.id)}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      >
+                        <Ionicons name="close" size={18} color={colors.textMuted} />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                );
+              }}
+              ListFooterComponent={
+                completedItems.length > 0 ? (
                   <View style={styles.completedSection}>
                     <TouchableOpacity
                       style={styles.completedHeader}
@@ -876,10 +884,10 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
                       </View>
                     )}
                   </View>
-                )}
-              </>
-            )}
-          </ScrollView>
+                ) : null
+              }
+            />
+          )}
         </View>
       )}
 
