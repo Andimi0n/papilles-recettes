@@ -320,7 +320,7 @@ function parseJsonFromAiText(rawText: string): any {
     try {
       const repaired = repairTruncatedJsonString(clean);
       return JSON.parse(repaired);
-    } catch (repairErr: any) {
+    } catch {
       console.error('[Gemini JSON Parse Error]', initialErr?.message, 'Raw snippet:', clean.slice(0, 150));
       throw new Error(
         `Impossible de lire la réponse du Chef IA (erreur de format JSON). Veuillez réessayer.`

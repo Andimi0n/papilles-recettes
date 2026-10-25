@@ -11,7 +11,7 @@ import {
   DEFAULT_PLANNER_SETTINGS,
 } from '../types/planner';
 import { MealLogEntry, MealLogMap, DayMealLogSummary } from '../types/mealLog';
-import { UserAllergenItem, AllergenFamily } from '../types/vocabulary';
+import { UserAllergenItem, AllergenFamily , CanonicalIngredient } from '../types/vocabulary';
 import { INITIAL_RECIPES } from '../data/initialRecipes';
 import {
   generateUniqueId,
@@ -26,7 +26,6 @@ import { classifyIngredientAisle } from '../utils/aisleClassifier';
 import { normalizeIngredient } from '../utils/ingredientNormalizer';
 import { isKnownDefaultPantryStaple } from '../data/canonicalVocabulary';
 import { VocabularyService, VocabularyCascadeEvent } from './vocabularyService';
-import { CanonicalIngredient } from '../types/vocabulary';
 
 const RECIPES_STORAGE_KEY = '@papilles_recipes_v4';
 const SCHEMA_VERSION_KEY = '@papilles_schema_version';

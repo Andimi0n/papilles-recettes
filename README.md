@@ -6,10 +6,11 @@ Une application mobile moderne, soignée et intuitive pour gérer vos recettes, 
 
 ## ✨ Fonctionnalités principales
 
-### 1. 🎨 Double Direction Artistique & Thèmes Dynamiques
+### 1. 🎨 Multiples Directions Artistiques & Thèmes Dynamiques
 - **Thème Clair — *Jardin Botanique & Slow Food*** : vert forêt persistant, céladon apaisant, brume d'amande.
 - **Thème Sombre — *Table Nocturne & Sauge Céleste*** : ardoise obsidienne, émeraude culinaire lumineuse, sauge argentée et touches ambrées.
-- Choix intuitif dans l'onglet **Paramètres** (mode Système auto, Jardin Botanique ou Table Nocturne) avec prévisualisation des palettes.
+- **Thème Daltonien — *Fort Contraste & Accessibilité*** : contraste optimisé (Bleu & Orange) adapté aux handicaps visuels (safe CVD).
+- Choix intuitif dans l'onglet **Paramètres** (mode Système auto, Jardin Botanique, Table Nocturne ou Daltonien) avec prévisualisation des palettes.
 
 ### 2. 📱 Navigation Fluide & Bandeau d'Accueil Repensé
 - **Bandeau supérieur unifié** : identité visuelle complète avec le logo officiel de Papilles, titre soigné, description culinaire et accès direct aux actions clés sur un seul plan horizontal fluide :
@@ -17,10 +18,10 @@ Une application mobile moderne, soignée et intuitive pour gérer vos recettes, 
   - **Scan & IA** (scanner photo, recto-verso et saisie texte)
   - **Ajouter** (création manuelle d'une recette)
 - **Barre de navigation inférieure à 4 onglets** :
-  - **Recettes** : carnet complet, recherche intelligente, filtres et widget du jour.
+  - **Recettes** : carnet complet, recherche intelligente, filtres et widget du jour. Navigation entre les recettes simplifiées via **Système de Liens Intelligents** (un ingrédient correspondant à une recette cliquable renvoie directement vers celle-ci).
   - **Repas** : journal des repas du midi/soir et planification hebdomadaire.
   - **Courses & Étagères** : stocks du frigo/placard et liste de courses avec badge des articles restants.
-  - **Paramètres** : ambiance visuelle, clé IA, portions, lexique canonique et sauvegarde.
+  - **Paramètres** : ambiance visuelle, clé IA, portions par défaut persistantes, lexique canonique et sauvegarde.
 
 ### 2. 📅 Suivi des Repas Quotidien & Menu de la Semaine
 - **Suivi des repas du jour** : saisie ultra-rapide en texte libre de ce que vous avez mangé le midi et le soir (restaurant, repas sur le pouce, restes ou petit plat maison).
@@ -31,7 +32,7 @@ Une application mobile moderne, soignée et intuitive pour gérer vos recettes, 
 ### 3. 🥫 Hub "Courses & Étagères" (Gestion des Stocks & Courses)
 - **Mes étagères (Stock Frigo & Placard)** :
   - Suivi rapide et sans friction des ingrédients disponibles chez vous.
-  - **Ajout rapide en 1 clic 100% raccord avec le lexique canonique** : suggestions basées sur les noms canoniques réels (*Œufs, Beurre, Lait, Farine, Pâtes, Riz, Huile d'olive, Tomate, Oignon, Ail, Carotte, Courgette...*), avec masquage intelligent des articles déjà en stock (tolérant singulier/pluriel) et mise en avant de vos ingrédients fréquents.
+  - **Ajout rapide en 1 clic 100% raccord avec le lexique canonique dynamique** : suggestions basées sur les ingrédients fréquents (`usageCount`) et le drapeau 'pantryStaples', s'adaptant à l'utilisation.
   - **Saisie prédictive instantanée à la chaîne** : cliquer sur une suggestion d'autocomplétion ajoute immédiatement l'ingrédient au stock, efface le champ de recherche et maintient le focus pour enchaîner plusieurs ajouts sans friction.
   - **Classification automatique par rayons** (Primeur, Crémerie, Épicerie salée/sucrée, Boucherie...).
   - **Que cuisiner aujourd'hui ?** : calcul immédiat des recettes faisables avec votre inventaire actif.
@@ -112,6 +113,7 @@ Une application mobile moderne, soignée et intuitive pour gérer vos recettes, 
 - Liste d'ingrédients et étapes avec cases à cocher pour suivre votre avancée pas à pas sans perdre le fil.
 - Ajustement dynamique des proportions selon le nombre de convives souhaité (avec réglage des convives par défaut via un sélecteur +/- précis dans les paramètres).
 - Partage clair et formaté de la recette via messagerie ou e-mail.
+- Détection intelligente des ingrédients requis et affichage de leurs quantités ciblées directement sur chaque étape de cuisine !
 
 ### 9. 💾 100% Hors-Ligne, Sécurisé & Sauvegarde
 - Aucune donnée transmise à des serveurs tiers : tout reste sur votre téléphone dans `AsyncStorage`.
