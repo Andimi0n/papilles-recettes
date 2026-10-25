@@ -347,7 +347,7 @@ export function formatShoppingListForShare(items: ShoppingItem[]): string {
   };
 
   const lines: string[] = [
-    `🛒 *Ma Liste de Courses Papilles* (${targetItems.length} article${targetItems.length > 1 ? 's' : ''})`,
+    `🛒 *Liste de courses* (${targetItems.length} article${targetItems.length > 1 ? 's' : ''})`,
     '',
   ];
 
@@ -367,8 +367,6 @@ export function formatShoppingListForShare(items: ShoppingItem[]): string {
     });
     lines.push('');
   });
-
-  lines.push('Généré avec Papilles Recettes 👩‍🍳');
 
   return lines.join('\n');
 }

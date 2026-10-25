@@ -24,7 +24,6 @@ import { VocabularyService } from '../services/vocabularyService';
 import { IngredientAutocompleteInput } from './IngredientAutocompleteInput';
 import {
   UnifiedIngredientService,
-  CANONICAL_QUICK_SUGGESTIONS,
 } from '../services/unifiedIngredientService';
 import { QualifyIngredientModal } from './QualifyIngredientModal';
 
@@ -140,8 +139,10 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
     return count;
   }, [recipes, items]);
 
-  // Suggestions rapides d'indispensables non encore ajoutés au stock (100% raccord avec le lexique canonique)
+  // Suggestions rapides d'indispensables non encore ajoutés au stock (100% raccord avec le lexique canonique dynamique)
   const availableSuggestions: CanonicalIngredient[] = useMemo(() => {
+    const dynamicSuggestions = UnifiedIngredientService.getSyncDynamicQuickSuggestions();
+
     const existingNorm = new Set(items.map((i) => normalizeString(i.name)));
 
     const isAlreadyInStock = (norm: string) => {
@@ -159,8 +160,8 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
     const suggestions: CanonicalIngredient[] = [];
     const addedIds = new Set<string>();
 
-    // 1. Indispensables du quotidien issus du lexique canonique
-    for (const name of CANONICAL_QUICK_SUGGESTIONS) {
+    // 1. Suggestions dynamiques (prioritaires sur l'usage)
+    for (const name of dynamicSuggestions) {
       const norm = normalizeString(name);
       if (isAlreadyInStock(norm)) continue;
 
@@ -171,7 +172,7 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
       }
     }
 
-    // 2. Ingrédients fréquents ou personnalisés de l'utilisateur
+    // 2. Ingrédients fréquents ou personnalisés de l'utilisateur non inclus
     const frequentItems = [...canonicalVocabulary]
       .filter((ing) => (ing.usageCount > 1 || ing.isCustom) && !addedIds.has(ing.id))
       .sort((a, b) => b.usageCount - a.usageCount);

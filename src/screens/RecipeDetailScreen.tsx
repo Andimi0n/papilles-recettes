@@ -70,7 +70,15 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
 
   // Synchronise lorsque la recette change
   React.useEffect(() => {
-    setCurrentServings(recipe.servings || 4);
+    const fetchDefaultServings = async () => {
+      try {
+        const defaultServings = await StorageService.getDefaultServings();
+        setCurrentServings(defaultServings);
+      } catch (e) {
+        setCurrentServings(recipe.servings || 4);
+      }
+    };
+    fetchDefaultServings();
   }, [recipe.id, recipe.servings]);
 
   // Checklists locales pour la session de cuisine

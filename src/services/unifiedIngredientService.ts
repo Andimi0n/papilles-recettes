@@ -107,6 +107,56 @@ export const CANONICAL_QUICK_SUGGESTIONS = [
  */
 export const UnifiedIngredientService = {
   /**
+   * Retourne une liste dynamique des noms canoniques les plus pertinents
+   * à suggérer pour les ajouts rapides (Stock & Courses).
+   * Fournit une version synchrone basée sur VocabularyService.getSyncList().
+   * 1. On favorise les ingrédients avec usageCount > 0
+   * 2. On complète avec les indispensables du quotidien (CANONICAL_QUICK_SUGGESTIONS)
+   * 3. On exclut toujours "Eau"
+   */
+  getSyncDynamicQuickSuggestions(limit: number = 24): string[] {
+    const vocab = VocabularyService.getSyncList();
+
+    // Filtrer 'Eau'
+    const validVocab = vocab.filter(item => {
+      const norm = normalizeString(item.canonicalName);
+      return norm !== 'eau' && item.id !== 'ing_canon_eau';
+    });
+
+    // Ceux utilisés
+    const usedItems = validVocab
+      .filter(i => (i.usageCount && i.usageCount > 0) || i.isCustom)
+      .sort((a, b) => (b.usageCount || 0) - (a.usageCount || 0))
+      .map(i => i.canonicalName);
+
+    // Si la limite est atteinte avec l'usage seul, on retourne
+    if (usedItems.length >= limit) {
+      return usedItems.slice(0, limit);
+    }
+
+    // Sinon, on complète avec les suggestions en dur qui n'y sont pas déjà
+    const result = [...usedItems];
+    const existingNorms = new Set(result.map(name => normalizeString(name)));
+
+    for (const defItem of CANONICAL_QUICK_SUGGESTIONS) {
+      if (result.length >= limit) break;
+
+      const norm = normalizeString(defItem);
+      // Vérifier si cet ingrédient existe dans le vocabulaire valide actuel et non présent
+      if (!existingNorms.has(norm) && norm !== 'eau') {
+        // Optionnel : s'assurer qu'il existe un CanonicalIngredient correspondant
+        const exists = validVocab.find(i => normalizeString(i.canonicalName) === norm || i.aliases.includes(norm) || i.normalizedName === norm);
+        if (exists) {
+          result.push(exists.canonicalName);
+          existingNorms.add(norm);
+        }
+      }
+    }
+
+    return result;
+  },
+
+  /**
    * Détecte si un ingrédient brut correspond déjà à une entrée du lexique (direct ou via normaliseur).
    */
   resolveRecognizedIngredient(rawName: string): {

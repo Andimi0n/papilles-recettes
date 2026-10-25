@@ -6,6 +6,7 @@ import {
   ThemeColors,
   BotaniqueColors,
   NocturneColors,
+  ColorblindColors,
   LightShadows,
   DarkShadows,
   setActiveThemeInternal,
@@ -64,13 +65,13 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Détermine si on doit afficher le thème sombre
   const isDark = useMemo(() => {
     if (themeMode === 'dark') return true;
-    if (themeMode === 'light') return false;
+    if (themeMode === 'light' || themeMode === 'colorblind') return false;
     return systemColorScheme === 'dark';
   }, [themeMode, systemColorScheme]);
 
-  const themeId: ThemeId = isDark ? 'nocturne' : 'botanique';
-  const colors = isDark ? NocturneColors : BotaniqueColors;
-  const shadows = isDark ? DarkShadows : LightShadows;
+  const themeId: ThemeId = themeMode === 'colorblind' ? 'colorblind' : isDark ? 'nocturne' : 'botanique';
+  const colors = themeMode === 'colorblind' ? ColorblindColors : isDark ? NocturneColors : BotaniqueColors;
+  const shadows = isDark ? DarkShadows : LightShadows; // Shadow is unchanged for colorblind mode
 
   // IMPORTANT : Synchronisation synchrone immédiate du singleton interne AVANT le rendu des composants enfants
   setActiveThemeInternal(themeId);
@@ -109,6 +110,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const toggleTheme = useCallback(async () => {
     // Si on est actuellement sombre -> bascule clair, sinon bascule sombre
+    // Si on est en daltonien, toggle -> sombre
     const nextMode: ThemeMode = isDark ? 'light' : 'dark';
     await setThemeMode(nextMode);
   }, [isDark, setThemeMode]);

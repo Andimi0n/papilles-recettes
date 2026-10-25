@@ -20,7 +20,6 @@ import { StorageService } from '../services/storageService';
 import { VocabularyService } from '../services/vocabularyService';
 import {
   UnifiedIngredientService,
-  CANONICAL_QUICK_SUGGESTIONS,
 } from '../services/unifiedIngredientService';
 import { createDynamicStyles } from '../theme/colors';
 import { useTheme } from '../theme/ThemeContext';
@@ -70,8 +69,9 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
   // Section des articles cochés repliée/dépliée
   const [showCompleted, setShowCompleted] = useState(false);
 
-  // Suggestions d'articles rapides indispensables pour les courses (alignées sur le lexique)
+  // Suggestions d'articles rapides indispensables pour les courses (alignées dynamiquement sur le lexique)
   const availableSuggestions: CanonicalIngredient[] = useMemo(() => {
+    const dynamicSuggestions = UnifiedIngredientService.getSyncDynamicQuickSuggestions();
     const existingNorm = new Set(
       items.filter((i) => !i.isChecked).map((i) => normalizeString(i.name))
     );
@@ -82,7 +82,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
     const suggestions: CanonicalIngredient[] = [];
     const addedIds = new Set<string>();
 
-    for (const name of CANONICAL_QUICK_SUGGESTIONS) {
+    for (const name of dynamicSuggestions) {
       const norm = normalizeString(name);
       if (existingNorm.has(norm)) continue;
       const ing = vocabMap.get(norm);
@@ -319,7 +319,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
     const message = formatShoppingListForShare(items);
     try {
       await Share.share({
-        title: 'Ma Liste de Courses Papilles',
+        title: 'Liste de courses',
         message,
       });
     } catch (e) {

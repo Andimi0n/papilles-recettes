@@ -581,6 +581,28 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                 </Text>
                 <Text style={styles.themeOptionSub}>Sombre</Text>
               </TouchableOpacity>
+
+              {/* Option Daltonien */}
+              <TouchableOpacity
+                style={[
+                  styles.themeOptionBtn,
+                  themeMode === 'colorblind' && styles.themeOptionActive,
+                  { borderLeftWidth: 1, borderLeftColor: colors.borderLight },
+                ]}
+                onPress={() => setThemeMode('colorblind')}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.themeEmoji}>👁️</Text>
+                <Text
+                  style={[
+                    styles.themeOptionText,
+                    themeMode === 'colorblind' && styles.themeOptionTextActive,
+                  ]}
+                >
+                  Daltonien
+                </Text>
+                <Text style={styles.themeOptionSub}>Contraste</Text>
+              </TouchableOpacity>
             </View>
 
             {/* Pastilles d'aperçu de la palette active (placées en dessous du nom de la palette) */}
@@ -588,7 +610,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
               <Text style={styles.swatchTitle}>
                 Palette active :{' '}
                 <Text style={{ fontWeight: '700', color: colors.primary }}>
-                  {themeId === 'botanique' ? 'Jardin Botanique' : 'Table Nocturne (Émeraude & Ardoise)'}
+                  {themeId === 'botanique' ? 'Jardin Botanique' : themeId === 'colorblind' ? 'Contraste Élevé (CVD-Safe)' : 'Table Nocturne (Émeraude & Ardoise)'}
                 </Text>
               </Text>
               <View style={styles.swatchRow}>
