@@ -1109,7 +1109,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
   {
     name: 'Chapelure',
     aisle: 'Épicerie & Condiments',
-    aliases: ['chapelure doree', 'chapelure fine', 'panko'],
+    aliases: ['chapelure doree', 'chapelure fine'],
     allergen: 'gluten',
   },
   {
@@ -1340,6 +1340,109 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
     name: 'Légumes surgelés',
     aisle: 'Surgelés',
     aliases: ['poelee de legumes', 'poelee surgelee', 'legumes woks'],
+  },
+
+  // =========================================================================
+  // 8. AUTRES CUISINES DU MONDE (JAPON, MEXIQUE, ETC.)
+  // =========================================================================
+  {
+    name: 'Riz à sushi',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['riz rond japonais', 'riz a sushi'],
+  },
+  {
+    name: 'Algues Nori',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['feuille de nori', 'algues nori', 'nori'],
+  },
+  {
+    name: 'Vinaigre de riz',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['vinaigre de riz'],
+    isPantryStaple: true,
+  },
+  {
+    name: 'Pâte miso',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['miso', 'pate miso', 'miso blanc', 'miso rouge'],
+    allergen: 'soja',
+  },
+  {
+    name: 'Wasabi',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['wasabi', 'pate de wasabi'],
+    allergen: 'moutarde',
+  },
+  {
+    name: 'Mirin',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['mirin', 'saké doux'],
+  },
+  {
+    name: 'Saké de cuisine',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['sake', 'sake de cuisine'],
+  },
+  {
+    name: 'Nouilles Soba',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['soba', 'nouilles de sarrasin'],
+    allergen: 'gluten',
+  },
+  {
+    name: 'Nouilles Udon',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['udon', 'nouilles japonaises'],
+    allergen: 'gluten',
+  },
+  {
+    name: 'Panko',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['panko', 'chapelure japonaise'],
+    allergen: 'gluten',
+  },
+  {
+    name: 'Huile de sésame grillé',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['huile de sesame grille'],
+    allergen: 'sesame',
+    isPantryStaple: true,
+  },
+  {
+    name: 'Gingembre mariné',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['gari', 'gingembre a sushi', 'gingembre marine'],
+  },
+  {
+    name: 'Tortillas de maïs',
+    aisle: 'Boulangerie & Pâtisserie',
+    aliases: ['tortillas de mais', 'tacos'],
+  },
+  {
+    name: 'Pâte de curry vert',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['curry vert', 'pate de curry vert'],
+  },
+  {
+    name: 'Pâte de curry rouge',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['curry rouge', 'pate de curry rouge'],
+  },
+  {
+    name: 'Nuoc-mâm',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['nuoc mam', 'sauce poisson', 'fish sauce'],
+    allergen: 'poissons',
+  },
+  {
+    name: 'Galette de riz',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['galettes de riz', 'feuille de riz', 'feuilles de riz'],
+  },
+  {
+    name: 'Vermicelles de riz',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['vermicelle de riz', 'nouilles de riz'],
   },
 ];
 
