@@ -14,7 +14,7 @@ const GEMINI_API_KEY_STORAGE = 'papilles_gemini_api_key';
 const LEGACY_STORAGE_KEY = '@papilles_gemini_api_key';
 
 // Configuration Google Generative Language API
-const GEMINI_MODEL = 'gemini-3.8-flash';
+const GEMINI_MODEL = 'gemini-2.0-flash';
 const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta';
 
 /**
@@ -23,8 +23,6 @@ const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta';
  * le système bascule de manière transparente sur le modèle de repli suivant.
  */
 export const GEMINI_MODELS_CASCADE = [
-  'gemini-3.8-flash',
-  'gemini-2.5-flash',
   'gemini-2.0-flash',
   'gemini-1.5-flash',
   'gemini-1.5-flash-8b',
@@ -687,7 +685,7 @@ export const RecipeAiService = {
     try {
       const timeoutId = setTimeout(() => controller.abort(), 12000);
 
-      // GET ultraléger sur les métadonnées du modèle Gemini 3.8 Flash
+      // GET ultraléger sur les métadonnées du modèle Gemini 2.0 Flash
       const checkUrl = getGeminiModelCheckUrl(apiKey);
       const response = await fetch(checkUrl, {
         method: 'GET',
@@ -701,7 +699,7 @@ export const RecipeAiService = {
         return {
           ok: true,
           code: 'OK',
-          message: 'IA connectée & prête (Gemini 3.8 Flash)',
+          message: 'IA connectée & prête (Gemini 2.0 Flash)',
         };
       }
 
@@ -743,7 +741,7 @@ export const RecipeAiService = {
               ok: false,
               code: 'INVALID_MODEL',
               message:
-                'Clé API valide, mais le modèle Gemini 3.8 Flash n\'est pas activé sur votre compte Google AI Studio.',
+                'Clé API valide, mais le modèle Gemini 2.0 Flash n\'est pas activé sur votre compte Google AI Studio.',
             };
           }
         } catch {}
@@ -751,7 +749,7 @@ export const RecipeAiService = {
         return {
           ok: false,
           code: 'INVALID_MODEL',
-          message: 'Modèle Gemini 3.8 Flash indisponible',
+          message: 'Modèle Gemini 2.0 Flash indisponible',
         };
       }
 
@@ -811,7 +809,7 @@ export const RecipeAiService = {
   },
 
   /**
-   * Analyse une ou plusieurs images de recette via Gemini 3.8 Flash.
+   * Analyse une ou plusieurs images de recette via Gemini 2.0 Flash.
    * Utilise system_instruction et authentification par en-tête.
    */
   async extractRecipeFromImages(
@@ -1085,7 +1083,7 @@ ${sanitizedInput}
 
   /**
    * Crée une recette originale et sur-mesure à partir des ingrédients et restes du frigo.
-   * Utilise Gemini 3.8 Flash avec des consignes gastronomiques créatives et anti-gaspillage,
+   * Utilise Gemini 2.0 Flash avec des consignes gastronomiques créatives et anti-gaspillage,
    * avec garantie stricte anti-redondance par rapport aux recettes existantes de l'utilisateur.
    */
   async generateRecipeFromFridge(

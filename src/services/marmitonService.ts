@@ -158,7 +158,7 @@ export const MarmitonService = {
 
   /**
    * Récupère le code HTML d'une page Marmiton validée, extrait le contenu de la recette,
-   * le fait structurer par l'IA Gemini 3.8 Flash, et retourne l'objet Recipe.
+   * le fait structurer par l'IA Gemini 2.0 Flash, et retourne l'objet Recipe.
    */
   async importRecipeFromUrl(url: string, apiKey?: string): Promise<Recipe> {
     // 1. Validation stricte de sécurité anti-SSRF (VULN-03 corrigé)
@@ -302,7 +302,7 @@ export const MarmitonService = {
       payloadText = strippedHtml.slice(0, 12000);
     }
 
-    // 6. Appel de l'IA Gemini 3.8 Flash pour structurer la recette (Fallback)
+    // 6. Appel de l'IA Gemini 2.0 Flash pour structurer la recette (Fallback)
     const extracted = await RecipeAiService.extractRecipeFromText(payloadText, apiKey);
 
     // 7. Construction de l'objet Recipe officiel avec identifiants uniques sûrs (VULN-10 corrigé)
