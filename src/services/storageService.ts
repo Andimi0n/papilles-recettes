@@ -1659,13 +1659,13 @@ export const StorageService = {
   },
 
   /**
-   * Récupère le mode de thème sauvegardé ('system' | 'light' | 'dark')
+   * Récupère le mode de thème sauvegardé ('system' | 'light' | 'dark' | 'colorblind')
    */
-  async getThemeMode(): Promise<'system' | 'light' | 'dark'> {
+  async getThemeMode(): Promise<'system' | 'light' | 'dark' | 'colorblind'> {
     try {
       const mode = await AsyncStorage.getItem(THEME_MODE_KEY);
-      if (mode === 'light' || mode === 'dark' || mode === 'system') {
-        return mode;
+      if (mode === 'light' || mode === 'dark' || mode === 'system' || mode === 'colorblind') {
+        return mode as 'system' | 'light' | 'dark' | 'colorblind';
       }
       return 'system';
     } catch (e) {
@@ -1677,7 +1677,7 @@ export const StorageService = {
   /**
    * Sauvegarde le mode de thème
    */
-  async saveThemeMode(mode: 'system' | 'light' | 'dark'): Promise<void> {
+  async saveThemeMode(mode: 'system' | 'light' | 'dark' | 'colorblind'): Promise<void> {
     try {
       await AsyncStorage.setItem(THEME_MODE_KEY, mode);
     } catch (e) {

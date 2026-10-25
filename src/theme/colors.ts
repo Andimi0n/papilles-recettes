@@ -1,7 +1,7 @@
 import { StyleSheet, Appearance } from 'react-native';
 
-export type ThemeId = 'botanique' | 'nocturne';
-export type ThemeMode = 'system' | 'light' | 'dark';
+export type ThemeId = 'botanique' | 'nocturne' | 'colorblind';
+export type ThemeMode = 'system' | 'light' | 'dark' | 'colorblind';
 
 export interface ThemeColors {
   // Brand & Accent Colors
@@ -72,6 +72,42 @@ export const BotaniqueColors: ThemeColors = {
   heart: '#854062',          // Figue douce
   heartLight: '#F7EBF0',
   
+  isDark: false,
+};
+
+/**
+ * Thème Daltonien : « Contraste Élevé & Accessibilité »
+ * Optimisé pour les daltonismes (deutéranopie/protanopie) basée sur des contrastes marqués.
+ */
+export const ColorblindColors: ThemeColors = {
+  primary: '#0072B2',        // Bleu cobalt (safe CVD, très visible)
+  primaryLight: '#E5F3FA',   // Voile bleu très clair
+  primaryDark: '#004B76',    // Bleu cobalt profond
+
+  secondary: '#D55E00',      // Orange vermillon (safe CVD, fort contraste avec le bleu)
+  secondaryLight: '#FDECE1', // Voile orangé très clair
+
+  amber: '#E69F00',          // Jaune ambré (étoiles, alertes)
+  amberLight: '#FDF5E1',     // Fond ambré discret
+
+  background: '#FFFFFF',     // Fond blanc pur pour un contraste maximal
+  backgroundSecondary: '#F3F4F6', // Gris très clair pour les surfaces secondaires
+  cardBackground: '#FFFFFF', // Cartes sur fond blanc
+  surfaceAlt: '#F3F4F6',     // Alternance grise
+
+  textPrimary: '#111827',    // Texte ultra-sombre, proche du noir
+  textSecondary: '#4B5563',  // Gris foncé pour le texte secondaire
+  textMuted: '#6B7280',      // Gris moyen pour les éléments désactivés
+
+  border: '#4B5563',         // Bordures bien visibles, gris foncé
+  borderLight: '#9CA3AF',    // Bordures légères mais visibles
+  borderMedium: '#6B7280',   // Bordures intermédiaires
+
+  danger: '#D55E00',         // Utilisation de l'orange vermillon pour les alertes/dangers
+  dangerLight: '#FDECE1',
+  heart: '#D55E00',          // Utilisation de l'orange vermillon pour les favoris
+  heartLight: '#FDECE1',
+
   isDark: false,
 };
 
@@ -185,6 +221,9 @@ export function setActiveThemeInternal(id: ThemeId) {
   if (id === 'nocturne') {
     _activeColors = NocturneColors;
     _activeShadows = DarkShadows;
+  } else if (id === 'colorblind') {
+    _activeColors = ColorblindColors;
+    _activeShadows = LightShadows;
   } else {
     _activeColors = BotaniqueColors;
     _activeShadows = LightShadows;

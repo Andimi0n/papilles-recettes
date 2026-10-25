@@ -319,7 +319,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
     const message = formatShoppingListForShare(items);
     try {
       await Share.share({
-        title: 'Ma Liste de Courses Papilles',
+        title: 'Liste de courses',
         message,
       });
     } catch (e) {
