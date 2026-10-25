@@ -178,8 +178,8 @@ export function createShoppingItemFromIngredient(
   // RAYON OFFICIEL : defaultAisle du lexique canonique (Arbitrage 3)
   let aisle: ShoppingAisle;
   if (resolvedCanonicalId) {
-    const vocabList = VocabularyService.getSyncList();
-    const canonItem = vocabList.find((v) => v.id === resolvedCanonicalId);
+        const vocabMapById = VocabularyService.getSyncMapById();
+    const canonItem = vocabMapById.get(resolvedCanonicalId);
     aisle = canonItem?.defaultAisle || classifyIngredientAisle(canonicalName);
   } else {
     aisle = classifyIngredientAisle(canonicalName);

@@ -122,10 +122,12 @@ export const UnifiedIngredientService = {
     }
 
     const norm = normalizeIngredient({ name: trimmed });
-    const list = VocabularyService.getSyncList();
+        const vocabMapById = VocabularyService.getSyncMapById();
+    const vocabMapByNormName = VocabularyService.getSyncMapByNormName();
+    const vocabMapByAlias = VocabularyService.getSyncMapByAlias();
 
     if (norm.canonicalId) {
-      const canonical = list.find((item) => item.id === norm.canonicalId);
+      const canonical = vocabMapById.get(norm.canonicalId);
       if (canonical) {
         return {
           isRecognized: true,
@@ -139,9 +141,7 @@ export const UnifiedIngredientService = {
 
     // Lookup direct O(1) sur le nom normalisé
     const cleanNorm = normalizeString(trimmed);
-    const directCanon = list.find(
-      (item) => item.normalizedName === cleanNorm || (item.aliases && item.aliases.includes(cleanNorm))
-    );
+    const directCanon = vocabMapByNormName.get(cleanNorm) || vocabMapByAlias.get(cleanNorm);
     if (directCanon) {
       return {
         isRecognized: true,
@@ -175,9 +175,9 @@ export const UnifiedIngredientService = {
 
     const queryStem = stemWord(normQuery);
     const queryPhonetic = frenchPhonetic(cleanName);
-    const queryTokens = normQuery.split(/\s+/).filter((t) => t.length >= 3);
+    const queryTokens = normQuery.split(/\s+/).filter((t: string) => t.length >= 3);
 
-    const list = VocabularyService.getSyncList();
+        const list = VocabularyService.getSyncList();
     const scoredMap = new Map<string, ClosestCanonicalMatch>();
 
     for (const item of list) {
@@ -381,16 +381,23 @@ export const UnifiedIngredientService = {
       };
     }
 
-    const list = await VocabularyService.getAll();
-    const target = list.find((i) => i.id === canonicalId);
+        const vocabMapById = VocabularyService.getSyncMapById();
+    const vocabMapByNormName = VocabularyService.getSyncMapByNormName();
+    const vocabMapByAlias = VocabularyService.getSyncMapByAlias();
+    await VocabularyService.getAll();
+    const target = vocabMapById.get(canonicalId);
     if (!target) {
       return { success: false, error: 'Ingrédient canonique cible introuvable.' };
     }
 
     // Vérifier si le terme est déjà le nom canonique d'un AUTRE ingrédient
-    const conflictCanon = list.find(
-      (i) => i.id !== canonicalId && (i.normalizedName === normAlias || `${i.normalizedName}s` === normAlias)
-    );
+    let conflictCanon = vocabMapByNormName.get(normAlias);
+    if (!conflictCanon && normAlias.endsWith('s')) {
+      conflictCanon = vocabMapByNormName.get(normAlias.slice(0, -1));
+    }
+    if (conflictCanon && conflictCanon.id === canonicalId) {
+      conflictCanon = undefined;
+    }
     if (conflictCanon) {
       return {
         success: false,
@@ -399,10 +406,11 @@ export const UnifiedIngredientService = {
     }
 
     // Vérifier si le terme est déjà un alias d'un AUTRE ingrédient
-    const conflictParent = list.find(
-      (i) => i.id !== canonicalId && i.aliases && i.aliases.includes(normAlias)
-    );
-    if (conflictParent) {
+    const conflictParent = vocabMapByAlias.get(normAlias);
+    if (conflictParent && conflictParent.id === canonicalId) {
+      // not a conflict if it belongs to the target itself
+    }
+    if (conflictParent && conflictParent.id !== canonicalId) {
       return {
         success: false,
         error: `« ${cleanAlias} » est déjà un synonyme de « ${conflictParent.canonicalName} ». Détachez-le d'abord si vous souhaitez le réassigner.`,
@@ -466,10 +474,11 @@ export const UnifiedIngredientService = {
       };
     }
 
-    const list = VocabularyService.getSyncList();
+        const vocabMapByNormName = VocabularyService.getSyncMapByNormName();
+    const vocabMapByAlias = VocabularyService.getSyncMapByAlias();
 
     // Conflit exact sur nom canonique normalisé
-    const existingSame = list.find((i) => i.normalizedName === normName);
+    const existingSame = vocabMapByNormName.get(normName);
     if (existingSame) {
       return {
         valid: false,
@@ -478,9 +487,7 @@ export const UnifiedIngredientService = {
     }
 
     // Conflit singulier / pluriel
-    const existingPlural = list.find(
-      (i) => i.normalizedName === `${normName}s` || (normName.endsWith('s') && i.normalizedName === normName.slice(0, -1))
-    );
+    const existingPlural = vocabMapByNormName.get(`${normName}s`) || (normName.endsWith('s') ? vocabMapByNormName.get(normName.slice(0, -1)) : undefined);
     if (existingPlural) {
       return {
         valid: false,
@@ -489,7 +496,7 @@ export const UnifiedIngredientService = {
     }
 
     // Conflit alias existant
-    const parentWithAlias = list.find((i) => i.aliases && i.aliases.includes(normName));
+    const parentWithAlias = vocabMapByAlias.get(normName);
     if (parentWithAlias && !candidate.allowPromoteAlias) {
       return {
         valid: false,
@@ -501,6 +508,7 @@ export const UnifiedIngredientService = {
     // Validation des alias supplémentaires
     if (candidate.aliases && candidate.aliases.length > 0) {
       const otherCanonMap = new Map<string, string>();
+      const list = VocabularyService.getSyncList();
       const otherAliasesMap = new Map<string, string>();
       list.forEach((i) => {
         otherCanonMap.set(i.normalizedName, i.canonicalName);
@@ -536,6 +544,7 @@ export const UnifiedIngredientService = {
     const formattedName = rawName.charAt(0).toUpperCase() + rawName.slice(1);
 
     // Avertissement de similarité Levenshtein si proche d'un terme existant
+    const list = VocabularyService.getSyncList();
     let warning: string | undefined;
     for (const item of list) {
       const dist = levenshteinDistance(normName, item.normalizedName);
