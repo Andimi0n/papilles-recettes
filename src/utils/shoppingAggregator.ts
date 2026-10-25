@@ -56,37 +56,14 @@ function formatSummedQuantity(num: number): string {
   return rounded.toString().replace('.', ',');
 }
 
+import { normalizeUnit } from '../constants/units';
+
 /**
  * Normalise et standardise les unités métriques pour addition mathématique
  */
 function normalizeUnitKey(unit?: string): string {
   if (!unit) return '';
-  const u = normalizeString(unit);
-  if (['g', 'gr', 'gramme', 'grammes'].includes(u)) return 'g';
-  if (['kg', 'kilo', 'kilos', 'kilogramme', 'kilogrammes'].includes(u)) return 'kg';
-  if (['ml', 'millilitre', 'millilitres'].includes(u)) return 'ml';
-  if (['cl', 'centilitre', 'centilitres'].includes(u)) return 'cl';
-  if (['l', 'litre', 'litres'].includes(u)) return 'l';
-  if (['c a soupe', 'cuillere a soupe', 'cuilleres a soupe', 'cas', 'c.a.s'].includes(u)) return 'c. à soupe';
-  if (['c a cafe', 'cuillere a cafe', 'cuilleres a cafe', 'cac', 'c.a.c'].includes(u)) return 'c. à café';
-  if (['pincee', 'pincees'].includes(u)) return 'pincée';
-  if (['gousse', 'gousses'].includes(u)) return 'gousse';
-  if (['tranche', 'tranches'].includes(u)) return 'tranche';
-  if (['boite', 'boites'].includes(u)) return 'boîte';
-  if (['bocal', 'bocaux'].includes(u)) return 'bocal';
-  if (['pot', 'pots'].includes(u)) return 'pot';
-  if (['morceau', 'morceaux'].includes(u)) return 'morceau';
-  if (['filet', 'filets'].includes(u)) return 'filet';
-  if (['sachet', 'sachets'].includes(u)) return 'sachet';
-  if (['poignee', 'poignees'].includes(u)) return 'poignée';
-  if (['branche', 'branches'].includes(u)) return 'branche';
-  if (['botte', 'bottes'].includes(u)) return 'botte';
-  if (['pointe', 'pointes'].includes(u)) return 'pointe';
-  if (['trait', 'traits'].includes(u)) return 'trait';
-  if (['zeste', 'zestes'].includes(u)) return 'zeste';
-  if (['noisette', 'noisettes'].includes(u)) return 'noisette';
-  if (['goutte', 'gouttes'].includes(u)) return 'goutte';
-  return u;
+  return normalizeUnit(unit);
 }
 
 /**

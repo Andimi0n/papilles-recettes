@@ -15,7 +15,7 @@ async function main() {
   try {
     const tscBin = path.join(__dirname, '../node_modules/.bin/tsc');
     execSync(
-      `"${tscBin}" src/utils/shoppingAggregator.ts src/utils/ingredientNormalizer.ts src/services/vocabularyService.ts src/data/canonicalVocabulary.ts src/types/vocabulary.ts src/types/recipe.ts src/types/shopping.ts src/utils/helpers.ts src/utils/searchEngine.ts src/utils/aisleClassifier.ts --outDir "${tmpDir}" --module commonjs --target es2020 --skipLibCheck --esModuleInterop --ignoreConfig`,
+      `"${tscBin}" src/constants/units.ts src/utils/shoppingAggregator.ts src/utils/ingredientNormalizer.ts src/services/vocabularyService.ts src/data/canonicalVocabulary.ts src/types/vocabulary.ts src/types/recipe.ts src/types/shopping.ts src/utils/helpers.ts src/utils/searchEngine.ts src/utils/aisleClassifier.ts --outDir "${tmpDir}" --module commonjs --target es2020 --skipLibCheck --esModuleInterop --ignoreConfig`,
       { stdio: 'pipe' }
     );
   } catch (err) {
@@ -263,6 +263,40 @@ async function main() {
   assert.ok(ailItem, 'Ail doit être présent');
   assert.strictEqual(ailItem.quantity, '3,5', '2-3 (2,5) + 1 gousse = 3,5 gousses');
   console.log('✓ Fourchette numérique (2-3 gousses + 1) = 3,5 gousses');
+
+  // =========================================================================
+  // TEST SECTION 4 : Préservation d'unités incompatibles (non-fusion)
+  // =========================================================================
+  console.log('\n--- Test 4 : Préservation des unités incompatibles séparées ---');
+  const distinctUnitItems = [
+    {
+      id: 'c1',
+      name: 'Carotte',
+      canonicalId: 'ing_canon_carotte',
+      quantity: '300',
+      unit: 'g',
+      isChecked: false,
+      aisle: 'Fruits & Légumes',
+      recipeTitle: 'Soupe',
+    },
+    {
+      id: 'c2',
+      name: 'Carotte',
+      canonicalId: 'ing_canon_carotte',
+      quantity: '2',
+      unit: '',
+      isChecked: false,
+      aisle: 'Fruits & Légumes',
+      recipeTitle: 'Salade',
+    },
+  ];
+
+  const mergedStep4 = mergeShoppingItems([], distinctUnitItems);
+  const carotteItems = mergedStep4.filter((i) => i.canonicalId === 'ing_canon_carotte');
+  assert.strictEqual(carotteItems.length, 2, '300g et 2 carottes doivent former 2 lignes distinctes');
+  assert.ok(carotteItems.some((i) => i.quantity === '300' && i.unit === 'g'));
+  assert.ok(carotteItems.some((i) => i.quantity === '2' && !i.unit));
+  console.log('✓ 300g de carottes et 2 carottes restent proprement séparées (pas de fusion arbitraire)');
 
   console.log('\n🎉 TOUS LES TESTS DE SHOPPING AGGREGATOR ONT RÉUSSI (0 ERREUR) !');
 
