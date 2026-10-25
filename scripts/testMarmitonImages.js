@@ -27,7 +27,12 @@ async function main() {
     return originalRequire.apply(this, arguments);
   };
 
-  const { MarmitonService } = require(path.join(tmpDir, 'services/marmitonService.js'));
+  const {
+    MarmitonService,
+    decodeHtmlEntities,
+    normalizeMarmitonCategory,
+    extractInstructions,
+  } = require(path.join(tmpDir, 'services/marmitonService.js'));
 
   console.log('🧪 Lancement des tests de MarmitonService.extractMarmitonImages...');
 
@@ -112,6 +117,57 @@ async function main() {
     'https://assets.afcdn.com/recipe/20250505/66666_w1024h768c1.jpg'
   ]);
   console.log('✓ Extraction Combinée et dédoublonnage');
+
+  // 6. Test decodeHtmlEntities
+  console.log('🧪 Lancement des tests de décodage HTML & parsing JSON-LD...');
+  assert.strictEqual(
+    decodeHtmlEntities('G&acirc;teau au chocolat &amp; framboises'),
+    'Gâteau au chocolat & framboises'
+  );
+  assert.strictEqual(
+    decodeHtmlEntities('L&#039;authentique mousse au caf&#233;'),
+    "L'authentique mousse au café"
+  );
+  assert.strictEqual(
+    decodeHtmlEntities('<p>Mélanger <b>soigneusement</b>.</p>'),
+    'Mélanger soigneusement.'
+  );
+  console.log('✓ Décodage des entités HTML');
+
+  // 7. Test normalizeMarmitonCategory
+  assert.strictEqual(normalizeMarmitonCategory('Dessert', 'Fondant au chocolat'), 'Dessert');
+  assert.strictEqual(normalizeMarmitonCategory('Plat principal', 'Tarte aux pommes'), 'Dessert');
+  assert.strictEqual(normalizeMarmitonCategory('Entrée', 'Soupe à l oignon'), 'Entrée');
+  assert.strictEqual(normalizeMarmitonCategory('Apéritif', 'Guacamole maison'), 'Apéritif');
+  assert.strictEqual(normalizeMarmitonCategory('Boisson', 'Smoothie fraise'), 'Boisson');
+  assert.strictEqual(normalizeMarmitonCategory('Plat principal', 'Boeuf bourguignon'), 'Plat');
+  console.log('✓ Normalisation intelligente des catégories');
+
+  // 8. Test extractInstructions avec HowToSection et HowToStep
+  const sectionSteps = [
+    {
+      '@type': 'HowToSection',
+      name: 'Pour la pâte',
+      itemListElement: [
+        { '@type': 'HowToStep', text: 'Mélanger la farine &amp; le sel.' },
+        { '@type': 'HowToStep', text: 'Ajouter le beurre froid.' },
+      ],
+    },
+    {
+      '@type': 'HowToSection',
+      name: 'Pour la garniture',
+      itemListElement: [
+        'Battre les oeufs avec la crème.',
+      ],
+    },
+  ];
+  const extractedSteps = extractInstructions(sectionSteps);
+  assert.deepStrictEqual(extractedSteps, [
+    'Mélanger la farine & le sel.',
+    'Ajouter le beurre froid.',
+    'Battre les oeufs avec la crème.',
+  ]);
+  console.log('✓ Aplatissement des HowToSection & HowToStep');
 
   console.log('\n🎉 TOUS LES TESTS DE MARMITON SERVICE ONT RÉUSSI (0 ERREUR) !');
 }
