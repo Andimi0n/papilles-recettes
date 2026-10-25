@@ -28,6 +28,7 @@ import {
   normalizeString,
 } from '../utils/helpers';
 import { prepareUserAllergens, evaluateRecipeAllergens } from '../utils/allergenMatcher';
+import { formatQuantityWithUnit } from '../constants/units';
 import { StarRating } from './StarRating';
 
 interface CookingModeModalProps {
@@ -580,7 +581,7 @@ export const CookingModeModal: React.FC<CookingModeModalProps> = ({
                             isAllergen && !isChecked && { color: Colors.danger, fontWeight: '700' },
                           ]}
                         >
-                          {scaledQty} {ing.unit || ''}
+                          {formatQuantityWithUnit(scaledQty, ing.unit)}
                         </Text>
                       ) : null}
                     </TouchableOpacity>

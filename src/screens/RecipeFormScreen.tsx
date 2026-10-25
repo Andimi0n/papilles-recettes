@@ -23,6 +23,9 @@ import { normalizeIngredient } from '../utils/ingredientNormalizer';
 import { CanonicalIngredient } from '../types/vocabulary';
 import { IngredientAutocompleteInput } from '../components/IngredientAutocompleteInput';
 import { QualifyIngredientModal } from '../components/QualifyIngredientModal';
+import { UnitQuickPicker } from '../components/UnitQuickPicker';
+import { UnitPickerModal } from '../components/UnitPickerModal';
+import { formatQuantityWithUnit } from '../constants/units';
 import { UnifiedIngredientService } from '../services/unifiedIngredientService';
 import { VocabularyService } from '../services/vocabularyService';
 import { isKnownDefaultPantryStaple } from '../data/canonicalVocabulary';
@@ -283,6 +286,8 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
   const [isQualifyModalVisible, setIsQualifyModalVisible] = useState(false);
   const [pendingQualifyIndex, setPendingQualifyIndex] = useState<number | null>(null);
   const [pendingUnrecognizedName, setPendingUnrecognizedName] = useState('');
+  const [isUnitModalVisible, setIsUnitModalVisible] = useState(false);
+  const [unitModalTargetIndex, setUnitModalTargetIndex] = useState<number | null>(null);
   const isSubmittingRef = useRef(false);
 
   // Steps state
@@ -1072,15 +1077,30 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
                     placeholder="200"
                     placeholderTextColor={colors.textMuted}
                     keyboardType="numeric"
+                    onFocus={() => setActiveIngIndex(index)}
                   />
-                  <TextInput
-                    style={[styles.textInput, styles.ingUnitInput]}
-                    value={ing.unit}
-                    onChangeText={(val) => handleUpdateIngredient(index, 'unit', val)}
-                    placeholder="g"
-                    placeholderTextColor={colors.textMuted}
-                    autoCapitalize="none"
-                  />
+                  <View style={styles.ingUnitInputWrapper}>
+                    <TextInput
+                      style={[styles.textInput, styles.ingUnitInput]}
+                      value={ing.unit}
+                      onChangeText={(val) => handleUpdateIngredient(index, 'unit', val)}
+                      placeholder="g"
+                      placeholderTextColor={colors.textMuted}
+                      autoCapitalize="none"
+                      onFocus={() => setActiveIngIndex(index)}
+                    />
+                    <TouchableOpacity
+                      style={styles.unitPickerTriggerBtn}
+                      onPress={() => {
+                        setUnitModalTargetIndex(index);
+                        setIsUnitModalVisible(true);
+                      }}
+                      hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
+                      accessibilityLabel="Choisir une unité"
+                    >
+                      <Ionicons name="chevron-down" size={11} color={colors.textMuted} />
+                    </TouchableOpacity>
+                  </View>
                   <TouchableOpacity
                     onPress={() => handleRemoveIngredient(index)}
                     style={styles.deleteRowBtn}
@@ -1089,6 +1109,21 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
                     <Ionicons name="trash-outline" size={18} color={colors.danger} />
                   </TouchableOpacity>
                 </View>
+
+                {/* Puces d'accès rapide aux unités si cette ligne est active */}
+                {activeIngIndex === index && (
+                  <View style={styles.recipeUnitQuickRow}>
+                    <UnitQuickPicker
+                      value={ing.unit}
+                      onChangeUnit={(val) => handleUpdateIngredient(index, 'unit', val)}
+                      onOpenFullPicker={() => {
+                        setUnitModalTargetIndex(index);
+                        setIsUnitModalVisible(true);
+                      }}
+                      compact
+                    />
+                  </View>
+                )}
 
                 {/* Organisation par sections (Livre de Chef) */}
                 <View style={styles.ingredientFlagsRow}>
@@ -1284,6 +1319,22 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
       onCreateCanonical={(created) => {
         handleQualifyIngredientSuccess(created);
       }}
+    />
+
+    {/* Modal de sélection d'unités complètes pour la recette */}
+    <UnitPickerModal
+      visible={isUnitModalVisible}
+      currentUnit={unitModalTargetIndex !== null ? ingredients[unitModalTargetIndex]?.unit : ''}
+      onSelectUnit={(val) => {
+        if (unitModalTargetIndex !== null) {
+          handleUpdateIngredient(unitModalTargetIndex, 'unit', val);
+        }
+      }}
+      onClose={() => {
+        setIsUnitModalVisible(false);
+        setUnitModalTargetIndex(null);
+      }}
+      title="Unité pour l'ingrédient"
     />
   </SafeAreaView>
   );
@@ -1661,11 +1712,30 @@ const styles = createDynamicStyles((colors, shadows) => ({
     textAlign: 'center',
     paddingHorizontal: 6,
   },
+  ingUnitInputWrapper: {
+    flex: 1.3,
+    position: 'relative',
+    justifyContent: 'center',
+  },
   ingUnitInput: {
-    flex: 1.2,
+    width: '100%',
     marginBottom: 0,
     textAlign: 'center',
-    paddingHorizontal: 4,
+    paddingLeft: 4,
+    paddingRight: 16,
+  },
+  unitPickerTriggerBtn: {
+    position: 'absolute',
+    right: 3,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 2,
+  },
+  recipeUnitQuickRow: {
+    marginTop: 6,
+    marginBottom: 4,
   },
   deleteRowBtn: {
     width: 34,

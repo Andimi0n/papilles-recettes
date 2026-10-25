@@ -29,7 +29,9 @@ import { groupItemsByAisle, formatShoppingListForShare } from '../utils/shopping
 import { normalizeString } from '../utils/helpers';
 import { FridgeStockView } from '../components/FridgeStockView';
 import { UnifiedIngredientInput } from '../components/UnifiedIngredientInput';
-import { QualifyIngredientModal } from '../components/QualifyIngredientModal';
+import { UnitQuickPicker } from '../components/UnitQuickPicker';
+import { UnitPickerModal } from '../components/UnitPickerModal';
+import { formatQuantityWithUnit, isStandardUnit, normalizeUnit } from '../constants/units';
 
 interface ShoppingListScreenProps {
   onNavigateToRecipes?: (options?: { onlyDoable?: boolean }) => void;
@@ -59,14 +61,11 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
     }
   }, [initialTab]);
 
-  // Formulaire d'ajout rapide courses
-  const [newItemName, setNewItemName] = useState('');
-  const [newItemQuantity, setNewItemQuantity] = useState('');
-  const [newItemUnit, setNewItemUnit] = useState('');
+  // Formulaire d'ajout rapide courses (saisie libre intelligente)
+  const [newItemText, setNewItemText] = useState('');
   const [selectedAisle, setSelectedAisle] = useState<ShoppingAisle | null>(null);
   const [isAislePickerVisible, setIsAislePickerVisible] = useState(false);
-  const [isQualifyModalVisible, setIsQualifyModalVisible] = useState(false);
-  const [pendingUnrecognizedName, setPendingUnrecognizedName] = useState('');
+  const [isUnitModalVisible, setIsUnitModalVisible] = useState(false);
 
   // Section des articles cochés repliée/dépliée
   const [showCompleted, setShowCompleted] = useState(false);
@@ -172,53 +171,77 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
     }
   };
 
-  const handleAddItemWithCanonical = async (
-    ing: CanonicalIngredient,
-    extractedDetails?: { quantity?: string; unit?: string }
-  ) => {
-    const qty = newItemQuantity.trim() || extractedDetails?.quantity || undefined;
-    const unit = newItemUnit.trim() || extractedDetails?.unit || undefined;
-    const aisle = selectedAisle || ing.defaultAisle;
+  const handleAddItem = async () => {
+    const trimmed = newItemText.trim();
+    if (!trimmed) return;
 
     try {
-      const updated = await StorageService.addCustomShoppingItem(
-        ing.canonicalName,
-        qty,
-        unit,
-        aisle,
-        ing.id
-      );
+      const updated = await StorageService.addFreeformShoppingItem(trimmed, selectedAisle);
       setItems(updated);
-      VocabularyService.incrementUsage(ing.id).catch(() => {});
-      setNewItemName('');
-      setNewItemQuantity('');
-      setNewItemUnit('');
+      setNewItemText('');
       setSelectedAisle(null);
     } catch (e) {
       Alert.alert('Erreur', "Impossible d'ajouter cet article.");
     }
   };
 
-  const handlePressPlus = () => {
-    handleAddItem();
+  const handleAddQuickSuggestion = async (ing: CanonicalIngredient) => {
+    try {
+      const trimmed = newItemText.trim();
+      let textToAdd = ing.canonicalName;
+      if (trimmed) {
+        const match = trimmed.match(/^([0-9]+(?:[.,][0-9]+)?(?:\/[0-9]+)?)\s*([a-zA-ZÀ-ÿ\.]*)$/);
+        if (match) {
+          textToAdd = `${trimmed} ${ing.canonicalName}`;
+        }
+      }
+      const updated = await StorageService.addFreeformShoppingItem(textToAdd, selectedAisle || ing.defaultAisle);
+      setItems(updated);
+      setNewItemText('');
+      setSelectedAisle(null);
+    } catch (e) {
+      Alert.alert('Erreur', "Impossible d'ajouter cet article.");
+    }
   };
 
-  const handleAddItem = async () => {
-    const trimmedName = newItemName.trim();
-    if (!trimmedName) return;
+  const handleSelectDropdownSuggestion = (ing: CanonicalIngredient) => {
+    const trimmed = newItemText.trim();
+    const match = trimmed.match(/^([0-9]+(?:[.,][0-9]+)?(?:\/[0-9]+)?(?:\s*(?:-|–|à|a)\s*[0-9]+(?:[.,][0-9]+)?(?:\/[0-9]+)?)?)\s*([a-zA-ZÀ-ÿ\.]*)\s*/);
+    if (match && match[1]) {
+      const qty = match[1];
+      const u = isStandardUnit(match[2]) ? normalizeUnit(match[2]) : '';
+      const prefix = [qty, u].filter(Boolean).join(' ');
+      setNewItemText(`${prefix} ${ing.canonicalName} `);
+    } else {
+      setNewItemText(`${ing.canonicalName} `);
+    }
+  };
 
-    // Vérifier si reconnu
-    const resolution = UnifiedIngredientService.resolveRecognizedIngredient(trimmedName);
-    if (resolution.isRecognized && resolution.canonical) {
-      return handleAddItemWithCanonical(resolution.canonical, {
-        quantity: resolution.extractedQuantity,
-        unit: resolution.extractedUnit,
-      });
+  const handleQuickUnitPress = (unitId: string) => {
+    if (!unitId) return;
+    const trimmed = newItemText.trim();
+    if (!trimmed) {
+      setNewItemText(`1${unitId} `);
+      return;
     }
 
-    // Si non reconnu, ouvre le modal de qualification stricte
-    setPendingUnrecognizedName(trimmedName);
-    setIsQualifyModalVisible(true);
+    if (/^[0-9]+(?:[.,][0-9]+)?(?:\/[0-9]+)?$/i.test(trimmed)) {
+      setNewItemText(`${trimmed}${unitId} `);
+      return;
+    }
+
+    if (!/^[0-9]/.test(trimmed)) {
+      setNewItemText(`1${unitId} ${trimmed}`);
+      return;
+    }
+
+    const match = trimmed.match(/^([0-9]+(?:[.,][0-9]+)?(?:\/[0-9]+)?)\s+(.*)$/);
+    if (match) {
+      setNewItemText(`${match[1]}${unitId} ${match[2]}`);
+      return;
+    }
+
+    setNewItemText(`${trimmed} ${unitId} `);
   };
 
   // Déplacer un article individuel vers les étagères
@@ -508,64 +531,41 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
               <UnifiedIngredientInput
                 containerStyle={{ flex: 1, zIndex: 99 }}
                 style={styles.nameInput}
-                placeholder="Ajouter un article (ex: Pommes, Lait...)"
+                placeholder="Ex: 1kg carottes, 6 œufs, Coca-cola, lessive..."
                 placeholderTextColor={colors.textMuted}
-                value={newItemName}
-                onChangeText={setNewItemName}
+                value={newItemText}
+                onChangeText={setNewItemText}
                 context="shopping"
-                clearOnSelect
+                clearOnSelect={false}
                 keepFocusOnSelect
                 returnKeyType="done"
-                onRequestQualify={(name) => {
-                  setPendingUnrecognizedName(name);
-                  setIsQualifyModalVisible(true);
-                }}
                 onSubmitEditing={() => handleAddItem()}
-                onSelectIngredient={(ing, details) => {
-                  handleAddItemWithCanonical(ing, details);
-                }}
-                onAutoExtractedDetails={(extracted) => {
-                  if (extracted.quantity && !newItemQuantity) {
-                    setNewItemQuantity(extracted.quantity);
-                  }
-                  if (extracted.unit && !newItemUnit) {
-                    setNewItemUnit(extracted.unit);
-                  }
+                onSelectIngredient={(ing) => {
+                  handleSelectDropdownSuggestion(ing);
                 }}
               />
 
               <TouchableOpacity
                 style={[
                   styles.addButton,
-                  !newItemName.trim() && styles.addButtonDisabled,
+                  !newItemText.trim() && styles.addButtonDisabled,
                 ]}
                 onPress={() => handleAddItem()}
-                disabled={!newItemName.trim()}
+                disabled={!newItemText.trim()}
               >
                 <Ionicons name="add" size={24} color="#FFFFFF" />
               </TouchableOpacity>
             </View>
 
-            {/* Détails complémentaires : Quantité & Unité & Rayon */}
-            <View style={styles.quickAddDetailsRow}>
-              <TextInput
-                style={styles.qtyInput}
-                placeholder="Qté (ex: 2)"
-                placeholderTextColor={colors.textMuted}
-                value={newItemQuantity}
-                onChangeText={setNewItemQuantity}
-                keyboardType="numeric"
-              />
-              <TextInput
-                style={styles.unitInput}
-                placeholder="Unité (g, ml, pcs)"
-                placeholderTextColor={colors.textMuted}
-                value={newItemUnit}
-                onChangeText={setNewItemUnit}
-              />
+            {/* Options d'appoint : Rayon forcé & Puces d'unités 1-tap */}
+            <View style={styles.quickOptionsRow}>
               <TouchableOpacity
-                style={styles.aislePickerBtn}
+                style={[
+                  styles.aislePickerBtn,
+                  selectedAisle ? { borderColor: AISLE_CONFIGS[selectedAisle].color } : null,
+                ]}
                 onPress={() => setIsAislePickerVisible(true)}
+                activeOpacity={0.7}
               >
                 <Ionicons
                   name={
@@ -573,20 +573,29 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
                       ? (AISLE_CONFIGS[selectedAisle].iconName as any)
                       : 'funnel-outline'
                   }
-                  size={13}
+                  size={12}
                   color={selectedAisle ? AISLE_CONFIGS[selectedAisle].color : colors.textSecondary}
                 />
                 <Text
                   style={[
                     styles.aislePickerBtnText,
-                    selectedAisle ? { color: AISLE_CONFIGS[selectedAisle].color } : null,
+                    selectedAisle ? { color: AISLE_CONFIGS[selectedAisle].color, fontWeight: '700' } : null,
                   ]}
                   numberOfLines={1}
                 >
                   {selectedAisle || 'Rayon auto'}
                 </Text>
-                <Ionicons name="chevron-down" size={12} color={colors.textSecondary} />
+                <Ionicons name="chevron-down" size={11} color={colors.textSecondary} />
               </TouchableOpacity>
+
+              <View style={styles.unitPickerFlexContainer}>
+                <UnitQuickPicker
+                  value={''}
+                  onChangeUnit={(unitId) => handleQuickUnitPress(unitId)}
+                  onOpenFullPicker={() => setIsUnitModalVisible(true)}
+                  compact
+                />
+              </View>
             </View>
           </View>
 
@@ -604,7 +613,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
                   <TouchableOpacity
                     key={sug.id}
                     style={styles.suggestionChip}
-                    onPress={() => handleAddItemWithCanonical(sug)}
+                    onPress={() => handleAddQuickSuggestion(sug)}
                     activeOpacity={0.7}
                   >
                     <Ionicons name="add" size={13} color={colors.primary} />
@@ -760,7 +769,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
                               <View style={styles.itemMetaRow}>
                                 {(item.quantity || item.unit) && (
                                   <Text style={styles.itemQuantity}>
-                                    {[item.quantity, item.unit].filter(Boolean).join(' ')}
+                                    {formatQuantityWithUnit(item.quantity, item.unit)}
                                   </Text>
                                 )}
                                 {item.recipeTitle && (
@@ -839,7 +848,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
                               </Text>
                               {(item.quantity || item.unit) && (
                                 <Text style={styles.itemQuantityChecked}>
-                                  {[item.quantity, item.unit].filter(Boolean).join(' ')}
+                                  {formatQuantityWithUnit(item.quantity, item.unit)}
                                 </Text>
                               )}
                             </TouchableOpacity>
@@ -952,34 +961,13 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
         </TouchableOpacity>
       </Modal>
 
-      {/* Modal de qualification stricte (Passeport Ingrédient) */}
-      <QualifyIngredientModal
-        visible={isQualifyModalVisible}
-        rawName={pendingUnrecognizedName}
-        context="shopping"
-        onClose={() => setIsQualifyModalVisible(false)}
-        onAttachAsSynonym={(canonical) => {
-          handleAddItemWithCanonical(canonical, {
-            quantity: newItemQuantity.trim() || undefined,
-            unit: newItemUnit.trim() || undefined,
-          });
-          setIsQualifyModalVisible(false);
-          setPendingUnrecognizedName('');
-          setNewItemName('');
-          setNewItemQuantity('');
-          setNewItemUnit('');
-        }}
-        onCreateCanonical={(created) => {
-          handleAddItemWithCanonical(created, {
-            quantity: newItemQuantity.trim() || undefined,
-            unit: newItemUnit.trim() || undefined,
-          });
-          setIsQualifyModalVisible(false);
-          setPendingUnrecognizedName('');
-          setNewItemName('');
-          setNewItemQuantity('');
-          setNewItemUnit('');
-        }}
+      {/* Modal de sélection d'unités complètes */}
+      <UnitPickerModal
+        visible={isUnitModalVisible}
+        currentUnit={''}
+        onSelectUnit={(u) => handleQuickUnitPress(u)}
+        onClose={() => setIsUnitModalVisible(false)}
+        title="Ajouter une unité"
       />
     </SafeAreaView>
   );
@@ -1176,45 +1164,29 @@ const styles = createDynamicStyles((colors, shadows) => ({
   addButtonDisabled: {
     opacity: 0.4,
   },
-  quickAddDetailsRow: {
+  quickOptionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     marginTop: 8,
   },
-  qtyInput: {
-    flex: 1,
-    height: 34,
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    fontSize: 12,
-    color: colors.textPrimary,
-  },
-  unitInput: {
-    flex: 1.2,
-    height: 34,
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    fontSize: 12,
-    color: colors.textPrimary,
-  },
   aislePickerBtn: {
-    flex: 1.5,
-    height: 34,
+    height: 30,
     backgroundColor: colors.surfaceAlt,
     borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.borderMedium,
     paddingHorizontal: 8,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     gap: 4,
   },
   aislePickerBtnText: {
     fontSize: 11,
     color: colors.textSecondary,
     fontWeight: '600',
+  },
+  unitPickerFlexContainer: {
     flex: 1,
   },
   shareStrip: {

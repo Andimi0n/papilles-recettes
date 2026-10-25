@@ -44,13 +44,15 @@
     "test:allergens": "node scripts/testAllergenMatcher.js",
     "test:cascade": "node scripts/testVocabularyCascade.js",
     "test:unified-input": "node scripts/testUnifiedIngredientSystem.js",
-    "test": "npm run validate:lexicon && npm run test:stock && npm run test:shopping && npm run test:allergens && npm run test:cascade && npm run test:unified-input && npm run test:aisle && npm run test:helpers && npm run test:recipe-ai && npm run test:marmiton && npm run test:normalizer",
+    "test": "npm run validate:lexicon && npm run test:stock && npm run test:shopping && npm run test:allergens && npm run test:cascade && npm run test:unified-input && npm run test:aisle && npm run test:helpers && npm run test:recipe-ai && npm run test:marmiton && npm run test:normalizer && npm run test:units && npm run test:shopping-parser",
     "lint": "expo lint",
     "test:aisle": "node scripts/testAisleClassifier.js",
     "test:helpers": "node scripts/testHelpers.js",
     "test:recipe-ai": "node scripts/testRecipeAiService.js",
     "test:marmiton": "node scripts/testMarmitonImages.js",
-    "test:normalizer": "node scripts/testIngredientNormalizer.js"
+    "test:normalizer": "node scripts/testIngredientNormalizer.js",
+    "test:units": "node scripts/testUnits.js",
+    "test:shopping-parser": "node scripts/testShoppingInputParser.js"
   },
   "overrides": {
     "braces": "^3.0.3",
