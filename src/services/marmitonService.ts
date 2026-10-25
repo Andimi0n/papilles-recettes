@@ -79,6 +79,22 @@ async function fetchWithTimeout(
   }
 }
 
+
+/**
+ * Convertit une durée ISO 8601 (ex: "PT1H30M") en minutes.
+ */
+function parseIsoDuration(duration: string): number {
+  if (!duration) return 0;
+  const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/i);
+  if (!match) return 0;
+
+  const hours = parseInt(match[1] || '0', 10);
+  const minutes = parseInt(match[2] || '0', 10);
+  const seconds = parseInt(match[3] || '0', 10);
+
+  return hours * 60 + minutes + Math.round(seconds / 60);
+}
+
 export const MarmitonService = {
   /**
    * Recherche des recettes sur Marmiton et extrait la liste des liens et titres
@@ -172,6 +188,7 @@ export const MarmitonService = {
     let payloadText = '';
     const jsonLdRegex = /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
     let ldMatch;
+    let jsonLdRecipe: any = null;
 
     while ((ldMatch = jsonLdRegex.exec(html)) !== null) {
       const jsonContent = ldMatch[1].trim();
@@ -181,11 +198,97 @@ export const MarmitonService = {
         for (const item of graph) {
           if (item && (item['@type'] === 'Recipe' || item['@type']?.includes?.('Recipe'))) {
             payloadText = JSON.stringify(item);
+            jsonLdRecipe = item;
             break;
           }
         }
       } catch {}
       if (payloadText) break;
+    }
+
+    // 5. Extraction automatique de toutes les photos candidates de Marmiton
+    const availableImages = MarmitonService.extractMarmitonImages(html);
+    const coverImage = availableImages.length > 0 ? availableImages[0] : '';
+    const now = new Date().toISOString();
+    const recipeId = generateUniqueId('rec_marmiton');
+
+    // Tenter de parser directement le JSON-LD pour éviter un appel IA
+    if (jsonLdRecipe && (jsonLdRecipe.name || jsonLdRecipe.recipeIngredient)) {
+      try {
+        const title = jsonLdRecipe.name ? jsonLdRecipe.name.trim() : 'Recette Marmiton';
+        const description = jsonLdRecipe.description ? jsonLdRecipe.description.trim() : '';
+
+        let servings = 4;
+        if (jsonLdRecipe.recipeYield) {
+          const yieldMatch = String(jsonLdRecipe.recipeYield).match(/\d+/);
+          if (yieldMatch) {
+            servings = parseInt(yieldMatch[0], 10);
+          }
+        }
+
+        const prepTimeMinutes = parseIsoDuration(jsonLdRecipe.prepTime || '');
+        const cookTimeMinutes = parseIsoDuration(jsonLdRecipe.cookTime || '');
+
+        const rawIngredients = Array.isArray(jsonLdRecipe.recipeIngredient)
+          ? jsonLdRecipe.recipeIngredient
+          : (jsonLdRecipe.recipeIngredient ? [jsonLdRecipe.recipeIngredient] : []);
+
+        const ingredients = rawIngredients.map((ingStr: string, idx: number) => {
+          const norm = normalizeIngredient({
+            name: ingStr,
+            quantity: '',
+            unit: '',
+          });
+          return {
+            id: generateUniqueId(`ing_marm_${idx + 1}`),
+            name: norm.name || ingStr.trim(),
+            canonicalId: norm.canonicalId,
+            quantity: norm.quantity || '',
+            unit: norm.unit || '',
+            isPantryStaple: norm.isPantryStaple,
+            isOptional: norm.isOptional,
+          };
+        });
+
+        let steps: any[] = [];
+        const rawInstructions = jsonLdRecipe.recipeInstructions;
+        if (rawInstructions) {
+          const instArray = Array.isArray(rawInstructions) ? rawInstructions : [rawInstructions];
+          steps = instArray.map((inst: any, idx: number) => {
+            let text = typeof inst === 'string' ? inst : (inst.text || '');
+            return {
+              id: generateUniqueId(`stp_marm_${idx + 1}`),
+              order: idx + 1,
+              instruction: text.trim().replace(/<[^>]+>/g, ''), // Clean HTML tags if any
+            };
+          }).filter((s: any) => s.instruction.length > 0);
+        }
+
+        const recipe: Recipe = {
+          id: recipeId,
+          title,
+          description,
+          category: 'Plat', // Fallback, could be refined
+          difficulty: 'Facile', // Fallback
+          prepTimeMinutes: prepTimeMinutes || 15,
+          cookTimeMinutes: cookTimeMinutes || 0,
+          servings: servings || 4,
+          rating: 0,
+          imageUrl: coverImage,
+          availableImages,
+          isFavorite: false,
+          isVegetarian: false,
+          userNote: '',
+          createdAt: now,
+          updatedAt: now,
+          ingredients,
+          steps,
+        };
+
+        return recipe;
+      } catch (e) {
+        console.error("Erreur lors du parsing direct du JSON-LD, fallback sur l'IA", e);
+      }
     }
 
     // 4. Si aucun JSON-LD n'est trouvé, nettoyage linéaire sûr sans ReDoS (VULN-07 corrigé)
@@ -199,17 +302,10 @@ export const MarmitonService = {
       payloadText = strippedHtml.slice(0, 12000);
     }
 
-    // 5. Extraction automatique de toutes les photos candidates de Marmiton
-    const availableImages = MarmitonService.extractMarmitonImages(html);
-    const coverImage = availableImages.length > 0 ? availableImages[0] : '';
-
-    // 6. Appel de l'IA Gemini 3.8 Flash pour structurer la recette
+    // 6. Appel de l'IA Gemini 3.8 Flash pour structurer la recette (Fallback)
     const extracted = await RecipeAiService.extractRecipeFromText(payloadText, apiKey);
 
     // 7. Construction de l'objet Recipe officiel avec identifiants uniques sûrs (VULN-10 corrigé)
-    const now = new Date().toISOString();
-    const recipeId = generateUniqueId('rec_marmiton');
-
     const recipe: Recipe = {
       id: recipeId,
       title: extracted.title || 'Recette Marmiton',
