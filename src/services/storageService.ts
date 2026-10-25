@@ -406,10 +406,10 @@ export const StorageService = {
         try {
           const parsedShopping: ShoppingItem[] = JSON.parse(shoppingData);
           if (Array.isArray(parsedShopping)) {
-            const vocabList = VocabularyService.getSyncList();
+            const vocabMapById = VocabularyService.getSyncMapById();
             const updatedShopping = parsedShopping.map((item) => {
               const res = normalizeIngredient({ name: item.name, canonicalId: item.canonicalId });
-              const canonDef = res.canonicalId ? vocabList.find((v) => v.id === res.canonicalId) : undefined;
+              const canonDef = res.canonicalId ? vocabMapById.get(res.canonicalId) : undefined;
               const resolvedAisle = canonDef?.defaultAisle || item.aisle || classifyIngredientAisle(res.name || item.name);
 
               if (res.name !== item.name || res.canonicalId !== item.canonicalId || resolvedAisle !== item.aisle) {
@@ -441,10 +441,10 @@ export const StorageService = {
         try {
           const parsedFridge: FridgeItem[] = JSON.parse(fridgeData);
           if (Array.isArray(parsedFridge)) {
-            const vocabList = VocabularyService.getSyncList();
+            const vocabMapById = VocabularyService.getSyncMapById();
             const updatedFridge = parsedFridge.map((item) => {
               const res = normalizeIngredient({ name: item.name, canonicalId: item.canonicalId });
-              const canonDef = res.canonicalId ? vocabList.find((v) => v.id === res.canonicalId) : undefined;
+              const canonDef = res.canonicalId ? vocabMapById.get(res.canonicalId) : undefined;
               const resolvedAisle = canonDef?.defaultAisle || item.aisle || classifyIngredientAisle(res.name || item.name);
 
               if (res.name !== item.name || res.canonicalId !== item.canonicalId || resolvedAisle !== item.aisle) {
@@ -535,7 +535,7 @@ export const StorageService = {
     let shoppingUpdated = 0;
     let fridgeUpdated = 0;
 
-    const vocabList = VocabularyService.getSyncList();
+    const vocabMapById = VocabularyService.getSyncMapById();
 
     // 1. Traitement des Recettes (@papilles_recipes_v4)
     try {
@@ -673,7 +673,7 @@ export const StorageService = {
                 fridgeUpdated++;
                 hasAnyFridgeChange = true;
                 const recheck = normalizeIngredient({ name: item.name });
-                const canonDef = recheck.canonicalId ? vocabList.find((v) => v.id === recheck.canonicalId) : undefined;
+                const canonDef = recheck.canonicalId ? vocabMapById.get(recheck.canonicalId) : undefined;
                 return {
                   ...item,
                   canonicalId: recheck.canonicalId,
@@ -682,7 +682,7 @@ export const StorageService = {
               }
             } else if (event.type === 'reset') {
               const recheck = normalizeIngredient({ name: item.name });
-              const canonDef = recheck.canonicalId ? vocabList.find((v) => v.id === recheck.canonicalId) : undefined;
+              const canonDef = recheck.canonicalId ? vocabMapById.get(recheck.canonicalId) : undefined;
               if (recheck.canonicalId !== item.canonicalId || (canonDef && canonDef.defaultAisle !== item.aisle)) {
                 fridgeUpdated++;
                 hasAnyFridgeChange = true;
@@ -794,7 +794,7 @@ export const StorageService = {
                 shoppingUpdated++;
                 hasAnyShoppingChange = true;
                 const recheck = normalizeIngredient({ name: item.name });
-                const canonDef = recheck.canonicalId ? vocabList.find((v) => v.id === recheck.canonicalId) : undefined;
+                const canonDef = recheck.canonicalId ? vocabMapById.get(recheck.canonicalId) : undefined;
                 return {
                   ...item,
                   canonicalId: recheck.canonicalId,
@@ -803,7 +803,7 @@ export const StorageService = {
               }
             } else if (event.type === 'reset') {
               const recheck = normalizeIngredient({ name: item.name });
-              const canonDef = recheck.canonicalId ? vocabList.find((v) => v.id === recheck.canonicalId) : undefined;
+              const canonDef = recheck.canonicalId ? vocabMapById.get(recheck.canonicalId) : undefined;
               if (recheck.canonicalId !== item.canonicalId || (canonDef && canonDef.defaultAisle !== item.aisle)) {
                 shoppingUpdated++;
                 hasAnyShoppingChange = true;
@@ -973,8 +973,8 @@ export const StorageService = {
 
       let resolvedAisle = aisle;
       if (!resolvedAisle && norm.canonicalId) {
-        const vocabList = VocabularyService.getSyncList();
-        const canonDef = vocabList.find((v) => v.id === norm.canonicalId);
+        const vocabMapById = VocabularyService.getSyncMapById();
+        const canonDef = norm.canonicalId ? vocabMapById.get(norm.canonicalId) : undefined;
         if (canonDef) resolvedAisle = canonDef.defaultAisle;
       }
       if (!resolvedAisle) {
@@ -1189,8 +1189,8 @@ export const StorageService = {
       // Rayon officiel via defaultAisle
       let assignedAisle = aisle;
       if (!assignedAisle && resolvedCanonicalId) {
-        const vocabList = VocabularyService.getSyncList();
-        const canonDef = vocabList.find((v) => v.id === resolvedCanonicalId);
+        const vocabMapById = VocabularyService.getSyncMapById();
+        const canonDef = resolvedCanonicalId ? vocabMapById.get(resolvedCanonicalId) : undefined;
         if (canonDef) assignedAisle = canonDef.defaultAisle;
       }
       if (!assignedAisle) {
@@ -1264,8 +1264,8 @@ export const StorageService = {
 
         let assignedAisle: ShoppingAisle | undefined;
         if (resolvedCanonicalId) {
-          const vocabList = VocabularyService.getSyncList();
-          const canonDef = vocabList.find((v) => v.id === resolvedCanonicalId);
+          const vocabMapById = VocabularyService.getSyncMapById();
+          const canonDef = resolvedCanonicalId ? vocabMapById.get(resolvedCanonicalId) : undefined;
           if (canonDef) assignedAisle = canonDef.defaultAisle;
         }
         if (!assignedAisle) {

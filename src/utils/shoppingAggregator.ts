@@ -4,6 +4,7 @@ import { classifyIngredientAisle, ALL_AISLES } from './aisleClassifier';
 import { normalizeString, scaleQuantity, generateUniqueId, convertUnicodeFractions } from './helpers';
 import { normalizeIngredient } from './ingredientNormalizer';
 import { VocabularyService } from '../services/vocabularyService';
+import { normalizeUnit } from '../constants/units';
 
 /**
  * Tente de convertir une quantité textuelle en valeur numérique (ex: "250", "1.5", "1/2", "½", "2 à 3")
@@ -56,7 +57,6 @@ function formatSummedQuantity(num: number): string {
   return rounded.toString().replace('.', ',');
 }
 
-import { normalizeUnit } from '../constants/units';
 
 /**
  * Normalise et standardise les unités métriques pour addition mathématique
@@ -155,8 +155,8 @@ export function createShoppingItemFromIngredient(
   // RAYON OFFICIEL : defaultAisle du lexique canonique (Arbitrage 3)
   let aisle: ShoppingAisle;
   if (resolvedCanonicalId) {
-    const vocabList = VocabularyService.getSyncList();
-    const canonItem = vocabList.find((v) => v.id === resolvedCanonicalId);
+    const vocabMapById = VocabularyService.getSyncMapById();
+    const canonItem = vocabMapById.get(resolvedCanonicalId);
     aisle = canonItem?.defaultAisle || classifyIngredientAisle(canonicalName);
   } else {
     aisle = classifyIngredientAisle(canonicalName);

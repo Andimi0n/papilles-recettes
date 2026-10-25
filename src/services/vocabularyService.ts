@@ -44,7 +44,26 @@ export type VocabularyCascadeListener = (event: VocabularyCascadeEvent) => Promi
 
 // Cache en mémoire pour garantir 0 ms de latence sur l'autocomplétion pendant la frappe
 let memoryCache: CanonicalIngredient[] | null = null;
-let isInitializing = false;
+let memoryMapById: Map<string, CanonicalIngredient> | null = null;
+let memoryMapByNormName: Map<string, CanonicalIngredient> | null = null;
+let memoryMapByAlias: Map<string, CanonicalIngredient> | null = null;
+
+function rebuildMaps(list: CanonicalIngredient[]) {
+  const byId = new Map<string, CanonicalIngredient>();
+  const byNorm = new Map<string, CanonicalIngredient>();
+  const byAlias = new Map<string, CanonicalIngredient>();
+  list.forEach(item => {
+    byId.set(item.id, item);
+    byNorm.set(item.normalizedName, item);
+    if (item.aliases) {
+      item.aliases.forEach(alias => byAlias.set(alias, item));
+    }
+  });
+  memoryMapById = byId;
+  memoryMapByNormName = byNorm;
+  memoryMapByAlias = byAlias;
+}
+
 let initPromise: Promise<CanonicalIngredient[]> | null = null;
 let cascadeListeners: VocabularyCascadeListener[] = [];
 let onSaveCallback: (() => void) | null = null;
@@ -230,6 +249,7 @@ export const VocabularyService = {
               AsyncStorage.setItem(VOCABULARY_STORAGE_KEY, JSON.stringify(finalList)).catch(() => {});
             }
             memoryCache = finalList;
+            rebuildMaps(finalList);
             return memoryCache;
           }
         }
@@ -238,6 +258,7 @@ export const VocabularyService = {
         const initialList = getInitialCanonicalVocabulary();
         await AsyncStorage.setItem(VOCABULARY_STORAGE_KEY, JSON.stringify(initialList));
         memoryCache = initialList;
+        rebuildMaps(initialList);
         return memoryCache;
       } catch (err: any) {
         if (!err || typeof err.message !== 'string' || !err.message.includes('window is not defined')) {
@@ -245,6 +266,7 @@ export const VocabularyService = {
         }
         const fallback = getInitialCanonicalVocabulary();
         memoryCache = fallback;
+        rebuildMaps(fallback);
         return fallback;
       } finally {
         initPromise = null;
@@ -264,6 +286,43 @@ export const VocabularyService = {
     // Déclenche l'initialisation asynchrone en tâche de fond
     this.getAll().catch(() => {});
     return getInitialCanonicalVocabulary();
+  },
+
+  getSyncMapById(): Map<string, CanonicalIngredient> {
+    if (memoryMapById) {
+      return memoryMapById;
+    }
+    this.getAll().catch(() => {});
+    const fallbackList = getInitialCanonicalVocabulary();
+    const map = new Map<string, CanonicalIngredient>();
+    fallbackList.forEach(item => map.set(item.id, item));
+    return map;
+  },
+
+  getSyncMapByNormName(): Map<string, CanonicalIngredient> {
+    if (memoryMapByNormName) {
+      return memoryMapByNormName;
+    }
+    this.getAll().catch(() => {});
+    const fallbackList = getInitialCanonicalVocabulary();
+    const map = new Map<string, CanonicalIngredient>();
+    fallbackList.forEach(item => map.set(item.normalizedName, item));
+    return map;
+  },
+
+  getSyncMapByAlias(): Map<string, CanonicalIngredient> {
+    if (memoryMapByAlias) {
+      return memoryMapByAlias;
+    }
+    this.getAll().catch(() => {});
+    const fallbackList = getInitialCanonicalVocabulary();
+    const map = new Map<string, CanonicalIngredient>();
+    fallbackList.forEach(item => {
+      if (item.aliases) {
+        item.aliases.forEach(alias => map.set(alias, item));
+      }
+    });
+    return map;
   },
 
   /**
@@ -303,6 +362,7 @@ export const VocabularyService = {
    */
   async saveAll(list: CanonicalIngredient[]): Promise<void> {
     memoryCache = list;
+    rebuildMaps(list);
     if (onSaveCallback) {
       try {
         onSaveCallback();

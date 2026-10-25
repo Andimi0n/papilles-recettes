@@ -327,7 +327,8 @@ export function normalizeIngredient(raw: {
   // Pris en compte uniquement si le terme n'avait pas de match exact direct prioritaire.
   // =========================================================================
   if (raw.canonicalId) {
-    const existingById = vocabList.find((v) => v.id === raw.canonicalId);
+    const vocabMapById = VocabularyService.getSyncMapById();
+    const existingById = vocabMapById.get(raw.canonicalId);
     if (existingById) {
       return saveCache({
         name: existingById.canonicalName,
