@@ -1,5 +1,5 @@
 import { Recipe } from '../types/recipe';
-import { RecipeAiService } from './recipeAiService';
+import { RecipeAiService, isRecipeVegetarian } from './recipeAiService';
 import { generateUniqueId } from '../utils/helpers';
 import { normalizeIngredient } from '../utils/ingredientNormalizer';
 
@@ -95,6 +95,36 @@ function parseIsoDuration(duration: string): number {
   return hours * 60 + minutes + Math.round(seconds / 60);
 }
 
+
+function cleanHtmlText(text: string): string {
+  if (!text) return '';
+  return text
+    .replace(/<[^>]+>/g, '') // Remove HTML tags
+    .replace(/&amp;/g, '&')
+    .replace(/&#039;/g, "'")
+    .replace(/&apos;/g, "'")
+    .replace(/&quot;/g, '"')
+    .replace(/&eacute;/g, 'é')
+    .replace(/&egrave;/g, 'è')
+    .replace(/&agrave;/g, 'à')
+    .replace(/&ccedil;/g, 'ç')
+    .replace(/&circ;/g, '^')
+    .replace(/&nbsp;/g, ' ')
+    .trim();
+}
+
+function detectCategory(recipeCategory: string | string[] | undefined): import('../types/recipe').Category {
+  if (!recipeCategory) return 'Plat';
+  const categoryStr = (Array.isArray(recipeCategory) ? recipeCategory.join(' ') : recipeCategory).toLowerCase();
+
+  if (/(dessert|gateau|tarte sucrée|mousse|crepe|chocolat)/.test(categoryStr)) return 'Dessert';
+  if (/(entrée|salade|soupe|velouté|quiche)/.test(categoryStr)) return 'Entrée';
+  if (/(apéritif|amuse-bouche|tapas)/.test(categoryStr)) return 'Apéritif';
+  if (/(boisson|cocktail|smoothie)/.test(categoryStr)) return 'Boisson';
+  if (/(petit-déjeuner|brunch)/.test(categoryStr)) return 'Petit-déjeuner';
+
+  return 'Plat';
+}
 export const MarmitonService = {
   /**
    * Recherche des recettes sur Marmiton et extrait la liste des liens et titres
@@ -215,8 +245,9 @@ export const MarmitonService = {
     // Tenter de parser directement le JSON-LD pour éviter un appel IA
     if (jsonLdRecipe && (jsonLdRecipe.name || jsonLdRecipe.recipeIngredient)) {
       try {
-        const title = jsonLdRecipe.name ? jsonLdRecipe.name.trim() : 'Recette Marmiton';
-        const description = jsonLdRecipe.description ? jsonLdRecipe.description.trim() : '';
+        const title = jsonLdRecipe.name ? cleanHtmlText(jsonLdRecipe.name) : 'Recette Marmiton';
+        const description = jsonLdRecipe.description ? cleanHtmlText(jsonLdRecipe.description) : '';
+        const category = detectCategory(jsonLdRecipe.recipeCategory);
 
         let servings = 4;
         if (jsonLdRecipe.recipeYield) {
@@ -235,13 +266,13 @@ export const MarmitonService = {
 
         const ingredients = rawIngredients.map((ingStr: string, idx: number) => {
           const norm = normalizeIngredient({
-            name: ingStr,
+            name: cleanHtmlText(ingStr),
             quantity: '',
             unit: '',
           });
           return {
             id: generateUniqueId(`ing_marm_${idx + 1}`),
-            name: norm.name || ingStr.trim(),
+            name: norm.name || cleanHtmlText(ingStr),
             canonicalId: norm.canonicalId,
             quantity: norm.quantity || '',
             unit: norm.unit || '',
@@ -253,22 +284,38 @@ export const MarmitonService = {
         let steps: any[] = [];
         const rawInstructions = jsonLdRecipe.recipeInstructions;
         if (rawInstructions) {
-          const instArray = Array.isArray(rawInstructions) ? rawInstructions : [rawInstructions];
+          let instArray: any[] = [];
+
+          // Flatten HowToSection if any
+          const processInstruction = (inst: any) => {
+            if (inst && inst['@type'] === 'HowToSection' && inst.itemListElement) {
+              const subItems = Array.isArray(inst.itemListElement) ? inst.itemListElement : [inst.itemListElement];
+              subItems.forEach(processInstruction);
+            } else {
+              instArray.push(inst);
+            }
+          };
+
+          const rootInstructions = Array.isArray(rawInstructions) ? rawInstructions : [rawInstructions];
+          rootInstructions.forEach(processInstruction);
+
           steps = instArray.map((inst: any, idx: number) => {
             let text = typeof inst === 'string' ? inst : (inst.text || '');
             return {
               id: generateUniqueId(`stp_marm_${idx + 1}`),
               order: idx + 1,
-              instruction: text.trim().replace(/<[^>]+>/g, ''), // Clean HTML tags if any
+              instruction: cleanHtmlText(text),
             };
           }).filter((s: any) => s.instruction.length > 0);
         }
+
+        const isVegetarian = isRecipeVegetarian(ingredients, title, description);
 
         const recipe: Recipe = {
           id: recipeId,
           title,
           description,
-          category: 'Plat', // Fallback, could be refined
+          category,
           difficulty: 'Facile', // Fallback
           prepTimeMinutes: prepTimeMinutes || 15,
           cookTimeMinutes: cookTimeMinutes || 0,
@@ -277,7 +324,7 @@ export const MarmitonService = {
           imageUrl: coverImage,
           availableImages,
           isFavorite: false,
-          isVegetarian: false,
+          isVegetarian,
           userNote: '',
           createdAt: now,
           updatedAt: now,
