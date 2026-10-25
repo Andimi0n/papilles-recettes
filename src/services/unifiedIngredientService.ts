@@ -69,6 +69,35 @@ export function frenchPhonetic(str: string): string {
 }
 
 /**
+ * Suggestions d'indispensables du quotidien 100% alignées sur le lexique canonique.
+ * Partagées entre les Étagères (stock) et la Liste de courses.
+ */
+export const CANONICAL_QUICK_SUGGESTIONS = [
+  'Œufs',
+  'Beurre',
+  'Lait',
+  'Farine',
+  'Pâtes',
+  'Riz',
+  'Huile d\'olive',
+  'Crème fraîche',
+  'Fromage râpé',
+  'Tomate',
+  'Oignon',
+  'Ail',
+  'Carotte',
+  'Courgette',
+  'Pomme de terre',
+  'Pain',
+  'Poulet',
+  'Jambon',
+  'Poivron',
+  'Champignon',
+  'Citron',
+  'Pomme',
+];
+
+/**
  * Service universel d'entrée d'ingrédient (Stocks, Courses, Recherche & Recettes).
  * Implémente rigoureusement les contraintes de la Section 8 :
  * - Zéro pollution silencieuse
@@ -80,22 +109,51 @@ export const UnifiedIngredientService = {
   /**
    * Retourne une liste dynamique des noms canoniques les plus pertinents
    * à suggérer pour les ajouts rapides (Stock & Courses).
-   * Se base sur le vocabulaire actuel (incluant les modifications utilisateur),
-   * en privilégiant les indispensables (pantry staples) et les ingrédients les plus utilisés.
+   * Fournit une version synchrone basée sur VocabularyService.getSyncList().
+   * 1. On favorise les ingrédients avec usageCount > 0
+   * 2. On complète avec les indispensables du quotidien (CANONICAL_QUICK_SUGGESTIONS)
+   * 3. On exclut toujours "Eau"
    */
-  async getDynamicQuickSuggestions(limit: number = 24): Promise<string[]> {
-    const vocab = await VocabularyService.getAll();
+  getSyncDynamicQuickSuggestions(limit: number = 24): string[] {
+    const vocab = VocabularyService.getSyncList();
 
-    // On clone et on trie selon la pertinence:
-    // 1. Les "Pantry Staples" (fonds de placard) sont prioritaires
-    // 2. Ensuite, tri par usageCount (les plus utilisés d'abord)
-    const sorted = [...vocab].sort((a, b) => {
-       if (a.isPantryStaple && !b.isPantryStaple) return -1;
-       if (!a.isPantryStaple && b.isPantryStaple) return 1;
-       return (b.usageCount || 0) - (a.usageCount || 0);
+    // Filtrer 'Eau'
+    const validVocab = vocab.filter(item => {
+      const norm = normalizeString(item.canonicalName);
+      return norm !== 'eau' && item.id !== 'ing_canon_eau';
     });
 
-    return sorted.slice(0, limit).map(item => item.canonicalName);
+    // Ceux utilisés
+    const usedItems = validVocab
+      .filter(i => (i.usageCount && i.usageCount > 0) || i.isCustom)
+      .sort((a, b) => (b.usageCount || 0) - (a.usageCount || 0))
+      .map(i => i.canonicalName);
+
+    // Si la limite est atteinte avec l'usage seul, on retourne
+    if (usedItems.length >= limit) {
+      return usedItems.slice(0, limit);
+    }
+
+    // Sinon, on complète avec les suggestions en dur qui n'y sont pas déjà
+    const result = [...usedItems];
+    const existingNorms = new Set(result.map(name => normalizeString(name)));
+
+    for (const defItem of CANONICAL_QUICK_SUGGESTIONS) {
+      if (result.length >= limit) break;
+
+      const norm = normalizeString(defItem);
+      // Vérifier si cet ingrédient existe dans le vocabulaire valide actuel et non présent
+      if (!existingNorms.has(norm) && norm !== 'eau') {
+        // Optionnel : s'assurer qu'il existe un CanonicalIngredient correspondant
+        const exists = validVocab.find(i => normalizeString(i.canonicalName) === norm || i.aliases.includes(norm) || i.normalizedName === norm);
+        if (exists) {
+          result.push(exists.canonicalName);
+          existingNorms.add(norm);
+        }
+      }
+    }
+
+    return result;
   },
 
   /**

@@ -17,6 +17,7 @@ import { useKeepAwake } from 'expo-keep-awake';
 import { Recipe, Ingredient } from '../types/recipe';
 import { UserAllergenItem } from '../types/vocabulary';
 import { StorageService } from '../services/storageService';
+import { VocabularyService } from '../services/vocabularyService';
 import { Colors, Shadows, createDynamicStyles } from '../theme/colors';
 import { useTheme } from '../theme/ThemeContext';
 import {
@@ -114,24 +115,39 @@ export const CookingModeModal: React.FC<CookingModeModalProps> = ({
   const detectedIngredients = useMemo(() => {
     if (!currentStep || !recipe.ingredients) return [];
 
-    const stepTextNorm = normalizeString(currentStep.instruction);
+    // Nettoyer la ponctuation de l'instruction en la remplaçant par un espace
+    const cleanInstruction = currentStep.instruction.replace(/[.,;:!?'’]/g, ' ');
+    const stepTextNorm = normalizeString(cleanInstruction);
     const stepWords = stepTextNorm.split(/\s+/).map(stemWord);
+
+    const IGNORED_WORDS = new Set(['gousse', 'gousses', 'filet', 'filets', 'tranche', 'tranches', 'morceau', 'morceaux', 'branche', 'branches', 'boite', 'boites', 'pincee', 'pincees', 'cuillere', 'cuilleres', 'verre', 'verres', 'tasse', 'tasses', 'sachet', 'sachets', 'trait', 'traits', 'noisette', 'noisettes', 'noix', 'zeste', 'zestes']);
 
     const detected: Ingredient[] = [];
 
+    const vocab = VocabularyService.getSyncList();
+    const getCanonicalNormName = (canonicalId?: string) => {
+      if (!canonicalId) return null;
+      const canon = vocab.find(v => v.id === canonicalId);
+      return canon ? normalizeString(canon.canonicalName) : null;
+    };
+
     recipe.ingredients.forEach(ing => {
-       const ingNorm = normalizeString(ing.name);
-       const ingWords = ingNorm.split(/\s+/).map(stemWord);
+       // On utilise le nom canonique s'il existe pour une meilleure détection, sinon le nom brut
+       let targetNameNorm = getCanonicalNormName(ing.canonicalId);
+       if (!targetNameNorm) {
+           targetNameNorm = normalizeString(ing.name);
+       }
+
+       const ingWords = targetNameNorm.split(/\s+/).map(stemWord).filter(w => !IGNORED_WORDS.has(w));
 
        // 1. Recherche par phrase complète (ex: "crème fraîche")
-       if (stepTextNorm.includes(ingNorm)) {
+       if (stepTextNorm.includes(targetNameNorm)) {
          detected.push(ing);
        }
-       // 2. Recherche par le mot clé principal stemmé (ex: "tomates" -> "tomate")
-       // On utilise le premier mot clé long de l'ingrédient comme racine de recherche
+       // 2. Recherche par n'importe quel mot clé significatif stemmé
        else {
-         const mainWord = ingWords.find(w => w.length >= 3);
-         if (mainWord && stepWords.includes(mainWord)) {
+         const hasMatchingWord = ingWords.some(w => w.length >= 3 && stepWords.includes(w));
+         if (hasMatchingWord) {
             detected.push(ing);
          }
        }

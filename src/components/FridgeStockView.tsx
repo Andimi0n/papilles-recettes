@@ -139,18 +139,10 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
     return count;
   }, [recipes, items]);
 
-  const [dynamicSuggestions, setDynamicSuggestions] = React.useState<string[]>([]);
-
-  React.useEffect(() => {
-    let isMounted = true;
-    UnifiedIngredientService.getDynamicQuickSuggestions().then(suggs => {
-      if (isMounted) setDynamicSuggestions(suggs);
-    });
-    return () => { isMounted = false; };
-  }, []);
-
   // Suggestions rapides d'indispensables non encore ajoutés au stock (100% raccord avec le lexique canonique dynamique)
   const availableSuggestions: CanonicalIngredient[] = useMemo(() => {
+    const dynamicSuggestions = UnifiedIngredientService.getSyncDynamicQuickSuggestions();
+
     const existingNorm = new Set(items.map((i) => normalizeString(i.name)));
 
     const isAlreadyInStock = (norm: string) => {
@@ -193,7 +185,7 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
     }
 
     return suggestions;
-  }, [items, canonicalVocabulary, dynamicSuggestions]);
+  }, [items, canonicalVocabulary]);
 
   // Actions utilisateur
   const handlePressPlus = () => {

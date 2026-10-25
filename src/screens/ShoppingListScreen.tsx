@@ -69,18 +69,9 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
   // Section des articles cochés repliée/dépliée
   const [showCompleted, setShowCompleted] = useState(false);
 
-  const [dynamicSuggestions, setDynamicSuggestions] = useState<string[]>([]);
-
-  useEffect(() => {
-    let isMounted = true;
-    UnifiedIngredientService.getDynamicQuickSuggestions().then(suggs => {
-      if (isMounted) setDynamicSuggestions(suggs);
-    });
-    return () => { isMounted = false; };
-  }, []);
-
   // Suggestions d'articles rapides indispensables pour les courses (alignées dynamiquement sur le lexique)
   const availableSuggestions: CanonicalIngredient[] = useMemo(() => {
+    const dynamicSuggestions = UnifiedIngredientService.getSyncDynamicQuickSuggestions();
     const existingNorm = new Set(
       items.filter((i) => !i.isChecked).map((i) => normalizeString(i.name))
     );
@@ -102,7 +93,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
     }
 
     return suggestions;
-  }, [items, dynamicSuggestions]);
+  }, [items]);
 
   // Chargement de la liste de courses
   const loadShoppingList = useCallback(async () => {
