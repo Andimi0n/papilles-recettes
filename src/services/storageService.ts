@@ -11,7 +11,7 @@ import {
   DEFAULT_PLANNER_SETTINGS,
 } from '../types/planner';
 import { MealLogEntry, MealLogMap, DayMealLogSummary } from '../types/mealLog';
-import { UserAllergenItem, AllergenFamily , CanonicalIngredient } from '../types/vocabulary';
+import { UserAllergenItem, AllergenFamily } from '../types/vocabulary';
 import { INITIAL_RECIPES } from '../data/initialRecipes';
 import {
   generateUniqueId,
@@ -22,6 +22,7 @@ import {
 } from '../utils/helpers';
 import { isRecipeVegetarian } from './recipeAiService';
 import { createShoppingItemFromIngredient, mergeShoppingItems } from '../utils/shoppingAggregator';
+import { parseShoppingInput } from '../utils/shoppingInputParser';
 import { classifyIngredientAisle } from '../utils/aisleClassifier';
 import { normalizeIngredient } from '../utils/ingredientNormalizer';
 import { isKnownDefaultPantryStaple } from '../data/canonicalVocabulary';
@@ -1001,6 +1002,47 @@ export const StorageService = {
       return updatedList;
     } catch (e) {
       console.error('Erreur ajout article custom liste courses:', e);
+      throw e;
+    }
+  },
+
+  /**
+   * Ajoute un article à la liste de courses via saisie libre intelligente (ex: "1kg carottes", "kinder bueno", "6 oeufs")
+   * Détecte automatiquement la quantité, l'unité, le nom canonique et le rayon de manière transparente.
+   */
+  async addFreeformShoppingItem(
+    rawInput: string,
+    preferredAisle?: ShoppingAisle | null
+  ): Promise<ShoppingItem[]> {
+    try {
+      const parsed = parseShoppingInput(rawInput, preferredAisle);
+      if (!parsed.name) return await this.getShoppingList();
+
+      // Exclusion stricte de l'eau
+      if (parsed.canonicalId === 'ing_canon_eau' || normalizeString(parsed.name) === 'eau') {
+        return await this.getShoppingList();
+      }
+
+      const newItem: ShoppingItem = {
+        id: generateUniqueId('shop_freeform'),
+        name: parsed.name,
+        canonicalId: parsed.canonicalId,
+        quantity: parsed.quantity,
+        unit: parsed.unit,
+        isChecked: false,
+        aisle: parsed.aisle,
+        createdAt: new Date().toISOString(),
+      };
+
+      const currentList = await this.getShoppingList();
+      const updatedList = mergeShoppingItems(currentList, [newItem]);
+      await this.saveShoppingList(updatedList);
+      if (parsed.canonicalId) {
+        VocabularyService.incrementUsage(parsed.canonicalId).catch(() => {});
+      }
+      return updatedList;
+    } catch (e) {
+      console.error('Erreur addFreeformShoppingItem:', e);
       throw e;
     }
   },

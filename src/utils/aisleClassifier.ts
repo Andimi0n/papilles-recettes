@@ -318,7 +318,7 @@ const EPICERIE_WORDS = new Set([
   'cereales', 'couscous', 'boulgour', 'polenta', 'ble', 'chia', 'lin', 'cacahuete', 'cacahuetes',
   'pistache', 'pistaches', 'dattes', 'pruneaux', 'raisins secs', 'compote', 'compotes',
   'biscuit', 'biscuits', 'cookie', 'cookies', 'gateau', 'gateaux', 'madeleine', 'madeleines',
-  'speculoos', 'chips',
+  'speculoos', 'chips', 'kinder', 'nutella', 'bonbon', 'bonbons', 'barre', 'barres', 'confiserie',
 ]);
 
 /**

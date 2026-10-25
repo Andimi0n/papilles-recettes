@@ -190,8 +190,8 @@ export const UnifiedIngredientInput: React.FC<UnifiedIngredientInputProps> = ({
       return;
     }
 
-    // En contexte de simple recherche/filtrage, ne jamais bloquer avec le modal de création
-    if (context === 'search') {
+    // En contexte de simple recherche/filtrage ou de courses libres, ne jamais bloquer avec le modal de création
+    if (context === 'search' || context === 'shopping') {
       onSubmitEditing?.();
       return;
     }
@@ -319,8 +319,35 @@ export const UnifiedIngredientInput: React.FC<UnifiedIngredientInputProps> = ({
               );
             })}
 
-            {/* 2. Action unique d'ajout au lexique si l'élément n'est pas un match exact */}
-            {value.trim().length >= 2 &&
+            {/* 2. En contexte de courses : option d'ajout libre direct sans modal */}
+            {context === 'shopping' && value.trim().length >= 1 && (
+              <TouchableOpacity
+                style={styles.qualifyActionRow}
+                onPress={() => {
+                  setSuggestions([]);
+                  onSubmitEditing?.();
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={styles.qualifyIconBadge}>
+                  <Ionicons name="cart-outline" size={14} color={colors.primary} />
+                </View>
+                <View style={styles.textColumn}>
+                  <Text style={styles.qualifyActionName} numberOfLines={1}>
+                    Ajouter « {value.trim()} »
+                  </Text>
+                  <Text style={styles.qualifyActionSubtitle} numberOfLines={1}>
+                    Saisie libre sans qualification
+                  </Text>
+                </View>
+                <Ionicons name="add-circle" size={18} color={colors.primary} />
+              </TouchableOpacity>
+            )}
+
+            {/* 3. Action unique d'ajout au lexique pour les recettes/stocks */}
+            {context !== 'shopping' &&
+              context !== 'search' &&
+              value.trim().length >= 2 &&
               !suggestions.some(
                 (s) => !s.isFuzzySuggestion && s.item.canonicalName.toLowerCase() === value.trim().toLowerCase()
               ) && (
@@ -347,8 +374,8 @@ export const UnifiedIngredientInput: React.FC<UnifiedIngredientInputProps> = ({
         </View>
       )}
 
-      {/* Modal de qualification stricte (Passeport Ingrédient) si non délégué au parent */}
-      {!onRequestQualify && (
+      {/* Modal de qualification stricte (Passeport Ingrédient) si non délégué au parent et non shopping */}
+      {!onRequestQualify && context !== 'shopping' && context !== 'search' && (
         <QualifyIngredientModal
           visible={isQualifyModalVisible}
           rawName={pendingUnrecognizedName}

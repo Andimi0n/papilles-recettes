@@ -21,6 +21,11 @@
   - **Canonical Quick-Add & 1-Tap Suggestions**: Quick suggestions 100% aligned with the canonical vocabulary (`CANONICAL_QUICK_SUGGESTIONS` / `Œufs`, `Beurre`, `Lait`, `Farine`, `Pâtes`, `Riz`, `Huile d'olive`, `Tomate`, `Oignon`, `Ail`, `Carotte`, `Courgette`...) with automatic aisle assignment, deduplication (singular/plural aware), and dynamic surfacing of the user's most frequent ingredients.
   - **Fluid Predictive Shelf Ingestion**: Tapping an autocomplete suggestion in the locked top bar immediately adds the item to the shelves with its canonical name and aisle, clears the text input, and keeps focus for effortless chain-typing of ingredients.
   - Seamless transfer: 1-tap "Ajouter aux courses" from stock items, and "Ranger dans mes étagères 🥫" when purchasing or cleaning grocery list items.
+  - **Smart Freeform Grocery Input & Uncatalogued Items Support (`shoppingInputParser.ts`)**:
+    - **Saisie naturelle et intuitive** : Champ unique fluide acceptant les formulations naturelles du quotidien (`1kg carottes`, `500g de fraises`, `2 paquets de kinder bueno`, `3 bouteilles de coca`, `6 oeufs`, `lait 1L`, `lessive liquide`).
+    - **Détection et parsing transparent en arrière-plan** : Extraction automatique de la quantité (nombres entiers, décimaux, fractions Unicode `½`), de l'unité standard ou informelle (`kg`, `paquet`, `bouteille`), du nom de l'article et du rayon de supermarché (`ShoppingAisle`).
+    - **Support des produits ultra-transformés et hors-lexique** : Ajout direct sans forcer la qualification lexicale ni polluer le dictionnaire culinaire. Les ingrédients culinaires reconnus conservent leur `canonicalId` pour la fusion automatique avec les ajouts de recettes, tandis que les produits industriels et ménagers restent indépendants avec classification automatique au bon rayon (`Épicerie & Condiments`, `Boissons`, `Autre`...).
+    - **UX non-bloquante et prédictive** : Les suggestions du menu déroulant complètent le texte sans soumettre prématurément, permettant de vérifier ou d'ajouter une quantité avant validation via `[+]` ou Entrée. Rayon modifiable en 1 clic ("Rayon auto" ou rayon explicite) et barre de puces d'unités (`UnitQuickPicker`) pour injecter instantanément une unité.
   - Smart "Que cuisiner aujourd'hui ?" matching recipes directly from the user's active pantry inventory (scrollable to preserve screen space).
   - Pinned top controls: Locked "Ajouter un aliment" bar and "Ajout rapide en 1 clic" suggestion chips stay fixed at the top of the screen, while "Que cuisiner aujourd'hui ?" and categorized pantry items scroll smoothly beneath.
 - **Culinary & Grocery Units Management ("Gestion des Unités en Courses & Recettes")**:
@@ -153,6 +158,8 @@ papilles-recettes/
     │   ├── mealLog.ts          # MealLogEntry, MealLogMap, DayMealLogSummary
     │   ├── vocabulary.ts       # CanonicalIngredient, NormalizationResult
     │   └── expo-secure-store.d.ts # Typings fallback for expo-secure-store
+    ├── constants/              # Static dictionaries, configurations & units
+    │   └── units.ts            # Standardized culinary units catalog, aliases & quick pick lists
     ├── theme/                  # Theming and dynamic styling engine
     │   ├── colors.ts           # Botanique (Light) & Nocturne (Dark) palettes, createDynamicStyles
     │   └── ThemeContext.tsx    # ThemeProvider, useTheme hook, system/user preference sync
@@ -167,6 +174,7 @@ papilles-recettes/
     │   ├── ingredientNormalizer.ts # Rule-based container/modifier stripper & fuzzy resolver
     │   ├── stockMatcher.ts     # Engine determining recipe feasibility & coverage against pantry/fridge stock
     │   ├── shoppingAggregator.ts # Ingredient summing and unit normalization for grocery lists
+    │   ├── shoppingInputParser.ts # Natural language parser for shopping items (quantities, units, items)
     │   ├── searchEngine.ts     # In-memory recipe search, fridge matching, and sorting
     │   └── helpers.ts          # ID generation, time formatting, share text, image utils
     ├── data/
@@ -189,6 +197,8 @@ papilles-recettes/
     │   ├── TodayMealWidget.tsx   # Home screen widget for today's lunch/dinner tracking (preserved)
     │   ├── ChefAiWidget.tsx      # Home screen feed widget for Chef AI inspiration & stock teaser
     │   ├── IngredientAutocompleteInput.tsx # Predictive dropdown input for canonical ingredients
+    │   ├── UnitQuickPicker.tsx   # 1-tap horizontal quick-pick unit bar (mass, volume, containers)
+    │   ├── UnitPickerModal.tsx   # Full categorized culinary units selector modal with live search
     │   ├── AllergenFamilyPickerModal.tsx # Allergen family classification modal (14 INCO families + Autre)
     │   └── VocabularyManagerModal.tsx # Vocabulary management modal (CRUD, merge, aisles)
     └── screens/                # Main feature screens
@@ -276,8 +286,8 @@ node scripts/testExtractRecipe.mjs <GEMINI_API_KEY>
 
 ## 5. Coding Conventions & Important Development Rules
 
-### Expo SDK 57 / React 19 Standards
-- **Never trust outdated training data**: APIs change across Expo SDKs. Always consult `https://docs.expo.dev/llms.txt` and Expo SDK 57 documentation.
+### Expo SDK 58 / React 19 Standards
+- **Never trust outdated training data**: APIs change across Expo SDKs. Always consult `https://docs.expo.dev/llms.txt` and Expo SDK 58 documentation.
 - **Package Installation**: Always use `npx expo install <package>` (or `bunx expo install <package>` if using Bun) instead of bare `npm/yarn/bun add` to ensure SDK compatibility.
 - **Continuous Native Generation**: Do not manually create or edit `android/` or `ios/` folders unless explicitly generating builds. Configure native permissions and behavior inside `app.json`.
 
@@ -321,6 +331,7 @@ node scripts/testExtractRecipe.mjs <GEMINI_API_KEY>
 - **Contrôle de version systématique (Git & GitHub)** :
   - Chaque nouvelle fonctionnalité, amélioration ou correction doit faire l'objet d'un commit dédié, atomique et explicite (respecter les conventions sémantiques, ex: `feat(...)`, `fix(...)`, `docs(...)`).
   - Pousser systématiquement chaque commit sur GitHub (`git push origin main`) pour garantir un historique propre, faciliter le suivi de version et permettre un retour arrière (*fallback / rollback*) rapide en cas de besoin.
+  - Pull systématiquement avant de commencer à travailler
 - **Mise à jour systématique de la documentation** :
   - **`GEMINI.md`** : Mettre à jour après chaque nouvelle fonctionnalité (capacités du projet, arborescence des fichiers, services et conventions).
   - **`README.md`** : Mettre à jour pour refléter immédiatement les nouvelles fonctionnalités visibles, la structure et le mode d'emploi pour l'utilisateur.
