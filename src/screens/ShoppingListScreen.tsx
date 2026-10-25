@@ -30,6 +30,9 @@ import { normalizeString } from '../utils/helpers';
 import { FridgeStockView } from '../components/FridgeStockView';
 import { UnifiedIngredientInput } from '../components/UnifiedIngredientInput';
 import { QualifyIngredientModal } from '../components/QualifyIngredientModal';
+import { UnitQuickPicker } from '../components/UnitQuickPicker';
+import { UnitPickerModal } from '../components/UnitPickerModal';
+import { formatQuantityWithUnit } from '../constants/units';
 
 interface ShoppingListScreenProps {
   onNavigateToRecipes?: (options?: { onlyDoable?: boolean }) => void;
@@ -65,6 +68,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
   const [newItemUnit, setNewItemUnit] = useState('');
   const [selectedAisle, setSelectedAisle] = useState<ShoppingAisle | null>(null);
   const [isAislePickerVisible, setIsAislePickerVisible] = useState(false);
+  const [isUnitModalVisible, setIsUnitModalVisible] = useState(false);
   const [isQualifyModalVisible, setIsQualifyModalVisible] = useState(false);
   const [pendingUnrecognizedName, setPendingUnrecognizedName] = useState('');
 
@@ -556,13 +560,25 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
                 onChangeText={setNewItemQuantity}
                 keyboardType="numeric"
               />
-              <TextInput
-                style={styles.unitInput}
-                placeholder="Unité (g, ml, pcs)"
-                placeholderTextColor={colors.textMuted}
-                value={newItemUnit}
-                onChangeText={setNewItemUnit}
-              />
+              <View style={styles.unitInputWrapper}>
+                <TextInput
+                  style={styles.unitInput}
+                  placeholder="Unité libre"
+                  placeholderTextColor={colors.textMuted}
+                  value={newItemUnit}
+                  onChangeText={setNewItemUnit}
+                  autoCapitalize="none"
+                />
+                {newItemUnit ? (
+                  <TouchableOpacity
+                    onPress={() => setNewItemUnit('')}
+                    style={styles.clearUnitBtn}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Ionicons name="close-circle" size={15} color={colors.textMuted} />
+                  </TouchableOpacity>
+                ) : null}
+              </View>
               <TouchableOpacity
                 style={styles.aislePickerBtn}
                 onPress={() => setIsAislePickerVisible(true)}
@@ -587,6 +603,16 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
                 </Text>
                 <Ionicons name="chevron-down" size={12} color={colors.textSecondary} />
               </TouchableOpacity>
+            </View>
+
+            {/* Puces de sélection d'unités en 1 tap */}
+            <View style={styles.unitQuickPickerRow}>
+              <UnitQuickPicker
+                value={newItemUnit}
+                onChangeUnit={setNewItemUnit}
+                onOpenFullPicker={() => setIsUnitModalVisible(true)}
+                compact
+              />
             </View>
           </View>
 
@@ -760,7 +786,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
                               <View style={styles.itemMetaRow}>
                                 {(item.quantity || item.unit) && (
                                   <Text style={styles.itemQuantity}>
-                                    {[item.quantity, item.unit].filter(Boolean).join(' ')}
+                                    {formatQuantityWithUnit(item.quantity, item.unit)}
                                   </Text>
                                 )}
                                 {item.recipeTitle && (
@@ -839,7 +865,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
                               </Text>
                               {(item.quantity || item.unit) && (
                                 <Text style={styles.itemQuantityChecked}>
-                                  {[item.quantity, item.unit].filter(Boolean).join(' ')}
+                                  {formatQuantityWithUnit(item.quantity, item.unit)}
                                 </Text>
                               )}
                             </TouchableOpacity>
@@ -980,6 +1006,15 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
           setNewItemQuantity('');
           setNewItemUnit('');
         }}
+      />
+
+      {/* Modal de sélection d'unités complètes */}
+      <UnitPickerModal
+        visible={isUnitModalVisible}
+        currentUnit={newItemUnit}
+        onSelectUnit={(u) => setNewItemUnit(u)}
+        onClose={() => setIsUnitModalVisible(false)}
+        title="Unité pour les courses"
       />
     </SafeAreaView>
   );
@@ -1191,14 +1226,28 @@ const styles = createDynamicStyles((colors, shadows) => ({
     fontSize: 12,
     color: colors.textPrimary,
   },
-  unitInput: {
+  unitInputWrapper: {
     flex: 1.2,
     height: 34,
     backgroundColor: colors.surfaceAlt,
     borderRadius: 8,
-    paddingHorizontal: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+  },
+  unitInput: {
+    flex: 1,
+    height: 34,
     fontSize: 12,
     color: colors.textPrimary,
+    paddingVertical: 0,
+  },
+  clearUnitBtn: {
+    padding: 2,
+    marginLeft: 4,
+  },
+  unitQuickPickerRow: {
+    marginTop: 6,
   },
   aislePickerBtn: {
     flex: 1.5,
