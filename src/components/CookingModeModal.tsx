@@ -26,6 +26,7 @@ import {
   DetectedTimer,
   getLocalDateString,
   normalizeString,
+  stemWord,
 } from '../utils/helpers';
 import { prepareUserAllergens, evaluateRecipeAllergens } from '../utils/allergenMatcher';
 import { formatQuantityWithUnit } from '../constants/units';
@@ -108,6 +109,42 @@ export const CookingModeModal: React.FC<CookingModeModalProps> = ({
     if (!currentStep) return [];
     return extractTimersFromText(currentStep.instruction);
   }, [currentStep?.instruction]);
+
+  // Détection dynamique des ingrédients mentionnés dans l'étape courante
+  const detectedIngredients = useMemo(() => {
+    if (!currentStep || !recipe.ingredients) return [];
+
+    const stepTextNorm = normalizeString(currentStep.instruction);
+    const stepWords = stepTextNorm.split(/\s+/).map(stemWord);
+
+    const detected: Ingredient[] = [];
+
+    recipe.ingredients.forEach(ing => {
+       const ingNorm = normalizeString(ing.name);
+       const ingWords = ingNorm.split(/\s+/).map(stemWord);
+
+       // 1. Recherche par phrase complète (ex: "crème fraîche")
+       if (stepTextNorm.includes(ingNorm)) {
+         detected.push(ing);
+       }
+       // 2. Recherche par le mot clé principal stemmé (ex: "tomates" -> "tomate")
+       // On utilise le premier mot clé long de l'ingrédient comme racine de recherche
+       else {
+         const mainWord = ingWords.find(w => w.length >= 3);
+         if (mainWord && stepWords.includes(mainWord)) {
+            detected.push(ing);
+         }
+       }
+    });
+
+    // Élimine les doublons potentiels (même ID)
+    const uniqueDetected = detected.filter((item, index, self) =>
+      index === self.findIndex((t) => t.id === item.id)
+    );
+
+    return uniqueDetected;
+  }, [currentStep?.instruction, recipe.ingredients]);
+
 
   // Gestion du compte à rebours du minuteur actif
   useEffect(() => {
@@ -408,6 +445,23 @@ export const CookingModeModal: React.FC<CookingModeModalProps> = ({
               </View>
               <Text style={styles.stepCountSub}>sur {steps.length}</Text>
             </View>
+
+            {/* Ingrédients détectés dynamiquement dans cette étape */}
+            {detectedIngredients.length > 0 && (
+              <View style={styles.detectedIngredientsRow}>
+                {detectedIngredients.map((ing) => {
+                  const scaledQty = scaleQuantity(ing.quantity, recipe.servings || 4, servings);
+                  const qtyStr = scaledQty ? formatQuantityWithUnit(scaledQty, ing.unit) : '';
+                  return (
+                    <View key={ing.id} style={styles.ingredientChip}>
+                      <Text style={styles.ingredientChipText}>
+                        {qtyStr ? `${qtyStr} ` : ''}{ing.name}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
 
             {/* Texte de l'instruction en caractères géants */}
             <Text style={styles.instructionText}>
@@ -873,6 +927,25 @@ const styles = createDynamicStyles((colors, shadows) => ({
     fontSize: 15,
     color: Colors.textSecondary,
     fontWeight: '600',
+  },
+  detectedIngredientsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 20,
+  },
+  ingredientChip: {
+    backgroundColor: colors.surfaceAlt,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  ingredientChipText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.textPrimary,
   },
   instructionText: {
     fontSize: 22,
