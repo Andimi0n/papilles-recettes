@@ -411,6 +411,7 @@ export const CookingModeModal: React.FC<CookingModeModalProps> = ({
                       style={styles.timerSmallBtn}
                       onPress={handleToggleTimerPause}
                       activeOpacity={0.7}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     >
                       <Ionicons
                         name={activeTimer.isRunning ? 'pause' : 'play'}
@@ -422,6 +423,7 @@ export const CookingModeModal: React.FC<CookingModeModalProps> = ({
                       style={styles.timerSmallBtn}
                       onPress={() => handleAddTimerMinute(1)}
                       activeOpacity={0.7}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     >
                       <Text style={styles.timerAddMinuteText}>+1m</Text>
                     </TouchableOpacity>
@@ -429,6 +431,7 @@ export const CookingModeModal: React.FC<CookingModeModalProps> = ({
                       style={[styles.timerSmallBtn, styles.timerStopBtn]}
                       onPress={handleStopTimer}
                       activeOpacity={0.7}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     >
                       <Ionicons name="stop" size={14} color={Colors.danger} />
                     </TouchableOpacity>
@@ -521,6 +524,7 @@ export const CookingModeModal: React.FC<CookingModeModalProps> = ({
                   style={styles.quickTimerChip}
                   onPress={() => handleStartTimer(`${mins} min`, mins * 60)}
                   activeOpacity={0.7}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
                   <Text style={styles.quickTimerChipText}>+{mins} min</Text>
                 </TouchableOpacity>
