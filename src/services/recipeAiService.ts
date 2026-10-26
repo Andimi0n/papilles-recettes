@@ -96,16 +96,14 @@ const RECIPE_IDEAS_SCHEMA = {
 
 export const GEMINI_MODELS_CASCADE = [
   'gemini-3.8-flash',
-  'gemini-2.5-flash',
-  'gemini-2.0-flash',
-  'gemini-1.5-flash',
+  'gemini-3.5-flash-lite',
+  'gemini-3.6-flash',
 ];
 
 export const FAST_GEMINI_MODELS_CASCADE = [
   'gemini-3.8-flash',
-  'gemini-2.5-flash',
-  'gemini-2.0-flash',
-  'gemini-1.5-flash',
+  'gemini-3.5-flash-lite',
+  'gemini-3.6-flash',
 ];
 
 /**
@@ -175,7 +173,7 @@ async function fetchGeminiWithRetry(
   url: string,
   options: any,
   maxRetries = 1,
-  timeoutMs = 20000
+  timeoutMs = 15000
 ): Promise<Response> {
   let attempt = 0;
   while (true) {
@@ -205,8 +203,8 @@ async function fetchGeminiWithRetry(
       clearTimeout(timer);
     }
 
-    // Attente progressive avec backoff : 1.2s puis 2.4s
-    const delayMs = attempt * 1200;
+    // Attente progressive avec backoff : 1.5s
+    const delayMs = attempt * 1500;
     await new Promise((resolve) => setTimeout(resolve, delayMs));
   }
 }

@@ -146,11 +146,26 @@ async function main() {
     'FAST_GEMINI_MODELS_CASCADE doit avoir gemini-3.8-flash comme premier modèle'
   );
   assert.strictEqual(
-    FAST_GEMINI_MODELS_CASCADE.includes('gemini-1.5-flash-8b'),
-    false,
-    'FAST_GEMINI_MODELS_CASCADE ne doit plus contenir gemini-1.5-flash-8b (déprécié)'
+    FAST_GEMINI_MODELS_CASCADE[1],
+    'gemini-3.5-flash-lite',
+    'FAST_GEMINI_MODELS_CASCADE doit avoir gemini-3.5-flash-lite comme modèle de repli rapide'
   );
-  console.log('✓ Cascades Gemini 3.8 Flash correctement configurées');
+  assert.strictEqual(
+    FAST_GEMINI_MODELS_CASCADE.includes('gemini-2.5-flash'),
+    false,
+    'FAST_GEMINI_MODELS_CASCADE ne doit plus contenir gemini-2.5-flash (404 / déprécié)'
+  );
+  assert.strictEqual(
+    FAST_GEMINI_MODELS_CASCADE.includes('gemini-2.0-flash'),
+    false,
+    'FAST_GEMINI_MODELS_CASCADE ne doit plus contenir gemini-2.0-flash (404 / déprécié)'
+  );
+  assert.strictEqual(
+    FAST_GEMINI_MODELS_CASCADE.includes('gemini-1.5-flash'),
+    false,
+    'FAST_GEMINI_MODELS_CASCADE ne doit plus contenir gemini-1.5-flash (404 / déprécié)'
+  );
+  console.log('✓ Cascades Gemini 3 actives (3.8 Flash -> 3.5 Flash-Lite -> 3.6 Flash) validées');
 
   // =========================================================================
   // TEST SECTION 5 : adaptPayloadForModel (Thinking Level & Latence)
