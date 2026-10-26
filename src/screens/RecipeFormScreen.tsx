@@ -288,9 +288,18 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
   const [isQualifyModalVisible, setIsQualifyModalVisible] = useState(false);
   const [pendingQualifyIndex, setPendingQualifyIndex] = useState<number | null>(null);
   const [pendingUnrecognizedName, setPendingUnrecognizedName] = useState('');
+  const [queueProgress, setQueueProgress] = useState<{ current: number; total: number } | undefined>();
   const [isUnitModalVisible, setIsUnitModalVisible] = useState(false);
   const [unitModalTargetIndex, setUnitModalTargetIndex] = useState<number | null>(null);
+
   const isSubmittingRef = useRef(false);
+  const queueTotalRef = useRef(0);
+  const queueProcessedRef = useRef(0);
+  const ingredientsRef = useRef(ingredients);
+
+  useEffect(() => {
+    ingredientsRef.current = ingredients;
+  }, [ingredients]);
 
   // Steps state
   const [steps, setSteps] = useState<RecipeStep[]>(
@@ -378,12 +387,22 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
     setActiveIngIndex(null);
   };
 
+  const handleCancelQualify = () => {
+    isSubmittingRef.current = false;
+    queueTotalRef.current = 0;
+    queueProcessedRef.current = 0;
+    setQueueProgress(undefined);
+    setIsQualifyModalVisible(false);
+    setPendingQualifyIndex(null);
+    setPendingUnrecognizedName('');
+  };
+
   const handleQualifyIngredientSuccess = (
     canonical: CanonicalIngredient,
     meta?: { wasAddedAsAlias?: boolean }
   ) => {
-    const updated = [...ingredients];
-    if (pendingQualifyIndex !== null && pendingQualifyIndex >= 0 && pendingQualifyIndex < ingredients.length) {
+    const updated = [...ingredientsRef.current];
+    if (pendingQualifyIndex !== null && pendingQualifyIndex >= 0 && pendingQualifyIndex < updated.length) {
       const current = updated[pendingQualifyIndex];
       // Si ce n'est pas un synonyme valide enregistré (ex: terme générique/interdit comme "huile"),
       // on remplace directement le nom de l'ingrédient par le nom canonique choisi.
@@ -395,61 +414,78 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
         isPantryStaple: canonical.isPantryStaple ?? current.isPantryStaple,
       };
       setIngredients(updated);
+      ingredientsRef.current = updated;
     }
-    setIsQualifyModalVisible(false);
-    setPendingQualifyIndex(null);
-    setPendingUnrecognizedName('');
 
     // N'enchaîner vers la suite que si la qualification a été déclenchée par une tentative de sauvegarde globale
-    if (isSubmittingRef.current) {
-      const syncList = VocabularyService.getSyncList();
-      const nextUnrecIdx = updated.findIndex((ing) => {
-        const trimmed = ing.name.trim();
-        if (!trimmed) return false;
-        if (ing.canonicalId && syncList.some((c) => c.id === ing.canonicalId)) return false;
-        const res = UnifiedIngredientService.resolveRecognizedIngredient(trimmed);
-        return !res.isRecognized;
-      });
+    if (!isSubmittingRef.current) {
+      setIsQualifyModalVisible(false);
+      setPendingQualifyIndex(null);
+      setPendingUnrecognizedName('');
+      setQueueProgress(undefined);
+      return;
+    }
 
-      if (nextUnrecIdx >= 0) {
-        setTimeout(() => {
-          setPendingQualifyIndex(nextUnrecIdx);
-          setPendingUnrecognizedName(updated[nextUnrecIdx].name.trim());
-          setIsQualifyModalVisible(true);
-        }, 150);
-      } else {
-        // Tous les ingrédients sont désormais qualifiés : enregistrement automatique final
-        setTimeout(() => {
-          handleSubmit(updated);
-        }, 100);
-      }
+    queueProcessedRef.current += 1;
+
+    const syncList = VocabularyService.getSyncList();
+    const nextUnrecIdx = updated.findIndex((ing) => {
+      const trimmed = ing.name.trim();
+      if (!trimmed) return false;
+      if (ing.canonicalId && syncList.some((c) => c.id === ing.canonicalId)) return false;
+      const res = UnifiedIngredientService.resolveRecognizedIngredient(trimmed);
+      return !res.isRecognized;
+    });
+
+    if (nextUnrecIdx >= 0) {
+      // Ingrédient suivant trouvé : basculer immédiatement la modale sur cet ingrédient
+      const currentStep = queueProcessedRef.current + 1;
+      const totalSteps = Math.max(currentStep, queueTotalRef.current);
+      setPendingQualifyIndex(nextUnrecIdx);
+      setPendingUnrecognizedName(updated[nextUnrecIdx].name.trim());
+      setQueueProgress({ current: currentStep, total: totalSteps });
+      setIsQualifyModalVisible(true);
+    } else {
+      // Tous les ingrédients sont désormais qualifiés : enregistrement automatique final
+      setIsQualifyModalVisible(false);
+      setPendingQualifyIndex(null);
+      setPendingUnrecognizedName('');
+      setQueueProgress(undefined);
+      isSubmittingRef.current = false;
+      executeSaveRecipe(updated);
     }
   };
 
   const handleToggleIngredientStaple = (index: number) => {
-    const updated = [...ingredients];
+    const updated = [...ingredientsRef.current];
     updated[index] = {
       ...updated[index],
       isPantryStaple: !updated[index].isPantryStaple,
     };
     setIngredients(updated);
+    ingredientsRef.current = updated;
   };
 
   const handleToggleIngredientOptional = (index: number) => {
-    const updated = [...ingredients];
+    const updated = [...ingredientsRef.current];
     updated[index] = {
       ...updated[index],
       isOptional: !updated[index].isOptional,
     };
     setIngredients(updated);
+    ingredientsRef.current = updated;
   };
 
   const handleRemoveIngredient = (index: number) => {
-    if (ingredients.length <= 1) {
-      setIngredients([{ id: generateUniqueId('ing'), name: '', quantity: '', unit: '' }]);
+    if (ingredientsRef.current.length <= 1) {
+      const defaultList = [{ id: generateUniqueId('ing'), name: '', quantity: '', unit: '' }];
+      setIngredients(defaultList);
+      ingredientsRef.current = defaultList;
       return;
     }
-    setIngredients(ingredients.filter((_, i) => i !== index));
+    const updated = ingredientsRef.current.filter((_, i) => i !== index);
+    setIngredients(updated);
+    ingredientsRef.current = updated;
   };
 
   // Steps handlers
@@ -476,51 +512,20 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
     setSteps(reordered);
   };
 
-  // Save validation
-  const handleSubmit = (overrideIngredients?: unknown) => {
-    isSubmittingRef.current = true;
-    if (!title.trim()) {
-      isSubmittingRef.current = false;
-      Alert.alert('Titre manquant', 'Veuillez saisir au moins un titre pour la recette.');
-      return;
-    }
-
-    const currentIngredients = Array.isArray(overrideIngredients)
-      ? (overrideIngredients as Ingredient[])
-      : ingredients;
-    const nonEmptyIngredients = currentIngredients.filter((i) => i.name.trim().length > 0);
-    if (nonEmptyIngredients.length === 0) {
-      isSubmittingRef.current = false;
-      Alert.alert('Ingrédient requis', 'Veuillez renseigner au moins un ingrédient.');
-      return;
-    }
-
+  const executeSaveRecipe = (finalIngredients: Ingredient[]) => {
     const validSteps = steps.filter((s) => s.instruction.trim().length > 0);
-    if (validSteps.length === 0) {
-      isSubmittingRef.current = false;
-      Alert.alert('Étape requise', 'Veuillez renseigner au moins une étape de préparation.');
-      return;
-    }
-
-    // CONFORMITÉ STRICTE AU LEXIQUE (Section 8) :
-    // Chaque ingrédient de la recette DOIT impérativement appartenir au lexique canonique.
-    // Si un ingrédient n'est pas encore qualifié, la sauvegarde est bloquée et le modal s'ouvre.
     const syncList = VocabularyService.getSyncList();
-    const validatedIngredients: Ingredient[] = [];
-    let firstUnrecognized: { index: number; name: string } | null = null;
 
-    for (let i = 0; i < currentIngredients.length; i++) {
-      const ing = currentIngredients[i];
+    const validatedIngredients: Ingredient[] = [];
+    for (const ing of finalIngredients) {
       const trimmedName = ing.name.trim();
       if (!trimmedName) continue;
 
-      // 1. Déjà doté d'un canonicalId vérifié dans le lexique
       if (ing.canonicalId && syncList.some((c) => c.id === ing.canonicalId)) {
         validatedIngredients.push(ing);
         continue;
       }
 
-      // 2. Tentative de résolution directe O(1) via le service unifié
       const res = UnifiedIngredientService.resolveRecognizedIngredient(trimmedName);
       if (res.isRecognized && res.canonical) {
         validatedIngredients.push({
@@ -529,22 +534,19 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
           canonicalId: res.canonical.id,
           isPantryStaple: res.canonical.isPantryStaple ?? ing.isPantryStaple,
         });
-        continue;
+      } else {
+        validatedIngredients.push(ing);
       }
-
-      // 3. Ingrédient non répertorié : blocage de la sauvegarde et qualification requise
-      firstUnrecognized = { index: i, name: trimmedName };
-      break;
-    }
-
-    if (firstUnrecognized) {
-      setPendingQualifyIndex(firstUnrecognized.index);
-      setPendingUnrecognizedName(firstUnrecognized.name);
-      setIsQualifyModalVisible(true);
-      return;
     }
 
     isSubmittingRef.current = false;
+    queueTotalRef.current = 0;
+    queueProcessedRef.current = 0;
+    setQueueProgress(undefined);
+    setIsQualifyModalVisible(false);
+    setPendingQualifyIndex(null);
+    setPendingUnrecognizedName('');
+
     const recipe: Recipe = {
       id: initialRecipe?.id || generateUniqueId('rec'),
       title: title.trim(),
@@ -572,6 +574,90 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
     });
 
     onSave(recipe);
+  };
+
+  // Save validation
+  const handleSubmit = (overrideIngredients?: unknown) => {
+    if (!title.trim()) {
+      isSubmittingRef.current = false;
+      Alert.alert('Titre manquant', 'Veuillez saisir au moins un titre pour la recette.');
+      return;
+    }
+
+    const currentIngredients = Array.isArray(overrideIngredients)
+      ? (overrideIngredients as Ingredient[])
+      : ingredientsRef.current;
+    const nonEmptyIngredients = currentIngredients.filter((i) => i.name.trim().length > 0);
+    if (nonEmptyIngredients.length === 0) {
+      isSubmittingRef.current = false;
+      Alert.alert('Ingrédient requis', 'Veuillez renseigner au moins un ingrédient.');
+      return;
+    }
+
+    const validSteps = steps.filter((s) => s.instruction.trim().length > 0);
+    if (validSteps.length === 0) {
+      isSubmittingRef.current = false;
+      Alert.alert('Étape requise', 'Veuillez renseigner au moins une étape de préparation.');
+      return;
+    }
+
+    // CONFORMITÉ STRICTE AU LEXIQUE (Section 8) :
+    // Chaque ingrédient de la recette DOIT impérativement appartenir au lexique canonique.
+    const syncList = VocabularyService.getSyncList();
+
+    // Résolution préalable directe O(1) de tous les ingrédients identifiables
+    const workingIngredients: Ingredient[] = currentIngredients.map((ing) => {
+      const trimmed = ing.name.trim();
+      if (!trimmed) return ing;
+      if (ing.canonicalId && syncList.some((c) => c.id === ing.canonicalId)) {
+        return ing;
+      }
+      const res = UnifiedIngredientService.resolveRecognizedIngredient(trimmed);
+      if (res.isRecognized && res.canonical) {
+        return {
+          ...ing,
+          name: ing.name.trim() || res.canonical.canonicalName,
+          canonicalId: res.canonical.id,
+          isPantryStaple: res.canonical.isPantryStaple ?? ing.isPantryStaple,
+        };
+      }
+      return ing;
+    });
+
+    setIngredients(workingIngredients);
+    ingredientsRef.current = workingIngredients;
+
+    // Détection de tous les ingrédients hors lexique
+    const unrecIndices: number[] = [];
+    for (let i = 0; i < workingIngredients.length; i++) {
+      const ing = workingIngredients[i];
+      const trimmed = ing.name.trim();
+      if (!trimmed) continue;
+      if (ing.canonicalId && syncList.some((c) => c.id === ing.canonicalId)) {
+        continue;
+      }
+      const res = UnifiedIngredientService.resolveRecognizedIngredient(trimmed);
+      if (res.isRecognized && res.canonical) {
+        continue;
+      }
+      unrecIndices.push(i);
+    }
+
+    if (unrecIndices.length === 0) {
+      executeSaveRecipe(workingIngredients);
+      return;
+    }
+
+    // Lancer la file d'attente séquentielle
+    isSubmittingRef.current = true;
+    queueTotalRef.current = unrecIndices.length;
+    queueProcessedRef.current = 0;
+
+    const firstIdx = unrecIndices[0];
+    setPendingQualifyIndex(firstIdx);
+    setPendingUnrecognizedName(workingIngredients[firstIdx].name.trim());
+    setQueueProgress({ current: 1, total: unrecIndices.length });
+    setIsQualifyModalVisible(true);
   };
 
   return (
@@ -1330,12 +1416,8 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
       visible={isQualifyModalVisible}
       rawName={pendingUnrecognizedName}
       context="recipe"
-      onClose={() => {
-        isSubmittingRef.current = false;
-        setIsQualifyModalVisible(false);
-        setPendingQualifyIndex(null);
-        setPendingUnrecognizedName('');
-      }}
+      queueProgress={queueProgress}
+      onClose={handleCancelQualify}
       onSelectCanonical={(canonical, meta) => {
         handleQualifyIngredientSuccess(canonical, meta);
       }}

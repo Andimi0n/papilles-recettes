@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -33,6 +33,7 @@ export interface QualifyIngredientModalProps {
   onAttachAsSynonym?: (canonical: CanonicalIngredient, aliasAdded: string) => void;
   onSelectCanonical?: (canonical: CanonicalIngredient, meta: { wasAddedAsAlias: boolean; rawName: string }) => void;
   onCreateCanonical: (newIngredient: CanonicalIngredient) => void;
+  queueProgress?: { current: number; total: number };
 }
 
 const ALL_AISLES: ShoppingAisle[] = [
@@ -54,9 +55,11 @@ export const QualifyIngredientModal: React.FC<QualifyIngredientModalProps> = ({
   onAttachAsSynonym,
   onSelectCanonical,
   onCreateCanonical,
+  queueProgress,
 }) => {
   const { colors, isDark } = useTheme();
   const insets = useSafeAreaInsets();
+  const scrollViewRef = useRef<React.ElementRef<typeof ScrollView>>(null);
 
   // État local du formulaire de création
   const [canonicalNameInput, setCanonicalNameInput] = useState('');
@@ -99,8 +102,9 @@ export const QualifyIngredientModal: React.FC<QualifyIngredientModalProps> = ({
       setIsSubmitting(false);
       setParentSearchQuery('');
       setIsParentSearchOpen(false);
+      scrollViewRef.current?.scrollTo({ y: 0, animated: false });
     }
-  }, [visible, rawName]);
+  }, [visible, rawName, queueProgress?.current]);
 
   // Action : Sélectionner un ingrédient proche (ajoute en synonyme si possible, sinon remplace)
   const handleSelectTargetIngredient = async (targetIngredient: CanonicalIngredient) => {
@@ -125,7 +129,6 @@ export const QualifyIngredientModal: React.FC<QualifyIngredientModalProps> = ({
     } else if (onAttachAsSynonym) {
       onAttachAsSynonym(targetToReturn, rawName.trim());
     }
-    onClose();
   };
 
   // Détection si le terme est actuellement rattaché comme synonyme d'un ingrédient parent
@@ -160,7 +163,6 @@ export const QualifyIngredientModal: React.FC<QualifyIngredientModalProps> = ({
       }
       await UnifiedIngredientService.linkUnrecognizedItemsToNewCanonical(promoted);
       onCreateCanonical(promoted);
-      onClose();
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Impossible de détacher ce synonyme.';
       setErrorMessage(msg);
@@ -202,7 +204,6 @@ export const QualifyIngredientModal: React.FC<QualifyIngredientModalProps> = ({
 
     if (result.success && result.ingredient) {
       onCreateCanonical(result.ingredient);
-      onClose();
     } else {
       setErrorMessage(result.error || 'Impossible d\'enregistrer cet ingrédient.');
     }
@@ -231,7 +232,16 @@ export const QualifyIngredientModal: React.FC<QualifyIngredientModalProps> = ({
                 <Ionicons name="sparkles" size={20} color={colors.primary} />
               </View>
               <View style={styles.headerTextGroup}>
-                <Text style={styles.headerTitle}>Qualifier l'ingrédient</Text>
+                <View style={styles.headerTitleRow}>
+                  <Text style={styles.headerTitle}>Qualifier l'ingrédient</Text>
+                  {queueProgress && queueProgress.total > 1 && (
+                    <View style={styles.queueBadge}>
+                      <Text style={styles.queueBadgeText}>
+                        {queueProgress.current} / {queueProgress.total}
+                      </Text>
+                    </View>
+                  )}
+                </View>
                 <Text style={styles.headerSubtitle} numberOfLines={1}>
                   « {rawName} » n'est pas encore au lexique
                 </Text>
@@ -242,7 +252,12 @@ export const QualifyIngredientModal: React.FC<QualifyIngredientModalProps> = ({
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          <ScrollView
+            ref={scrollViewRef}
+            style={styles.modalScroll}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
             {/* CARTE DE PROMOTION D'UN SYNONYME EXISTANT (DÉTACHEMENT EN 1 CLIC) */}
             {parentWithAlias && (
               <View style={styles.promoteCard}>
@@ -568,6 +583,16 @@ export const QualifyIngredientModal: React.FC<QualifyIngredientModalProps> = ({
                 <Ionicons name="checkmark-sharp" size={18} color="#FFFFFF" />
                 <Text style={styles.createBtnText}>Enregistrer dans mon lexique</Text>
               </TouchableOpacity>
+
+              {/* Bouton Annuler pour abandonner la qualification et revenir sur la recette */}
+              <TouchableOpacity
+                style={styles.cancelBtn}
+                onPress={onClose}
+                disabled={isSubmitting}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.cancelBtnText}>Annuler</Text>
+              </TouchableOpacity>
             </View>
           </ScrollView>
         </View>
@@ -634,6 +659,24 @@ const styles = createDynamicStyles((colors) => ({
   },
   headerTextGroup: {
     flex: 1,
+  },
+  headerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  queueBadge: {
+    backgroundColor: colors.isDark ? 'rgba(34, 197, 94, 0.2)' : '#E8F5E9',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.isDark ? 'rgba(34, 197, 94, 0.35)' : '#C8E6C9',
+  },
+  queueBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.primary,
   },
   headerTitle: {
     fontSize: 16,
@@ -930,6 +973,18 @@ const styles = createDynamicStyles((colors) => ({
     fontSize: 14,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+  cancelBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 12,
+    marginTop: 6,
+  },
+  cancelBtnText: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    fontWeight: '600',
   },
   manualSearchContainer: {
     marginTop: 12,
