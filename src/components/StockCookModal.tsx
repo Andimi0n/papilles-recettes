@@ -19,7 +19,7 @@ import { AISLE_CONFIGS, ALL_AISLES } from '../utils/aisleClassifier';
 import { createDynamicStyles } from '../theme/colors';
 import { useTheme } from '../theme/ThemeContext';
 import { evaluateRecipesWithStock, RecipeStockEvaluation } from '../utils/stockMatcher';
-import { RecipeAiService } from '../services/recipeAiService';
+import { RecipeAiService, formatAiModelName } from '../services/recipeAiService';
 import { StorageService } from '../services/storageService';
 import { generateUniqueId } from '../utils/helpers';
 
@@ -77,6 +77,10 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
   const [ideas, setIdeas] = useState<RecipeIdea[]>([]);
   const [selectedIdea, setSelectedIdea] = useState<RecipeIdea | null>(null);
   const [aiStepIndex, setAiStepIndex] = useState(0);
+  const [activeModelInfo, setActiveModelInfo] = useState<{ model: string; isFallback: boolean }>({
+    model: 'gemini-3.8-flash',
+    isFallback: false,
+  });
 
   // Saisie clé API si absente
   const [isApiKeyModalVisible, setIsApiKeyModalVisible] = useState(false);
@@ -219,6 +223,7 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
   };
 
   const executeFetchIdeas = async (key?: string) => {
+    setActiveModelInfo({ model: 'gemini-3.8-flash', isFallback: false });
     setAiFlowStep('loading_ideas');
 
     try {
@@ -245,6 +250,9 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
           onlyVegetarian: isVegetarian,
           existingDoableTitles: doableTitles,
           excludedAllergens,
+          onModelAttempt: (model, isFallback) => {
+            setActiveModelInfo({ model, isFallback });
+          },
         },
         key
       );
@@ -277,6 +285,7 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
   };
 
   const executeGenerateRecipeFromIdea = async (idea: RecipeIdea, key?: string) => {
+    setActiveModelInfo({ model: 'gemini-3.8-flash', isFallback: false });
     setAiFlowStep('generating_recipe');
 
     try {
@@ -297,6 +306,9 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
           servings,
           onlyVegetarian: isVegetarian,
           excludedAllergens,
+          onModelAttempt: (model, isFallback) => {
+            setActiveModelInfo({ model, isFallback });
+          },
         },
         key
       );
@@ -428,6 +440,28 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
                 <Text style={styles.aiLoadingHint}>
                   Dosage précis des ingrédients pour {servings} personne{servings > 1 ? 's' : ''} et rédaction des étapes pas-à-pas
                 </Text>
+                <View
+                  style={[
+                    styles.aiModelBadge,
+                    activeModelInfo.isFallback ? styles.aiModelBadgeFallback : styles.aiModelBadgeNormal,
+                  ]}
+                >
+                  <Ionicons
+                    name={activeModelInfo.isFallback ? 'swap-horizontal' : 'hardware-chip-outline'}
+                    size={13}
+                    color={activeModelInfo.isFallback ? colors.amber : colors.primary}
+                  />
+                  <Text
+                    style={[
+                      styles.aiModelBadgeText,
+                      { color: activeModelInfo.isFallback ? colors.amber : colors.primary },
+                    ]}
+                  >
+                    {activeModelInfo.isFallback
+                      ? `Repli de secours : ${formatAiModelName(activeModelInfo.model)}`
+                      : `Modèle : ${formatAiModelName(activeModelInfo.model)}`}
+                  </Text>
+                </View>
                 <TouchableOpacity
                   style={styles.cancelLoadingBtn}
                   onPress={() => setAiFlowStep('ideas')}
@@ -458,6 +492,28 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
                     ? `Anti-doublon : ${doableRecipesForCurrentType.length} ${mealType.toLowerCase()}${doableRecipesForCurrentType.length > 1 ? 's' : ''} faisable${doableRecipesForCurrentType.length > 1 ? 's' : ''} dans votre carnet sera évité${doableRecipesForCurrentType.length > 1 ? 's' : ''}`
                     : 'Génération originale adaptée à vos denrées en stock'}
                 </Text>
+                <View
+                  style={[
+                    styles.aiModelBadge,
+                    activeModelInfo.isFallback ? styles.aiModelBadgeFallback : styles.aiModelBadgeNormal,
+                  ]}
+                >
+                  <Ionicons
+                    name={activeModelInfo.isFallback ? 'swap-horizontal' : 'hardware-chip-outline'}
+                    size={13}
+                    color={activeModelInfo.isFallback ? colors.amber : colors.primary}
+                  />
+                  <Text
+                    style={[
+                      styles.aiModelBadgeText,
+                      { color: activeModelInfo.isFallback ? colors.amber : colors.primary },
+                    ]}
+                  >
+                    {activeModelInfo.isFallback
+                      ? `Repli de secours : ${formatAiModelName(activeModelInfo.model)}`
+                      : `Modèle : ${formatAiModelName(activeModelInfo.model)}`}
+                  </Text>
+                </View>
                 <TouchableOpacity
                   style={styles.cancelLoadingBtn}
                   onPress={() => setAiFlowStep('config')}
@@ -1651,6 +1707,30 @@ const styles = createDynamicStyles((colors, shadows) => ({
     color: colors.textSecondary,
     textAlign: 'center',
     marginTop: 8,
+  },
+  aiModelBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'center',
+    gap: 6,
+    paddingVertical: 5,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    marginTop: 12,
+  },
+  aiModelBadgeNormal: {
+    backgroundColor: colors.primary + '15',
+    borderWidth: 1,
+    borderColor: colors.primary + '30',
+  },
+  aiModelBadgeFallback: {
+    backgroundColor: colors.amberLight,
+    borderWidth: 1,
+    borderColor: colors.amber,
+  },
+  aiModelBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
   cancelLoadingBtn: {
     marginTop: 18,

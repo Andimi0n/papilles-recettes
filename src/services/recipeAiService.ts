@@ -107,6 +107,22 @@ export const FAST_GEMINI_MODELS_CASCADE = [
 ];
 
 /**
+ * Formate un identifiant de modèle Gemini en libellé lisible pour l'interface utilisateur.
+ */
+export function formatAiModelName(modelId: string): string {
+  switch (modelId) {
+    case 'gemini-3.8-flash':
+      return 'Gemini 3.8 Flash';
+    case 'gemini-3.5-flash-lite':
+      return 'Gemini 3.5 Flash-Lite';
+    case 'gemini-3.6-flash':
+      return 'Gemini 3.6 Flash';
+    default:
+      return modelId;
+  }
+}
+
+/**
  * Construit l'URL de génération avec le paramètre de clé en repli sécurisé.
  * Supporte simultanément le query param ?key= et l'en-tête x-goog-api-key pour
  * résister aux proxys mobiles (4G/5G / ngrok) qui filtrent les en-têtes personnalisés.
@@ -217,13 +233,20 @@ async function fetchGeminiWithRetry(
 export async function fetchGeminiWithFallbackAndRetry(
   apiKey: string,
   payload: any,
-  models: string[] = GEMINI_MODELS_CASCADE
+  models: string[] = GEMINI_MODELS_CASCADE,
+  onModelAttempt?: (modelName: string, isFallback: boolean) => void
 ): Promise<{ response: Response; usedModel: string }> {
   let lastResponse: Response | null = null;
   let lastError: any = null;
 
   for (let i = 0; i < models.length; i++) {
     const model = models[i];
+    const isFallback = i > 0;
+    if (onModelAttempt) {
+      try {
+        onModelAttempt(model, isFallback);
+      } catch {}
+    }
     const generateUrl = getGeminiGenerateUrl(apiKey, model);
     const headers = getGeminiHeaders(apiKey);
     const modelPayload = adaptPayloadForModel(payload, model);
@@ -458,12 +481,19 @@ function parseJsonFromAiText(rawText: string): any {
 async function fetchGeminiJsonWithFallbackAndRetry(
   apiKey: string,
   payload: any,
-  models: string[] = GEMINI_MODELS_CASCADE
+  models: string[] = GEMINI_MODELS_CASCADE,
+  onModelAttempt?: (modelName: string, isFallback: boolean) => void
 ): Promise<{ parsed: any; usedModel: string }> {
   let lastError: any = null;
 
   for (let i = 0; i < models.length; i++) {
     const model = models[i];
+    const isFallback = i > 0;
+    if (onModelAttempt) {
+      try {
+        onModelAttempt(model, isFallback);
+      } catch {}
+    }
     const generateUrl = getGeminiGenerateUrl(apiKey, model);
     const headers = getGeminiHeaders(apiKey);
     const modelPayload = adaptPayloadForModel(payload, model);
@@ -945,7 +975,8 @@ export const RecipeAiService = {
    */
   async extractRecipeFromImages(
     images: { base64: string; mimeType?: string }[],
-    providedKey?: string
+    providedKey?: string,
+    onModelAttempt?: (modelName: string, isFallback: boolean) => void
   ): Promise<ExtractedRecipeData> {
     const apiKey = providedKey || (await this.getApiKey());
 
@@ -1024,7 +1055,12 @@ Règles universelles :
       },
     };
 
-    const { parsed } = await fetchGeminiJsonWithFallbackAndRetry(apiKey, payload);
+    const { parsed } = await fetchGeminiJsonWithFallbackAndRetry(
+      apiKey,
+      payload,
+      GEMINI_MODELS_CASCADE,
+      onModelAttempt
+    );
     return sanitizeExtractedRecipe(parsed);
   },
 
@@ -1034,7 +1070,8 @@ Règles universelles :
    */
   async extractRecipeFromText(
     recipeContent: string,
-    providedKey?: string
+    providedKey?: string,
+    onModelAttempt?: (modelName: string, isFallback: boolean) => void
   ): Promise<ExtractedRecipeData> {
     const apiKey = providedKey || (await this.getApiKey());
 
@@ -1109,7 +1146,12 @@ ${sanitizedRecipe}
       },
     };
 
-    const { parsed } = await fetchGeminiJsonWithFallbackAndRetry(apiKey, payload, FAST_GEMINI_MODELS_CASCADE);
+    const { parsed } = await fetchGeminiJsonWithFallbackAndRetry(
+      apiKey,
+      payload,
+      FAST_GEMINI_MODELS_CASCADE,
+      onModelAttempt
+    );
     return sanitizeExtractedRecipe(parsed);
   },
 
@@ -1119,7 +1161,8 @@ ${sanitizedRecipe}
    */
   async extractRecipeFromRawText(
     rawText: string,
-    providedKey?: string
+    providedKey?: string,
+    onModelAttempt?: (modelName: string, isFallback: boolean) => void
   ): Promise<ExtractedRecipeData> {
     const apiKey = providedKey || (await this.getApiKey());
 
@@ -1195,7 +1238,12 @@ ${sanitizedInput}
       },
     };
 
-    const { parsed } = await fetchGeminiJsonWithFallbackAndRetry(apiKey, payload, FAST_GEMINI_MODELS_CASCADE);
+    const { parsed } = await fetchGeminiJsonWithFallbackAndRetry(
+      apiKey,
+      payload,
+      FAST_GEMINI_MODELS_CASCADE,
+      onModelAttempt
+    );
     const sanitized = sanitizeExtractedRecipe(parsed);
 
     if (sanitized.userNote) {
@@ -1229,6 +1277,7 @@ ${sanitizedInput}
       mealType?: string;
       additionalPreferences?: string;
       excludedAllergens?: string[];
+      onModelAttempt?: (modelName: string, isFallback: boolean) => void;
     },
     providedKey?: string
   ): Promise<ExtractedRecipeData> {
@@ -1356,7 +1405,12 @@ ${sanitizedIngredients.join(', ')}
       },
     };
 
-    const { parsed } = await fetchGeminiJsonWithFallbackAndRetry(apiKey, payload);
+    const { parsed } = await fetchGeminiJsonWithFallbackAndRetry(
+      apiKey,
+      payload,
+      GEMINI_MODELS_CASCADE,
+      options?.onModelAttempt
+    );
     return sanitizeExtractedRecipe(parsed);
   },
 
@@ -1375,6 +1429,7 @@ ${sanitizedIngredients.join(', ')}
       existingDoableTitles?: string[];
       additionalPreferences?: string;
       excludedAllergens?: string[];
+      onModelAttempt?: (modelName: string, isFallback: boolean) => void;
     },
     providedKey?: string
   ): Promise<RecipeIdea[]> {
@@ -1498,7 +1553,12 @@ ${sanitizedIngredients.join(', ')}
       },
     };
 
-    const { parsed } = await fetchGeminiJsonWithFallbackAndRetry(apiKey, payload, FAST_GEMINI_MODELS_CASCADE);
+    const { parsed } = await fetchGeminiJsonWithFallbackAndRetry(
+      apiKey,
+      payload,
+      FAST_GEMINI_MODELS_CASCADE,
+      options?.onModelAttempt
+    );
     const rawParsed = parsed;
 
     const rawList = Array.isArray(rawParsed)
@@ -1530,6 +1590,7 @@ ${sanitizedIngredients.join(', ')}
       servings?: number;
       onlyVegetarian?: boolean;
       excludedAllergens?: string[];
+      onModelAttempt?: (modelName: string, isFallback: boolean) => void;
     },
     providedKey?: string
   ): Promise<ExtractedRecipeData> {
@@ -1630,7 +1691,12 @@ ${sanitizedIngredients.join(', ')}
       },
     };
 
-    const { parsed } = await fetchGeminiJsonWithFallbackAndRetry(apiKey, payload);
+    const { parsed } = await fetchGeminiJsonWithFallbackAndRetry(
+      apiKey,
+      payload,
+      GEMINI_MODELS_CASCADE,
+      options?.onModelAttempt
+    );
     return sanitizeExtractedRecipe(parsed);
   },
 };

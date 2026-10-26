@@ -47,6 +47,7 @@ async function main() {
     GEMINI_MODELS_CASCADE,
     FAST_GEMINI_MODELS_CASCADE,
     adaptPayloadForModel,
+    formatAiModelName,
   } = require(path.join(tmpDir, 'services/recipeAiService.js'));
 
   console.log('🧪 Lancement des tests de recipeAiService...');
@@ -205,6 +206,16 @@ async function main() {
     'Gemini 2.0 Flash ne doit pas avoir de thinkingConfig'
   );
   console.log('✓ adaptPayloadForModel configure correctement thinkingLevel, thinkingBudget et timeouts');
+
+  // =========================================================================
+  // TEST SECTION 6 : formatAiModelName
+  // =========================================================================
+  console.log('\n--- Test 6 : formatAiModelName ---');
+  assert.strictEqual(formatAiModelName('gemini-3.8-flash'), 'Gemini 3.8 Flash');
+  assert.strictEqual(formatAiModelName('gemini-3.5-flash-lite'), 'Gemini 3.5 Flash-Lite');
+  assert.strictEqual(formatAiModelName('gemini-3.6-flash'), 'Gemini 3.6 Flash');
+  assert.strictEqual(formatAiModelName('custom-model'), 'custom-model');
+  console.log('✓ formatAiModelName formate correctement les modèles actifs');
 
 
   console.log('\n🎉 TOUS LES TESTS DE RECIPE AI SERVICE ONT RÉUSSI (0 ERREUR) !');
