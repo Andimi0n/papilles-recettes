@@ -50,6 +50,61 @@ interface RunningTimer {
   isRunning: boolean;
 }
 
+const IGNORED_INGREDIENT_DETECTION_WORDS = new Set([
+  'gousse', 'gousses', 'filet', 'filets', 'tranche', 'tranches', 'morceau',
+  'morceaux', 'branche', 'branches', 'boite', 'boites', 'pincee', 'pincees',
+  'cuillere', 'cuilleres', 'verre', 'verres', 'tasse', 'tasses', 'sachet',
+  'sachets', 'trait', 'traits', 'noisette', 'noisettes', 'noix', 'zeste', 'zestes',
+]);
+
+const detectIngredientsInInstruction = (
+  instruction: string,
+  ingredients: Ingredient[],
+  vocabList: { id: string; canonicalName: string }[]
+): Ingredient[] => {
+  if (!instruction || !ingredients || ingredients.length === 0) return [];
+
+  const cleanInstruction = instruction.replace(/[.,;:!?'’]/g, ' ');
+  const stepTextNorm = normalizeString(cleanInstruction);
+  const stepWords = stepTextNorm.split(/\s+/).map(stemWord);
+
+  const detected: Ingredient[] = [];
+
+  const getCanonicalNormName = (canonicalId?: string) => {
+    if (!canonicalId) return null;
+    const canon = vocabList.find((v) => v.id === canonicalId);
+    return canon ? normalizeString(canon.canonicalName) : null;
+  };
+
+  ingredients.forEach((ing) => {
+    let targetNameNorm = getCanonicalNormName(ing.canonicalId);
+    if (!targetNameNorm) {
+      targetNameNorm = normalizeString(ing.name);
+    }
+
+    const ingWords = targetNameNorm
+      .split(/\s+/)
+      .map(stemWord)
+      .filter((w) => !IGNORED_INGREDIENT_DETECTION_WORDS.has(w));
+
+    // 1. Recherche par phrase complète (ex: "crème fraîche")
+    if (stepTextNorm.includes(targetNameNorm)) {
+      detected.push(ing);
+    }
+    // 2. Recherche par n'importe quel mot clé significatif stemmé
+    else {
+      const hasMatchingWord = ingWords.some((w) => w.length >= 3 && stepWords.includes(w));
+      if (hasMatchingWord) {
+        detected.push(ing);
+      }
+    }
+  });
+
+  return detected.filter((item, index, self) =>
+    index === self.findIndex((t) => (t.id && item.id ? t.id === item.id : t.name === item.name))
+  );
+};
+
 export const CookingModeModal: React.FC<CookingModeModalProps> = ({
   visible,
   recipe,
@@ -111,55 +166,32 @@ export const CookingModeModal: React.FC<CookingModeModalProps> = ({
     return extractTimersFromText(currentStep.instruction);
   }, [currentStep?.instruction]);
 
-  // Détection dynamique des ingrédients mentionnés dans l'étape courante
-  const detectedIngredients = useMemo(() => {
-    if (!currentStep || !recipe.ingredients) return [];
-
-    // Nettoyer la ponctuation de l'instruction en la remplaçant par un espace
-    const cleanInstruction = currentStep.instruction.replace(/[.,;:!?'’]/g, ' ');
-    const stepTextNorm = normalizeString(cleanInstruction);
-    const stepWords = stepTextNorm.split(/\s+/).map(stemWord);
-
-    const IGNORED_WORDS = new Set(['gousse', 'gousses', 'filet', 'filets', 'tranche', 'tranches', 'morceau', 'morceaux', 'branche', 'branches', 'boite', 'boites', 'pincee', 'pincees', 'cuillere', 'cuilleres', 'verre', 'verres', 'tasse', 'tasses', 'sachet', 'sachets', 'trait', 'traits', 'noisette', 'noisettes', 'noix', 'zeste', 'zestes']);
-
-    const detected: Ingredient[] = [];
-
+  // Détection des ingrédients pour chacune des étapes de la recette
+  const stepDetectedIngredientsList = useMemo(() => {
     const vocab = VocabularyService.getSyncList();
-    const getCanonicalNormName = (canonicalId?: string) => {
-      if (!canonicalId) return null;
-      const canon = vocab.find(v => v.id === canonicalId);
-      return canon ? normalizeString(canon.canonicalName) : null;
-    };
-
-    recipe.ingredients.forEach(ing => {
-       // On utilise le nom canonique s'il existe pour une meilleure détection, sinon le nom brut
-       let targetNameNorm = getCanonicalNormName(ing.canonicalId);
-       if (!targetNameNorm) {
-           targetNameNorm = normalizeString(ing.name);
-       }
-
-       const ingWords = targetNameNorm.split(/\s+/).map(stemWord).filter(w => !IGNORED_WORDS.has(w));
-
-       // 1. Recherche par phrase complète (ex: "crème fraîche")
-       if (stepTextNorm.includes(targetNameNorm)) {
-         detected.push(ing);
-       }
-       // 2. Recherche par n'importe quel mot clé significatif stemmé
-       else {
-         const hasMatchingWord = ingWords.some(w => w.length >= 3 && stepWords.includes(w));
-         if (hasMatchingWord) {
-            detected.push(ing);
-         }
-       }
-    });
-
-    // Élimine les doublons potentiels (même ID)
-    const uniqueDetected = detected.filter((item, index, self) =>
-      index === self.findIndex((t) => t.id === item.id)
+    return steps.map((s) =>
+      detectIngredientsInInstruction(s.instruction, recipe.ingredients || [], vocab)
     );
+  }, [steps, recipe.ingredients]);
 
-    return uniqueDetected;
-  }, [currentStep?.instruction, recipe.ingredients]);
+  // Ingrédients détectés dynamiquement dans l'étape courante
+  const detectedIngredients = useMemo(() => {
+    return stepDetectedIngredientsList[currentStepIndex] || [];
+  }, [stepDetectedIngredientsList, currentStepIndex]);
+
+  // Identifiants et clés des ingrédients déjà détectés lors des étapes antérieures
+  const previouslyDetectedIngredientKeys = useMemo(() => {
+    const keys = new Set<string>();
+    for (let i = 0; i < currentStepIndex; i++) {
+      const prevList = stepDetectedIngredientsList[i] || [];
+      for (const ing of prevList) {
+        if (ing.id) keys.add(ing.id);
+        if (ing.canonicalId) keys.add(ing.canonicalId);
+        keys.add(normalizeString(ing.name));
+      }
+    }
+    return keys;
+  }, [stepDetectedIngredientsList, currentStepIndex]);
 
 
   // Gestion du compte à rebours du minuteur actif
@@ -469,8 +501,17 @@ export const CookingModeModal: React.FC<CookingModeModalProps> = ({
             {detectedIngredients.length > 0 && (
               <View style={styles.detectedIngredientsRow}>
                 {detectedIngredients.map((ing) => {
-                  const scaledQty = scaleQuantity(ing.quantity, recipe.servings || 4, servings);
+                  const alreadyDetected =
+                    (ing.id && previouslyDetectedIngredientKeys.has(ing.id)) ||
+                    (ing.canonicalId && previouslyDetectedIngredientKeys.has(ing.canonicalId)) ||
+                    previouslyDetectedIngredientKeys.has(normalizeString(ing.name));
+
+                  // Si l'ingrédient a déjà été détecté dans une étape antérieure, on n'affiche plus sa quantité
+                  const scaledQty = !alreadyDetected
+                    ? scaleQuantity(ing.quantity, recipe.servings || 4, servings)
+                    : null;
                   const qtyStr = scaledQty ? formatQuantityWithUnit(scaledQty, ing.unit) : '';
+
                   return (
                     <View key={ing.id} style={styles.ingredientChip}>
                       <Text style={styles.ingredientChipText}>

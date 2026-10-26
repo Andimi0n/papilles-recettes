@@ -9,7 +9,8 @@ Une application mobile moderne, soignée et intuitive pour gérer vos recettes, 
 ### 1. 🎨 Double Direction Artistique & Thèmes Dynamiques
 - **Thème Clair — *Jardin Botanique & Slow Food*** : vert forêt persistant, céladon apaisant, brume d'amande.
 - **Thème Sombre — *Table Nocturne & Sauge Céleste*** : ardoise obsidienne, émeraude culinaire lumineuse, sauge argentée et touches ambrées.
-- Choix intuitif dans l'onglet **Paramètres** (mode Système auto, Jardin Botanique ou Table Nocturne) avec prévisualisation des palettes.
+- **Thème Contraste Élevé** : adapté à la lisibilité et au daltonisme (CVD-Safe).
+- Choix ergonomique dans les **Paramètres** avec disposition verticale des thèmes et prévisualisation directe de la palette de couleurs à droite de chacun.
 
 ### 2. 📱 Navigation Fluide & Bandeau d'Accueil Repensé
 - **Bandeau supérieur unifié** : identité visuelle complète avec le logo officiel de Papilles, titre soigné, description culinaire et accès direct aux actions clés sur un seul plan horizontal fluide :
@@ -23,7 +24,7 @@ Une application mobile moderne, soignée et intuitive pour gérer vos recettes, 
   - **Paramètres** : ambiance visuelle, clé IA, portions, lexique canonique et sauvegarde.
 
 ### 2. 📅 Suivi des Repas Quotidien & Menu de la Semaine
-- **Suivi des repas du jour** : saisie ultra-rapide en texte libre de ce que vous avez mangé le midi et le soir (restaurant, repas sur le pouce, restes ou petit plat maison).
+- **Suivi des repas du jour** : saisie fluide avec autocomplétion intelligente prédictive depuis vos recettes enregistrées (scoring en direct par titre, ingrédients et catégorie) et recommandations en 1 clic.
 - **Widget Accueil** : visualisez et complétez en 1 clic les repas d'aujourd'hui directement depuis l'écran d'accueil.
 - **Journal chronologique** : historique complet de vos repas passés avec possibilité de modification à tout moment.
 - **Menu de la semaine** : planifiez vos déjeuners et dîners du lundi au dimanche, visualisez vos menus d'un coup d'œil et exportez automatiquement les ingrédients nécessaires vers la liste de courses.

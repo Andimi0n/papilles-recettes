@@ -15,7 +15,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
-import { createDynamicStyles } from '../theme/colors';
+import {
+  createDynamicStyles,
+  BotaniqueColors,
+  NocturneColors,
+  ColorblindColors,
+} from '../theme/colors';
 import { StorageService } from '../services/storageService';
 import { RecipeAiService } from '../services/recipeAiService';
 import { VocabularyService } from '../services/vocabularyService';
@@ -47,7 +52,63 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   recipes,
   onRecipesReloadNeeded,
 }) => {
-  const { themeMode, themeId, colors, setThemeMode } = useTheme();
+  const { themeMode, isDark, colors, setThemeMode } = useTheme();
+
+  // Configuration des thèmes en disposition verticale avec palette à droite
+  const themeConfigs = [
+    {
+      mode: 'system' as const,
+      title: 'Système',
+      subtitle: 'Automatique selon l’OS',
+      icon: 'phone-portrait-outline' as const,
+      swatches: [
+        isDark ? NocturneColors.primary : BotaniqueColors.primary,
+        isDark ? NocturneColors.secondary : BotaniqueColors.secondary,
+        isDark ? NocturneColors.amber : BotaniqueColors.amber,
+        isDark ? NocturneColors.cardBackground : BotaniqueColors.cardBackground,
+        isDark ? NocturneColors.background : BotaniqueColors.background,
+      ],
+    },
+    {
+      mode: 'light' as const,
+      title: 'Jardin Botanique',
+      subtitle: 'Clair & Frais (Slow Food)',
+      emoji: '🌿',
+      swatches: [
+        BotaniqueColors.primary,
+        BotaniqueColors.secondary,
+        BotaniqueColors.amber,
+        BotaniqueColors.cardBackground,
+        BotaniqueColors.background,
+      ],
+    },
+    {
+      mode: 'dark' as const,
+      title: 'Table Nocturne',
+      subtitle: 'Sombre, Émeraude & Sauge',
+      emoji: '🌙',
+      swatches: [
+        NocturneColors.primary,
+        NocturneColors.secondary,
+        NocturneColors.amber,
+        NocturneColors.cardBackground,
+        NocturneColors.background,
+      ],
+    },
+    {
+      mode: 'colorblind' as const,
+      title: 'Contraste Élevé',
+      subtitle: 'Lisibilité & Daltonisme (CVD)',
+      emoji: '👁️',
+      swatches: [
+        ColorblindColors.primary,
+        ColorblindColors.secondary,
+        ColorblindColors.amber,
+        ColorblindColors.cardBackground,
+        ColorblindColors.background,
+      ],
+    },
+  ];
 
   // Clé API Gemini
   const [apiKey, setApiKey] = useState('');
@@ -515,111 +576,67 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
               Basculez entre l'herboristerie fraîche et l'ambiance feutrée du soir.
             </Text>
 
-            <View style={styles.themeSelectorRow}>
-              {/* Option Système */}
-              <TouchableOpacity
-                style={[styles.themeOptionBtn, themeMode === 'system' && styles.themeOptionActive]}
-                onPress={() => setThemeMode('system')}
-                activeOpacity={0.8}
-              >
-                <Ionicons
-                  name="phone-portrait-outline"
-                  size={20}
-                  color={themeMode === 'system' ? colors.primary : colors.textSecondary}
-                />
-                <Text
-                  style={[
-                    styles.themeOptionText,
-                    themeMode === 'system' && styles.themeOptionTextActive,
-                  ]}
-                >
-                  Système
-                </Text>
-                <Text style={styles.themeOptionSub}>Auto</Text>
-              </TouchableOpacity>
+            <View style={styles.themeVerticalList}>
+              {themeConfigs.map((item) => {
+                const isSelected = themeMode === item.mode;
+                return (
+                  <TouchableOpacity
+                    key={item.mode}
+                    style={[
+                      styles.themeVerticalItem,
+                      isSelected && styles.themeVerticalItemActive,
+                    ]}
+                    onPress={() => setThemeMode(item.mode)}
+                    activeOpacity={0.8}
+                  >
+                    {/* Partie gauche : Statut radio + Icône/Emoji + Nom & Descriptif */}
+                    <View style={styles.themeVerticalLeft}>
+                      <Ionicons
+                        name={isSelected ? 'radio-button-on' : 'radio-button-off'}
+                        size={19}
+                        color={isSelected ? colors.primary : colors.textMuted}
+                      />
+                      {item.icon ? (
+                        <Ionicons
+                          name={item.icon}
+                          size={19}
+                          color={isSelected ? colors.primary : colors.textSecondary}
+                          style={styles.themeVerticalIcon}
+                        />
+                      ) : (
+                        <Text style={styles.themeVerticalEmoji}>{item.emoji}</Text>
+                      )}
+                      <View style={styles.themeVerticalTextCol}>
+                        <Text
+                          style={[
+                            styles.themeVerticalTitle,
+                            isSelected && styles.themeVerticalTitleActive,
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {item.title}
+                        </Text>
+                        <Text style={styles.themeVerticalSubtitle} numberOfLines={1}>
+                          {item.subtitle}
+                        </Text>
+                      </View>
+                    </View>
 
-              {/* Option Jardin Botanique */}
-              <TouchableOpacity
-                style={[
-                  styles.themeOptionBtn,
-                  themeMode === 'light' && styles.themeOptionActive,
-                  { borderLeftWidth: 1, borderLeftColor: colors.borderLight },
-                ]}
-                onPress={() => setThemeMode('light')}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.themeEmoji}>🌿</Text>
-                <Text
-                  style={[
-                    styles.themeOptionText,
-                    themeMode === 'light' && styles.themeOptionTextActive,
-                  ]}
-                >
-                  Botanique
-                </Text>
-                <Text style={styles.themeOptionSub}>Clair</Text>
-              </TouchableOpacity>
-
-              {/* Option Table Nocturne */}
-              <TouchableOpacity
-                style={[
-                  styles.themeOptionBtn,
-                  themeMode === 'dark' && styles.themeOptionActive,
-                  { borderLeftWidth: 1, borderLeftColor: colors.borderLight },
-                ]}
-                onPress={() => setThemeMode('dark')}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.themeEmoji}>🌙</Text>
-                <Text
-                  style={[
-                    styles.themeOptionText,
-                    themeMode === 'dark' && styles.themeOptionTextActive,
-                  ]}
-                >
-                  Nocturne
-                </Text>
-                <Text style={styles.themeOptionSub}>Sombre</Text>
-              </TouchableOpacity>
-
-              {/* Option Daltonien */}
-              <TouchableOpacity
-                style={[
-                  styles.themeOptionBtn,
-                  themeMode === 'colorblind' && styles.themeOptionActive,
-                  { borderLeftWidth: 1, borderLeftColor: colors.borderLight },
-                ]}
-                onPress={() => setThemeMode('colorblind')}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.themeEmoji}>👁️</Text>
-                <Text
-                  style={[
-                    styles.themeOptionText,
-                    themeMode === 'colorblind' && styles.themeOptionTextActive,
-                  ]}
-                >
-                  Daltonien
-                </Text>
-                <Text style={styles.themeOptionSub}>Contraste</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Pastilles d'aperçu de la palette active (placées en dessous du nom de la palette) */}
-            <View style={styles.swatchCard}>
-              <Text style={styles.swatchTitle}>
-                Palette active :{' '}
-                <Text style={{ fontWeight: '700', color: colors.primary }}>
-                  {themeId === 'botanique' ? 'Jardin Botanique' : themeId === 'colorblind' ? 'Contraste Élevé (CVD-Safe)' : 'Table Nocturne (Émeraude & Ardoise)'}
-                </Text>
-              </Text>
-              <View style={styles.swatchRow}>
-                <View style={[styles.swatchDot, { backgroundColor: colors.primary }]} />
-                <View style={[styles.swatchDot, { backgroundColor: colors.secondary }]} />
-                <View style={[styles.swatchDot, { backgroundColor: colors.amber }]} />
-                <View style={[styles.swatchDot, { backgroundColor: colors.cardBackground, borderWidth: 1.5, borderColor: colors.border }]} />
-                <View style={[styles.swatchDot, { backgroundColor: colors.background, borderWidth: 1.5, borderColor: colors.border }]} />
-              </View>
+                    {/* Partie droite : Palette de couleurs du thème */}
+                    <View style={styles.themeVerticalSwatchesRow}>
+                      {item.swatches.map((colorHex, idx) => (
+                        <View
+                          key={idx}
+                          style={[
+                            styles.themeVerticalSwatchDot,
+                            { backgroundColor: colorHex },
+                          ]}
+                        />
+                      ))}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </View>
 
@@ -1524,64 +1541,70 @@ const styles = createDynamicStyles((colors, shadows) => ({
     lineHeight: 18,
     marginBottom: 16,
   },
-  themeSelectorRow: {
+  themeVerticalList: {
+    gap: 9,
+    marginBottom: 4,
+  },
+  themeVerticalItem: {
     flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     backgroundColor: colors.surfaceAlt,
     borderRadius: 14,
-    padding: 3,
-    overflow: 'hidden',
-    marginBottom: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
   },
-  themeOptionBtn: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 11,
-  },
-  themeOptionActive: {
+  themeVerticalItemActive: {
     backgroundColor: colors.cardBackground,
+    borderColor: colors.primary,
     ...shadows.small,
   },
-  themeEmoji: {
+  themeVerticalLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+    marginRight: 10,
+  },
+  themeVerticalIcon: {
+    width: 22,
+    textAlign: 'center',
+  },
+  themeVerticalEmoji: {
     fontSize: 18,
-    marginBottom: 2,
+    width: 22,
+    textAlign: 'center',
   },
-  themeOptionText: {
-    fontSize: 13,
+  themeVerticalTextCol: {
+    flex: 1,
+  },
+  themeVerticalTitle: {
+    fontSize: 13.5,
     fontWeight: '600',
-    color: colors.textSecondary,
+    color: colors.textPrimary,
   },
-  themeOptionTextActive: {
+  themeVerticalTitleActive: {
     color: colors.primary,
     fontWeight: '700',
   },
-  themeOptionSub: {
-    fontSize: 10,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-  swatchCard: {
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: 12,
-    padding: 12,
-    flexDirection: 'column',
-    alignItems: 'flex-start',
-    gap: 8,
-  },
-  swatchTitle: {
-    fontSize: 12.5,
+  themeVerticalSubtitle: {
+    fontSize: 11,
     color: colors.textSecondary,
+    marginTop: 1,
   },
-  swatchRow: {
+  themeVerticalSwatchesRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 5,
   },
-  swatchDot: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+  themeVerticalSwatchDot: {
+    width: 17,
+    height: 17,
+    borderRadius: 8.5,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
   },
   apiKeyInputContainer: {
     flexDirection: 'row',

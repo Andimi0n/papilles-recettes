@@ -11,7 +11,7 @@ import {
   Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Recipe, Category, RecipeIdea } from '../types/recipe';
 import { FridgeItem } from '../types/fridge';
 import { ShoppingAisle } from '../types/shopping';
@@ -403,7 +403,7 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
                 style={styles.manageStockBtn}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
-                <Ionicons name="cube-outline" size={16} color={colors.primary} />
+                <MaterialCommunityIcons name="fridge-outline" size={16} color={colors.primary} />
                 <Text style={styles.manageStockBtnText}>Étagères</Text>
               </TouchableOpacity>
             )}

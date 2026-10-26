@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { FridgeItem } from '../types/fridge';
 import { createDynamicStyles } from '../theme/colors';
 import { useTheme } from '../theme/ThemeContext';
@@ -20,7 +20,7 @@ export const ChefAiWidget: React.FC<ChefAiWidgetProps> = ({
   onOpenChefAi,
   onNavigateToStock,
 }) => {
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
 
   // Prendre jusqu'à 4 aliments représentatifs pour le teaser
   const sampleIngredients = stockItems.slice(0, 4);
@@ -57,13 +57,14 @@ export const ChefAiWidget: React.FC<ChefAiWidgetProps> = ({
         {/* Badge stock */}
         {stockCount > 0 ? (
           <View style={styles.stockBadge}>
-            <Ionicons name="cube-outline" size={12} color={colors.primary} />
+            <MaterialCommunityIcons name="fridge-outline" size={13} color={colors.primary} />
             <Text style={styles.stockBadgeText}>
               {stockCount} en stock
             </Text>
           </View>
         ) : (
           <View style={[styles.stockBadge, styles.stockBadgeEmpty]}>
+            <MaterialCommunityIcons name="fridge-off-outline" size={13} color={colors.textMuted} />
             <Text style={styles.stockBadgeEmptyText}>Étagères vides</Text>
           </View>
         )}
@@ -98,7 +99,7 @@ export const ChefAiWidget: React.FC<ChefAiWidgetProps> = ({
       ) : (
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyText}>
-            Renseignez vos ingrédients dans l'onglet Étagères pour inspirer le Chef IA !
+            Renseignez vos ingrédients dans l’onglet Étagères pour inspirer le Chef IA !
           </Text>
           <View style={[styles.actionBtn, { backgroundColor: colors.primary }]}>
             <Ionicons name="add-circle-outline" size={15} color="#FFFFFF" />

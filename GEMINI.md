@@ -9,9 +9,10 @@
 - **Interactive Rating System**: 0.5 to 5.0 star rating system (stars only, without redundant verbal labels) with inline interactive star filtering and instant sorting.
 - **Multimodal AI Recipe Scanner**: Extract recipes from camera captures, gallery photos (single/multi-photo recto & verso), or raw text using Google Gemini (`gemini-3.8-flash`) via a Bring-Your-Own-Key (BYOK) model.
 - **Smart Fridge Search ("Mon Frigo")**: In-memory matching engine that scores and surfaces recipes matching on-hand ingredients.
-- **Interactive Cooking Mode**: Step-by-step hands-free cooking assistant with checkboxes for ingredients and instructions.
+- **Interactive Cooking Mode**: Step-by-step hands-free cooking assistant with checkboxes for ingredients, automatic timers, and dynamic ingredient chips. Automatically omits repeating ingredient quantities in subsequent steps if already detected in earlier steps.
 - **Weekly Meal Planner & Daily Meal Tracking ("Suivi des repas")**:
   - Daily log of lunch & dinner with freeform text input (e.g. restaurant meals, takeout, leftovers, or home-cooked).
+  - Smart autocomplete & recommendations: real-time predictive matching against carnet recipes (title, prefix, ingredients, category) and 1-tap recommendations (top-rated recipes, planned meals) when logging meals.
   - Quick home widget for one-tap daily logging.
   - Multi-day chronological history with editable past entries.
   - Weekly planner to schedule lunch and dinner across the week, view planned menus, and aggregate required ingredients.
@@ -85,8 +86,8 @@
   - The daily meal tracking widget ("Ce que j'ai mangé aujourd'hui") and results summary remain scrollable alongside the recipe cards.
   - Star Rating Filter Modal: Triggered from a compact toolbar pill (`Note` / `≥ 4 ★`), opening a dedicated dialog with an interactive 5-star rating preview and quick-choice presets (Toutes les notes, ≥ 4.5, ≥ 4.0, ≥ 3.5, ≥ 3.0) with checkmarks, matching the Sort modal UX.
   - Bottom Tab Bar: Centered labels across all tabs (notably "Courses & Étagères" beneath the basket icon).
-- **Settings Visual Ambiance Swatches**:
-  - Active color swatches are arranged cleanly in a row directly beneath the active palette name instead of squeezed to its right.
+- **Settings Visual Ambiance & Vertical Themes**:
+  - Themes listed vertically (Système, Jardin Botanique, Table Nocturne, Contraste Élevé) with live color palette swatches displayed cleanly to the right of each theme option.
 - **Culinary Preferences & Default Servings Stepper**:
   - User-configurable default servings managed via an intuitive `[-]` / `[+]` stepper in Settings (1 to 50 persons).
 - **Allergens & Major Food Intolerances System ("Mes Allergies Alimentaires" & Arbitrage 5)**:

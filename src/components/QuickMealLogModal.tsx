@@ -58,7 +58,7 @@ export const QuickMealLogModal: React.FC<QuickMealLogModalProps> = ({
   onDelete,
   onClose,
 }) => {
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const [title, setTitle] = useState('');
   const [note, setNote] = useState('');
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
@@ -92,6 +92,71 @@ export const QuickMealLogModal: React.FC<QuickMealLogModalProps> = ({
     const query = normalizeString(recipeSearch);
     return recipes.filter((r) => normalizeString(r.title).includes(query)).slice(0, 15);
   }, [recipes, recipeSearch]);
+
+  // Suggestions intelligentes dynamiques depuis le carnet de recettes basées sur le texte saisi
+  const smartRecipeSuggestions = useMemo(() => {
+    if (!recipes || recipes.length === 0) return [];
+    const query = normalizeString(title.trim());
+    if (!query) return [];
+
+    const queryWords = query.split(/\s+/).filter(Boolean);
+
+    const scored = recipes.map((r) => {
+      const normTitle = normalizeString(r.title);
+      let score = 0;
+
+      // Correspondance exacte ou préfixe
+      if (normTitle === query) {
+        score += 200;
+      } else if (normTitle.startsWith(query)) {
+        score += 120;
+      } else if (normTitle.includes(query)) {
+        score += 70;
+      }
+
+      // Mots du titre
+      const allWordsMatch = queryWords.length > 0 && queryWords.every((w) => normTitle.includes(w));
+      if (allWordsMatch && !normTitle.includes(query)) {
+        score += 50;
+      }
+
+      // Ingrédients
+      if (r.ingredients) {
+        for (const ing of r.ingredients) {
+          if (normalizeString(ing.name).includes(query)) {
+            score += 35;
+            break;
+          }
+        }
+      }
+
+      // Catégorie
+      if (r.category && normalizeString(r.category).includes(query)) {
+        score += 20;
+      }
+
+      // Bonus note
+      if (score > 0 && r.rating) {
+        score += r.rating * 5;
+      }
+
+      return { recipe: r, score };
+    });
+
+    return scored
+      .filter((item) => item.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .map((item) => item.recipe)
+      .slice(0, 5);
+  }, [recipes, title]);
+
+  // Recettes recommandées du carnet quand le champ est vide
+  const recommendedRecipes = useMemo(() => {
+    if (!recipes || recipes.length === 0) return [];
+    return [...recipes]
+      .sort((a, b) => (b.rating || 0) - (a.rating || 0))
+      .slice(0, 6);
+  }, [recipes]);
 
   const handleSelectRecipe = (r: Recipe) => {
     setTitle(r.title);
@@ -169,7 +234,7 @@ export const QuickMealLogModal: React.FC<QuickMealLogModalProps> = ({
             showsVerticalScrollIndicator={false}
           >
             {/* Saisie principale du plat en écriture libre */}
-            <Text style={styles.fieldLabel}>Qu'avez-vous mangé ?</Text>
+            <Text style={styles.fieldLabel}>Qu’avez-vous mangé ?</Text>
             <View style={styles.inputWrapper}>
               <Ionicons name="restaurant-outline" size={18} color={colors.primary} />
               <TextInput
@@ -181,6 +246,13 @@ export const QuickMealLogModal: React.FC<QuickMealLogModalProps> = ({
                   setTitle(t);
                   if (selectedRecipe && t !== selectedRecipe.title) {
                     setSelectedRecipe(null);
+                  }
+                  // Si le texte tapé correspond exactement à une recette, on la lie automatiquement
+                  const exact = recipes.find(
+                    (r) => normalizeString(r.title) === normalizeString(t.trim())
+                  );
+                  if (exact) {
+                    setSelectedRecipe(exact);
                   }
                 }}
                 autoFocus={visible}
@@ -199,6 +271,53 @@ export const QuickMealLogModal: React.FC<QuickMealLogModalProps> = ({
                 </TouchableOpacity>
               )}
             </View>
+
+            {/* Suggestions intelligentes en direct depuis les recettes */}
+            {smartRecipeSuggestions.length > 0 && (!selectedRecipe || selectedRecipe.title !== title.trim()) && (
+              <View style={styles.smartSuggestionsBox}>
+                <View style={styles.smartSuggestionsHeader}>
+                  <Ionicons name="sparkles" size={14} color={colors.secondary} />
+                  <Text style={styles.smartSuggestionsTitle}>
+                    Suggestions de vos recettes ({smartRecipeSuggestions.length})
+                  </Text>
+                </View>
+                <View style={styles.smartSuggestionsList}>
+                  {smartRecipeSuggestions.map((r) => {
+                    const totalMins = (r.prepTimeMinutes || 0) + (r.cookTimeMinutes || 0);
+                    return (
+                      <TouchableOpacity
+                        key={r.id}
+                        style={styles.smartSuggestionItem}
+                        onPress={() => handleSelectRecipe(r)}
+                        activeOpacity={0.7}
+                      >
+                        {r.imageUrl ? (
+                          <Image source={{ uri: r.imageUrl }} style={styles.smartSuggestionThumb} />
+                        ) : (
+                          <View style={styles.smartSuggestionPlaceholder}>
+                            <Ionicons name="restaurant-outline" size={15} color={colors.primary} />
+                          </View>
+                        )}
+                        <View style={styles.smartSuggestionInfo}>
+                          <Text style={styles.smartSuggestionName} numberOfLines={1}>
+                            {r.title}
+                          </Text>
+                          <Text style={styles.smartSuggestionSub} numberOfLines={1}>
+                            {r.rating ? `★ ${r.rating} • ` : ''}
+                            {totalMins > 0 ? `${totalMins} min • ` : ''}
+                            {r.category || 'Recette du carnet'}
+                          </Text>
+                        </View>
+                        <View style={styles.smartSuggestionAction}>
+                          <Text style={styles.smartSuggestionActionText}>Choisir</Text>
+                          <Ionicons name="chevron-forward" size={13} color={colors.primary} />
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
 
             {/* Recette liée sélectionnée */}
             {selectedRecipe && (
@@ -229,14 +348,53 @@ export const QuickMealLogModal: React.FC<QuickMealLogModalProps> = ({
             {plannedMealTitle && !title && (
               <TouchableOpacity
                 style={styles.plannedMealChip}
-                onPress={() => setTitle(plannedMealTitle)}
+                onPress={() => {
+                  const matched = recipes.find(
+                    (r) => normalizeString(r.title) === normalizeString(plannedMealTitle)
+                  );
+                  if (matched) {
+                    handleSelectRecipe(matched);
+                  } else {
+                    setTitle(plannedMealTitle);
+                    setSelectedRecipe(null);
+                  }
+                }}
                 activeOpacity={0.8}
               >
-                <Ionicons name="calendar-outline" size={14} color={colors.primary} />
-                <Text style={styles.plannedMealText} numberOfLines={1}>
-                  Prévu au menu : <Text style={styles.plannedMealBold}>{plannedMealTitle}</Text>
-                </Text>
+                <Ionicons name="calendar-outline" size={16} color={colors.primary} />
+                <View style={styles.plannedMealTextCol}>
+                  <Text style={styles.plannedMealTag}>Prévu au menu :</Text>
+                  <Text style={styles.plannedMealTitleText} numberOfLines={1}>
+                    {plannedMealTitle}
+                  </Text>
+                </View>
+                <Ionicons name="arrow-forward-circle" size={18} color={colors.primary} />
               </TouchableOpacity>
+            )}
+
+            {/* Suggestions de recettes recommandées du carnet quand le champ est vide */}
+            {!title && recommendedRecipes.length > 0 && (
+              <View style={styles.recommendedRecipesBox}>
+                <Text style={styles.subLabel}>💡 Recettes suggérées de votre carnet</Text>
+                <View style={styles.recommendedChipsRow}>
+                  {recommendedRecipes.map((r) => (
+                    <TouchableOpacity
+                      key={r.id}
+                      style={styles.recommendedChip}
+                      onPress={() => handleSelectRecipe(r)}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="book-outline" size={12} color={colors.primary} />
+                      <Text style={styles.recommendedChipText} numberOfLines={1}>
+                        {r.title}
+                      </Text>
+                      {Boolean(r.rating && r.rating >= 4) && (
+                        <Text style={styles.recommendedChipStar}>★ {r.rating}</Text>
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
             )}
 
             {/* Suggestions rapides en écriture libre */}
@@ -505,17 +663,139 @@ const styles = createDynamicStyles((colors, shadows) => ({
     fontWeight: '600',
     color: colors.textPrimary,
   },
+  smartSuggestionsBox: {
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: 14,
+    padding: 10,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    ...shadows.small,
+  },
+  smartSuggestionsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
+    paddingHorizontal: 4,
+  },
+  smartSuggestionsTitle: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: colors.secondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+  },
+  smartSuggestionsList: {
+    gap: 6,
+  },
+  smartSuggestionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.cardBackground,
+    borderRadius: 10,
+    padding: 8,
+    gap: 10,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  smartSuggestionThumb: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+  },
+  smartSuggestionPlaceholder: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    backgroundColor: colors.surfaceAlt,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  smartSuggestionInfo: {
+    flex: 1,
+  },
+  smartSuggestionName: {
+    fontSize: 13.5,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  smartSuggestionSub: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  smartSuggestionAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: colors.primaryLight,
+  },
+  smartSuggestionActionText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  recommendedRecipesBox: {
+    marginTop: 8,
+  },
+  recommendedChipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  recommendedChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primaryLight,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    gap: 5,
+    borderWidth: 1,
+    borderColor: colors.primary + '30',
+  },
+  recommendedChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    maxWidth: 160,
+  },
+  recommendedChipStar: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.amber,
+  },
   plannedMealChip: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.backgroundSecondary,
     paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
+    paddingVertical: 10,
+    borderRadius: 12,
     marginTop: 10,
-    gap: 6,
+    gap: 10,
     borderWidth: 1,
-    borderColor: colors.borderLight,
+    borderColor: colors.primary + '40',
+  },
+  plannedMealTextCol: {
+    flex: 1,
+  },
+  plannedMealTag: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.primary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+  },
+  plannedMealTitleText: {
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginTop: 1,
   },
   plannedMealText: {
     fontSize: 12,
