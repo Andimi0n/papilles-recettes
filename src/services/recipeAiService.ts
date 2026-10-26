@@ -22,6 +22,72 @@ const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta';
  * Si un modèle est temporairement surchargé (HTTP 503) ou atteint un quota (HTTP 429),
  * le système bascule de manière transparente sur le modèle de repli suivant.
  */
+
+const RECIPE_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    title: { type: 'STRING' },
+    description: { type: 'STRING' },
+    category: { type: 'STRING' },
+    difficulty: { type: 'STRING' },
+    prepTimeMinutes: { type: 'INTEGER' },
+    cookTimeMinutes: { type: 'INTEGER' },
+    servings: { type: 'INTEGER' },
+    isVegetarian: { type: 'BOOLEAN' },
+    ingredients: {
+      type: 'ARRAY',
+      items: {
+        type: 'OBJECT',
+        properties: {
+          name: { type: 'STRING' },
+          quantity: { type: 'STRING' },
+          unit: { type: 'STRING' },
+          isPantryStaple: { type: 'BOOLEAN' },
+          isOptional: { type: 'BOOLEAN' },
+        },
+        required: ['name'],
+      },
+    },
+    steps: {
+      type: 'ARRAY',
+      items: {
+        type: 'OBJECT',
+        properties: {
+          order: { type: 'INTEGER' },
+          instruction: { type: 'STRING' },
+        },
+        required: ['order', 'instruction'],
+      },
+    },
+    userNote: { type: 'STRING' },
+  },
+  required: ['title', 'description', 'category', 'difficulty', 'prepTimeMinutes', 'cookTimeMinutes', 'servings', 'isVegetarian', 'ingredients', 'steps', 'userNote'],
+};
+
+const RECIPE_IDEAS_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    ideas: {
+      type: 'ARRAY',
+      items: {
+        type: 'OBJECT',
+        properties: {
+          id: { type: 'STRING' },
+          title: { type: 'STRING' },
+          description: { type: 'STRING' },
+          estimatedTime: { type: 'STRING' },
+          highlightIngredients: {
+            type: 'ARRAY',
+            items: { type: 'STRING' },
+          },
+        },
+        required: ['id', 'title', 'description', 'estimatedTime', 'highlightIngredients'],
+      },
+    },
+  },
+  required: ['ideas'],
+};
+
 export const GEMINI_MODELS_CASCADE = [
   'gemini-2.0-flash',
   'gemini-1.5-flash',
@@ -887,6 +953,7 @@ Règles universelles :
       ],
       generationConfig: {
         response_mime_type: 'application/json',
+        response_schema: RECIPE_SCHEMA,
         temperature: 0.2,
         max_output_tokens: 4096,
       },
@@ -971,6 +1038,7 @@ ${sanitizedRecipe}
       ],
       generationConfig: {
         response_mime_type: 'application/json',
+        response_schema: RECIPE_SCHEMA,
         temperature: 0.1,
         max_output_tokens: 4096,
       },
@@ -1056,6 +1124,7 @@ ${sanitizedInput}
       ],
       generationConfig: {
         response_mime_type: 'application/json',
+        response_schema: RECIPE_SCHEMA,
         temperature: 0.2,
         max_output_tokens: 4096,
       },
@@ -1216,6 +1285,7 @@ ${sanitizedIngredients.join(', ')}
       ],
       generationConfig: {
         response_mime_type: 'application/json',
+        response_schema: RECIPE_SCHEMA,
         temperature: 0.6,
         max_output_tokens: 4096,
       },
@@ -1356,6 +1426,7 @@ ${sanitizedIngredients.join(', ')}
       ],
       generationConfig: {
         response_mime_type: 'application/json',
+        response_schema: RECIPE_IDEAS_SCHEMA,
         temperature: 0.6,
         max_output_tokens: 2048,
       },
@@ -1487,6 +1558,7 @@ ${sanitizedIngredients.join(', ')}
       ],
       generationConfig: {
         response_mime_type: 'application/json',
+        response_schema: RECIPE_SCHEMA,
         temperature: 0.5,
         max_output_tokens: 4096,
       },
