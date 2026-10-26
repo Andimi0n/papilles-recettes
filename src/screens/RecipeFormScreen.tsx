@@ -23,7 +23,7 @@ import { StarRating } from '../components/StarRating';
 import { generateUniqueId, normalizeString } from '../utils/helpers';
 import { normalizeIngredient } from '../utils/ingredientNormalizer';
 import { CanonicalIngredient } from '../types/vocabulary';
-import { IngredientAutocompleteInput } from '../components/IngredientAutocompleteInput';
+import { UnifiedIngredientInput } from '../components/UnifiedIngredientInput';
 import { QualifyIngredientModal } from '../components/QualifyIngredientModal';
 import { UnitQuickPicker } from '../components/UnitQuickPicker';
 import { UnitPickerModal } from '../components/UnitPickerModal';
@@ -1062,7 +1062,7 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
                 ]}
               >
                 <View style={styles.ingredientEditRow}>
-                  <IngredientAutocompleteInput
+                  <UnifiedIngredientInput
                     containerStyle={styles.ingNameContainer}
                     style={[styles.textInput, styles.ingNameInput]}
                     value={ing.name}

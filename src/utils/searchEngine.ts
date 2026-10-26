@@ -427,13 +427,6 @@ export function recipeMatchesTime(
 }
 
 /**
- * Rétrocompatibilité : Vérifie si le temps total d'une recette est inférieur ou égal au maximum.
- */
-export function recipeMatchesMaxTime(recipe: Recipe, maxTotalMinutes: number | null): boolean {
-  return recipeMatchesTime(recipe, maxTotalMinutes, 'max');
-}
-
-/**
  * Vérifie si la difficulté d'une recette correspond à une des difficultés sélectionnées.
  */
 export function recipeMatchesDifficulty(recipe: Recipe, difficulties: Difficulty[]): boolean {

@@ -1,4 +1,3 @@
-import { Recipe, Ingredient } from '../types/recipe';
 import { DayOfWeek, MealTime, PlannerMode } from '../types/planner';
 
 /**
@@ -94,93 +93,6 @@ export function formatDuration(minutes: number): string {
   const remainingMinutes = minutes % 60;
   if (remainingMinutes === 0) return `${hours} h`;
   return `${hours}h${remainingMinutes < 10 ? '0' : ''}${remainingMinutes}`;
-}
-
-/**
- * Retourne une appréciation textuelle selon la note sur 5
- */
-export function getRatingLabel(rating: number): string {
-  if (rating >= 4.8) return 'Exceptionnel !';
-  if (rating >= 4.2) return 'Excellent';
-  if (rating >= 3.5) return 'Très bon';
-  if (rating >= 2.5) return 'Bon';
-  if (rating >= 1.5) return 'Moyen';
-  if (rating > 0) return 'À perfectionner';
-  return 'Non noté';
-}
-
-/**
- * Extrait la liste unique et ordonnée de tous les noms d'ingrédients présents dans les recettes
- */
-export function extractUniqueIngredientNames(recipes: Recipe[]): string[] {
-  const map = new Map<string, string>();
-  
-  recipes.forEach((recipe) => {
-    recipe.ingredients.forEach((ing) => {
-      const clean = ing.name.trim();
-      const norm = normalizeString(clean);
-      if (clean && !map.has(norm)) {
-        map.set(norm, clean);
-      }
-    });
-  });
-
-  return Array.from(map.values()).sort((a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base' }));
-}
-
-export interface IngredientMatchResult {
-  recipe: Recipe;
-  matchedIngredients: string[];
-  missingIngredients: string[];
-  matchCount: number;
-  totalIngredients: number;
-  matchRatio: number; // 0 to 1
-}
-
-/**
- * Calcule la correspondance d'une recette par rapport à un ensemble d'ingrédients choisis
- */
-export function matchRecipeWithIngredients(
-  recipe: Recipe,
-  selectedIngredients: string[]
-): IngredientMatchResult {
-  if (selectedIngredients.length === 0) {
-    return {
-      recipe,
-      matchedIngredients: [],
-      missingIngredients: recipe.ingredients.map((i) => i.name),
-      matchCount: 0,
-      totalIngredients: recipe.ingredients.length,
-      matchRatio: 0,
-    };
-  }
-
-  const normalizedSelected = selectedIngredients.map(normalizeString);
-  const matched: string[] = [];
-  const missing: string[] = [];
-
-  recipe.ingredients.forEach((ing) => {
-    const normIng = normalizeString(ing.name);
-    // Vérifie si un des ingrédients sélectionnés correspond (inclus ou mot-clé)
-    const hasMatch = normalizedSelected.some((sel) => normIng.includes(sel) || sel.includes(normIng));
-    if (hasMatch) {
-      matched.push(ing.name);
-    } else {
-      missing.push(ing.name);
-    }
-  });
-
-  const total = recipe.ingredients.length;
-  const matchRatio = total > 0 ? matched.length / total : 0;
-
-  return {
-    recipe,
-    matchedIngredients: matched,
-    missingIngredients: missing,
-    matchCount: matched.length,
-    totalIngredients: total,
-    matchRatio,
-  };
 }
 
 const UNICODE_FRACTION_MAP: Record<string, string> = {

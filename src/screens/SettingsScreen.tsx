@@ -26,7 +26,7 @@ import { RecipeAiService } from '../services/recipeAiService';
 import { VocabularyService } from '../services/vocabularyService';
 import { VocabularyManagerModal } from '../components/VocabularyManagerModal';
 import { AllergenFamilyPickerModal } from '../components/AllergenFamilyPickerModal';
-import { IngredientAutocompleteInput } from '../components/IngredientAutocompleteInput';
+import { UnifiedIngredientInput } from '../components/UnifiedIngredientInput';
 import { Recipe } from '../types/recipe';
 import {
   ALLERGEN_FAMILIES,
@@ -935,7 +935,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                 Ajouter un ingrédient spécifique :
               </Text>
               <View style={styles.quickAddMainRow}>
-                <IngredientAutocompleteInput
+                <UnifiedIngredientInput
                   containerStyle={{ flex: 1, marginRight: 8, zIndex: 100 }}
                   style={[styles.nameInput, { width: '100%', marginRight: 0 }]}
                   placeholder="Ex: Noix de cajou, Fraise, Beurre..."

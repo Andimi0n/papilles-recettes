@@ -22,7 +22,7 @@ import { evaluateRecipesWithStock, RecipeStockEvaluation } from '../utils/stockM
 import { normalizeString } from '../utils/helpers';
 import { normalizeIngredient } from '../utils/ingredientNormalizer';
 import { VocabularyService } from '../services/vocabularyService';
-import { IngredientAutocompleteInput } from './IngredientAutocompleteInput';
+import { UnifiedIngredientInput } from './UnifiedIngredientInput';
 import {
   UnifiedIngredientService,
 } from '../services/unifiedIngredientService';
@@ -314,7 +314,7 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
       {/* Bloc Ajouter un aliment vérouillé en haut */}
       <View style={styles.quickAddCard}>
         <View style={styles.quickAddMainRow}>
-          <IngredientAutocompleteInput
+          <UnifiedIngredientInput
             containerStyle={{ flex: 1, zIndex: 99 }}
             style={styles.nameInput}
             placeholder="Ajouter un aliment (placards, frigo, épices...)"
