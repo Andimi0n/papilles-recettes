@@ -48,6 +48,10 @@ async function main() {
     FAST_GEMINI_MODELS_CASCADE,
     adaptPayloadForModel,
     formatAiModelName,
+    markModelDegraded,
+    isModelDegraded,
+    prioritizeHealthyModels,
+    CHEF_MOODS,
   } = require(path.join(tmpDir, 'services/recipeAiService.js'));
 
   console.log('🧪 Lancement des tests de recipeAiService...');
@@ -133,23 +137,23 @@ async function main() {
   console.log('✓ Validation et nettoyage (sanitization) corrects');
 
   // =========================================================================
-  // TEST SECTION 4 : Cascades de modèles Gemini
+  // TEST SECTION 4 : Cascades de modèles Gemini & Circuit Breaker
   // =========================================================================
-  console.log('\n--- Test 4 : Cascades de modèles Gemini ---');
+  console.log('\n--- Test 4 : Cascades de modèles Gemini & Circuit Breaker ---');
   assert.strictEqual(
     GEMINI_MODELS_CASCADE[0],
-    'gemini-3.8-flash',
-    'GEMINI_MODELS_CASCADE doit avoir gemini-3.8-flash comme premier modèle'
+    'gemini-3.5-flash-lite',
+    'GEMINI_MODELS_CASCADE doit avoir gemini-3.5-flash-lite comme premier modèle (vitesse & disponibilité)'
   );
   assert.strictEqual(
     FAST_GEMINI_MODELS_CASCADE[0],
-    'gemini-3.8-flash',
-    'FAST_GEMINI_MODELS_CASCADE doit avoir gemini-3.8-flash comme premier modèle'
+    'gemini-3.5-flash-lite',
+    'FAST_GEMINI_MODELS_CASCADE doit avoir gemini-3.5-flash-lite comme premier modèle'
   );
   assert.strictEqual(
     FAST_GEMINI_MODELS_CASCADE[1],
-    'gemini-3.5-flash-lite',
-    'FAST_GEMINI_MODELS_CASCADE doit avoir gemini-3.5-flash-lite comme modèle de repli rapide'
+    'gemini-3.8-flash',
+    'FAST_GEMINI_MODELS_CASCADE doit avoir gemini-3.8-flash comme modèle de repli'
   );
   assert.strictEqual(
     FAST_GEMINI_MODELS_CASCADE.includes('gemini-2.5-flash'),
@@ -166,7 +170,15 @@ async function main() {
     false,
     'FAST_GEMINI_MODELS_CASCADE ne doit plus contenir gemini-1.5-flash (404 / déprécié)'
   );
-  console.log('✓ Cascades Gemini 3 actives (3.8 Flash -> 3.5 Flash-Lite -> 3.6 Flash) validées');
+
+  // Test du Circuit Breaker
+  assert.strictEqual(isModelDegraded('gemini-3.8-flash'), false);
+  markModelDegraded('gemini-3.8-flash');
+  assert.strictEqual(isModelDegraded('gemini-3.8-flash'), true);
+  const prioritized = prioritizeHealthyModels(['gemini-3.8-flash', 'gemini-3.5-flash-lite']);
+  assert.strictEqual(prioritized[0], 'gemini-3.5-flash-lite', 'Le modèle sain doit passer en tête de cascade');
+  assert.strictEqual(prioritized[1], 'gemini-3.8-flash', 'Le modèle dégradé doit passer en fin de cascade');
+  console.log('✓ Cascades Gemini 3 actives et Circuit Breaker validés');
 
   // =========================================================================
   // TEST SECTION 5 : adaptPayloadForModel (Thinking Level & Latence)
@@ -217,6 +229,18 @@ async function main() {
   assert.strictEqual(formatAiModelName('custom-model'), 'custom-model');
   console.log('✓ formatAiModelName formate correctement les modèles actifs');
 
+
+  // =========================================================================
+  // TEST SECTION 7 : CHEF_MOODS
+  // =========================================================================
+  console.log('\n--- Test 7 : CHEF_MOODS ---');
+  assert.ok(Array.isArray(CHEF_MOODS), 'CHEF_MOODS doit être un tableau');
+  assert.ok(CHEF_MOODS.length >= 6, 'CHEF_MOODS doit proposer au moins 6 styles');
+  assert.ok(CHEF_MOODS.some((m) => m.id === 'original'), 'Doit inclure le mood original');
+  assert.ok(CHEF_MOODS.some((m) => m.id === 'classique'), 'Doit inclure le mood classique');
+  assert.ok(CHEF_MOODS.some((m) => m.id === 'asiatique'), 'Doit inclure le mood asiatique');
+  assert.ok(CHEF_MOODS.some((m) => m.id === 'francais'), 'Doit inclure le mood francais');
+  console.log('✓ Catalogue des styles & moods du Chef validé');
 
   console.log('\n🎉 TOUS LES TESTS DE RECIPE AI SERVICE ONT RÉUSSI (0 ERREUR) !');
 

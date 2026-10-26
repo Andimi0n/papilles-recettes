@@ -19,7 +19,13 @@ import { AISLE_CONFIGS, ALL_AISLES } from '../utils/aisleClassifier';
 import { createDynamicStyles } from '../theme/colors';
 import { useTheme } from '../theme/ThemeContext';
 import { evaluateRecipesWithStock, RecipeStockEvaluation } from '../utils/stockMatcher';
-import { RecipeAiService, formatAiModelName } from '../services/recipeAiService';
+import {
+  RecipeAiService,
+  formatAiModelName,
+  FAST_GEMINI_MODELS_CASCADE,
+  GEMINI_MODELS_CASCADE,
+  CHEF_MOODS,
+} from '../services/recipeAiService';
 import { StorageService } from '../services/storageService';
 import { generateUniqueId } from '../utils/helpers';
 
@@ -78,9 +84,10 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
   const [selectedIdea, setSelectedIdea] = useState<RecipeIdea | null>(null);
   const [aiStepIndex, setAiStepIndex] = useState(0);
   const [activeModelInfo, setActiveModelInfo] = useState<{ model: string; isFallback: boolean }>({
-    model: 'gemini-3.8-flash',
+    model: FAST_GEMINI_MODELS_CASCADE[0],
     isFallback: false,
   });
+  const [chefMood, setChefMood] = useState<string>('libre');
 
   // Saisie clé API si absente
   const [isApiKeyModalVisible, setIsApiKeyModalVisible] = useState(false);
@@ -223,7 +230,7 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
   };
 
   const executeFetchIdeas = async (key?: string) => {
-    setActiveModelInfo({ model: 'gemini-3.8-flash', isFallback: false });
+    setActiveModelInfo({ model: FAST_GEMINI_MODELS_CASCADE[0], isFallback: false });
     setAiFlowStep('loading_ideas');
 
     try {
@@ -250,6 +257,7 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
           onlyVegetarian: isVegetarian,
           existingDoableTitles: doableTitles,
           excludedAllergens,
+          chefMood,
           onModelAttempt: (model, isFallback) => {
             setActiveModelInfo({ model, isFallback });
           },
@@ -285,7 +293,7 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
   };
 
   const executeGenerateRecipeFromIdea = async (idea: RecipeIdea, key?: string) => {
-    setActiveModelInfo({ model: 'gemini-3.8-flash', isFallback: false });
+    setActiveModelInfo({ model: GEMINI_MODELS_CASCADE[0], isFallback: false });
     setAiFlowStep('generating_recipe');
 
     try {
@@ -714,6 +722,45 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
                             );
                           })}
                         </View>
+                      </View>
+
+                      {/* Sélecteur de Mood / Style d'inspiration */}
+                      <View style={styles.moodSection}>
+                        <Text style={styles.aiParamTitle}>Style & inspiration du Chef</Text>
+                        <ScrollView
+                          horizontal
+                          showsHorizontalScrollIndicator={false}
+                          contentContainerStyle={styles.moodSelectorRow}
+                        >
+                          {CHEF_MOODS.map((m) => {
+                            const isSelected = chefMood === m.id;
+                            return (
+                              <TouchableOpacity
+                                key={m.id}
+                                style={[
+                                  styles.moodChip,
+                                  isSelected && styles.moodChipSelected,
+                                ]}
+                                onPress={() => setChefMood(m.id)}
+                                activeOpacity={0.7}
+                              >
+                                <Ionicons
+                                  name={m.icon as any}
+                                  size={13}
+                                  color={isSelected ? '#FFFFFF' : colors.textSecondary}
+                                />
+                                <Text
+                                  style={[
+                                    styles.moodChipText,
+                                    isSelected && styles.moodChipTextSelected,
+                                  ]}
+                                >
+                                  {m.label}
+                                </Text>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </ScrollView>
                       </View>
 
                       {/* Portions */}
@@ -1437,6 +1484,42 @@ const styles = createDynamicStyles((colors, shadows) => ({
     textAlign: 'center',
   },
   mealTypeOptionTextSelected: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+
+  // Sélecteur de Mood / Style d'inspiration
+  moodSection: {
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  moodSelectorRow: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingVertical: 6,
+  },
+  moodChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingVertical: 7,
+    paddingHorizontal: 11,
+    borderRadius: 16,
+    backgroundColor: colors.cardBackground,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  moodChipSelected: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  moodChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  moodChipTextSelected: {
     color: '#FFFFFF',
     fontWeight: '700',
   },
