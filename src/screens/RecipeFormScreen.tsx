@@ -378,13 +378,19 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
     setActiveIngIndex(null);
   };
 
-  const handleQualifyIngredientSuccess = (canonical: CanonicalIngredient) => {
+  const handleQualifyIngredientSuccess = (
+    canonical: CanonicalIngredient,
+    meta?: { wasAddedAsAlias?: boolean }
+  ) => {
     const updated = [...ingredients];
     if (pendingQualifyIndex !== null && pendingQualifyIndex >= 0 && pendingQualifyIndex < ingredients.length) {
       const current = updated[pendingQualifyIndex];
+      // Si ce n'est pas un synonyme valide enregistré (ex: terme générique/interdit comme "huile"),
+      // on remplace directement le nom de l'ingrédient par le nom canonique choisi.
+      const shouldReplaceName = meta?.wasAddedAsAlias === false || !current.name.trim();
       updated[pendingQualifyIndex] = {
         ...current,
-        name: current.name.trim() || canonical.canonicalName,
+        name: shouldReplaceName ? canonical.canonicalName : current.name.trim(),
         canonicalId: canonical.id,
         isPantryStaple: canonical.isPantryStaple ?? current.isPantryStaple,
       };
@@ -1330,11 +1336,14 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
         setPendingQualifyIndex(null);
         setPendingUnrecognizedName('');
       }}
+      onSelectCanonical={(canonical, meta) => {
+        handleQualifyIngredientSuccess(canonical, meta);
+      }}
       onAttachAsSynonym={(canonical) => {
-        handleQualifyIngredientSuccess(canonical);
+        handleQualifyIngredientSuccess(canonical, { wasAddedAsAlias: true });
       }}
       onCreateCanonical={(created) => {
-        handleQualifyIngredientSuccess(created);
+        handleQualifyIngredientSuccess(created, { wasAddedAsAlias: false });
       }}
     />
 

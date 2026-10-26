@@ -164,6 +164,11 @@ async function main() {
   assert.ok(genericRes.error.includes('générique'));
   console.log('✓ Rejet strict d\'un terme générique isolé ("blanc") comme synonyme');
 
+  const genericHuileRes = await UnifiedIngredientService.addAliasToCanonical('ing_canon_huile_d_olive', 'huile');
+  assert.strictEqual(genericHuileRes.success, false);
+  assert.ok(genericHuileRes.error.includes('générique'));
+  console.log('✓ Rejet strict du terme générique isolé "huile" comme synonyme (déclenche le mode substitution/remplacement)');
+
   // Rejet du vol de nom canonique d'un autre ingrédient
   const stealCanonRes = await UnifiedIngredientService.addAliasToCanonical('ing_canon_pomme_de_terre', 'Carotte');
   assert.strictEqual(stealCanonRes.success, false);

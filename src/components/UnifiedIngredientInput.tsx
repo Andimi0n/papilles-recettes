@@ -385,6 +385,9 @@ export const UnifiedIngredientInput: React.FC<UnifiedIngredientInputProps> = ({
             isSelectingRef.current = false;
             setIsFocused(false);
           }}
+          onSelectCanonical={(canonical) => {
+            handleSelectCanonical(canonical);
+          }}
           onAttachAsSynonym={(canonical) => {
             handleSelectCanonical(canonical);
           }}

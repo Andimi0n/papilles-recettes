@@ -641,6 +641,12 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
         rawName={pendingUnrecognizedName}
         context="stock"
         onClose={() => setIsQualifyModalVisible(false)}
+        onSelectCanonical={(canonical) => {
+          handleAddItem(canonical.canonicalName, canonical.defaultAisle, canonical.id);
+          setIsQualifyModalVisible(false);
+          setPendingUnrecognizedName('');
+          setNewItemName('');
+        }}
         onAttachAsSynonym={(canonical) => {
           handleAddItem(canonical.canonicalName, canonical.defaultAisle, canonical.id);
           setIsQualifyModalVisible(false);

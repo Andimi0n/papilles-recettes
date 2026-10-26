@@ -30,7 +30,8 @@ export interface QualifyIngredientModalProps {
   rawName: string;
   context?: 'stock' | 'shopping' | 'recipe' | 'search';
   onClose: () => void;
-  onAttachAsSynonym: (canonical: CanonicalIngredient, aliasAdded: string) => void;
+  onAttachAsSynonym?: (canonical: CanonicalIngredient, aliasAdded: string) => void;
+  onSelectCanonical?: (canonical: CanonicalIngredient, meta: { wasAddedAsAlias: boolean; rawName: string }) => void;
   onCreateCanonical: (newIngredient: CanonicalIngredient) => void;
 }
 
@@ -51,6 +52,7 @@ export const QualifyIngredientModal: React.FC<QualifyIngredientModalProps> = ({
   context = 'stock',
   onClose,
   onAttachAsSynonym,
+  onSelectCanonical,
   onCreateCanonical,
 }) => {
   const { colors, isDark } = useTheme();
@@ -100,18 +102,30 @@ export const QualifyIngredientModal: React.FC<QualifyIngredientModalProps> = ({
     }
   }, [visible, rawName]);
 
-  // Action : Associer comme synonyme à un ingrédient donné
-  const handleSelectSynonym = async (targetIngredient: CanonicalIngredient) => {
+  // Action : Sélectionner un ingrédient proche (ajoute en synonyme si possible, sinon remplace)
+  const handleSelectTargetIngredient = async (targetIngredient: CanonicalIngredient) => {
     setIsSubmitting(true);
-    const result = await UnifiedIngredientService.addAliasToCanonical(targetIngredient.id, rawName);
-    setIsSubmitting(false);
+    let wasAddedAsAlias = false;
+    let targetToReturn = targetIngredient;
 
-    if (result.success && result.updated) {
-      onAttachAsSynonym(result.updated, rawName.trim());
-      onClose();
-    } else {
-      Alert.alert('Erreur', result.error || 'Impossible d\'ajouter ce synonyme.');
+    try {
+      const result = await UnifiedIngredientService.addAliasToCanonical(targetIngredient.id, rawName);
+      if (result.success && result.updated) {
+        wasAddedAsAlias = true;
+        targetToReturn = result.updated;
+      }
+    } catch {
+      wasAddedAsAlias = false;
+    } finally {
+      setIsSubmitting(false);
     }
+
+    if (onSelectCanonical) {
+      onSelectCanonical(targetToReturn, { wasAddedAsAlias, rawName: rawName.trim() });
+    } else if (onAttachAsSynonym) {
+      onAttachAsSynonym(targetToReturn, rawName.trim());
+    }
+    onClose();
   };
 
   // Détection si le terme est actuellement rattaché comme synonyme d'un ingrédient parent
@@ -258,19 +272,19 @@ export const QualifyIngredientModal: React.FC<QualifyIngredientModalProps> = ({
               </View>
             )}
 
-            {/* SECTION 1 : SUGGESTIONS ET RECHERCHE DE SYNONYMES */}
+            {/* SECTION 1 : SUGGESTIONS ET RECHERCHE D'INGRÉDIENTS PROCHES */}
             <View style={styles.synonymsSection}>
               <View style={styles.sectionTitleRow}>
                 <Ionicons name="link-outline" size={16} color={colors.primary} />
                 <Text style={styles.sectionTitle}>
-                  Associer « {rawName} » comme synonyme
+                  Sélectionner un ingrédient proche
                 </Text>
               </View>
 
               {closestMatches.length > 0 && (
                 <>
                   <Text style={styles.sectionExplanation}>
-                    Suggestions d'aliments proches trouvées dans le lexique :
+                    Suggestions d'aliments trouvées dans le lexique :
                   </Text>
                   <View style={styles.matchesList}>
                     {closestMatches.map((match) => {
@@ -291,13 +305,13 @@ export const QualifyIngredientModal: React.FC<QualifyIngredientModalProps> = ({
 
                           <TouchableOpacity
                             style={styles.matchActionBtn}
-                            onPress={() => handleSelectSynonym(match.item)}
+                            onPress={() => handleSelectTargetIngredient(match.item)}
                             disabled={isSubmitting}
                             activeOpacity={0.8}
                           >
-                            <Ionicons name="add-circle" size={16} color={colors.primary} />
+                            <Ionicons name="checkmark-circle" size={16} color={colors.primary} />
                             <Text style={styles.matchActionBtnText}>
-                              Associer comme synonyme de « {match.item.canonicalName} »
+                              Choisir « {match.item.canonicalName} »
                             </Text>
                           </TouchableOpacity>
                         </View>
@@ -311,8 +325,8 @@ export const QualifyIngredientModal: React.FC<QualifyIngredientModalProps> = ({
               <View style={styles.manualSearchContainer}>
                 <Text style={styles.manualSearchPrompt}>
                   {closestMatches.length > 0
-                    ? 'Ou rechercher un autre aliment du lexique auquel l\'associer :'
-                    : 'Rechercher l\'ingrédient officiel auquel rattacher ce synonyme :'}
+                    ? 'Ou rechercher un autre aliment du lexique :'
+                    : 'Rechercher un aliment du lexique à associer :'}
                 </Text>
                 <View style={styles.manualSearchInputWrapper}>
                   <Ionicons name="search" size={15} color={colors.textMuted} style={styles.manualSearchIcon} />
@@ -352,7 +366,7 @@ export const QualifyIngredientModal: React.FC<QualifyIngredientModalProps> = ({
                         <TouchableOpacity
                           key={parent.id}
                           style={styles.parentSearchItem}
-                          onPress={() => handleSelectSynonym(parent)}
+                          onPress={() => handleSelectTargetIngredient(parent)}
                           disabled={isSubmitting}
                           activeOpacity={0.7}
                         >
@@ -364,8 +378,8 @@ export const QualifyIngredientModal: React.FC<QualifyIngredientModalProps> = ({
                             <Text style={styles.parentSearchAisle}>{parent.defaultAisle}</Text>
                           </View>
                           <View style={styles.parentSearchAction}>
-                            <Ionicons name="add-circle" size={16} color={colors.primary} />
-                            <Text style={styles.parentSearchActionText}>Associer</Text>
+                            <Ionicons name="checkmark-circle" size={16} color={colors.primary} />
+                            <Text style={styles.parentSearchActionText}>Choisir</Text>
                           </View>
                         </TouchableOpacity>
                       );
