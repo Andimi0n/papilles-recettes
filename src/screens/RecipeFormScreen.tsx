@@ -10,6 +10,8 @@ import {
   Image,
   ActivityIndicator,
   Modal,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -568,7 +570,10 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <View style={styles.container}>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
         {/* Top Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={onCancel} style={styles.headerBtn}>
@@ -737,27 +742,39 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
             </View>
 
             {/* Bouton d'action d'analyse */}
-            <TouchableOpacity
-              style={[
-                styles.analyzeBtn,
-                (isAnalyzingText || (connectionStatus && !connectionStatus.ok)) && styles.analyzeBtnDisabled,
-              ]}
-              onPress={handleAnalyzeText}
-              disabled={isAnalyzingText}
-              activeOpacity={0.85}
-            >
-              {isAnalyzingText ? (
-                <View style={styles.analyzingContent}>
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                  <Text style={styles.analyzeBtnText}>{loadingStep}</Text>
-                </View>
-              ) : (
-                <View style={styles.analyzingContent}>
-                  <Ionicons name="sparkles" size={19} color="#FFFFFF" />
-                  <Text style={styles.analyzeBtnText}>Structurer et créer la recette</Text>
-                </View>
+            <View style={{ gap: 10 }}>
+              <TouchableOpacity
+                style={[
+                  styles.analyzeBtn,
+                  (isAnalyzingText || (connectionStatus && !connectionStatus.ok)) && styles.analyzeBtnDisabled,
+                ]}
+                onPress={handleAnalyzeText}
+                disabled={isAnalyzingText}
+                activeOpacity={0.85}
+              >
+                {isAnalyzingText ? (
+                  <View style={styles.analyzingContent}>
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                    <Text style={styles.analyzeBtnText}>{loadingStep}</Text>
+                  </View>
+                ) : (
+                  <View style={styles.analyzingContent}>
+                    <Ionicons name="sparkles" size={19} color="#FFFFFF" />
+                    <Text style={styles.analyzeBtnText}>Structurer et créer la recette</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+
+              {isAnalyzingText && (
+                <TouchableOpacity
+                  style={[styles.analyzeBtn, { backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.border }]}
+                  onPress={() => setIsAnalyzingText(false)}
+                  activeOpacity={0.85}
+                >
+                  <Text style={[styles.analyzeBtnText, { color: colors.textSecondary }]}>Annuler</Text>
+                </TouchableOpacity>
               )}
-            </TouchableOpacity>
+            </View>
 
             {/* Passerelle directe vers la saisie manuelle */}
             <TouchableOpacity
@@ -1241,7 +1258,7 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
           </TouchableOpacity>
         </ScrollView>
       )}
-    </View>
+      </KeyboardAvoidingView>
 
     {/* Modal de configuration de la clé API */}
     <Modal
