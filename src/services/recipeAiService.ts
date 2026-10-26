@@ -94,6 +94,12 @@ export const GEMINI_MODELS_CASCADE = [
   'gemini-1.5-flash-8b',
 ];
 
+export const FAST_GEMINI_MODELS_CASCADE = [
+  'gemini-1.5-flash-8b',
+  'gemini-1.5-flash',
+  'gemini-2.0-flash',
+];
+
 /**
  * Construit l'URL de génération avec le paramètre de clé en repli sécurisé.
  * Supporte simultanément le query param ?key= et l'en-tête x-goog-api-key pour
@@ -1044,7 +1050,7 @@ ${sanitizedRecipe}
       },
     };
 
-    const { parsed } = await fetchGeminiJsonWithFallbackAndRetry(apiKey, payload);
+    const { parsed } = await fetchGeminiJsonWithFallbackAndRetry(apiKey, payload, FAST_GEMINI_MODELS_CASCADE);
     return sanitizeExtractedRecipe(parsed);
   },
 
@@ -1432,7 +1438,7 @@ ${sanitizedIngredients.join(', ')}
       },
     };
 
-    const { parsed } = await fetchGeminiJsonWithFallbackAndRetry(apiKey, payload);
+    const { parsed } = await fetchGeminiJsonWithFallbackAndRetry(apiKey, payload, FAST_GEMINI_MODELS_CASCADE);
     const rawParsed = parsed;
 
     const rawList = Array.isArray(rawParsed)
