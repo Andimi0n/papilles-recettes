@@ -28,8 +28,14 @@ const RECIPE_SCHEMA = {
   properties: {
     title: { type: 'STRING' },
     description: { type: 'STRING' },
-    category: { type: 'STRING' },
-    difficulty: { type: 'STRING' },
+    category: {
+      type: 'STRING',
+      enum: ['Plat', 'Entrée', 'Dessert', 'Apéritif', 'Petit-déjeuner', 'Boisson'],
+    },
+    difficulty: {
+      type: 'STRING',
+      enum: ['Facile', 'Moyen', 'Difficile'],
+    },
     prepTimeMinutes: { type: 'INTEGER' },
     cookTimeMinutes: { type: 'INTEGER' },
     servings: { type: 'INTEGER' },
@@ -1136,7 +1142,7 @@ ${sanitizedInput}
       },
     };
 
-    const { parsed } = await fetchGeminiJsonWithFallbackAndRetry(apiKey, payload);
+    const { parsed } = await fetchGeminiJsonWithFallbackAndRetry(apiKey, payload, FAST_GEMINI_MODELS_CASCADE);
     const sanitized = sanitizeExtractedRecipe(parsed);
 
     if (sanitized.userNote) {
