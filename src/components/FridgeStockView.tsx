@@ -5,6 +5,7 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
+  SectionList,
   Alert,
   Modal,
 } from 'react-native';
@@ -397,62 +398,12 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
       )}
 
       {/* Contenu défilant : Bannière recettes + Liste des aliments */}
-      <ScrollView
-        style={styles.scrollArea}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Bannière "Que cuisiner aujourd'hui ?" au-dessus des ingrédients, redirige vers l'accueil avec filtre en stock */}
-        {totalCount > 0 && (
-          <TouchableOpacity
-            style={[
-              styles.smartCookBanner,
-              doableRecipesCount === 0 && styles.smartCookBannerDisabled,
-            ]}
-            onPress={() => {
-              if (doableRecipesCount > 0) {
-                if (onNavigateToDoableRecipes) {
-                  onNavigateToDoableRecipes();
-                }
-              } else {
-                Alert.alert(
-                  'Aucune recette 100% réalisable',
-                  'Aucune recette de votre carnet ne peut être cuisinée à 100% avec vos étagères actuelles (hors fonds de placard).\n\nAjoutez quelques ingrédients supplémentaires pour débloquer des recettes !'
-                );
-              }
-            }}
-            activeOpacity={doableRecipesCount > 0 ? 0.8 : 0.6}
-          >
-            <View style={styles.smartCookLeft}>
-              <View
-                style={[
-                  styles.smartCookIconBox,
-                  doableRecipesCount === 0 && styles.smartCookIconBoxMuted,
-                ]}
-              >
-                <Ionicons name="restaurant" size={20} color="#FFFFFF" />
-              </View>
-              <View style={styles.smartCookTextCol}>
-                <Text style={styles.smartCookTitle}>Que cuisiner aujourd'hui ?</Text>
-                <Text style={styles.smartCookSubtitle}>
-                  {doableRecipesCount > 0
-                    ? `${doableRecipesCount} recette${doableRecipesCount > 1 ? 's' : ''} 100% faisable${doableRecipesCount > 1 ? 's' : ''} avec votre stock`
-                    : 'Aucune recette 100% faisable avec ce stock'}
-                </Text>
-              </View>
-            </View>
-
-            {doableRecipesCount > 0 && (
-              <View style={styles.smartCookBtn}>
-                <Text style={styles.smartCookBtnText}>Voir mes recettes</Text>
-                <Ionicons name="arrow-forward" size={14} color="#FFFFFF" />
-              </View>
-            )}
-          </TouchableOpacity>
-        )}
-
-        {/* État vide si aucune étagère remplie */}
-        {totalCount === 0 ? (
+      {totalCount === 0 ? (
+        <ScrollView
+          style={styles.scrollArea}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
           <View style={styles.emptyContainer}>
             <View style={styles.emptyIconCircle}>
               <Ionicons name="layers-outline" size={46} color={colors.primary} />
@@ -463,13 +414,70 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
               savoir toujours ce qu'il vous reste et trouver des idées de recettes sans gaspiller.
             </Text>
           </View>
-        ) : (
-          /* Liste ordonnée par rayon de supermarché */
-          groupedByAisle.map(({ aisle, items: aisleItems }) => {
+        </ScrollView>
+      ) : (
+        <SectionList
+          style={styles.scrollArea}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          stickySectionHeadersEnabled={false}
+          sections={groupedByAisle.map(g => ({ title: g.aisle, data: g.items }))}
+          keyExtractor={(item, index) => item.id}
+          initialNumToRender={15}
+          maxToRenderPerBatch={15}
+          windowSize={5}
+          ListHeaderComponent={
+            <TouchableOpacity
+              style={[
+                styles.smartCookBanner,
+                doableRecipesCount === 0 && styles.smartCookBannerDisabled,
+              ]}
+              onPress={() => {
+                if (doableRecipesCount > 0) {
+                  if (onNavigateToDoableRecipes) {
+                    onNavigateToDoableRecipes();
+                  }
+                } else {
+                  Alert.alert(
+                    'Aucune recette 100% réalisable',
+                    'Aucune recette de votre carnet ne peut être cuisinée à 100% avec vos étagères actuelles (hors fonds de placard).\n\nAjoutez quelques ingrédients supplémentaires pour débloquer des recettes !'
+                  );
+                }
+              }}
+              activeOpacity={doableRecipesCount > 0 ? 0.8 : 0.6}
+            >
+              <View style={styles.smartCookLeft}>
+                <View
+                  style={[
+                    styles.smartCookIconBox,
+                    doableRecipesCount === 0 && styles.smartCookIconBoxMuted,
+                  ]}
+                >
+                  <Ionicons name="restaurant" size={20} color="#FFFFFF" />
+                </View>
+                <View style={styles.smartCookTextCol}>
+                  <Text style={styles.smartCookTitle}>Que cuisiner aujourd'hui ?</Text>
+                  <Text style={styles.smartCookSubtitle}>
+                    {doableRecipesCount > 0
+                      ? `${doableRecipesCount} recette${doableRecipesCount > 1 ? 's' : ''} 100% faisable${doableRecipesCount > 1 ? 's' : ''} avec votre stock`
+                      : 'Aucune recette 100% faisable avec ce stock'}
+                  </Text>
+                </View>
+              </View>
+
+              {doableRecipesCount > 0 && (
+                <View style={styles.smartCookBtn}>
+                  <Text style={styles.smartCookBtnText}>Voir mes recettes</Text>
+                  <Ionicons name="arrow-forward" size={14} color="#FFFFFF" />
+                </View>
+              )}
+            </TouchableOpacity>
+          }
+          renderSectionHeader={({ section: { title, data } }) => {
+            const aisle = title as ShoppingAisle;
             const cfg = AISLE_CONFIGS[aisle] || AISLE_CONFIGS['Autre'];
             return (
-              <View key={aisle} style={styles.aisleSection}>
-                {/* En-tête du rayon */}
+              <View style={styles.aisleSection}>
                 <View style={styles.aisleHeaderRow}>
                   <View
                     style={[
@@ -481,73 +489,73 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
                   </View>
                   <Text style={[styles.aisleTitle, { color: cfg.color }]}>{aisle}</Text>
                   <View style={styles.aisleCountBadge}>
-                    <Text style={styles.aisleCountText}>{aisleItems.length}</Text>
+                    <Text style={styles.aisleCountText}>{data.length}</Text>
                   </View>
-                </View>
-
-                {/* Liste des aliments du rayon */}
-                <View style={styles.itemsCard}>
-                  {aisleItems.map((item, index) => {
-                    const isCopied = justCopiedId === item.id;
-                    return (
-                      <View
-                        key={item.id}
-                        style={[
-                          styles.itemRow,
-                          index < aisleItems.length - 1 && styles.itemRowBorder,
-                        ]}
-                      >
-                        <View style={styles.bulletPoint}>
-                          <Ionicons name="ellipse" size={8} color={cfg.color} />
-                        </View>
-
-                        <View style={styles.itemTextContainer}>
-                          <Text style={styles.itemName}>{item.name}</Text>
-                        </View>
-
-                        {/* Bouton d'action : Ajouter à la liste de courses */}
-                        <TouchableOpacity
-                          style={[
-                            styles.copyToShoppingBtn,
-                            isCopied && styles.copyToShoppingBtnSuccess,
-                          ]}
-                          onPress={() => handleCopyToShopping(item)}
-                          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                          accessibilityLabel="Ajouter à la liste de courses"
-                        >
-                          <Ionicons
-                            name={isCopied ? 'checkmark' : 'cart-outline'}
-                            size={16}
-                            color={isCopied ? '#FFFFFF' : colors.primary}
-                          />
-                          <Text
-                            style={[
-                              styles.copyToShoppingText,
-                              isCopied && styles.copyToShoppingTextSuccess,
-                            ]}
-                          >
-                            {isCopied ? 'Ajouté' : 'Courses'}
-                          </Text>
-                        </TouchableOpacity>
-
-                        {/* Bouton supprimer */}
-                        <TouchableOpacity
-                          style={styles.deleteItemBtn}
-                          onPress={() => handleDeleteItem(item.id)}
-                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                          accessibilityLabel="Supprimer de mes étagères"
-                        >
-                          <Ionicons name="close" size={18} color={colors.textMuted} />
-                        </TouchableOpacity>
-                      </View>
-                    );
-                  })}
                 </View>
               </View>
             );
-          })
-        )}
-      </ScrollView>
+          }}
+          renderItem={({ item, index, section }) => {
+            const isCopied = justCopiedId === item.id;
+            const isLast = index === section.data.length - 1;
+            const aisle = section.title as ShoppingAisle;
+            const cfg = AISLE_CONFIGS[aisle] || AISLE_CONFIGS['Autre'];
+            return (
+              <View style={index === 0 ? [styles.itemsCard, {borderBottomLeftRadius: isLast ? 14 : 0, borderBottomRightRadius: isLast ? 14 : 0}] : isLast ? [styles.itemsCard, {borderTopLeftRadius: 0, borderTopRightRadius: 0, borderTopWidth: 0, elevation: 0, shadowOpacity: 0}] : [styles.itemsCard, {borderRadius: 0, borderTopWidth: 0, borderBottomWidth: 0, elevation: 0, shadowOpacity: 0}]}>
+                <View
+                  style={[
+                    styles.itemRow,
+                    !isLast && styles.itemRowBorder,
+                  ]}
+                >
+                  <View style={styles.bulletPoint}>
+                    <Ionicons name="ellipse" size={8} color={cfg.color} />
+                  </View>
+
+                  <View style={styles.itemTextContainer}>
+                    <Text style={styles.itemName}>{item.name}</Text>
+                  </View>
+
+                  {/* Bouton d'action : Ajouter à la liste de courses */}
+                  <TouchableOpacity
+                    style={[
+                      styles.copyToShoppingBtn,
+                      isCopied && styles.copyToShoppingBtnSuccess,
+                    ]}
+                    onPress={() => handleCopyToShopping(item)}
+                    hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                    accessibilityLabel="Ajouter à la liste de courses"
+                  >
+                    <Ionicons
+                      name={isCopied ? 'checkmark' : 'cart-outline'}
+                      size={16}
+                      color={isCopied ? '#FFFFFF' : colors.primary}
+                    />
+                    <Text
+                      style={[
+                        styles.copyToShoppingText,
+                        isCopied && styles.copyToShoppingTextSuccess,
+                      ]}
+                    >
+                      {isCopied ? 'Ajouté' : 'Courses'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  {/* Bouton supprimer */}
+                  <TouchableOpacity
+                    style={styles.deleteItemBtn}
+                    onPress={() => handleDeleteItem(item.id)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    accessibilityLabel="Supprimer de mes étagères"
+                  >
+                    <Ionicons name="close" size={18} color={colors.textMuted} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            );
+          }}
+        />
+      )}
 
       {/* Modal de sélection de rayon */}
       <Modal

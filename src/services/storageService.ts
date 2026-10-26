@@ -50,6 +50,13 @@ type StorageListener<T> = (items: T) => void;
 let fridgeListeners: StorageListener<FridgeItem[]>[] = [];
 let shoppingListeners: StorageListener<ShoppingItem[]>[] = [];
 
+// Caches en mémoire pour éviter les accès disque O(N) coûteux à chaque re-render
+let memoryCache = {
+  recipes: null as Recipe[] | null,
+  fridgeItems: null as FridgeItem[] | null,
+  shoppingList: null as ShoppingItem[] | null,
+};
+
 /**
  * Assainit une URL d'image pour s'assurer qu'elle n'exploite aucun protocole malveillant (SEC-09)
  */
@@ -169,12 +176,17 @@ export const StorageService = {
    * Les données créées par l'utilisateur ne sont JAMAIS écrasées.
    */
   async getRecipes(): Promise<Recipe[]> {
+    if (memoryCache.recipes) {
+      return memoryCache.recipes;
+    }
+
     try {
       const data = await AsyncStorage.getItem(RECIPES_STORAGE_KEY);
       if (!data) {
         // Premier lancement absolu de l'application : initialisation avec les recettes cultes
         await AsyncStorage.setItem(RECIPES_STORAGE_KEY, JSON.stringify(INITIAL_RECIPES));
         await AsyncStorage.setItem(SCHEMA_VERSION_KEY, CURRENT_SCHEMA_VERSION);
+        memoryCache.recipes = INITIAL_RECIPES;
         return INITIAL_RECIPES;
       }
 
@@ -186,6 +198,7 @@ export const StorageService = {
         }
       } catch {
         console.error('Données locales corrompues, retour aux recettes initiales');
+        memoryCache.recipes = INITIAL_RECIPES;
         return INITIAL_RECIPES;
       }
 
@@ -196,11 +209,14 @@ export const StorageService = {
         const migrated = parsed.map(sanitizeStoredRecipe);
         await AsyncStorage.setItem(RECIPES_STORAGE_KEY, JSON.stringify(migrated));
         await AsyncStorage.setItem(SCHEMA_VERSION_KEY, CURRENT_SCHEMA_VERSION);
+        memoryCache.recipes = migrated;
         return migrated;
       }
 
       // Validation défensive runtime de chaque recette
-      return parsed.map(sanitizeStoredRecipe);
+      const result = parsed.map(sanitizeStoredRecipe);
+      memoryCache.recipes = result;
+      return result;
     } catch (error) {
       console.error('Erreur lors du chargement des recettes:', error);
       return INITIAL_RECIPES;
@@ -237,6 +253,7 @@ export const StorageService = {
         updatedRecipes = [newRecipe, ...recipes];
       }
 
+      memoryCache.recipes = updatedRecipes;
       await AsyncStorage.setItem(RECIPES_STORAGE_KEY, JSON.stringify(updatedRecipes));
       return updatedRecipes;
     } catch (error) {
@@ -250,6 +267,7 @@ export const StorageService = {
    */
   async saveAllRecipes(recipes: Recipe[]): Promise<Recipe[]> {
     try {
+      memoryCache.recipes = recipes;
       await AsyncStorage.setItem(RECIPES_STORAGE_KEY, JSON.stringify(recipes));
       return recipes;
     } catch (error) {
@@ -276,6 +294,7 @@ export const StorageService = {
         return r;
       });
 
+      memoryCache.recipes = updatedRecipes;
       await AsyncStorage.setItem(RECIPES_STORAGE_KEY, JSON.stringify(updatedRecipes));
       return updatedRecipes;
     } catch (error) {
@@ -291,6 +310,7 @@ export const StorageService = {
     try {
       const recipes = await this.getRecipes();
       const updatedRecipes = recipes.map((r) => (r.id === id ? { ...r, isFavorite: !r.isFavorite } : r));
+      memoryCache.recipes = updatedRecipes;
       await AsyncStorage.setItem(RECIPES_STORAGE_KEY, JSON.stringify(updatedRecipes));
       return updatedRecipes;
     } catch (error) {
@@ -306,6 +326,7 @@ export const StorageService = {
     try {
       const recipes = await this.getRecipes();
       const updatedRecipes = recipes.filter((r) => r.id !== id);
+      memoryCache.recipes = updatedRecipes;
       await AsyncStorage.setItem(RECIPES_STORAGE_KEY, JSON.stringify(updatedRecipes));
       return updatedRecipes;
     } catch (error) {
@@ -319,6 +340,7 @@ export const StorageService = {
    */
   async resetToDemoRecipes(): Promise<Recipe[]> {
     try {
+      memoryCache.recipes = INITIAL_RECIPES;
       await AsyncStorage.setItem(RECIPES_STORAGE_KEY, JSON.stringify(INITIAL_RECIPES));
       await AsyncStorage.setItem(SCHEMA_VERSION_KEY, CURRENT_SCHEMA_VERSION);
       return INITIAL_RECIPES;
@@ -611,6 +633,7 @@ export const StorageService = {
           });
 
           if (hasAnyRecipeChange) {
+            memoryCache.recipes = updatedRecipes;
             await AsyncStorage.setItem(RECIPES_STORAGE_KEY, JSON.stringify(updatedRecipes));
           }
         }
@@ -721,6 +744,7 @@ export const StorageService = {
           }
 
           if (hasAnyFridgeChange) {
+            memoryCache.fridgeItems = finalFridge;
             await this.saveFridgeItems(finalFridge);
           }
         }
@@ -844,6 +868,7 @@ export const StorageService = {
           }
 
           if (hasAnyShoppingChange) {
+            memoryCache.shoppingList = finalShopping;
             await this.saveShoppingList(finalShopping);
           }
         }
@@ -883,11 +908,20 @@ export const StorageService = {
    * Récupère la liste de courses stockée localement
    */
   async getShoppingList(): Promise<ShoppingItem[]> {
+    if (memoryCache.shoppingList) {
+      return memoryCache.shoppingList;
+    }
+
     try {
       const data = await AsyncStorage.getItem(SHOPPING_LIST_KEY);
-      if (!data) return [];
+      if (!data) {
+        memoryCache.shoppingList = [];
+        return [];
+      }
       const parsed = JSON.parse(data);
-      return Array.isArray(parsed) ? parsed : [];
+      const result = Array.isArray(parsed) ? parsed : [];
+      memoryCache.shoppingList = result;
+      return result;
     } catch (e) {
       console.error('Erreur lecture liste de courses:', e);
       return [];
@@ -899,6 +933,7 @@ export const StorageService = {
    */
   async saveShoppingList(items: ShoppingItem[]): Promise<ShoppingItem[]> {
     try {
+      memoryCache.shoppingList = items;
       await AsyncStorage.setItem(SHOPPING_LIST_KEY, JSON.stringify(items));
       shoppingListeners.forEach((l) => {
         try { l(items); } catch (err) { console.error('Erreur listener shopping:', err); }
@@ -1114,11 +1149,21 @@ export const StorageService = {
    * Récupère la liste des aliments actuellement présents dans le frigo
    */
   async getFridgeItems(): Promise<FridgeItem[]> {
+    if (memoryCache.fridgeItems) {
+      return memoryCache.fridgeItems;
+    }
+
     try {
       const data = await AsyncStorage.getItem(FRIDGE_ITEMS_KEY);
-      if (!data) return [];
+      if (!data) {
+        memoryCache.fridgeItems = [];
+        return [];
+      }
       const parsed = JSON.parse(data);
-      if (!Array.isArray(parsed)) return [];
+      if (!Array.isArray(parsed)) {
+        memoryCache.fridgeItems = [];
+        return [];
+      }
       const sanitized = parsed.map(sanitizeFridgeItem).filter((i): i is FridgeItem => i !== null);
 
       // Auto-guérison et déduplication stricte par canonicalId ou nom normalisé
@@ -1147,6 +1192,7 @@ export const StorageService = {
         AsyncStorage.setItem(FRIDGE_ITEMS_KEY, JSON.stringify(deduplicated)).catch(() => {});
       }
 
+      memoryCache.fridgeItems = deduplicated;
       return deduplicated;
     } catch (e) {
       console.error('Erreur lecture aliments frigo:', e);
@@ -1160,6 +1206,7 @@ export const StorageService = {
   async saveFridgeItems(items: FridgeItem[]): Promise<FridgeItem[]> {
     try {
       const sanitized = items.map(sanitizeFridgeItem).filter((i): i is FridgeItem => i !== null);
+      memoryCache.fridgeItems = sanitized;
       await AsyncStorage.setItem(FRIDGE_ITEMS_KEY, JSON.stringify(sanitized));
       fridgeListeners.forEach((l) => {
         try { l(sanitized); } catch (err) { console.error('Erreur listener fridge:', err); }
@@ -1927,6 +1974,7 @@ export const StorageService = {
         });
 
         const merged = Array.from(currentMap.values());
+        memoryCache.recipes = merged;
         await AsyncStorage.setItem(RECIPES_STORAGE_KEY, JSON.stringify(merged));
       }
 

@@ -201,37 +201,76 @@ export function mergeShoppingItems(
     return i.canonicalId !== 'ing_canon_eau' && n !== 'eau';
   });
 
+  // 1. Build an index for O(1) lookups of unchecked existing items.
+  // Group by canonicalId or normalized name.
+  const index = new Map<string, number[]>();
+  for (let i = 0; i < result.length; i++) {
+    const item = result[i];
+    if (item.isChecked) continue;
+
+    const keys: string[] = [];
+    if (item.canonicalId) {
+      keys.push(`id_${item.canonicalId}`);
+    }
+    const normName = normalizeString(item.name);
+    if (normName) {
+      keys.push(`name_${normName}`);
+    }
+
+    for (const key of keys) {
+      let indices = index.get(key);
+      if (!indices) {
+        indices = [];
+        index.set(key, indices);
+      }
+      indices.push(i);
+    }
+  }
+
   validNewItems.forEach((newItem) => {
     const normNewName = normalizeString(newItem.name);
+    let matchIndex = -1;
+    let possibleIndices: number[] = [];
 
-    // Cherche un doublon non-coché :
-    // 1. Par canonicalId si présent sur les deux
-    // 2. Sinon par nom normalisé strict
-    const matchIndex = result.findIndex((item) => {
-      if (item.isChecked) return false;
+    if (newItem.canonicalId) {
+      possibleIndices = index.get(`id_${newItem.canonicalId}`) || [];
+    }
+    if (possibleIndices.length === 0 && normNewName) {
+      possibleIndices = index.get(`name_${normNewName}`) || [];
+    }
 
-      if (newItem.canonicalId && item.canonicalId) {
-        if (newItem.canonicalId === item.canonicalId) {
-          // Vérifier si fusionnable (unités compatibles ou les deux sans quantité)
-          if (!newItem.quantity && !item.quantity) return true;
+    // Evaluate possible candidates from our index
+    for (const idx of possibleIndices) {
+      const item = result[idx];
+
+      let isMatch = false;
+      if (newItem.canonicalId && item.canonicalId && newItem.canonicalId === item.canonicalId) {
+        if (!newItem.quantity && !item.quantity) {
+          isMatch = true;
+        } else {
           const u1 = normalizeUnitKey(item.unit);
           const u2 = normalizeUnitKey(newItem.unit);
-          if (u1 === u2) return true;
-          if (sumMetricQuantities(1, u1, 1, u2) !== null) return true;
+          if (u1 === u2 || sumMetricQuantities(1, u1, 1, u2) !== null) {
+            isMatch = true;
+          }
         }
-        return false;
+      } else if (normalizeString(item.name) === normNewName) {
+        if (!newItem.quantity && !item.quantity) {
+          isMatch = true;
+        } else {
+          const u1 = normalizeUnitKey(item.unit);
+          const u2 = normalizeUnitKey(newItem.unit);
+          if (u1 === u2) {
+            isMatch = true;
+          }
+        }
       }
 
-      const normItemName = normalizeString(item.name);
-      if (normItemName === normNewName) {
-        if (!newItem.quantity && !item.quantity) return true;
-        const u1 = normalizeUnitKey(item.unit);
-        const u2 = normalizeUnitKey(newItem.unit);
-        return u1 === u2;
+      if (isMatch) {
+        matchIndex = idx;
+        break;
       }
-
-      return false;
-    });
+    }
 
     if (matchIndex >= 0) {
       const existing = result[matchIndex];
@@ -285,7 +324,26 @@ export function mergeShoppingItems(
         recipeTitle: mergedRecipeTitle,
       };
     } else {
+      const newIdx = result.length;
       result.push(newItem);
+
+      // Update index with the newly added item
+      const keys: string[] = [];
+      if (newItem.canonicalId) {
+        keys.push(`id_${newItem.canonicalId}`);
+      }
+      if (normNewName) {
+        keys.push(`name_${normNewName}`);
+      }
+
+      for (const key of keys) {
+        let indices = index.get(key);
+        if (!indices) {
+          indices = [];
+          index.set(key, indices);
+        }
+        indices.push(newIdx);
+      }
     }
   });
 
