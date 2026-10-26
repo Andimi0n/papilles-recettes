@@ -1974,6 +1974,7 @@ export const StorageService = {
         });
 
         const merged = Array.from(currentMap.values());
+        memoryCache.recipes = merged;
         await AsyncStorage.setItem(RECIPES_STORAGE_KEY, JSON.stringify(merged));
       }
 

@@ -711,6 +711,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
               style={styles.scrollArea}
               contentContainerStyle={styles.scrollContent}
               showsVerticalScrollIndicator={false}
+              stickySectionHeadersEnabled={false}
               sections={groupedActive.map(g => ({ title: g.aisle, data: g.items }))}
               keyExtractor={(item, index) => item.id}
               initialNumToRender={15}
@@ -743,7 +744,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
               renderItem={({ item, index, section }) => {
                 const isLast = index === section.data.length - 1;
                 return (
-                  <View style={index === 0 ? [styles.itemsCard, {borderBottomLeftRadius: isLast ? 14 : 0, borderBottomRightRadius: isLast ? 14 : 0}] : isLast ? [styles.itemsCard, {borderTopLeftRadius: 0, borderTopRightRadius: 0, borderTopWidth: 0}] : [styles.itemsCard, {borderRadius: 0, borderTopWidth: 0, borderBottomWidth: 0}]}>
+                  <View style={index === 0 ? [styles.itemsCard, {borderBottomLeftRadius: isLast ? 14 : 0, borderBottomRightRadius: isLast ? 14 : 0}] : isLast ? [styles.itemsCard, {borderTopLeftRadius: 0, borderTopRightRadius: 0, borderTopWidth: 0, elevation: 0, shadowOpacity: 0}] : [styles.itemsCard, {borderRadius: 0, borderTopWidth: 0, borderBottomWidth: 0, elevation: 0, shadowOpacity: 0}]}>
                     <View
                       style={[
                         styles.itemRow,
@@ -884,7 +885,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
                       </View>
                     )}
                   </View>
-                ) : null
+                ) : undefined
               }
             />
           )}

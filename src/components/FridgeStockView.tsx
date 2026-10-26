@@ -420,6 +420,7 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
           style={styles.scrollArea}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
+          stickySectionHeadersEnabled={false}
           sections={groupedByAisle.map(g => ({ title: g.aisle, data: g.items }))}
           keyExtractor={(item, index) => item.id}
           initialNumToRender={15}
@@ -500,7 +501,7 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
             const aisle = section.title as ShoppingAisle;
             const cfg = AISLE_CONFIGS[aisle] || AISLE_CONFIGS['Autre'];
             return (
-              <View style={index === 0 ? [styles.itemsCard, {borderBottomLeftRadius: isLast ? 14 : 0, borderBottomRightRadius: isLast ? 14 : 0}] : isLast ? [styles.itemsCard, {borderTopLeftRadius: 0, borderTopRightRadius: 0, borderTopWidth: 0}] : [styles.itemsCard, {borderRadius: 0, borderTopWidth: 0, borderBottomWidth: 0}]}>
+              <View style={index === 0 ? [styles.itemsCard, {borderBottomLeftRadius: isLast ? 14 : 0, borderBottomRightRadius: isLast ? 14 : 0}] : isLast ? [styles.itemsCard, {borderTopLeftRadius: 0, borderTopRightRadius: 0, borderTopWidth: 0, elevation: 0, shadowOpacity: 0}] : [styles.itemsCard, {borderRadius: 0, borderTopWidth: 0, borderBottomWidth: 0, elevation: 0, shadowOpacity: 0}]}>
                 <View
                   style={[
                     styles.itemRow,
