@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
-import { Recipe, Category, Difficulty, RecipeIdea } from '../types/recipe';
+import { Category, Difficulty, RecipeIdea } from '../types/recipe';
 import { normalizeIngredients } from '../utils/ingredientNormalizer';
 
 let SecureStore: any = null;
@@ -14,7 +14,7 @@ const GEMINI_API_KEY_STORAGE = 'papilles_gemini_api_key';
 const LEGACY_STORAGE_KEY = '@papilles_gemini_api_key';
 
 // Configuration Google Generative Language API
-const GEMINI_MODEL = 'gemini-2.0-flash';
+const GEMINI_MODEL = 'gemini-3.8-flash';
 const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta';
 
 /**
@@ -95,15 +95,17 @@ const RECIPE_IDEAS_SCHEMA = {
 };
 
 export const GEMINI_MODELS_CASCADE = [
+  'gemini-3.8-flash',
+  'gemini-2.5-flash',
   'gemini-2.0-flash',
   'gemini-1.5-flash',
-  'gemini-1.5-flash-8b',
 ];
 
 export const FAST_GEMINI_MODELS_CASCADE = [
-  'gemini-1.5-flash-8b',
-  'gemini-1.5-flash',
+  'gemini-3.8-flash',
+  'gemini-2.5-flash',
   'gemini-2.0-flash',
+  'gemini-1.5-flash',
 ];
 
 /**
@@ -137,26 +139,70 @@ const getGeminiHeaders = (apiKey: string) => {
 };
 
 /**
- * Exécute un appel POST vers Gemini avec retry automatique exponentiel
+ * Adapte dynamiquement la configuration du payload selon la version du modèle Gemini ciblé :
+ * - Gemini 3.x (ex: gemini-3.8-flash) : thinkingConfig.thinkingLevel = 'low' (latence minimale ~1-3s au lieu de 60s+)
+ *   et suppression des anciens paramètres d'échantillonnage dépréciés (temperature).
+ * - Gemini 2.5 (ex: gemini-2.5-flash) : thinkingConfig.thinkingBudget = 0 (désactive le reasoning pour vitesse max).
+ * - Gemini 2.0 / 1.5 : suppression de thinkingConfig (non supporté sur ces versions).
+ */
+export function adaptPayloadForModel(basePayload: any, modelName: string): any {
+  const payload = {
+    ...basePayload,
+    generationConfig: { ...(basePayload?.generationConfig || {}) },
+  };
+
+  if (modelName.startsWith('gemini-3')) {
+    payload.generationConfig.thinkingConfig = {
+      thinkingLevel: 'low',
+    };
+    delete payload.generationConfig.temperature;
+  } else if (modelName.startsWith('gemini-2.5')) {
+    payload.generationConfig.thinkingConfig = {
+      thinkingBudget: 0,
+    };
+  } else {
+    delete payload.generationConfig.thinkingConfig;
+  }
+
+  return payload;
+}
+
+/**
+ * Exécute un appel POST vers Gemini avec timeout par tentative et retry automatique exponentiel
  * en cas de surcharge temporaire des serveurs (HTTP 503 "Model overloaded" ou 429 "Too many requests").
  */
 async function fetchGeminiWithRetry(
   url: string,
   options: any,
-  maxRetries = 2
+  maxRetries = 1,
+  timeoutMs = 20000
 ): Promise<Response> {
   let attempt = 0;
   while (true) {
     attempt++;
-    const response = await fetch(url, options);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
 
-    // Si succès ou erreur d'authentification/format (400, 401, 403), on ne retente pas
-    if (response.ok || (response.status !== 503 && response.status !== 429)) {
-      return response;
-    }
+    try {
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+      });
 
-    if (attempt > maxRetries) {
-      return response;
+      // Si succès ou erreur d'authentification/format (400, 401, 403), on ne retente pas
+      if (response.ok || (response.status !== 503 && response.status !== 429)) {
+        return response;
+      }
+
+      if (attempt > maxRetries) {
+        return response;
+      }
+    } catch (err: any) {
+      if (attempt > maxRetries) {
+        throw err;
+      }
+    } finally {
+      clearTimeout(timer);
     }
 
     // Attente progressive avec backoff : 1.2s puis 2.4s
@@ -170,7 +216,7 @@ async function fetchGeminiWithRetry(
  * Si le modèle principal est surchargé (HTTP 503) ou subit une limite (429) ou est indisponible (404/500),
  * bascule automatiquement et de manière transparente sur le modèle suivant de la cascade.
  */
-async function fetchGeminiWithFallbackAndRetry(
+export async function fetchGeminiWithFallbackAndRetry(
   apiKey: string,
   payload: any,
   models: string[] = GEMINI_MODELS_CASCADE
@@ -182,6 +228,7 @@ async function fetchGeminiWithFallbackAndRetry(
     const model = models[i];
     const generateUrl = getGeminiGenerateUrl(apiKey, model);
     const headers = getGeminiHeaders(apiKey);
+    const modelPayload = adaptPayloadForModel(payload, model);
 
     try {
       const response = await fetchGeminiWithRetry(
@@ -189,7 +236,7 @@ async function fetchGeminiWithFallbackAndRetry(
         {
           method: 'POST',
           headers,
-          body: JSON.stringify(payload),
+          body: JSON.stringify(modelPayload),
         },
         1 // 1 retry rapide (1.2s) sur ce modèle avant de basculer
       );
@@ -421,6 +468,7 @@ async function fetchGeminiJsonWithFallbackAndRetry(
     const model = models[i];
     const generateUrl = getGeminiGenerateUrl(apiKey, model);
     const headers = getGeminiHeaders(apiKey);
+    const modelPayload = adaptPayloadForModel(payload, model);
 
     try {
       const response = await fetchGeminiWithRetry(
@@ -428,7 +476,7 @@ async function fetchGeminiJsonWithFallbackAndRetry(
         {
           method: 'POST',
           headers,
-          body: JSON.stringify(payload),
+          body: JSON.stringify(modelPayload),
         },
         1
       );
@@ -438,8 +486,15 @@ async function fetchGeminiJsonWithFallbackAndRetry(
       }
 
       if (!response.ok) {
+        let errMessage = `Erreur API Gemini (${response.status}) sur le modèle ${model}`;
+        try {
+          await handleGeminiResponseText(response);
+        } catch (parsedErr: any) {
+          errMessage = parsedErr.message || errMessage;
+        }
+        lastError = new Error(errMessage);
         console.warn(
-          `[Gemini Fallback] Modèle "${model}" a retourné le statut HTTP ${response.status}. Basculement automatique...`
+          `[Gemini Fallback] Modèle "${model}" a retourné le statut HTTP ${response.status}: ${errMessage}. Basculement automatique...`
         );
         continue;
       }
@@ -763,7 +818,7 @@ export const RecipeAiService = {
     try {
       const timeoutId = setTimeout(() => controller.abort(), 12000);
 
-      // GET ultraléger sur les métadonnées du modèle Gemini 2.0 Flash
+      // GET ultraléger sur les métadonnées du modèle Gemini 3.8 Flash
       const checkUrl = getGeminiModelCheckUrl(apiKey);
       const response = await fetch(checkUrl, {
         method: 'GET',
@@ -777,7 +832,7 @@ export const RecipeAiService = {
         return {
           ok: true,
           code: 'OK',
-          message: 'IA connectée & prête (Gemini 2.0 Flash)',
+          message: 'IA connectée & prête (Gemini 3.8 Flash)',
         };
       }
 
@@ -819,7 +874,7 @@ export const RecipeAiService = {
               ok: false,
               code: 'INVALID_MODEL',
               message:
-                'Clé API valide, mais le modèle Gemini 2.0 Flash n\'est pas activé sur votre compte Google AI Studio.',
+                'Clé API valide, mais le modèle Gemini 3.8 Flash n\'est pas activé sur votre compte Google AI Studio.',
             };
           }
         } catch {}
@@ -827,7 +882,7 @@ export const RecipeAiService = {
         return {
           ok: false,
           code: 'INVALID_MODEL',
-          message: 'Modèle Gemini 2.0 Flash indisponible',
+          message: 'Modèle Gemini 3.8 Flash indisponible',
         };
       }
 
@@ -887,7 +942,7 @@ export const RecipeAiService = {
   },
 
   /**
-   * Analyse une ou plusieurs images de recette via Gemini 2.0 Flash.
+   * Analyse une ou plusieurs images de recette via Gemini 3.8 Flash.
    * Utilise system_instruction et authentification par en-tête.
    */
   async extractRecipeFromImages(
@@ -1164,7 +1219,7 @@ ${sanitizedInput}
 
   /**
    * Crée une recette originale et sur-mesure à partir des ingrédients et restes du frigo.
-   * Utilise Gemini 2.0 Flash avec des consignes gastronomiques créatives et anti-gaspillage,
+   * Utilise Gemini 3.8 Flash avec des consignes gastronomiques créatives et anti-gaspillage,
    * avec garantie stricte anti-redondance par rapport aux recettes existantes de l'utilisateur.
    */
   async generateRecipeFromFridge(
@@ -1336,14 +1391,15 @@ ${sanitizedIngredients.join(', ')}
       throw new Error('Veuillez sélectionner au moins un ingrédient de votre réfrigérateur.');
     }
 
-    const cleanIngredientsList = ingredients.map((i) => i.trim()).filter(Boolean);
+    const cleanIngredientsList = ingredients.map((i) => i.trim()).filter(Boolean).slice(0, 50);
     const targetType = options?.mealType || 'Plat';
     const isVege = options?.onlyVegetarian ?? false;
 
     // Transmission des titres faisables uniquement du type sélectionné (Solution 1)
     const existingTitles = (options?.existingDoableTitles || [])
       .map((t) => t.trim())
-      .filter(Boolean);
+      .filter(Boolean)
+      .slice(0, 15);
 
     const sanitizedExistingTitles = existingTitles.map((t) =>
       escapeUntrustedDelimiters(t.slice(0, 100), 'untrusted_existing_recipes')

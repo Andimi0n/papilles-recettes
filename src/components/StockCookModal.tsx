@@ -428,6 +428,13 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
                 <Text style={styles.aiLoadingHint}>
                   Dosage précis des ingrédients pour {servings} personne{servings > 1 ? 's' : ''} et rédaction des étapes pas-à-pas
                 </Text>
+                <TouchableOpacity
+                  style={styles.cancelLoadingBtn}
+                  onPress={() => setAiFlowStep('ideas')}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Text style={styles.cancelLoadingBtnText}>Annuler</Text>
+                </TouchableOpacity>
               </View>
             </View>
           ) : aiFlowStep === 'loading_ideas' ? (
@@ -451,6 +458,13 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
                     ? `Anti-doublon : ${doableRecipesForCurrentType.length} ${mealType.toLowerCase()}${doableRecipesForCurrentType.length > 1 ? 's' : ''} faisable${doableRecipesForCurrentType.length > 1 ? 's' : ''} dans votre carnet sera évité${doableRecipesForCurrentType.length > 1 ? 's' : ''}`
                     : 'Génération originale adaptée à vos denrées en stock'}
                 </Text>
+                <TouchableOpacity
+                  style={styles.cancelLoadingBtn}
+                  onPress={() => setAiFlowStep('config')}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Text style={styles.cancelLoadingBtnText}>Annuler</Text>
+                </TouchableOpacity>
               </View>
             </View>
           ) : aiFlowStep === 'ideas' ? (
@@ -1637,6 +1651,20 @@ const styles = createDynamicStyles((colors, shadows) => ({
     color: colors.textSecondary,
     textAlign: 'center',
     marginTop: 8,
+  },
+  cancelLoadingBtn: {
+    marginTop: 18,
+    paddingVertical: 8,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.cardBackground,
+  },
+  cancelLoadingBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textSecondary,
   },
 
   // Clé API Modal

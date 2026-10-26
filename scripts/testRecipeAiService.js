@@ -44,6 +44,9 @@ async function main() {
     isRecipeVegetarian,
     escapeUntrustedDelimiters,
     sanitizeExtractedRecipe,
+    GEMINI_MODELS_CASCADE,
+    FAST_GEMINI_MODELS_CASCADE,
+    adaptPayloadForModel,
   } = require(path.join(tmpDir, 'services/recipeAiService.js'));
 
   console.log('🧪 Lancement des tests de recipeAiService...');
@@ -127,6 +130,66 @@ async function main() {
 
   assert.strictEqual(sanitized.userNote, 'Une note');
   console.log('✓ Validation et nettoyage (sanitization) corrects');
+
+  // =========================================================================
+  // TEST SECTION 4 : Cascades de modèles Gemini
+  // =========================================================================
+  console.log('\n--- Test 4 : Cascades de modèles Gemini ---');
+  assert.strictEqual(
+    GEMINI_MODELS_CASCADE[0],
+    'gemini-3.8-flash',
+    'GEMINI_MODELS_CASCADE doit avoir gemini-3.8-flash comme premier modèle'
+  );
+  assert.strictEqual(
+    FAST_GEMINI_MODELS_CASCADE[0],
+    'gemini-3.8-flash',
+    'FAST_GEMINI_MODELS_CASCADE doit avoir gemini-3.8-flash comme premier modèle'
+  );
+  assert.strictEqual(
+    FAST_GEMINI_MODELS_CASCADE.includes('gemini-1.5-flash-8b'),
+    false,
+    'FAST_GEMINI_MODELS_CASCADE ne doit plus contenir gemini-1.5-flash-8b (déprécié)'
+  );
+  console.log('✓ Cascades Gemini 3.8 Flash correctement configurées');
+
+  // =========================================================================
+  // TEST SECTION 5 : adaptPayloadForModel (Thinking Level & Latence)
+  // =========================================================================
+  console.log('\n--- Test 5 : adaptPayloadForModel ---');
+  const basePayload = {
+    contents: [{ role: 'user', parts: [{ text: 'Hello' }] }],
+    generationConfig: {
+      temperature: 0.6,
+      max_output_tokens: 2048,
+    },
+  };
+
+  const adapted38 = adaptPayloadForModel(basePayload, 'gemini-3.8-flash');
+  assert.strictEqual(
+    adapted38.generationConfig.thinkingConfig?.thinkingLevel,
+    'low',
+    'Gemini 3.8 Flash doit avoir thinkingLevel="low" pour minimiser la latence'
+  );
+  assert.strictEqual(
+    adapted38.generationConfig.temperature,
+    undefined,
+    'Gemini 3.8 Flash ne doit pas avoir de paramètre temperature déprécié'
+  );
+
+  const adapted25 = adaptPayloadForModel(basePayload, 'gemini-2.5-flash');
+  assert.strictEqual(
+    adapted25.generationConfig.thinkingConfig?.thinkingBudget,
+    0,
+    'Gemini 2.5 Flash doit avoir thinkingBudget=0 pour vitesse maximale'
+  );
+
+  const adapted20 = adaptPayloadForModel(basePayload, 'gemini-2.0-flash');
+  assert.strictEqual(
+    adapted20.generationConfig.thinkingConfig,
+    undefined,
+    'Gemini 2.0 Flash ne doit pas avoir de thinkingConfig'
+  );
+  console.log('✓ adaptPayloadForModel configure correctement thinkingLevel, thinkingBudget et timeouts');
 
 
   console.log('\n🎉 TOUS LES TESTS DE RECIPE AI SERVICE ONT RÉUSSI (0 ERREUR) !');
