@@ -2,19 +2,20 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   Modal,
   TextInput,
   TouchableOpacity,
   ActivityIndicator,
   FlatList,
-  Alert,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Shadows, createDynamicStyles } from '../theme/colors';
+import { createDynamicStyles } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
 import { MarmitonService, MarmitonSearchResult } from '../services/marmitonService';
+import { WebRecipeService } from '../services/webRecipeService';
 import { Recipe } from '../types/recipe';
 
 interface ImportMarmitonModalProps {
@@ -25,11 +26,23 @@ interface ImportMarmitonModalProps {
 
 type TabMode = 'url' | 'search';
 
+const POPULAR_PLATFORMS = [
+  'CuisineAZ',
+  '750g',
+  'Marmiton',
+  'Jow',
+  'Chefclub',
+  'BBC Good Food',
+  'Blogs WordPress',
+  'Schema.org (95% du Web)',
+];
+
 export const ImportMarmitonModal: React.FC<ImportMarmitonModalProps> = ({
   visible,
   onClose,
   onRecipeImported,
 }) => {
+  const { colors } = useTheme();
   const [tab, setTab] = useState<TabMode>('url');
   const [urlInput, setUrlInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -55,34 +68,33 @@ export const ImportMarmitonModal: React.FC<ImportMarmitonModalProps> = ({
     onClose();
   };
 
-  // Importation depuis une URL Marmiton
+  // Importation universelle depuis une URL Web (Schema.org JSON-LD & Fallback IA)
   const handleImportUrl = async (urlToImport: string) => {
     if (!urlToImport.trim()) {
-      setErrorMessage('Veuillez renseigner un lien Marmiton valide.');
+      setErrorMessage('Veuillez renseigner un lien web de recette.');
       return;
     }
 
     try {
       setErrorMessage(null);
       setIsImporting(true);
-      setImportStepText('1/3 - Récupération du HTML Marmiton...');
+      setImportStepText('1/3 - Téléchargement de la page web...');
 
-      // Petite pause pour afficher la progression
-      await new Promise((resolve) => setTimeout(resolve, 300));
-      setImportStepText('2/3 - Extraction & structuration IA (Gemini 3.8 Flash)...');
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      setImportStepText('2/3 - Extraction Schema.org JSON-LD & normalisation...');
 
-      const recipe = await MarmitonService.importRecipeFromUrl(urlToImport.trim());
+      const recipe = await WebRecipeService.importRecipeFromUrl(urlToImport.trim());
 
       const imgCount = recipe.availableImages?.length || (recipe.imageUrl ? 1 : 0);
       setImportStepText(
-        `3/3 - ${imgCount > 0 ? `${imgCount} photo(s) Marmiton détectée(s)` : 'Recette structurée'}, ouverture pour revue...`
+        `3/3 - ${recipe.title} (${recipe.ingredients.length} ingr., ${imgCount} photo(s)), ouverture...`
       );
       await new Promise((resolve) => setTimeout(resolve, 350));
 
       resetState();
       onRecipeImported(recipe);
     } catch (err: any) {
-      console.error('Erreur import Marmiton:', err);
+      console.error('Erreur import recette web:', err);
       setErrorMessage(err?.message || "Une erreur est survenue lors de l'importation.");
     } finally {
       setIsImporting(false);
@@ -124,12 +136,14 @@ export const ImportMarmitonModal: React.FC<ImportMarmitonModalProps> = ({
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.headerTitleRow}>
-              <View style={styles.marmitonIconBadge}>
-                <Ionicons name="globe-outline" size={18} color={Colors.primary} />
+              <View style={styles.webIconBadge}>
+                <Ionicons name="globe-outline" size={20} color={colors.primary} />
               </View>
-              <View>
-                <Text style={styles.modalTitle}>Bot Import Marmiton</Text>
-                <Text style={styles.modalSubtitle}>Extraction HTML & Structuration IA</Text>
+              <View style={styles.headerTitlesCol}>
+                <Text style={styles.modalTitle}>Importer une recette Web</Text>
+                <Text style={styles.modalSubtitle} numberOfLines={1}>
+                  JSON-LD Schema.org universel & Marmiton
+                </Text>
               </View>
             </View>
 
@@ -139,11 +153,11 @@ export const ImportMarmitonModal: React.FC<ImportMarmitonModalProps> = ({
               disabled={isImporting}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <Ionicons name="close" size={22} color={Colors.textSecondary} />
+              <Ionicons name="close" size={22} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>
 
-          {/* Onglets : Lien direct ou Recherche */}
+          {/* Onglets : Lien direct ou Recherche Marmiton */}
           <View style={styles.tabsRow}>
             <TouchableOpacity
               style={[styles.tabBtn, tab === 'url' && styles.tabBtnActive]}
@@ -156,10 +170,10 @@ export const ImportMarmitonModal: React.FC<ImportMarmitonModalProps> = ({
               <Ionicons
                 name="link"
                 size={16}
-                color={tab === 'url' ? Colors.primary : Colors.textSecondary}
+                color={tab === 'url' ? colors.primary : colors.textSecondary}
               />
               <Text style={[styles.tabText, tab === 'url' && styles.tabTextActive]}>
-                Coller un lien
+                Coller un lien web
               </Text>
             </TouchableOpacity>
 
@@ -174,10 +188,10 @@ export const ImportMarmitonModal: React.FC<ImportMarmitonModalProps> = ({
               <Ionicons
                 name="search"
                 size={16}
-                color={tab === 'search' ? Colors.primary : Colors.textSecondary}
+                color={tab === 'search' ? colors.primary : colors.textSecondary}
               />
               <Text style={[styles.tabText, tab === 'search' && styles.tabTextActive]}>
-                Chercher sur Marmiton
+                Chercher Marmiton
               </Text>
             </TouchableOpacity>
           </View>
@@ -185,58 +199,86 @@ export const ImportMarmitonModal: React.FC<ImportMarmitonModalProps> = ({
           {/* Message d'erreur */}
           {errorMessage && (
             <View style={styles.errorBox}>
-              <Ionicons name="alert-circle" size={18} color={Colors.danger} />
+              <Ionicons name="alert-circle" size={18} color={colors.danger} />
               <Text style={styles.errorText}>{errorMessage}</Text>
             </View>
           )}
 
-          {/* Loading pendant l'importation IA */}
+          {/* Chargement pendant l'importation */}
           {isImporting ? (
             <View style={styles.importingBox}>
-              <ActivityIndicator size="large" color={Colors.primary} style={styles.importSpinner} />
+              <ActivityIndicator size="large" color={colors.primary} style={styles.importSpinner} />
               <Text style={styles.importingTitle}>Importation en cours...</Text>
               <Text style={styles.importingStepText}>{importStepText}</Text>
               <Text style={styles.importingHintText}>
-                La recette sera créée sans photo et initialisée à 0 étoile.
+                Extraction haute vitesse sans publicité, prête à cuisiner.
               </Text>
             </View>
           ) : (
             <>
               {/* Contenu Tab 1 : Coller un lien */}
               {tab === 'url' && (
-                <View style={styles.urlTabContent}>
-                  <Text style={styles.fieldLabel}>URL de la recette Marmiton :</Text>
+                <ScrollView
+                  style={styles.urlTabScroll}
+                  showsVerticalScrollIndicator={false}
+                  keyboardShouldPersistTaps="handled"
+                >
+                  <Text style={styles.fieldLabel}>URL de la recette :</Text>
                   <View style={styles.urlInputWrapper}>
-                    <Ionicons name="link-outline" size={18} color={Colors.textMuted} style={styles.urlIcon} />
+                    <Ionicons name="link-outline" size={18} color={colors.textMuted} style={styles.urlIcon} />
                     <TextInput
                       style={styles.urlInput}
                       value={urlInput}
                       onChangeText={setUrlInput}
-                      placeholder="https://www.marmiton.org/recettes/recette_..."
-                      placeholderTextColor={Colors.textMuted}
+                      placeholder="https://... (ex: CuisineAZ, 750g, Marmiton, Jow, blog...)"
+                      placeholderTextColor={colors.textMuted}
                       autoCapitalize="none"
                       autoCorrect={false}
                       keyboardType="url"
                     />
                     {urlInput.length > 0 && (
                       <TouchableOpacity onPress={() => setUrlInput('')} style={styles.clearIconBtn}>
-                        <Ionicons name="close-circle" size={16} color={Colors.textMuted} />
+                        <Ionicons name="close-circle" size={16} color={colors.textMuted} />
                       </TouchableOpacity>
                     )}
                   </View>
 
+                  {/* Puces des sites compatibles */}
+                  <View style={styles.platformsContainer}>
+                    <Text style={styles.platformsTitle}>Sites compatibles instantanés :</Text>
+                    <View style={styles.platformsChipsRow}>
+                      {POPULAR_PLATFORMS.map((site) => (
+                        <View key={site} style={styles.platformChip}>
+                          <Text style={styles.platformChipText}>{site}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+
                   <View style={styles.specRulesBox}>
                     <View style={styles.specRuleRow}>
-                      <Ionicons name="checkmark-circle" size={14} color={Colors.secondary} />
-                      <Text style={styles.specRuleText}>Pas besoin de photos (carte épurée)</Text>
+                      <Ionicons name="flash" size={14} color={colors.primary} />
+                      <Text style={styles.specRuleText}>
+                        Parser universel JSON-LD Schema.org (<Text style={{ fontWeight: '700' }}>instantané & gratuit</Text>)
+                      </Text>
                     </View>
                     <View style={styles.specRuleRow}>
-                      <Ionicons name="checkmark-circle" size={14} color={Colors.secondary} />
-                      <Text style={styles.specRuleText}>Par défaut à 0 étoile (à noter après cuisson)</Text>
+                      <Ionicons name="checkmark-circle" size={14} color={colors.secondary} />
+                      <Text style={styles.specRuleText}>
+                        Portions, ingrédients normalisés et étapes structurées
+                      </Text>
                     </View>
                     <View style={styles.specRuleRow}>
-                      <Ionicons name="sparkles" size={14} color={Colors.primary} />
-                      <Text style={styles.specRuleText}>Extraction IA Gemini 3.8 Flash des portions & ingrédients</Text>
+                      <Ionicons name="images" size={14} color={colors.secondary} />
+                      <Text style={styles.specRuleText}>
+                        Sélection automatique des photos haute résolution
+                      </Text>
+                    </View>
+                    <View style={styles.specRuleRow}>
+                      <Ionicons name="sparkles" size={14} color={colors.primary} />
+                      <Text style={styles.specRuleText}>
+                        Fallback automatique IA Gemini 3.8 Flash si nécessaire
+                      </Text>
                     </View>
                   </View>
 
@@ -247,22 +289,22 @@ export const ImportMarmitonModal: React.FC<ImportMarmitonModalProps> = ({
                     activeOpacity={0.8}
                   >
                     <Ionicons name="download-outline" size={18} color="#FFFFFF" />
-                    <Text style={styles.importBtnText}>Lancer le bot d'import</Text>
+                    <Text style={styles.importBtnText}>Importer la recette</Text>
                   </TouchableOpacity>
-                </View>
+                </ScrollView>
               )}
 
               {/* Contenu Tab 2 : Recherche Marmiton */}
               {tab === 'search' && (
                 <View style={styles.searchTabContent}>
                   <View style={styles.searchBarWrapper}>
-                    <Ionicons name="search" size={18} color={Colors.textMuted} style={styles.urlIcon} />
+                    <Ionicons name="search" size={18} color={colors.textMuted} style={styles.urlIcon} />
                     <TextInput
                       style={styles.urlInput}
                       value={searchQuery}
                       onChangeText={setSearchQuery}
                       placeholder="Ex: Tarte aux pommes, Quiche, Lasagnes..."
-                      placeholderTextColor={Colors.textMuted}
+                      placeholderTextColor={colors.textMuted}
                       onSubmitEditing={handleSearchMarmiton}
                       returnKeyType="search"
                       autoCapitalize="none"
@@ -309,9 +351,9 @@ export const ImportMarmitonModal: React.FC<ImportMarmitonModalProps> = ({
                     ListEmptyComponent={
                       !isSearching ? (
                         <View style={styles.searchEmptyBox}>
-                          <Ionicons name="fast-food-outline" size={36} color={Colors.textMuted} />
+                          <Ionicons name="fast-food-outline" size={36} color={colors.textMuted} />
                           <Text style={styles.searchEmptyText}>
-                            Entrez un plat pour explorer Marmiton et l'importer en un clic.
+                            Entrez un plat pour explorer Marmiton et l&apos;importer en un clic.
                           </Text>
                         </View>
                       ) : undefined
@@ -330,18 +372,18 @@ export const ImportMarmitonModal: React.FC<ImportMarmitonModalProps> = ({
 const styles = createDynamicStyles((colors, shadows) => ({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.55)',
     justifyContent: 'flex-end',
   },
   modalCard: {
-    backgroundColor: Colors.cardBackground,
+    backgroundColor: colors.cardBackground,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingHorizontal: 20,
     paddingTop: 18,
     paddingBottom: 32,
-    maxHeight: '85%',
-    ...Shadows.large,
+    maxHeight: '90%',
+    ...shadows.large,
   },
   header: {
     flexDirection: 'row',
@@ -353,37 +395,43 @@ const styles = createDynamicStyles((colors, shadows) => ({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
+    flex: 1,
+    marginRight: 10,
   },
-  marmitonIconBadge: {
-    width: 38,
-    height: 38,
+  headerTitlesCol: {
+    flex: 1,
+  },
+  webIconBadge: {
+    width: 40,
+    height: 40,
     borderRadius: 12,
-    backgroundColor: Colors.primaryLight,
+    backgroundColor: colors.primaryLight,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: Colors.primary + '30',
+    borderColor: colors.primary + '30',
   },
   modalTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '800',
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
   },
   modalSubtitle: {
-    fontSize: 12,
-    color: Colors.textSecondary,
+    fontSize: 11.5,
+    color: colors.textSecondary,
+    marginTop: 1,
   },
   closeBtn: {
     padding: 6,
     borderRadius: 16,
-    backgroundColor: Colors.surfaceAlt,
+    backgroundColor: colors.surfaceAlt,
   },
   tabsRow: {
     flexDirection: 'row',
-    backgroundColor: Colors.surfaceAlt,
+    backgroundColor: colors.surfaceAlt,
     borderRadius: 14,
     padding: 4,
-    marginBottom: 16,
+    marginBottom: 14,
     gap: 4,
   },
   tabBtn: {
@@ -396,22 +444,22 @@ const styles = createDynamicStyles((colors, shadows) => ({
     gap: 6,
   },
   tabBtnActive: {
-    backgroundColor: Colors.cardBackground,
-    ...Shadows.small,
+    backgroundColor: colors.cardBackground,
+    ...shadows.small,
   },
   tabText: {
     fontSize: 13,
     fontWeight: '600',
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
   },
   tabTextActive: {
-    color: Colors.primary,
+    color: colors.primary,
     fontWeight: '700',
   },
   errorBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.dangerLight,
+    backgroundColor: colors.dangerLight,
     padding: 10,
     borderRadius: 12,
     marginBottom: 14,
@@ -420,7 +468,7 @@ const styles = createDynamicStyles((colors, shadows) => ({
   errorText: {
     flex: 1,
     fontSize: 12,
-    color: Colors.danger,
+    color: colors.danger,
     fontWeight: '600',
   },
   importingBox: {
@@ -434,58 +482,87 @@ const styles = createDynamicStyles((colors, shadows) => ({
   importingTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     marginBottom: 8,
   },
   importingStepText: {
     fontSize: 14,
-    color: Colors.primary,
+    color: colors.primary,
     fontWeight: '600',
     marginBottom: 12,
     textAlign: 'center',
   },
   importingHintText: {
     fontSize: 12,
-    color: Colors.textMuted,
+    color: colors.textMuted,
     textAlign: 'center',
   },
-  urlTabContent: {
-    paddingTop: 4,
+  urlTabScroll: {
+    maxHeight: 460,
   },
   fieldLabel: {
     fontSize: 13,
     fontWeight: '600',
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     marginBottom: 8,
   },
   urlInputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.surfaceAlt,
+    backgroundColor: colors.surfaceAlt,
     borderRadius: 14,
     paddingHorizontal: 12,
     height: 48,
     borderWidth: 1,
-    borderColor: Colors.border,
-    marginBottom: 16,
+    borderColor: colors.border,
+    marginBottom: 12,
   },
   urlIcon: {
     marginRight: 8,
   },
   urlInput: {
     flex: 1,
-    fontSize: 14,
-    color: Colors.textPrimary,
+    fontSize: 13.5,
+    color: colors.textPrimary,
     height: 48,
   },
   clearIconBtn: {
     padding: 4,
   },
+  platformsContainer: {
+    marginBottom: 14,
+  },
+  platformsTitle: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: colors.textSecondary,
+    marginBottom: 6,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  platformsChipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  platformChip: {
+    backgroundColor: colors.surfaceAlt,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  platformChipText: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
   specRulesBox: {
-    backgroundColor: Colors.surfaceAlt,
+    backgroundColor: colors.surfaceAlt,
     padding: 12,
     borderRadius: 14,
-    marginBottom: 20,
+    marginBottom: 16,
     gap: 8,
   },
   specRuleRow: {
@@ -495,18 +572,20 @@ const styles = createDynamicStyles((colors, shadows) => ({
   },
   specRuleText: {
     fontSize: 12,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     fontWeight: '500',
+    flex: 1,
   },
   importBtn: {
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.primary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 14,
     borderRadius: 16,
     gap: 8,
-    ...Shadows.small,
+    marginBottom: 10,
+    ...shadows.small,
   },
   importBtnDisabled: {
     opacity: 0.5,
@@ -522,16 +601,16 @@ const styles = createDynamicStyles((colors, shadows) => ({
   searchBarWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.surfaceAlt,
+    backgroundColor: colors.surfaceAlt,
     borderRadius: 14,
     paddingLeft: 12,
     height: 48,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: colors.border,
     marginBottom: 12,
   },
   searchSubmitBtn: {
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.primary,
     height: 40,
     paddingHorizontal: 14,
     borderRadius: 10,
@@ -553,11 +632,11 @@ const styles = createDynamicStyles((colors, shadows) => ({
     justifyContent: 'space-between',
     paddingVertical: 10,
     paddingHorizontal: 12,
-    backgroundColor: Colors.cardBackground,
+    backgroundColor: colors.cardBackground,
     borderRadius: 12,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: Colors.borderLight,
+    borderColor: colors.borderLight,
   },
   searchResultTextContainer: {
     flex: 1,
@@ -566,15 +645,15 @@ const styles = createDynamicStyles((colors, shadows) => ({
   searchResultTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
   },
   searchResultUrl: {
     fontSize: 11,
-    color: Colors.textMuted,
+    color: colors.textMuted,
     marginTop: 2,
   },
   importRowBtn: {
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.primary,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
@@ -595,7 +674,7 @@ const styles = createDynamicStyles((colors, shadows) => ({
   },
   searchEmptyText: {
     fontSize: 13,
-    color: Colors.textMuted,
+    color: colors.textMuted,
     textAlign: 'center',
     paddingHorizontal: 20,
   },

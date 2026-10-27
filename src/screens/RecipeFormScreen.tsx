@@ -980,13 +980,13 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
               </TouchableOpacity>
             </View>
 
-            {/* Photos Marmiton disponibles pour la couverture */}
+            {/* Photos web disponibles pour la couverture */}
             {availableImages.length > 0 && (
               <View style={styles.candidateBlock}>
                 <View style={styles.candidateHeaderRow}>
                   <Ionicons name="images" size={16} color={Colors.primary} />
                   <Text style={styles.candidateHeaderTitle}>
-                    Photos Marmiton disponibles ({availableImages.length}) :
+                    Photos web disponibles ({availableImages.length}) :
                   </Text>
                 </View>
                 <Text style={styles.candidateSubtitle}>

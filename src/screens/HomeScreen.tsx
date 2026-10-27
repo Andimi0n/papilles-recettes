@@ -922,15 +922,15 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
             {/* Actions rapides empilées à la verticale : Marmiton, Scan, Ajouter */}
             <View style={styles.topActionsCol}>
-              {/* Marmiton */}
+              {/* Import Web */}
               <TouchableOpacity
                 style={styles.marmitonBtn}
                 onPress={() => setIsMarmitonModalVisible(true)}
                 activeOpacity={0.8}
-                accessibilityLabel="Importer depuis Marmiton"
+                accessibilityLabel="Importer une recette depuis le Web"
               >
                 <Ionicons name="globe-outline" size={12} color={colors.primary} />
-                <Text style={styles.marmitonBtnText}>Marmiton</Text>
+                <Text style={styles.marmitonBtnText}>Import Web</Text>
               </TouchableOpacity>
 
               {/* Scan */}

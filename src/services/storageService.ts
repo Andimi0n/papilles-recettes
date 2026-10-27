@@ -60,7 +60,7 @@ let memoryCache = {
 /**
  * Assainit une URL d'image pour s'assurer qu'elle n'exploite aucun protocole malveillant (SEC-09)
  */
-function sanitizeImageUrl(url: any): string {
+export function sanitizeImageUrl(url: any): string {
   if (typeof url !== 'string' || !url.trim()) return '';
   const trimmed = url.trim();
   const lower = trimmed.toLowerCase();
@@ -109,6 +109,8 @@ export function sanitizeStoredRecipe(r: any): Recipe {
           )
         ).slice(0, 30)
       : undefined,
+    sourceUrl: typeof r.sourceUrl === 'string' && r.sourceUrl ? r.sourceUrl.slice(0, 500) : undefined,
+    sourceSite: typeof r.sourceSite === 'string' && r.sourceSite ? r.sourceSite.slice(0, 100) : undefined,
     createdAt: typeof r.createdAt === 'string' ? r.createdAt : new Date().toISOString(),
     updatedAt: typeof r.updatedAt === 'string' ? r.updatedAt : new Date().toISOString(),
     ingredients: Array.isArray(r.ingredients)

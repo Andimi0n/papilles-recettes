@@ -44,6 +44,8 @@ export interface Recipe {
   isFavorite?: boolean;
   isVegetarian?: boolean;
   tags?: string[];
+  sourceUrl?: string;
+  sourceSite?: string;
   createdAt: string;
   updatedAt: string;
 }
