@@ -66,13 +66,16 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchActive, setIsSearchActive] = useState(false);
   const [isInStoreModeVisible, setIsInStoreModeVisible] = useState(false);
+  const [isShareModalVisible, setIsShareModalVisible] = useState(false);
 
-  // Synchronise si initialTab change depuis l'extérieur
-  useEffect(() => {
+  // Synchronise si initialTab change depuis l'extérieur (Pattern React 19)
+  const [prevInitialTab, setPrevInitialTab] = useState(initialTab);
+  if (prevInitialTab !== initialTab) {
+    setPrevInitialTab(initialTab);
     if (initialTab) {
       setActiveTab(initialTab);
     }
-  }, [initialTab]);
+  }
 
   // Formulaire d'ajout rapide courses (saisie libre intelligente)
   const [newItemText, setNewItemText] = useState('');
@@ -261,8 +264,10 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
   }, []);
 
   useEffect(() => {
-    loadShoppingList();
-    loadFridgeItems();
+    void (async () => {
+      await loadShoppingList();
+      await loadFridgeItems();
+    })();
 
     const unsubShopping = StorageService.onShoppingListChange((updatedList) => {
       setItems(updatedList);
@@ -764,20 +769,6 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
 
             {/* Boutons d'action supérieurs */}
             <View style={styles.headerActions}>
-              {totalCount > 0 && (
-                <TouchableOpacity
-                  style={[
-                    styles.actionIconBtn,
-                    { backgroundColor: colors.secondaryLight, borderColor: colors.secondary + '40' },
-                  ]}
-                  onPress={() => setIsInStoreModeVisible(true)}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  accessibilityLabel="Lancer le mode course"
-                >
-                  <Ionicons name="cart" size={19} color={colors.secondary} />
-                </TouchableOpacity>
-              )}
-
               <TouchableOpacity
                 style={[
                   styles.actionIconBtn,
@@ -796,7 +787,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
 
               <TouchableOpacity
                 style={styles.actionIconBtn}
-                onPress={handleNativeShare}
+                onPress={() => setIsShareModalVisible(true)}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 accessibilityLabel="Partager la liste"
               >
@@ -902,76 +893,14 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
                 onScroll={handleScroll}
                 scrollEventThrottle={16}
                 ListHeaderComponent={
-                  <>
-                    {!isSearching && totalCount > 0 && (
-                      <>
-                        {/* Barre de partage rapide direct */}
-                        <View style={styles.shareStrip}>
-                          <Text style={styles.shareStripLabel}>Partager :</Text>
-                          <TouchableOpacity
-                            style={[
-                              styles.sharePill,
-                              { backgroundColor: isDark ? '#143823' : '#E7FCE9' },
-                            ]}
-                            onPress={handleShareWhatsApp}
-                            activeOpacity={0.8}
-                          >
-                            <Ionicons name="logo-whatsapp" size={14} color="#16A34A" />
-                            <Text style={[styles.sharePillText, { color: '#16A34A' }]}>WhatsApp</Text>
-                          </TouchableOpacity>
-
-                          <TouchableOpacity
-                            style={[
-                              styles.sharePill,
-                              { backgroundColor: isDark ? '#162A45' : '#EFF6FF' },
-                            ]}
-                            onPress={handleShareSMS}
-                            activeOpacity={0.8}
-                          >
-                            <Ionicons name="chatbox-ellipses-outline" size={14} color="#2563EB" />
-                            <Text style={[styles.sharePillText, { color: '#2563EB' }]}>SMS</Text>
-                          </TouchableOpacity>
-
-                          <TouchableOpacity
-                            style={[styles.sharePill, { backgroundColor: colors.surfaceAlt }]}
-                            onPress={handleNativeShare}
-                            activeOpacity={0.8}
-                          >
-                            <Ionicons name="share-outline" size={14} color={colors.textSecondary} />
-                            <Text style={[styles.sharePillText, { color: colors.textSecondary }]}>Autre</Text>
-                          </TouchableOpacity>
-                        </View>
-
-                        {/* Accès rapide au Mode Course en magasin (ultra-épuré & zoomé) */}
-                        <TouchableOpacity
-                          style={styles.inStoreBanner}
-                          onPress={() => setIsInStoreModeVisible(true)}
-                          activeOpacity={0.85}
-                        >
-                          <View style={styles.inStoreBannerLeft}>
-                            <View style={styles.inStoreBannerIconBox}>
-                              <Ionicons name="cart" size={20} color="#FFFFFF" />
-                            </View>
-                            <View style={styles.inStoreBannerTextCol}>
-                              <Text style={styles.inStoreBannerTitle}>Mode Course en Magasin</Text>
-                              <Text style={styles.inStoreBannerSubtitle}>
-                                Vue zoomée avec checklist & liaison étagères pour vos achats
-                              </Text>
-                            </View>
-                          </View>
-                          <Ionicons name="arrow-forward" size={16} color={colors.secondary} />
-                        </TouchableOpacity>
-                      </>
-                    )}
-                    {isSearching && searchQuery?.trim() ? (
-                      <View style={styles.searchSummaryStrip}>
-                        <Text style={styles.searchSummaryText}>
-                          {totalFilteredCount} article{totalFilteredCount > 1 ? 's' : ''} trouvé{totalFilteredCount > 1 ? 's' : ''}
-                          {filteredCompletedItems.length > 0 ? ` (dont ${filteredCompletedItems.length} déjà coché${filteredCompletedItems.length > 1 ? 's' : ''})` : ''} pour « {searchQuery.trim()} »
-                        </Text>
-                      </View>
-                    ) : null}
-                  </>
+                  isSearching && searchQuery?.trim() ? (
+                    <View style={styles.searchSummaryStrip}>
+                      <Text style={styles.searchSummaryText}>
+                        {totalFilteredCount} article{totalFilteredCount > 1 ? 's' : ''} trouvé{totalFilteredCount > 1 ? 's' : ''}
+                        {filteredCompletedItems.length > 0 ? ` (dont ${filteredCompletedItems.length} déjà coché${filteredCompletedItems.length > 1 ? 's' : ''})` : ''} pour « {searchQuery.trim()} »
+                      </Text>
+                    </View>
+                  ) : undefined
                 }
               ListEmptyComponent={
                 isSearching && searchQuery?.trim() && totalFilteredCount === 0 ? (
@@ -1415,6 +1344,120 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
         onStockUpdated={(newCount) => setFridgeCount(newCount)}
       />
 
+      {/* Bouton d'action flottant : Mode Course en magasin */}
+      {activeTab === 'shopping' && totalCount > 0 && !isSearching && (
+        <TouchableOpacity
+          style={[
+            styles.floatingInStoreBtn,
+            { bottom: deletedSnackbar ? 88 : 22 },
+          ]}
+          onPress={() => setIsInStoreModeVisible(true)}
+          activeOpacity={0.88}
+          accessibilityLabel="Lancer le mode course en magasin"
+        >
+          <View style={styles.floatingInStoreIconBox}>
+            <Ionicons name="cart" size={18} color="#FFFFFF" />
+          </View>
+          <Text style={styles.floatingInStoreText}>Mode Course</Text>
+          <View style={styles.floatingInStoreBadge}>
+            <Text style={styles.floatingInStoreBadgeText}>{activeItems.length}</Text>
+          </View>
+        </TouchableOpacity>
+      )}
+
+      {/* Modal dédiée de regroupement des formats de partage */}
+      <Modal
+        visible={isShareModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setIsShareModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.shareModalOverlay}
+          activeOpacity={1}
+          onPress={() => setIsShareModalVisible(false)}
+        >
+          <View style={styles.shareModalCard}>
+            <View style={styles.shareModalHeader}>
+              <View style={styles.shareModalIconCircle}>
+                <Ionicons name="share-social" size={22} color={colors.primary} />
+              </View>
+              <View style={styles.shareModalTitleCol}>
+                <Text style={styles.shareModalTitle}>Partager la liste</Text>
+                <Text style={styles.shareModalSubtitle}>
+                  {totalCount === 0
+                    ? 'Aucun article dans la liste'
+                    : `${activeItems.length} article${activeItems.length > 1 ? 's' : ''} à acheter`}
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setIsShareModalVisible(false)}
+                style={styles.shareModalCloseIconBtn}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="close" size={20} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.shareModalOptionsList}>
+              <TouchableOpacity
+                style={styles.shareOptionRow}
+                onPress={() => {
+                  setIsShareModalVisible(false);
+                  handleShareWhatsApp();
+                }}
+                activeOpacity={0.75}
+              >
+                <View style={[styles.shareOptionIconBox, { backgroundColor: isDark ? '#143823' : '#E7FCE9' }]}>
+                  <Ionicons name="logo-whatsapp" size={22} color="#16A34A" />
+                </View>
+                <View style={styles.shareOptionTextCol}>
+                  <Text style={styles.shareOptionTitle}>WhatsApp</Text>
+                  <Text style={styles.shareOptionDesc}>Envoyer directement dans une discussion</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.shareOptionRow}
+                onPress={() => {
+                  setIsShareModalVisible(false);
+                  handleShareSMS();
+                }}
+                activeOpacity={0.75}
+              >
+                <View style={[styles.shareOptionIconBox, { backgroundColor: isDark ? '#162A45' : '#EFF6FF' }]}>
+                  <Ionicons name="chatbox-ellipses-outline" size={22} color="#2563EB" />
+                </View>
+                <View style={styles.shareOptionTextCol}>
+                  <Text style={styles.shareOptionTitle}>SMS / Message</Text>
+                  <Text style={styles.shareOptionDesc}>Message texte prêt à envoyer</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.shareOptionRow}
+                onPress={() => {
+                  setIsShareModalVisible(false);
+                  handleNativeShare();
+                }}
+                activeOpacity={0.75}
+              >
+                <View style={[styles.shareOptionIconBox, { backgroundColor: colors.surfaceAlt }]}>
+                  <Ionicons name="share-outline" size={22} color={colors.textPrimary} />
+                </View>
+                <View style={styles.shareOptionTextCol}>
+                  <Text style={styles.shareOptionTitle}>Autres applications</Text>
+                  <Text style={styles.shareOptionDesc}>Mail, Notes, Presse-papiers...</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
       {/* Barre Snackbar temporaire (4 secondes) pour annuler une suppression dans Courses */}
       {deletedSnackbar && (
         <View style={styles.snackbarContainer}>
@@ -1620,45 +1663,46 @@ const styles = createDynamicStyles((colors, shadows) => ({
     backgroundColor: colors.primaryLight,
     borderColor: colors.primary,
   },
-  inStoreBanner: {
+  floatingInStoreBtn: {
+    position: 'absolute',
+    alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: colors.cardBackground,
-    marginHorizontal: 16,
-    marginBottom: 10,
-    padding: 12,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.secondary + '40',
-    ...shadows.small,
-  },
-  inStoreBannerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    flex: 1,
-  },
-  inStoreBannerIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
     backgroundColor: colors.secondary,
-    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 28,
+    gap: 8,
+    ...shadows.medium,
+    zIndex: 100,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+  },
+  floatingInStoreIconBox: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  inStoreBannerTextCol: {
-    flex: 1,
+  floatingInStoreText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: 0.2,
   },
-  inStoreBannerTitle: {
-    fontSize: 14,
+  floatingInStoreBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    marginLeft: 2,
+  },
+  floatingInStoreBadgeText: {
+    fontSize: 12,
     fontWeight: '800',
-    color: colors.textPrimary,
-  },
-  inStoreBannerSubtitle: {
-    fontSize: 11,
-    color: colors.textSecondary,
-    marginTop: 1,
+    color: '#FFFFFF',
   },
   progressContainer: {
     flexDirection: 'row',
@@ -1749,39 +1793,99 @@ const styles = createDynamicStyles((colors, shadows) => ({
   unitPickerFlexContainer: {
     flex: 1,
   },
-  shareStrip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 18,
-    paddingVertical: 8,
-    gap: 8,
-  },
-  shareStripLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textSecondary,
-    marginRight: 2,
-  },
-  sharePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    borderRadius: 14,
-  },
-  sharePillText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
   scrollArea: {
     flex: 1,
     zIndex: 1,
   },
   scrollContent: {
     paddingHorizontal: 16,
-    paddingBottom: 40,
+    paddingBottom: 76,
     paddingTop: 4,
+  },
+  shareModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  shareModalCard: {
+    width: '100%',
+    maxWidth: 380,
+    backgroundColor: colors.cardBackground,
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    ...shadows.large,
+  },
+  shareModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  shareModalIconCircle: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: colors.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  shareModalTitleCol: {
+    flex: 1,
+  },
+  shareModalTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  shareModalSubtitle: {
+    fontSize: 12.5,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  shareModalCloseIconBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.surfaceAlt,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  shareModalOptionsList: {
+    gap: 10,
+  },
+  shareOptionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 14,
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  shareOptionIconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  shareOptionTextCol: {
+    flex: 1,
+  },
+  shareOptionTitle: {
+    fontSize: 14.5,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  shareOptionDesc: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 1,
   },
   aisleSection: {
     marginBottom: 14,
