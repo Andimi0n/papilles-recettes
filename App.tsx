@@ -222,6 +222,16 @@ function AppContent() {
     }
   };
 
+  const handleUpdateTags = async (id: string, tags: string[]) => {
+    try {
+      const updated = await StorageService.updateRecipeTags(id, tags);
+      setRecipes(updated);
+    } catch (e) {
+      console.error('Erreur mise à jour tags:', e);
+      Alert.alert('Erreur', 'Impossible de mettre à jour les tags.');
+    }
+  };
+
   if (isLoading || !isThemeLoaded) {
     return (
       <View style={styles.loadingContainer}>
@@ -297,6 +307,7 @@ function AppContent() {
               onEdit={navigateToEdit}
               onDelete={handleDeleteRecipe}
               onUpdateRating={handleUpdateRating}
+              onUpdateTags={handleUpdateTags}
               onNavigateToShoppingList={() => navigateToShopping('shopping')}
             />
           )}

@@ -281,6 +281,7 @@ export function searchRecipes(recipes: Recipe[], queryString: string): RecipeSea
   recipes.forEach((recipe) => {
     const titleTokens = tokenizeText(recipe.title);
     const descTokens = tokenizeText(recipe.description);
+    const tagTokens = (recipe.tags || []).flatMap((t) => tokenizeText(t));
     
     // Tokens par ingrédient pour identifier avec précision ceux qui correspondent
     const ingredientTokensMap = recipe.ingredients.map((ing) => ({
@@ -313,6 +314,12 @@ export function searchRecipes(recipes: Recipe[], queryString: string): RecipeSea
       // 3. Description (pondération modérée : 5 pts)
       if (tokenMatchesTargetTokens(qToken, descTokens)) {
         score += 5;
+        tokenMatchedInRecipe = true;
+      }
+
+      // 4. Tags personnalisés (pondération forte : 20 pts)
+      if (tagTokens.length > 0 && tokenMatchesTargetTokens(qToken, tagTokens)) {
+        score += 20;
         tokenMatchedInRecipe = true;
       }
 
@@ -432,4 +439,30 @@ export function recipeMatchesTime(
 export function recipeMatchesDifficulty(recipe: Recipe, difficulties: Difficulty[]): boolean {
   if (!difficulties || difficulties.length === 0) return true;
   return difficulties.includes(recipe.difficulty);
+}
+
+/**
+ * Vérifie si une recette correspond aux tags sélectionnés.
+ * - mode 'any' : la recette possède au moins un des tags sélectionnés
+ * - mode 'all' : la recette possède TOUS les tags sélectionnés
+ */
+export function recipeMatchesTags(
+  recipe: Recipe,
+  targetTags: string[],
+  mode: 'all' | 'any' = 'any'
+): boolean {
+  if (!targetTags || targetTags.length === 0) return true;
+  if (!recipe.tags || recipe.tags.length === 0) return false;
+
+  const normalizedRecipeTags = recipe.tags.map((t) => t.trim().toLowerCase());
+
+  if (mode === 'all') {
+    return targetTags.every((target) =>
+      normalizedRecipeTags.includes(target.trim().toLowerCase())
+    );
+  } else {
+    return targetTags.some((target) =>
+      normalizedRecipeTags.includes(target.trim().toLowerCase())
+    );
+  }
 }

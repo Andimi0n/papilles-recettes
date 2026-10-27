@@ -19,6 +19,7 @@ import {
   recipeMatchesIngredients,
   recipeMatchesTime,
   recipeMatchesDifficulty,
+  recipeMatchesTags,
   searchRecipes,
 } from '../utils/searchEngine';
 import { useTheme } from '../theme/ThemeContext';
@@ -35,6 +36,8 @@ interface AdvancedFiltersModalProps {
     difficulties: Difficulty[];
     selectedIngredients: string[];
     ingredientMatchMode: 'all' | 'any';
+    selectedTags?: string[];
+    tagMatchMode?: 'all' | 'any';
     onlyVegetarian?: boolean;
     minRating?: number;
     onlyDoableWithStock?: boolean;
@@ -48,6 +51,8 @@ interface AdvancedFiltersModalProps {
   difficulties: Difficulty[];
   selectedIngredients: string[];
   ingredientMatchMode: 'all' | 'any';
+  selectedTags?: string[];
+  tagMatchMode?: 'all' | 'any';
   onlyVegetarian?: boolean;
   minRating?: number;
   onlyDoableWithStock?: boolean;
@@ -111,6 +116,8 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
   difficulties,
   selectedIngredients,
   ingredientMatchMode,
+  selectedTags = [],
+  tagMatchMode = 'any',
   onlyVegetarian = false,
   minRating = 0,
   onlyDoableWithStock = false,
@@ -135,9 +142,25 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
   const [draftIngredientMatchMode, setDraftIngredientMatchMode] = useState<'all' | 'any'>(
     ingredientMatchMode
   );
+  const [draftTags, setDraftTags] = useState<string[]>(selectedTags);
+  const [draftTagMatchMode, setDraftTagMatchMode] = useState<'all' | 'any'>(tagMatchMode || 'any');
 
   // Saisie pour les ingrédients
   const [ingredientInputText, setIngredientInputText] = useState('');
+
+  // Liste de tous les tags existants dans les recettes
+  const availableTags = useMemo(() => {
+    const set = new Set<string>();
+    recipes.forEach((r) => {
+      if (Array.isArray(r.tags)) {
+        r.tags.forEach((t) => {
+          const trimmed = typeof t === 'string' ? t.trim() : '';
+          if (trimmed) set.add(trimmed);
+        });
+      }
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'fr'));
+  }, [recipes]);
 
   // Synchronise les brouillons dès l'ouverture du modal
   useEffect(() => {
@@ -150,6 +173,8 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
       setDraftDifficulties(difficulties);
       setDraftIngredients(selectedIngredients);
       setDraftIngredientMatchMode(ingredientMatchMode);
+      setDraftTags(selectedTags);
+      setDraftTagMatchMode(tagMatchMode || 'any');
       setIngredientInputText('');
     }
   }, [
@@ -161,6 +186,8 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
     difficulties,
     selectedIngredients,
     ingredientMatchMode,
+    selectedTags,
+    tagMatchMode,
   ]);
 
   const handleAddIngredient = (name: string) => {
@@ -242,6 +269,16 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
     });
   };
 
+  const handleToggleTag = (tag: string) => {
+    setDraftTags((prev) => {
+      const exists = prev.some((t) => t.toLowerCase() === tag.toLowerCase());
+      if (exists) {
+        return prev.filter((t) => t.toLowerCase() !== tag.toLowerCase());
+      }
+      return [...prev, tag];
+    });
+  };
+
   const handleResetDrafts = () => {
     setDraftTargetTotalTime(null);
     setDraftTimeFilterMode('max');
@@ -250,6 +287,8 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
     setDraftDifficulties([]);
     setDraftIngredients([]);
     setDraftIngredientMatchMode('all');
+    setDraftTags([]);
+    setDraftTagMatchMode('any');
     setIngredientInputText('');
   };
 
@@ -262,6 +301,8 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
       selectedIngredients: draftIngredients,
       ingredientMatchMode: draftIngredientMatchMode,
       minRating: draftMinRating,
+      selectedTags: draftTags,
+      tagMatchMode: draftTagMatchMode,
     });
     onClose();
   };
@@ -319,6 +360,13 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
       );
     }
 
+    // Filtre tags personnalisés
+    if (draftTags.length > 0) {
+      result = result.filter((r) =>
+        recipeMatchesTags(r, draftTags, draftTagMatchMode)
+      );
+    }
+
     return result.length;
   }, [
     recipes,
@@ -332,6 +380,8 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
     draftDifficulties,
     draftIngredients,
     draftIngredientMatchMode,
+    draftTags,
+    draftTagMatchMode,
     doableRecipesMap,
   ]);
 
@@ -787,6 +837,127 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
                   </View>
                 )}
               </View>
+
+              {/* SECTION 5 : TAGS & ÉTIQUETTES */}
+              <View style={styles.sectionCard}>
+                <View style={styles.sectionHeader}>
+                  <Ionicons name="pricetag-outline" size={17} color={colors.primary} />
+                  <Text style={styles.sectionTitle}>Tags & Étiquettes</Text>
+                  {draftTags.length > 0 ? (
+                    <View style={styles.countBadge}>
+                      <Text style={styles.countBadgeText}>{draftTags.length}</Text>
+                    </View>
+                  ) : (
+                    <Text style={styles.sectionHeaderHint}>Tous les tags</Text>
+                  )}
+                </View>
+                <Text style={styles.sectionDescription}>
+                  Filtrez les recettes selon vos étiquettes personnalisées.
+                </Text>
+
+                {availableTags.length === 0 ? (
+                  <View style={styles.emptyTagsNotice}>
+                    <Ionicons
+                      name="information-circle-outline"
+                      size={18}
+                      color={colors.textSecondary}
+                      style={{ marginRight: 8 }}
+                    />
+                    <Text style={styles.emptyTagsNoticeText}>
+                      Aucun tag n'est encore associé à vos recettes. Ajoutez des tags lors de la création ou l'édition d'une recette pour filtrer ici.
+                    </Text>
+                  </View>
+                ) : (
+                  <>
+                    <View style={styles.tagsWrap}>
+                      {availableTags.map((tag) => {
+                        const isSelected = draftTags.some((t) => t.toLowerCase() === tag.toLowerCase());
+                        return (
+                          <TouchableOpacity
+                            key={tag}
+                            style={[styles.tagFilterChip, isSelected && styles.tagFilterChipActive]}
+                            onPress={() => handleToggleTag(tag)}
+                            activeOpacity={0.75}
+                          >
+                            <Ionicons
+                              name={isSelected ? 'checkmark' : 'pricetag-outline'}
+                              size={13}
+                              color={isSelected ? '#FFFFFF' : colors.primary}
+                              style={{ marginRight: 5 }}
+                            />
+                            <Text
+                              style={[
+                                styles.tagFilterChipText,
+                                isSelected && styles.tagFilterChipTextActive,
+                              ]}
+                            >
+                              {tag}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+
+                    {draftTags.length > 1 && (
+                      <View style={styles.tagMatchModeBox}>
+                        <View style={styles.matchModeSegmented}>
+                          <TouchableOpacity
+                            style={[
+                              styles.matchModeBtn,
+                              draftTagMatchMode === 'any' && styles.matchModeBtnActive,
+                            ]}
+                            onPress={() => setDraftTagMatchMode('any')}
+                            activeOpacity={0.8}
+                          >
+                            <Text
+                              style={[
+                                styles.matchModeBtnText,
+                                draftTagMatchMode === 'any' && styles.matchModeBtnTextActive,
+                              ]}
+                            >
+                              Au moins un tag (OU)
+                            </Text>
+                          </TouchableOpacity>
+
+                          <TouchableOpacity
+                            style={[
+                              styles.matchModeBtn,
+                              draftTagMatchMode === 'all' && styles.matchModeBtnActive,
+                            ]}
+                            onPress={() => setDraftTagMatchMode('all')}
+                            activeOpacity={0.8}
+                          >
+                            <Text
+                              style={[
+                                styles.matchModeBtnText,
+                                draftTagMatchMode === 'all' && styles.matchModeBtnTextActive,
+                              ]}
+                            >
+                              Tous les tags (ET)
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
+                        <Text style={styles.matchModeExplanation}>
+                          {draftTagMatchMode === 'all'
+                            ? 'La recette doit posséder tous les tags sélectionnés.'
+                            : 'La recette peut posséder n’importe lequel de ces tags.'}
+                        </Text>
+                      </View>
+                    )}
+
+                    {draftTags.length > 0 && (
+                      <TouchableOpacity
+                        style={styles.tagsClearChip}
+                        onPress={() => setDraftTags([])}
+                        activeOpacity={0.75}
+                      >
+                        <Ionicons name="close-circle-outline" size={14} color={colors.textSecondary} />
+                        <Text style={styles.tagsClearChipText}>Désélectionner les tags</Text>
+                      </TouchableOpacity>
+                    )}
+                  </>
+                )}
+              </View>
             </ScrollView>
 
             {/* BARRE D'ACTIONS INFÉRIEURE (FIXE & STABLE) */}
@@ -1203,6 +1374,72 @@ const styles = createDynamicStyles((colors, shadows) => ({
     borderColor: colors.border,
   },
   timeClearChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  emptyTagsNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surfaceAlt,
+    padding: 12,
+    borderRadius: 12,
+    marginTop: 6,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  emptyTagsNoticeText: {
+    flex: 1,
+    fontSize: 12.5,
+    color: colors.textSecondary,
+    lineHeight: 18,
+  },
+  tagsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 6,
+  },
+  tagFilterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    backgroundColor: colors.cardBackground,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+  },
+  tagFilterChipActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  tagFilterChipText: {
+    fontSize: 12.5,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  tagFilterChipTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  tagMatchModeBox: {
+    marginTop: 12,
+  },
+  tagsClearChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 5,
+    marginTop: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.cardBackground,
+  },
+  tagsClearChipText: {
     fontSize: 12,
     fontWeight: '600',
     color: colors.textSecondary,

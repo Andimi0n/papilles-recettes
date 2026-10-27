@@ -100,6 +100,15 @@ function sanitizeStoredRecipe(r: any): Recipe {
       typeof r.isVegetarian === 'boolean'
         ? r.isVegetarian
         : isRecipeVegetarian(r.ingredients || [], r.title || '', r.description || ''),
+    tags: Array.isArray(r.tags)
+      ? Array.from(
+          new Set(
+            (r.tags as unknown[])
+              .filter((t): t is string => typeof t === 'string' && t.trim().length > 0)
+              .map((t) => t.trim().slice(0, 50))
+          )
+        ).slice(0, 30)
+      : undefined,
     createdAt: typeof r.createdAt === 'string' ? r.createdAt : new Date().toISOString(),
     updatedAt: typeof r.updatedAt === 'string' ? r.updatedAt : new Date().toISOString(),
     ingredients: Array.isArray(r.ingredients)
@@ -304,6 +313,62 @@ export const StorageService = {
     } catch (error) {
       console.error('Erreur lors de la mise à jour de la note:', error);
       throw error;
+    }
+  },
+
+  /**
+   * Met à jour les tags personnalisés d'une recette.
+   */
+  async updateRecipeTags(id: string, tags: string[]): Promise<Recipe[]> {
+    try {
+      const recipes = await this.getRecipes();
+      const cleanTags = Array.from(
+        new Set(
+          tags
+            .filter((t) => typeof t === 'string' && t.trim().length > 0)
+            .map((t) => t.trim().slice(0, 50))
+        )
+      ).slice(0, 30);
+
+      const updatedRecipes = recipes.map((r) => {
+        if (r.id === id) {
+          return {
+            ...r,
+            tags: cleanTags.length > 0 ? cleanTags : undefined,
+            updatedAt: new Date().toISOString(),
+          };
+        }
+        return r;
+      });
+
+      memoryCache.recipes = updatedRecipes;
+      await AsyncStorage.setItem(RECIPES_STORAGE_KEY, JSON.stringify(updatedRecipes));
+      return updatedRecipes;
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour des tags:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Récupère la liste dédoublonnée et triée de tous les tags existants dans le carnet.
+   */
+  async getAllTags(): Promise<string[]> {
+    try {
+      const recipes = await this.getRecipes();
+      const tagSet = new Set<string>();
+      recipes.forEach((r) => {
+        if (Array.isArray(r.tags)) {
+          r.tags.forEach((t) => {
+            const trimmed = typeof t === 'string' ? t.trim() : '';
+            if (trimmed) tagSet.add(trimmed);
+          });
+        }
+      });
+      return Array.from(tagSet).sort((a, b) => a.localeCompare(b, 'fr'));
+    } catch (error) {
+      console.error('Erreur lors de la récupération des tags:', error);
+      return [];
     }
   },
 

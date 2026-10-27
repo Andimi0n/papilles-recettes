@@ -12,6 +12,7 @@ import {
   Modal,
   Platform,
   Vibration,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -62,6 +63,7 @@ interface RecipeDetailScreenProps {
   onDelete: (id: string) => void;
   onToggleFavorite?: (id: string) => void;
   onUpdateRating: (id: string, rating: number, userNote?: string) => void;
+  onUpdateTags?: (id: string, tags: string[]) => void;
   onNavigateToShoppingList?: () => void;
 }
 
@@ -74,6 +76,7 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
   onEdit,
   onDelete,
   onUpdateRating,
+  onUpdateTags,
   onNavigateToShoppingList,
 }) => {
   // Maintient l'écran du smartphone allumé pendant la lecture de la fiche recette
@@ -149,6 +152,70 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
     });
     return set;
   }, [allergenEval]);
+
+  // Gestion rapide des tags de la recette
+  const [isTagModalVisible, setIsTagModalVisible] = useState(false);
+  const [modalDraftTags, setModalDraftTags] = useState<string[]>(recipe.tags || []);
+  const [detailTagInput, setDetailTagInput] = useState('');
+
+  // Synchronisation des tags brouillons dès que la recette change
+  useEffect(() => {
+    setModalDraftTags(recipe.tags || []);
+  }, [recipe.tags]);
+
+  const existingTagsAcrossCarnet = useMemo(() => {
+    const set = new Set<string>();
+    (allRecipes || []).forEach((r) => {
+      (r.tags || []).forEach((t) => {
+        const trimmed = typeof t === 'string' ? t.trim() : '';
+        if (trimmed) set.add(trimmed);
+      });
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'fr'));
+  }, [allRecipes]);
+
+  const POPULAR_TAG_SUGGESTIONS = [
+    'Rapide',
+    'Sans gluten',
+    'Sans lactose',
+    'Apéro',
+    'Batch cooking',
+    'Enfant',
+    'Épicé',
+    'Comfort food',
+    'Économique',
+    'Festif',
+  ];
+
+  const detailSuggestedTags = useMemo(() => {
+    const allAvailable = new Set<string>();
+    existingTagsAcrossCarnet.forEach((t) => allAvailable.add(t));
+    POPULAR_TAG_SUGGESTIONS.forEach((t) => allAvailable.add(t));
+    return Array.from(allAvailable).filter(
+      (cand) => !modalDraftTags.some((t) => t.toLowerCase() === cand.toLowerCase())
+    );
+  }, [existingTagsAcrossCarnet, modalDraftTags]);
+
+  const handleAddModalTag = (tagText: string) => {
+    const trimmed = tagText.trim().replace(/^#+/, '');
+    if (!trimmed) return;
+    const formatted = trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+    if (!modalDraftTags.some((t) => t.toLowerCase() === formatted.toLowerCase())) {
+      setModalDraftTags((prev) => [...prev, formatted]);
+    }
+    setDetailTagInput('');
+  };
+
+  const handleRemoveModalTag = (tagText: string) => {
+    setModalDraftTags((prev) => prev.filter((t) => t.toLowerCase() !== tagText.toLowerCase()));
+  };
+
+  const handleSaveTags = () => {
+    if (onUpdateTags) {
+      onUpdateTags(recipe.id, modalDraftTags);
+    }
+    setIsTagModalVisible(false);
+  };
 
   // Résolution et indexation des recettes liées (ex: pâte brisée maison pour une quiche)
   const linkedRecipesMap = useMemo(() => {
@@ -612,6 +679,45 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
             {recipe.description ? (
               <Text style={styles.description}>{recipe.description}</Text>
             ) : null}
+
+            {/* Tags / Étiquettes */}
+            <View style={styles.detailTagsContainer}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.detailTagsScroll}
+              >
+                {recipe.tags && recipe.tags.length > 0
+                  ? recipe.tags.map((tag) => (
+                      <TouchableOpacity
+                        key={tag}
+                        style={styles.detailTagBadge}
+                        onPress={() => {
+                          setModalDraftTags(recipe.tags || []);
+                          setIsTagModalVisible(true);
+                        }}
+                        activeOpacity={0.75}
+                      >
+                        <Ionicons name="pricetag-outline" size={12} color={colors.primary} />
+                        <Text style={styles.detailTagText}>#{tag}</Text>
+                      </TouchableOpacity>
+                    ))
+                  : null}
+                <TouchableOpacity
+                  style={styles.detailAddTagBtn}
+                  onPress={() => {
+                    setModalDraftTags(recipe.tags || []);
+                    setIsTagModalVisible(true);
+                  }}
+                  activeOpacity={0.75}
+                >
+                  <Ionicons name="pricetag-outline" size={12} color={colors.primary} />
+                  <Text style={styles.detailAddTagBtnText}>
+                    {recipe.tags && recipe.tags.length > 0 ? '+ Tag' : '+ Ajouter des tags'}
+                  </Text>
+                </TouchableOpacity>
+              </ScrollView>
+            </View>
           </View>
 
           {/* Interactive Rating Section */}
@@ -1427,6 +1533,143 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
           </View>
         </Modal>
 
+        {/* Modal de gestion rapide des tags de la recette */}
+        <Modal
+          visible={isTagModalVisible}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setIsTagModalVisible(false)}
+        >
+          <View style={styles.modalBackdrop}>
+            <KeyboardAvoidingView
+              behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+              style={{ width: '100%', alignItems: 'center' }}
+            >
+              <View style={styles.tagDialogCard}>
+                <View style={styles.tagDialogHeader}>
+                  <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <View style={styles.tagDialogIconWrap}>
+                      <Ionicons name="pricetag" size={18} color={colors.primary} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.tagDialogTitle}>Tags & Étiquettes</Text>
+                      <Text style={styles.tagDialogSubtitle} numberOfLines={1}>
+                        {recipe.title}
+                      </Text>
+                    </View>
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => setIsTagModalVisible(false)}
+                    style={styles.shoppingDialogCloseBtn}
+                    accessibilityLabel="Fermer"
+                  >
+                    <Ionicons name="close" size={20} color={colors.textSecondary} />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Saisie d'un nouveau tag */}
+                <View style={styles.modalTagInputRow}>
+                  <View style={styles.modalTagInputWrap}>
+                    <Ionicons
+                      name="pricetag-outline"
+                      size={15}
+                      color={colors.textSecondary}
+                      style={{ marginRight: 6 }}
+                    />
+                    <TextInput
+                      style={styles.modalTagTextInput}
+                      value={detailTagInput}
+                      onChangeText={setDetailTagInput}
+                      placeholder="Nouveau tag personnalisé..."
+                      placeholderTextColor={colors.textMuted}
+                      onSubmitEditing={() => handleAddModalTag(detailTagInput)}
+                      returnKeyType="done"
+                    />
+                  </View>
+                  <TouchableOpacity
+                    style={[
+                      styles.modalAddTagBtn,
+                      !detailTagInput.trim() && styles.modalAddTagBtnDisabled,
+                    ]}
+                    onPress={() => handleAddModalTag(detailTagInput)}
+                    disabled={!detailTagInput.trim()}
+                    activeOpacity={0.8}
+                    accessibilityLabel="Ajouter le tag"
+                  >
+                    <Ionicons name="add" size={20} color="#FFFFFF" />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Tags assignés */}
+                <Text style={styles.tagModalSectionLabel}>
+                  {modalDraftTags.length > 0
+                    ? 'Tags associés à cette recette :'
+                    : 'Aucun tag associé pour le moment'}
+                </Text>
+                {modalDraftTags.length > 0 && (
+                  <View style={styles.modalAssignedTagsWrap}>
+                    {modalDraftTags.map((t) => (
+                      <View key={t} style={styles.modalAssignedTagChip}>
+                        <Text style={styles.modalAssignedTagText}>#{t}</Text>
+                        <TouchableOpacity
+                          onPress={() => handleRemoveModalTag(t)}
+                          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                          style={styles.modalRemoveTagBtn}
+                          accessibilityLabel={`Supprimer le tag ${t}`}
+                        >
+                          <Ionicons name="close" size={12} color="#FFFFFF" />
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                {/* Suggestions */}
+                {detailSuggestedTags.length > 0 && (
+                  <View style={styles.modalSuggestedContainer}>
+                    <Text style={styles.tagModalSectionLabel}>Suggestions du carnet :</Text>
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      style={styles.modalSuggestedScroll}
+                    >
+                      {detailSuggestedTags.map((t) => (
+                        <TouchableOpacity
+                          key={t}
+                          style={styles.modalSuggestedTagChip}
+                          onPress={() => handleAddModalTag(t)}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons name="add" size={12} color={colors.primary} style={{ marginRight: 2 }} />
+                          <Text style={styles.modalSuggestedTagText}>{t}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                )}
+
+                {/* Boutons d'actions */}
+                <View style={styles.modalActionButtonsRow}>
+                  <TouchableOpacity
+                    style={styles.tagModalCancelBtn}
+                    onPress={() => setIsTagModalVisible(false)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.tagModalCancelBtnText}>Annuler</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.tagModalSaveBtn}
+                    onPress={handleSaveTags}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={styles.tagModalSaveBtnText}>Enregistrer</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </KeyboardAvoidingView>
+          </View>
+        </Modal>
+
         {/* Modal Mode Cuisine Pas-à-Pas Plein Écran */}
         <CookingModeModal
           visible={isCookingModeVisible}
@@ -1580,6 +1823,47 @@ const styles = createDynamicStyles((colors, shadows) => ({
     fontSize: 14,
     color: Colors.textSecondary,
     lineHeight: 20,
+  },
+  detailTagsContainer: {
+    marginTop: 10,
+  },
+  detailTagsScroll: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  detailTagBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    gap: 4,
+  },
+  detailTagText: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  detailAddTagBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: colors.primary,
+    backgroundColor: colors.primary + '10',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    gap: 4,
+  },
+  detailAddTagBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.primary,
   },
   ratingCard: {
     margin: 16,
@@ -2384,6 +2668,162 @@ const styles = createDynamicStyles((colors, shadows) => ({
   conversionPillTextActive: {
     color: '#FFFFFF',
     fontWeight: '700',
+  },
+  tagDialogCard: {
+    width: '92%',
+    maxHeight: '85%',
+    backgroundColor: colors.cardBackground,
+    borderRadius: 20,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    ...shadows.card,
+  },
+  tagDialogHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+  },
+  tagDialogIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.surfaceAlt,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tagDialogTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  tagDialogSubtitle: {
+    fontSize: 12.5,
+    color: colors.textSecondary,
+    marginTop: 1,
+  },
+  modalTagInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 14,
+  },
+  modalTagInputWrap: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    height: 42,
+  },
+  modalTagTextInput: {
+    flex: 1,
+    fontSize: 13.5,
+    color: colors.textPrimary,
+    paddingVertical: 0,
+  },
+  modalAddTagBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalAddTagBtnDisabled: {
+    opacity: 0.45,
+  },
+  tagModalSectionLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    marginBottom: 8,
+  },
+  modalAssignedTagsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 14,
+  },
+  modalAssignedTagChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primary,
+    paddingVertical: 5,
+    paddingLeft: 10,
+    paddingRight: 6,
+    borderRadius: 10,
+    gap: 5,
+  },
+  modalAssignedTagText: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  modalRemoveTagBtn: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalSuggestedContainer: {
+    marginBottom: 16,
+  },
+  modalSuggestedScroll: {
+    flexDirection: 'row',
+  },
+  modalSuggestedTagChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 8,
+    marginRight: 8,
+  },
+  modalSuggestedTagText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  modalActionButtonsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 10,
+    marginTop: 6,
+  },
+  tagModalCancelBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  tagModalCancelBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  tagModalSaveBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    borderRadius: 10,
+    backgroundColor: colors.primary,
+    ...shadows.card,
+  },
+  tagModalSaveBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   shoppingDialogCard: {
     width: '92%',

@@ -41,6 +41,7 @@ import {
   recipeMatchesIngredients,
   recipeMatchesTime,
   recipeMatchesDifficulty,
+  recipeMatchesTags,
 } from '../utils/searchEngine';
 import { evaluateRecipesWithStock, RecipeStockEvaluation } from '../utils/stockMatcher';
 import { prepareUserAllergens, recipeContainsAllergens } from '../utils/allergenMatcher';
@@ -93,6 +94,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const [timeFilterMode, setTimeFilterMode] = useState<TimeFilterMode>('max');
   const [selectedDifficulties, setSelectedDifficulties] = useState<Difficulty[]>([]);
   const [ingredientMatchMode, setIngredientMatchMode] = useState<'all' | 'any'>('all');
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [tagMatchMode, setTagMatchMode] = useState<'all' | 'any'>('any');
   const [isAdvancedFiltersModalVisible, setIsAdvancedFiltersModalVisible] = useState(false);
   const [sortBy, setSortBy] = useState<SortOption>('rating_desc');
   const [minRatingFilter, setMinRatingFilter] = useState<number>(0);
@@ -104,8 +107,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     if (targetTotalTime !== null) count++;
     if (selectedDifficulties.length > 0) count++;
     if (selectedIngredients.length > 0) count++;
+    if (selectedTags.length > 0) count++;
     return count;
-  }, [targetTotalTime, selectedDifficulties.length, selectedIngredients.length]);
+  }, [targetTotalTime, selectedDifficulties.length, selectedIngredients.length, selectedTags.length]);
 
   useEffect(() => {
     if (initialOnlyDoable) {
@@ -472,6 +476,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       result = result.filter((r) => recipeMatchesDifficulty(r.recipe, selectedDifficulties));
     }
 
+    // Tags personnalisés (Filtres avancés)
+    if (selectedTags.length > 0) {
+      result = result.filter((r) =>
+        recipeMatchesTags(r.recipe, selectedTags, tagMatchMode)
+      );
+    }
+
     // Filtrage automatique des recettes contenant des allergènes personnels (activé par défaut)
     if (isAllergenFilterEnabled && userAllergens.length > 0) {
       result = result.filter((r) => !recipeContainsAllergens(r.recipe, preparedAllergens));
@@ -518,6 +529,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     selectedCategories,
     selectedIngredients,
     ingredientMatchMode,
+    selectedTags,
+    tagMatchMode,
     targetTotalTime,
     timeFilterMode,
     selectedDifficulties,
@@ -539,6 +552,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     selectedCategories,
     selectedIngredients,
     ingredientMatchMode,
+    selectedTags,
+    tagMatchMode,
     targetTotalTime,
     timeFilterMode,
     selectedDifficulties,
@@ -602,6 +617,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     setSearchQuery('');
     setSelectedCategories([]);
     setSelectedIngredients([]);
+    setSelectedTags([]);
+    setTagMatchMode('any');
     setTargetTotalTime(null);
     setTimeFilterMode('max');
     setSelectedDifficulties([]);
@@ -727,6 +744,22 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                     </TouchableOpacity>
                   </View>
                 )}
+
+                {selectedTags.length > 0 && (
+                  <View style={styles.activePillChip}>
+                    <Ionicons name="pricetag-outline" size={12} color={colors.primary} />
+                    <Text style={styles.activePillChipText}>
+                      {tagMatchMode === 'all' ? 'Tags (ET) : ' : 'Tags (OU) : '}
+                      {selectedTags.join(', ')}
+                    </Text>
+                    <TouchableOpacity
+                      onPress={() => setSelectedTags([])}
+                      hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                    >
+                      <Ionicons name="close-circle" size={14} color={colors.textSecondary} />
+                    </TouchableOpacity>
+                  </View>
+                )}
               </ScrollView>
             </View>
 
@@ -736,6 +769,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 setTimeFilterMode('max');
                 setSelectedDifficulties([]);
                 setSelectedIngredients([]);
+                setSelectedTags([]);
                 setMinRatingFilter(0);
               }}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -768,6 +802,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     [
       todayMeals,
       selectedIngredients,
+      ingredientMatchMode,
+      selectedTags,
+      tagMatchMode,
       targetTotalTime,
       timeFilterMode,
       selectedDifficulties,
@@ -1146,7 +1183,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           </View>
         </Modal>
 
-        {/* Modal Filtres Avancés (Temps total, Note minimale, Difficulté, Ingrédients) */}
+        {/* Modal Filtres Avancés (Temps total, Note minimale, Difficulté, Ingrédients, Tags) */}
         <AdvancedFiltersModal
           visible={isAdvancedFiltersModalVisible}
           onClose={() => setIsAdvancedFiltersModalVisible(false)}
@@ -1156,6 +1193,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             difficulties: newDifficulties,
             selectedIngredients: newIngredients,
             ingredientMatchMode: newMatchMode,
+            selectedTags: newTags,
+            tagMatchMode: newTagMatchMode,
             minRating: newMinRating,
           }) => {
             setTargetTotalTime(newTargetTime);
@@ -1163,6 +1202,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             setSelectedDifficulties(newDifficulties);
             setSelectedIngredients(newIngredients);
             setIngredientMatchMode(newMatchMode);
+            if (newTags !== undefined) setSelectedTags(newTags);
+            if (newTagMatchMode !== undefined) setTagMatchMode(newTagMatchMode);
             if (newMinRating !== undefined) setMinRatingFilter(newMinRating);
           }}
           onReset={() => {
@@ -1171,6 +1212,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             setSelectedDifficulties([]);
             setSelectedIngredients([]);
             setIngredientMatchMode('all');
+            setSelectedTags([]);
+            setTagMatchMode('any');
             setMinRatingFilter(0);
           }}
           targetTotalTime={targetTotalTime}
@@ -1178,6 +1221,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           difficulties={selectedDifficulties}
           selectedIngredients={selectedIngredients}
           ingredientMatchMode={ingredientMatchMode}
+          selectedTags={selectedTags}
+          tagMatchMode={tagMatchMode}
           minRating={minRatingFilter}
           onlyVegetarian={onlyVegetarian}
           onlyDoableWithStock={onlyDoableWithStock}

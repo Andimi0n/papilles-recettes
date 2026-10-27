@@ -641,6 +641,7 @@ export interface ExtractedRecipeData {
   steps: { order: number; instruction: string }[];
   userNote?: string;
   isVegetarian?: boolean;
+  tags?: string[];
 }
 
 export type AiStatusCode =

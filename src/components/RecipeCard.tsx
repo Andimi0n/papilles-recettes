@@ -125,6 +125,20 @@ const RecipeCardComponent: React.FC<RecipeCardProps> = ({
           </View>
         )}
 
+        {/* Tags preview if any */}
+        {recipe.tags && recipe.tags.length > 0 && (
+          <View style={styles.cardTagsRow}>
+            {recipe.tags.slice(0, 3).map((tag) => (
+              <View key={tag} style={styles.cardTagChip}>
+                <Text style={styles.cardTagText}>#{tag}</Text>
+              </View>
+            ))}
+            {recipe.tags.length > 3 && (
+              <Text style={styles.cardMoreTagsText}>+{recipe.tags.length - 3}</Text>
+            )}
+          </View>
+        )}
+
         {/* Footer: Time, Servings, Difficulty */}
         <View style={styles.footer}>
           <View style={styles.metaItem}>
@@ -308,6 +322,32 @@ const styles = createDynamicStyles((colors, shadows) => ({
   matchedText: {
     color: colors.textPrimary,
     fontWeight: '500',
+  },
+  cardTagsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 10,
+  },
+  cardTagChip: {
+    backgroundColor: colors.surfaceAlt,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  cardTagText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  cardMoreTagsText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    marginLeft: 2,
   },
   footer: {
     flexDirection: 'row',

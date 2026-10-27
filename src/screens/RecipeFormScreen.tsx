@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -216,6 +216,7 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
       if (extracted.servings) setServings(extracted.servings);
       if (extracted.isVegetarian !== undefined) setIsVegetarian(extracted.isVegetarian);
       if (extracted.userNote) setUserNote(extracted.userNote.trim());
+      if (extracted.tags && Array.isArray(extracted.tags)) setTags(extracted.tags);
       if (extracted.ingredients && extracted.ingredients.length > 0) {
         setIngredients(
           extracted.ingredients.map((ing, idx) => {
@@ -278,6 +279,57 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
       ? [initialRecipe.imageUrl]
       : []
   );
+
+  // Tags state
+  const [tags, setTags] = useState<string[]>(initialRecipe?.tags || []);
+  const [tagInputText, setTagInputText] = useState('');
+
+  const existingTags: string[] = useMemo(() => {
+    const set = new Set<string>();
+    (availableRecipes || []).forEach((r) => {
+      (r.tags || []).forEach((t) => {
+        const trimmed = typeof t === 'string' ? t.trim() : '';
+        if (trimmed) set.add(trimmed);
+      });
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'fr'));
+  }, [availableRecipes]);
+
+  const POPULAR_TAG_SUGGESTIONS = [
+    'Rapide',
+    'Sans gluten',
+    'Sans lactose',
+    'Apéro',
+    'Batch cooking',
+    'Enfant',
+    'Épicé',
+    'Comfort food',
+    'Économique',
+    'Festif',
+  ];
+
+  const suggestedTags: string[] = useMemo(() => {
+    const allAvailable = new Set<string>();
+    existingTags.forEach((t: string) => allAvailable.add(t));
+    POPULAR_TAG_SUGGESTIONS.forEach((t) => allAvailable.add(t));
+    return Array.from(allAvailable).filter(
+      (cand) => !tags.some((t) => t.toLowerCase() === cand.toLowerCase())
+    );
+  }, [existingTags, tags]);
+
+  const handleAddTag = (newTag: string) => {
+    const trimmed = newTag.trim().replace(/^#+/, '');
+    if (!trimmed) return;
+    const formatted = trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+    if (!tags.some((t) => t.toLowerCase() === formatted.toLowerCase())) {
+      setTags((prev) => [...prev, formatted]);
+    }
+    setTagInputText('');
+  };
+
+  const handleRemoveTag = (tagToRemove: string) => {
+    setTags((prev) => prev.filter((t) => t.toLowerCase() !== tagToRemove.toLowerCase()));
+  };
 
   // Ingredients state
   const [ingredients, setIngredients] = useState<Ingredient[]>(
@@ -577,6 +629,7 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
       servings: Math.max(1, servings),
       rating,
       isVegetarian,
+      tags: tags.length > 0 ? tags : undefined,
       userNote: userNote.trim() || undefined,
       imageUrl: imageUrl.trim(),
       availableImages: availableImages.length > 0 ? availableImages : undefined,
@@ -1058,6 +1111,86 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
                 </Text>
               </View>
             </TouchableOpacity>
+
+            {/* Tags & Étiquettes personnalisés */}
+            <View style={styles.tagsSectionHeader}>
+              <Text style={styles.inputLabel}>Tags & Étiquettes</Text>
+              <Text style={styles.tagsSubtitle}>
+                Classez votre recette selon vos envies (ex: Rapide, Apéro, Sans lactose...)
+              </Text>
+            </View>
+
+            {/* Saisie d'un nouveau tag */}
+            <View style={styles.tagInputRow}>
+              <View style={styles.tagInputWrap}>
+                <Ionicons
+                  name="pricetag-outline"
+                  size={16}
+                  color={colors.textSecondary}
+                  style={{ marginRight: 8 }}
+                />
+                <TextInput
+                  style={styles.tagTextInput}
+                  value={tagInputText}
+                  onChangeText={setTagInputText}
+                  placeholder="Créer un nouveau tag..."
+                  placeholderTextColor={colors.textMuted}
+                  onSubmitEditing={() => handleAddTag(tagInputText)}
+                  returnKeyType="done"
+                />
+              </View>
+              <TouchableOpacity
+                style={[
+                  styles.addTagBtn,
+                  !tagInputText.trim() && styles.addTagBtnDisabled,
+                ]}
+                onPress={() => handleAddTag(tagInputText)}
+                disabled={!tagInputText.trim()}
+                activeOpacity={0.8}
+                accessibilityLabel="Ajouter le tag"
+              >
+                <Ionicons name="add" size={20} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Tags actuellement assignés à la recette */}
+            {tags.length > 0 && (
+              <View style={styles.currentTagsWrap}>
+                {tags.map((t) => (
+                  <View key={t} style={styles.assignedTagBadge}>
+                    <Text style={styles.assignedTagText}>#{t}</Text>
+                    <TouchableOpacity
+                      onPress={() => handleRemoveTag(t)}
+                      hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                      style={styles.removeTagBtn}
+                      accessibilityLabel={`Supprimer le tag ${t}`}
+                    >
+                      <Ionicons name="close" size={13} color="#FFFFFF" />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {/* Suggestions de tags en 1 clic */}
+            {suggestedTags.length > 0 && (
+              <View style={styles.suggestedTagsContainer}>
+                <Text style={styles.suggestedTagsTitle}>Suggestions en 1 clic :</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.suggestedTagsScroll}>
+                  {suggestedTags.map((t) => (
+                    <TouchableOpacity
+                      key={t}
+                      style={styles.suggestedTagChip}
+                      onPress={() => handleAddTag(t)}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="add" size={12} color={colors.primary} style={{ marginRight: 3 }} />
+                      <Text style={styles.suggestedTagText}>{t}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
 
             {/* Difficulté */}
             <Text style={styles.inputLabel}>Difficulté</Text>
@@ -2097,6 +2230,106 @@ const styles = createDynamicStyles((colors, shadows) => ({
   vegeSubtitle: {
     fontSize: 12,
     color: colors.textSecondary,
+  },
+  tagsSectionHeader: {
+    marginBottom: 4,
+  },
+  tagsSubtitle: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginBottom: 8,
+    marginTop: -4,
+  },
+  tagInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
+  tagInputWrap: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    height: 44,
+  },
+  tagTextInput: {
+    flex: 1,
+    fontSize: 14,
+    color: colors.textPrimary,
+    paddingVertical: 0,
+  },
+  addTagBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addTagBtnDisabled: {
+    opacity: 0.45,
+  },
+  currentTagsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 12,
+  },
+  assignedTagBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primary,
+    paddingVertical: 6,
+    paddingLeft: 10,
+    paddingRight: 6,
+    borderRadius: 10,
+    gap: 6,
+  },
+  assignedTagText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  removeTagBtn: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: 'rgba(255,255,255,0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  suggestedTagsContainer: {
+    marginBottom: 16,
+  },
+  suggestedTagsTitle: {
+    fontSize: 11.5,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    marginBottom: 6,
+  },
+  suggestedTagsScroll: {
+    flexDirection: 'row',
+  },
+  suggestedTagChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    marginRight: 8,
+  },
+  suggestedTagText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textPrimary,
   },
   candidateBlock: {
     marginTop: 12,

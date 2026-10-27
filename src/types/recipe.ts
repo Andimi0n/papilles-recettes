@@ -43,6 +43,7 @@ export interface Recipe {
   availableImages?: string[];
   isFavorite?: boolean;
   isVegetarian?: boolean;
+  tags?: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -58,6 +59,8 @@ export interface AdvancedFilterOptions {
   difficulties: Difficulty[];     // Ex: ['Facile'], tableau vide = toutes
   selectedIngredients: string[];  // Liste des ingrédients ciblés
   ingredientMatchMode: 'all' | 'any'; // 'all' = contient TOUS les ingrédients (ET), 'any' = au moins un (OU)
+  selectedTags?: string[];        // Liste des tags ciblés
+  tagMatchMode?: 'all' | 'any';   // 'all' = contient TOUS les tags (ET), 'any' = au moins un (OU)
 }
 
 export interface FilterOptions {
@@ -73,6 +76,8 @@ export interface FilterOptions {
   maxTotalTime?: number | null;
   difficulties?: Difficulty[];
   ingredientMatchMode?: 'all' | 'any';
+  selectedTags?: string[];
+  tagMatchMode?: 'all' | 'any';
 }
 
 export interface RecipeIdea {
