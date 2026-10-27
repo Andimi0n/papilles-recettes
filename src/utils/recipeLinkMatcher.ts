@@ -1,7 +1,7 @@
 import { Ingredient, Recipe } from '../types/recipe';
 import { normalizeString } from './helpers';
 
-// Mots et expressions accessoires couramment présents dans les titres de recettes
+// Mots et expressions accessoires couramment présents dans les titres de recettes de base/préparations
 const RECIPE_TITLE_QUALIFIERS = [
   /\b(fait )?maison\b/g,
   /\bvite faite?s?\b/g,
@@ -24,35 +24,25 @@ const RECIPE_TITLE_QUALIFIERS = [
   /\bau magimix\b/g,
 ];
 
-// Mots accessoires couramment présents dans les noms d'ingrédients en recette
+// Mots accessoires de conditionnement couramment présents dans les ingrédients
 const INGREDIENT_NAME_QUALIFIERS = [
+  /\b[0-9]+ ?(rouleau|rouleaux) (de |d')?\b/g,
   /\b(1 |2 )?rouleau(x)? (de |d')?\b/g,
   /\bpr[eê]te?s? [aà] d[eé]rouler\b/g,
   /\bdu commerce\b/g,
-  /\bmaison\b/g,
-  /\bfrais|fra[iî]che\b/g,
-  /\ben bo[iî]te\b/g,
-  /\ben bocal\b/g,
-  /\bsurgel[eé]e?s?\b/g,
 ];
 
-// Ingrédients monoproduits trop génériques pour autoriser un match partiel / flou
-const GENERIC_INGREDIENTS = new Set([
-  'sel',
-  'eau',
-  'poivre',
-  'beurre',
-  'huile',
-  'sucre',
-  'oeuf',
-  'oeufs',
-  'lait',
-  'farine',
-  'pain',
-  'ail',
-  'oignon',
-  'carotte',
-]);
+/**
+ * Normalise un terme en passant au singulier strict (retrait du 's' ou 'x' terminal par mot)
+ */
+export function toSingular(term: string): string {
+  if (!term) return '';
+  return term
+    .split(' ')
+    .filter(Boolean)
+    .map((word) => word.replace(/s$/g, '').replace(/x$/g, ''))
+    .join(' ');
+}
 
 /**
  * Nettoie le titre d'une recette pour la détection de lien culinaire (ex: "Pâte brisée vite faite" -> "pate brisee")
@@ -74,7 +64,7 @@ export function cleanRecipeTitleForMatching(title: string): string {
 }
 
 /**
- * Nettoie le nom d'un ingrédient pour la détection de lien culinaire (ex: "Pâte brisée prête à dérouler" -> "pate brisee")
+ * Nettoie le nom d'un ingrédient pour la détection de lien culinaire (ex: "Pâte brisée (1 rouleau)" -> "pate brisee")
  */
 export function cleanIngredientNameForMatching(name: string): string {
   if (!name) return '';
@@ -89,7 +79,9 @@ export function cleanIngredientNameForMatching(name: string): string {
 }
 
 /**
- * Calcule un score de pertinence entre un nom d'ingrédient et un titre de recette (0 à 100).
+ * Calcule un score de pertinence strict entre un nom d'ingrédient et un titre de recette (0 à 100).
+ * RÈGLE D'OR : Strictement rigide (zéro sous-chaîne, zéro préfixe partiel, zéro faux positif).
+ * Seule l'égalité stricte entre la préparation cuisinée et l'ingrédient demandé est autorisée.
  */
 export function computeRecipeMatchScore(
   ingredientName: string,
@@ -102,38 +94,25 @@ export function computeRecipeMatchScore(
   if (!cIng || !cRec) return 0;
   if (cIng.length < 3 || cRec.length < 3) return 0;
 
-  // 1. Correspondance exacte parfaite
-  if (cIng === cRec) {
+  const sIng = toSingular(cIng);
+  const sRec = toSingular(cRec);
+
+  // 1. Correspondance stricte (avec équivalence singulier/pluriel)
+  if (sIng === sRec) {
     return 100;
   }
 
-  // 2. Correspondance avec le nom canonique officiel
+  // 2. Correspondance stricte avec le nom canonique officiel
   if (canonicalName) {
     const cCanon = cleanIngredientNameForMatching(canonicalName);
-    if (cCanon && cCanon === cRec) {
+    const sCanon = toSingular(cCanon);
+    if (sCanon && sCanon === sRec) {
       return 95;
     }
   }
 
-  // Si c'est un ingrédient ultra-générique de base, refuser le match partiel
-  if (GENERIC_INGREDIENTS.has(cIng) || GENERIC_INGREDIENTS.has(cRec)) {
-    return 0;
-  }
-
-  // 3. Préfixe / Suffixe avec frontière de mot (ex: "pate brisee" et "pate brisee salee")
-  if (cIng.length >= 5 && cRec.length >= 5) {
-    if (cRec.startsWith(cIng + ' ') || cIng.startsWith(cRec + ' ')) {
-      return 85;
-    }
-  }
-
-  // 4. Inclusion si la chaîne est suffisamment distinctive (au moins 6 caractères)
-  if (cIng.length >= 6 && cRec.length >= 6) {
-    if (cRec.includes(cIng) || cIng.includes(cRec)) {
-      return 80;
-    }
-  }
-
+  // Zéro tolérance pour les inclusions partielles (ex: "lardon" dans "tarte aux lardons" = 0,
+  // "crème fraîche" vs "crème pâtissière" = 0)
   return 0;
 }
 
@@ -141,7 +120,7 @@ export function computeRecipeMatchScore(
  * Recherche la recette associée à un ingrédient :
  * 1. Si linkedRecipeId === 'none' : retourne null (dissociation explicite de l'utilisateur).
  * 2. Si linkedRecipeId est renseigné : recherche la recette correspondante par ID.
- * 3. Sinon : tente une résolution automatique parmi toutes les recettes disponibles (hors recette courante).
+ * 3. Sinon : tente une résolution automatique stricte parmi toutes les recettes disponibles (hors recette courante).
  */
 export function findLinkedRecipeForIngredient(
   ingredient: Ingredient,
@@ -165,7 +144,7 @@ export function findLinkedRecipeForIngredient(
     // Si la recette manuelle liée a été supprimée, on bascule en auto-matching fallback
   }
 
-  // Résolution automatique
+  // Résolution automatique stricte
   return findAutoMatchCandidate(ingredient.name, allRecipes, currentRecipeId, canonicalName);
 }
 
@@ -190,7 +169,7 @@ export function findAutoMatchCandidate(
     }
 
     const score = computeRecipeMatchScore(ingredientName, recipe.title, canonicalName);
-    if (score >= 80 && score > bestScore) {
+    if (score >= 90 && score > bestScore) {
       bestScore = score;
       bestMatch = recipe;
       if (bestScore === 100) {

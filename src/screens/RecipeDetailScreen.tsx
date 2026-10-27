@@ -855,22 +855,24 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
                         color={isChecked ? Colors.secondary : isAllergen ? colors.danger : Colors.border}
                         style={styles.checkIcon}
                       />
-                      <View style={styles.ingredientNameWrapper}>
-                        <Text
-                          style={[
-                            styles.ingredientName,
-                            isChecked && styles.textChecked,
-                            group.key === 'pantry' && styles.ingredientNamePantry,
-                            isAllergen && !isChecked && styles.ingredientNameAllergen,
-                          ]}
-                        >
-                          {ing.name}
-                        </Text>
-                        {isAllergen && !isChecked && (
-                          <View style={[styles.allergenInlineTag, { backgroundColor: colors.dangerLight, borderColor: colors.danger }]}>
-                            <Text style={[styles.allergenInlineTagText, { color: colors.danger }]}>Allergène</Text>
-                          </View>
-                        )}
+                      <View style={styles.ingredientCol}>
+                        <View style={styles.ingredientNameRow}>
+                          <Text
+                            style={[
+                              styles.ingredientName,
+                              isChecked && styles.textChecked,
+                              group.key === 'pantry' && styles.ingredientNamePantry,
+                              isAllergen && !isChecked && styles.ingredientNameAllergen,
+                            ]}
+                          >
+                            {ing.name}
+                          </Text>
+                          {isAllergen && !isChecked && (
+                            <View style={[styles.allergenInlineTag, { backgroundColor: colors.dangerLight, borderColor: colors.danger }]}>
+                              <Text style={[styles.allergenInlineTagText, { color: colors.danger }]}>Allergène</Text>
+                            </View>
+                          )}
+                        </View>
                         {linkedRecipe && (
                           <TouchableOpacity
                             style={styles.linkedRecipeInlineBtn}
@@ -1700,15 +1702,19 @@ const styles = createDynamicStyles((colors, shadows) => ({
   checkIcon: {
     marginRight: 10,
   },
-  ingredientNameWrapper: {
+  ingredientCol: {
     flex: 1,
+    flexDirection: 'column',
+    justifyContent: 'center',
+    marginRight: 8,
+  },
+  ingredientNameRow: {
     flexDirection: 'row',
     alignItems: 'center',
     flexWrap: 'wrap',
     gap: 6,
   },
   ingredientName: {
-    flex: 1,
     fontSize: 14,
     color: Colors.textPrimary,
     fontWeight: '500',
@@ -1731,19 +1737,22 @@ const styles = createDynamicStyles((colors, shadows) => ({
   linkedRecipeInlineBtn: {
     flexDirection: 'row',
     alignItems: 'center',
+    alignSelf: 'flex-start',
     backgroundColor: colors.primaryLight + '35',
     paddingHorizontal: 8,
     paddingVertical: 3.5,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: colors.primaryLight + '70',
-    marginTop: 2,
+    marginTop: 4,
+    maxWidth: '100%',
   },
   linkedRecipeInlineBtnText: {
     fontSize: 11,
     fontWeight: '700',
     color: colors.primary,
     marginHorizontal: 4,
+    flexShrink: 1,
   },
   linkedPreparationsCard: {
     backgroundColor: colors.background,

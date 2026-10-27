@@ -1321,7 +1321,7 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
                         ing.isOptional && styles.flagChipTextActiveOptional,
                       ]}
                     >
-                      {ing.isOptional ? 'En finition (au goût)' : '+ En finition'}
+                      {ing.isOptional ? 'En finition' : '+ Finition'}
                     </Text>
                   </TouchableOpacity>
 
@@ -1348,7 +1348,7 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
                             style={[styles.flagChipText, styles.flagChipTextActiveLinked]}
                             numberOfLines={1}
                           >
-                            Recette : {manualRecipe.title}
+                            {manualRecipe.title}
                           </Text>
                         </TouchableOpacity>
                       );
@@ -1379,7 +1379,7 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
                             style={[styles.flagChipText, styles.flagChipTextAutoLinked]}
                             numberOfLines={1}
                           >
-                            Lien auto : {autoCandidate.title}
+                            Lien : {autoCandidate.title}
                           </Text>
                         </TouchableOpacity>
                       );
@@ -1817,19 +1817,21 @@ const styles = createDynamicStyles((colors, shadows) => ({
   ingredientFlagsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginTop: 6,
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 8,
     paddingLeft: 2,
   },
   flagChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
+    paddingHorizontal: 7,
     paddingVertical: 3,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.cardBackground,
+    maxWidth: 220,
   },
   flagChipActiveStaple: {
     backgroundColor: colors.primary + '18',
@@ -1843,6 +1845,7 @@ const styles = createDynamicStyles((colors, shadows) => ({
     fontSize: 11,
     color: colors.textMuted,
     fontWeight: '500',
+    flexShrink: 1,
   },
   flagChipTextActiveStaple: {
     color: colors.primary,
@@ -1859,7 +1862,7 @@ const styles = createDynamicStyles((colors, shadows) => ({
   flagChipTextActiveLinked: {
     color: colors.primary,
     fontWeight: '700',
-    maxWidth: 130,
+    flexShrink: 1,
   },
   flagChipAutoLinked: {
     backgroundColor: colors.primaryLight + '25',
@@ -1868,7 +1871,7 @@ const styles = createDynamicStyles((colors, shadows) => ({
   flagChipTextAutoLinked: {
     color: colors.primary,
     fontWeight: '600',
-    maxWidth: 130,
+    flexShrink: 1,
   },
   lexiconBadgeOk: {
     flexDirection: 'row',

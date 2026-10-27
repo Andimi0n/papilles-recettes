@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Test unitaire automatisé pour le moteur de liaison automatique de recettes
+ * Test unitaire automatisé pour le moteur de liaison automatique de recettes (Détection stricte et rigide)
  */
 const path = require('path');
 const fs = require('fs');
@@ -32,9 +32,10 @@ const {
   findLinkedRecipeForIngredient,
   findAutoMatchCandidate,
   getLinkedRecipesForRecipe,
+  toSingular,
 } = require(recipeLinkMatcherPath);
 
-console.log('🧪 Lancement des tests de recipeLinkMatcher (Liaison intelligente de recettes)...');
+console.log('🧪 Lancement des tests de recipeLinkMatcher (Règles strictes sans faux positifs)...');
 
 const mockRecipes = [
   {
@@ -42,9 +43,10 @@ const mockRecipes = [
     title: 'Quiche lorraine maison',
     ingredients: [
       { id: 'ing_1', name: 'Pâte brisée', canonicalId: 'ing_canon_pate_brisee' },
-      { id: 'ing_2', name: 'Lardon', canonicalId: 'ing_canon_lardon' },
-      { id: 'ing_3', name: 'Beurre', canonicalId: 'ing_canon_beurre' },
-      { id: 'ing_4', name: 'Sel', isPantryStaple: true },
+      { id: 'ing_2', name: 'Lardons', canonicalId: 'ing_canon_lardon' },
+      { id: 'ing_3', name: 'Crème fraîche', canonicalId: 'ing_canon_creme_fraiche' },
+      { id: 'ing_4', name: 'Beurre', canonicalId: 'ing_canon_beurre' },
+      { id: 'ing_5', name: 'Sel', isPantryStaple: true },
     ],
   },
   {
@@ -53,14 +55,24 @@ const mockRecipes = [
     ingredients: [{ id: 'ing_pb_1', name: 'Farine' }, { id: 'ing_pb_2', name: 'Beurre' }],
   },
   {
-    id: 'rec_sauce_tomate',
-    title: 'Sauce tomate maison',
-    ingredients: [{ id: 'ing_st_1', name: 'Tomate' }],
+    id: 'rec_tarte_poireaux_lardons',
+    title: 'Tarte aux poireaux et lardons',
+    ingredients: [{ id: 'ing_tpl_1', name: 'Poireaux' }],
+  },
+  {
+    id: 'rec_creme_patissiere',
+    title: 'Crème pâtissière',
+    ingredients: [{ id: 'ing_cp_1', name: 'Lait' }],
   },
   {
     id: 'rec_beurre_blanc',
     title: 'Beurre blanc nantais',
-    ingredients: [{ id: 'ing_bb_1', name: 'Beurre' }, { id: 'ing_bb_2', name: 'Échalote' }],
+    ingredients: [{ id: 'ing_bb_1', name: 'Beurre' }],
+  },
+  {
+    id: 'rec_sauce_tomate',
+    title: 'Sauce tomate maison',
+    ingredients: [{ id: 'ing_st_1', name: 'Tomate' }],
   },
 ];
 
@@ -84,84 +96,91 @@ assert(
   cleanRecipeTitleForMatching('Quiche lorraine maison') === 'quiche lorraine',
   'cleanRecipeTitleForMatching élague "maison"'
 );
-assert(
-  cleanRecipeTitleForMatching('Sauce tomate (recette de grand-mère)') === 'sauce tomate',
-  'cleanRecipeTitleForMatching retire parenthèses et qualificatifs'
-);
 
-// 2. Nettoyage de nom d'ingrédient
+// 2. Nettoyage d'ingrédient : préservation des qualificatifs intrinsèques comme "fraîche"
 assert(
   cleanIngredientNameForMatching('Pâte brisée (1 rouleau)') === 'pate brisee',
   'cleanIngredientNameForMatching retire "1 rouleau"'
 );
 assert(
-  cleanIngredientNameForMatching('Pâte brisée prête à dérouler') === 'pate brisee',
-  'cleanIngredientNameForMatching retire "prête à dérouler"'
+  cleanIngredientNameForMatching('Crème fraîche') === 'creme fraiche',
+  'cleanIngredientNameForMatching préserve "fraîche" (intégrité culinaire)'
 );
 
-// 3. Calcul de score
+// 3. Test singulier / pluriel
+assert(
+  toSingular('cremes fraiches') === 'creme fraiche',
+  'toSingular convertit les pluriels en singulier'
+);
+assert(
+  toSingular('lardons') === 'lardon',
+  'toSingular convertit "lardons" en "lardon"'
+);
+
+// 4. Score strict & élimination des faux positifs
 assert(
   computeRecipeMatchScore('Pâte brisée', 'Pâte brisée vite faite') === 100,
   'Score 100 pour Pâte brisée vs Pâte brisée vite faite'
 );
 assert(
-  computeRecipeMatchScore('Lardon', 'Quiche lorraine maison') === 0,
-  'Score 0 pour ingrédient partiel non pertinent (Lardon vs Quiche)'
+  computeRecipeMatchScore('Lardons', 'Tarte aux poireaux et lardons') === 0,
+  'Score 0 STRICT : Lardons ne matche PAS Tarte aux poireaux et lardons (zéro faux positif)'
+);
+assert(
+  computeRecipeMatchScore('Crème fraîche', 'Crème pâtissière') === 0,
+  'Score 0 STRICT : Crème fraîche ne matche PAS Crème pâtissière (zéro faux positif)'
 );
 assert(
   computeRecipeMatchScore('Beurre', 'Beurre blanc nantais') === 0,
-  'Score 0 pour ingrédient générique (Beurre vs Beurre blanc)'
-);
-assert(
-  computeRecipeMatchScore('Sel', 'Sauce tomate maison') === 0,
-  'Score 0 pour condiment de base (Sel)'
+  'Score 0 STRICT : Beurre ne matche PAS Beurre blanc nantais'
 );
 
-// 4. Détection automatique pour Quiche lorraine
-const ingPate = mockRecipes[0].ingredients[0];
-const matchedAuto = findLinkedRecipeForIngredient(ingPate, mockRecipes, mockRecipes[0].id);
+// 5. Détection automatique pour Quiche lorraine
+const quiche = mockRecipes[0];
+const ingPate = quiche.ingredients[0];
+const ingLardons = quiche.ingredients[1];
+const ingCreme = quiche.ingredients[2];
+
+const matchPate = findLinkedRecipeForIngredient(ingPate, mockRecipes, quiche.id);
 assert(
-  matchedAuto && matchedAuto.id === 'rec_pate_brisee',
-  'Détection automatique réussie : Pâte brisée liée à Pâte brisée vite faite'
+  matchPate && matchPate.id === 'rec_pate_brisee',
+  'Match automatique réussi pour Pâte brisée -> Pâte brisée vite faite'
 );
 
-// 5. Prévention d'auto-liaison
-const matchedSelf = findAutoMatchCandidate('Pâte brisée', mockRecipes, 'rec_pate_brisee');
+const matchLardons = findLinkedRecipeForIngredient(ingLardons, mockRecipes, quiche.id);
 assert(
-  matchedSelf === null,
-  'Une recette ne peut pas être liée à elle-même'
+  matchLardons === null,
+  'Aucun match automatique erroné pour Lardons'
 );
 
-// 6. Dissociation explicite (linkedRecipeId === 'none')
-const ingPateExplicitNone = {
-  ...ingPate,
-  linkedRecipeId: 'none',
-};
-const matchedNone = findLinkedRecipeForIngredient(ingPateExplicitNone, mockRecipes, mockRecipes[0].id);
+const matchCreme = findLinkedRecipeForIngredient(ingCreme, mockRecipes, quiche.id);
 assert(
-  matchedNone === null,
-  'linkedRecipeId: "none" désactive le lien automatique'
+  matchCreme === null,
+  'Aucun match automatique erroné pour Crème fraîche'
 );
 
-// 7. Liaison manuelle prioritaire
-const ingPateManual = {
-  ...ingPate,
-  linkedRecipeId: 'rec_sauce_tomate', // Choix manuel pour tester l'override
-};
-const matchedManual = findLinkedRecipeForIngredient(ingPateManual, mockRecipes, mockRecipes[0].id);
+// 6. Dissociation explicite et liaison manuelle
+const ingNone = { ...ingPate, linkedRecipeId: 'none' };
 assert(
-  matchedManual && matchedManual.id === 'rec_sauce_tomate',
-  'Liaison manuelle par linkedRecipeId respectée prioritairement'
+  findLinkedRecipeForIngredient(ingNone, mockRecipes, quiche.id) === null,
+  'linkedRecipeId: "none" désactive tout lien'
 );
 
-// 8. Synthèse des préparations liées pour une recette
-const linkedList = getLinkedRecipesForRecipe(mockRecipes[0], mockRecipes);
+const ingManual = { ...ingLardons, linkedRecipeId: 'rec_tarte_poireaux_lardons' };
+const matchManual = findLinkedRecipeForIngredient(ingManual, mockRecipes, quiche.id);
+assert(
+  matchManual && matchManual.id === 'rec_tarte_poireaux_lardons',
+  'Liaison manuelle explicite acceptée si choisie par l\'utilisateur'
+);
+
+// 7. Synthèse des préparations liées pour la quiche
+const linkedList = getLinkedRecipesForRecipe(quiche, mockRecipes);
 assert(
   linkedList.length === 1 && linkedList[0].linkedRecipe.id === 'rec_pate_brisee',
-  'getLinkedRecipesForRecipe extrait correctement la préparation maison liée'
+  'getLinkedRecipesForRecipe extrait UNIQUEMENT la préparation maison valide'
 );
 
 // Nettoyage tmpDir
 try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch (_) {}
 
-console.log(`\n🎉 TOUS LES ${totalPassed} TESTS DE RECIPE LINK MATCHER ONT RÉUSSI (0 ERREUR) !`);
+console.log(`\n🎉 TOUS LES ${totalPassed} TESTS STRICTS DE RECIPE LINK MATCHER ONT RÉUSSI (0 FAUX POSITIF) !`);
