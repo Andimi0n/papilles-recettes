@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,9 @@ import {
   SectionList,
   Alert,
   Modal,
+  Animated,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { FridgeItem } from '../types/fridge';
@@ -66,6 +69,113 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
   const [pendingUnrecognizedName, setPendingUnrecognizedName] = useState('');
   const [canonicalVocabulary, setCanonicalVocabulary] = useState<CanonicalIngredient[]>(() =>
     VocabularyService.getSyncList()
+  );
+
+  // Ajouts rapides rétractables au défilement (haute performance, 60fps via useNativeDriver)
+  const [quickAddHeight, setQuickAddHeight] = useState(140);
+  const [quickAddAnim] = useState(() => new Animated.Value(1));
+  const isQuickAddVisibleRef = useRef(true);
+  const [isQuickAddVisible, setIsQuickAddVisible] = useState(true);
+
+  const isAnimatingRef = useRef(false);
+  const prevScrollY = useRef(0);
+  const scrollDeltaAcc = useRef(0);
+
+  const showQuickAdd = useCallback(() => {
+    if (!isQuickAddVisibleRef.current && !isAnimatingRef.current) {
+      isQuickAddVisibleRef.current = true;
+      setIsQuickAddVisible(true);
+      isAnimatingRef.current = true;
+      Animated.timing(quickAddAnim, {
+        toValue: 1,
+        duration: 220,
+        useNativeDriver: true,
+      }).start(() => {
+        isAnimatingRef.current = false;
+        scrollDeltaAcc.current = 0;
+      });
+    }
+  }, [quickAddAnim]);
+
+  const forceShowQuickAdd = useCallback(() => {
+    isQuickAddVisibleRef.current = true;
+    setIsQuickAddVisible(true);
+    isAnimatingRef.current = false;
+    quickAddAnim.stopAnimation();
+    Animated.timing(quickAddAnim, {
+      toValue: 1,
+      duration: 180,
+      useNativeDriver: true,
+    }).start(() => {
+      isAnimatingRef.current = false;
+      scrollDeltaAcc.current = 0;
+    });
+  }, [quickAddAnim]);
+
+  const hideQuickAdd = useCallback(() => {
+    if (isQuickAddVisibleRef.current && !isAnimatingRef.current) {
+      isQuickAddVisibleRef.current = false;
+      isAnimatingRef.current = true;
+      Animated.timing(quickAddAnim, {
+        toValue: 0,
+        duration: 220,
+        useNativeDriver: true,
+      }).start(() => {
+        isAnimatingRef.current = false;
+        setIsQuickAddVisible(false);
+        scrollDeltaAcc.current = 0;
+      });
+    }
+  }, [quickAddAnim]);
+
+  const handleScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const currentY = event.nativeEvent.contentOffset.y;
+      const diff = currentY - prevScrollY.current;
+      prevScrollY.current = currentY;
+
+      // Tout en haut de la liste : toujours afficher et réinitialiser
+      if (currentY <= 35) {
+        scrollDeltaAcc.current = 0;
+        if (!isQuickAddVisibleRef.current) {
+          showQuickAdd();
+        }
+        return;
+      }
+
+      if (isAnimatingRef.current) {
+        scrollDeltaAcc.current = 0;
+        return;
+      }
+
+      if (Math.abs(diff) < 1.5) {
+        return;
+      }
+
+      // Défilement vers le bas
+      if (diff > 0) {
+        if (scrollDeltaAcc.current < 0) {
+          scrollDeltaAcc.current = 0;
+        }
+        scrollDeltaAcc.current += diff;
+
+        if (scrollDeltaAcc.current > 70 && isQuickAddVisibleRef.current && currentY > 60) {
+          hideQuickAdd();
+        }
+      }
+      // Défilement vers le haut
+      else if (diff < 0) {
+        if (scrollDeltaAcc.current > 0) {
+          scrollDeltaAcc.current = 0;
+        }
+        scrollDeltaAcc.current += diff;
+
+        if (scrollDeltaAcc.current < -65 && !isQuickAddVisibleRef.current) {
+          showQuickAdd();
+        }
+      }
+    },
+    [hideQuickAdd, showQuickAdd]
   );
 
   // Chargement du stock des étagères
@@ -207,6 +317,7 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
   };
 
   const handleAddItem = async (nameToAdd?: string, aisleToAdd?: ShoppingAisle, canonicalIdToAdd?: string) => {
+    forceShowQuickAdd();
     const raw = (nameToAdd || newItemName).trim();
     if (!raw) return;
 
@@ -345,123 +456,46 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
         </View>
       </View>
 
-      {/* Bloc Ajouter un aliment vérouillé en haut (masqué pendant la recherche) */}
-      {!isSearching && (
-        <View style={styles.quickAddCard}>
-          <View style={styles.quickAddMainRow}>
-            <UnifiedIngredientInput
-              containerStyle={{ flex: 1, zIndex: 1002, overflow: 'visible' }}
-              style={styles.nameInput}
-              placeholder="Ajouter un aliment (placards, frigo, épices...)"
-              placeholderTextColor={colors.textMuted}
-              value={newItemName}
-              onChangeText={setNewItemName}
-              clearOnSelect
-              keepFocusOnSelect
-              returnKeyType="done"
-              context="stock"
-              onRequestQualify={(name) => {
-                setPendingUnrecognizedName(name);
-                setIsQualifyModalVisible(true);
-              }}
-              onSubmitEditing={() => handleAddItem()}
-              onSelectIngredient={(ing) => {
-                handleAddItem(ing.canonicalName, ing.defaultAisle, ing.id);
-              }}
-            />
-
-            <TouchableOpacity
-              style={[
-                styles.addButton,
-                !newItemName.trim() && styles.addButtonDisabled,
-              ]}
-              onPress={() => handleAddItem()}
-              disabled={!newItemName.trim()}
-            >
-              <Ionicons name="add" size={24} color="#FFFFFF" />
-            </TouchableOpacity>
-          </View>
-
-          {/* Sélection facultative du rayon */}
-          <View style={styles.quickAddDetailsRow}>
-            <TouchableOpacity
-              style={styles.aislePickerBtn}
-              onPress={() => setIsAislePickerVisible(true)}
-            >
-              <Ionicons
-                name={selectedAisle ? (AISLE_CONFIGS[selectedAisle].iconName as any) : 'funnel-outline'}
-                size={13}
-                color={selectedAisle ? AISLE_CONFIGS[selectedAisle].color : colors.textSecondary}
-              />
-              <Text
-                style={[
-                  styles.aislePickerBtnText,
-                  selectedAisle ? { color: AISLE_CONFIGS[selectedAisle].color } : null,
-                ]}
-                numberOfLines={1}
-              >
-                {selectedAisle || 'Rayon : détection auto'}
-              </Text>
-              <Ionicons name="chevron-down" size={12} color={colors.textSecondary} />
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
-
-      {/* Ajout rapide (suggestions d'indispensables) vérouillé sous le bloc d'ajout (masqué pendant la recherche) */}
-      {!isSearching && availableSuggestions.length > 0 && newItemName.trim().length === 0 && (
-        <View style={styles.pinnedSuggestionsContainer}>
-          <Text style={styles.suggestionsTitle}>Ajout rapide en 1 clic :</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-            contentContainerStyle={styles.suggestionsScroll}
-          >
-            {availableSuggestions.slice(0, 15).map((sug) => (
-              <TouchableOpacity
-                key={sug.id}
-                style={styles.suggestionChip}
-                onPress={() => handleAddItem(sug.canonicalName, sug.defaultAisle, sug.id)}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="add-circle" size={14} color={colors.primary} />
-                <Text style={styles.suggestionChipText}>{sug.canonicalName}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-      )}
-
       {/* Contenu défilant : Bannière recettes + Liste des aliments */}
-      {totalCount === 0 ? (
-        <ScrollView
-          style={styles.scrollArea}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.emptyContainer}>
-            <View style={styles.emptyIconCircle}>
-              <Ionicons name="layers-outline" size={46} color={colors.primary} />
+      <View style={styles.bodyWrapper}>
+        {totalCount === 0 ? (
+          <ScrollView
+            style={styles.scrollArea}
+            contentContainerStyle={[
+              styles.scrollContent,
+              !isSearching && { paddingTop: quickAddHeight + 8 },
+            ]}
+            showsVerticalScrollIndicator={false}
+            onScroll={handleScroll}
+            scrollEventThrottle={16}
+          >
+            <View style={styles.emptyContainer}>
+              <View style={styles.emptyIconCircle}>
+                <Ionicons name="layers-outline" size={46} color={colors.primary} />
+              </View>
+              <Text style={styles.emptyTitle}>Vos étagères sont vides</Text>
+              <Text style={styles.emptySubtitle}>
+                Ajoutez ce que vous avez sous la main (placards, frigo, épices...) ci-dessus pour
+                savoir toujours ce qu'il vous reste et trouver des idées de recettes sans gaspiller.
+              </Text>
             </View>
-            <Text style={styles.emptyTitle}>Vos étagères sont vides</Text>
-            <Text style={styles.emptySubtitle}>
-              Ajoutez ce que vous avez sous la main (placards, frigo, épices...) ci-dessus pour
-              savoir toujours ce qu'il vous reste et trouver des idées de recettes sans gaspiller.
-            </Text>
-          </View>
-        </ScrollView>
-      ) : (
-        <SectionList
-          style={styles.scrollArea}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          stickySectionHeadersEnabled={false}
-          sections={groupedByAisle.map(g => ({ title: g.aisle, data: g.items }))}
-          keyExtractor={(item, index) => item.id}
-          initialNumToRender={15}
-          maxToRenderPerBatch={15}
-          windowSize={5}
+          </ScrollView>
+        ) : (
+          <SectionList
+            style={styles.scrollArea}
+            contentContainerStyle={[
+              styles.scrollContent,
+              !isSearching && { paddingTop: quickAddHeight + 8 },
+            ]}
+            showsVerticalScrollIndicator={false}
+            stickySectionHeadersEnabled={false}
+            sections={groupedByAisle.map(g => ({ title: g.aisle, data: g.items }))}
+            keyExtractor={(item, index) => item.id}
+            initialNumToRender={15}
+            maxToRenderPerBatch={15}
+            windowSize={5}
+            onScroll={handleScroll}
+            scrollEventThrottle={16}
           ListHeaderComponent={
             isSearching && searchQuery?.trim() ? (
               <View style={styles.searchSummaryStrip}>
@@ -592,6 +626,126 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
         />
       )}
 
+        {/* Bloc d'ajouts rapides rétractable au défilement (masqué pendant la recherche) */}
+        {!isSearching && (
+          <Animated.View
+            style={[
+              styles.collapsibleQuickAddContainer,
+              {
+                transform: [
+                  {
+                    translateY: quickAddAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [-quickAddHeight, 0],
+                    }),
+                  },
+                ],
+                opacity: quickAddAnim.interpolate({
+                  inputRange: [0, 0.35, 1],
+                  outputRange: [0, 0.2, 1],
+                }),
+              },
+            ]}
+            pointerEvents={isQuickAddVisible ? 'auto' : 'none'}
+            onLayout={(e) => {
+              const h = e.nativeEvent.layout.height;
+              if (h > 0 && Math.abs(h - quickAddHeight) > 2) {
+                setQuickAddHeight(h);
+              }
+            }}
+          >
+            <View style={styles.quickAddCard}>
+              <View style={styles.quickAddMainRow}>
+                <UnifiedIngredientInput
+                  containerStyle={{ flex: 1, zIndex: 1002, overflow: 'visible' }}
+                  style={styles.nameInput}
+                  placeholder="Ajouter un aliment (placards, frigo, épices...)"
+                  placeholderTextColor={colors.textMuted}
+                  value={newItemName}
+                  onChangeText={(text) => {
+                    setNewItemName(text);
+                    forceShowQuickAdd();
+                  }}
+                  onFocus={() => forceShowQuickAdd()}
+                  clearOnSelect
+                  keepFocusOnSelect
+                  returnKeyType="done"
+                  context="stock"
+                  onRequestQualify={(name) => {
+                    setPendingUnrecognizedName(name);
+                    setIsQualifyModalVisible(true);
+                  }}
+                  onSubmitEditing={() => handleAddItem()}
+                  onSelectIngredient={(ing) => {
+                    handleAddItem(ing.canonicalName, ing.defaultAisle, ing.id);
+                  }}
+                />
+
+                <TouchableOpacity
+                  style={[
+                    styles.addButton,
+                    !newItemName.trim() && styles.addButtonDisabled,
+                  ]}
+                  onPress={() => handleAddItem()}
+                  disabled={!newItemName.trim()}
+                >
+                  <Ionicons name="add" size={24} color="#FFFFFF" />
+                </TouchableOpacity>
+              </View>
+
+              {/* Sélection facultative du rayon */}
+              <View style={styles.quickAddDetailsRow}>
+                <TouchableOpacity
+                  style={styles.aislePickerBtn}
+                  onPress={() => setIsAislePickerVisible(true)}
+                >
+                  <Ionicons
+                    name={selectedAisle ? (AISLE_CONFIGS[selectedAisle].iconName as any) : 'funnel-outline'}
+                    size={13}
+                    color={selectedAisle ? AISLE_CONFIGS[selectedAisle].color : colors.textSecondary}
+                  />
+                  <Text
+                    style={[
+                      styles.aislePickerBtnText,
+                      selectedAisle ? { color: AISLE_CONFIGS[selectedAisle].color } : null,
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {selectedAisle || 'Rayon : détection auto'}
+                  </Text>
+                  <Ionicons name="chevron-down" size={12} color={colors.textSecondary} />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Ajout rapide (suggestions d'indispensables) */}
+            {availableSuggestions.length > 0 && newItemName.trim().length === 0 && (
+              <View style={styles.pinnedSuggestionsContainer}>
+                <Text style={styles.suggestionsTitle}>Ajout rapide en 1 clic :</Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  keyboardShouldPersistTaps="handled"
+                  contentContainerStyle={styles.suggestionsScroll}
+                >
+                  {availableSuggestions.slice(0, 15).map((sug) => (
+                    <TouchableOpacity
+                      key={sug.id}
+                      style={styles.suggestionChip}
+                      onPress={() => handleAddItem(sug.canonicalName, sug.defaultAisle, sug.id)}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="add-circle" size={14} color={colors.primary} />
+                      <Text style={styles.suggestionChipText}>{sug.canonicalName}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+          </Animated.View>
+        )}
+      </View>
+
       {/* Modal de sélection de rayon */}
       <Modal
         visible={isAislePickerVisible}
@@ -710,6 +864,24 @@ const styles = createDynamicStyles((colors, shadows) => ({
     paddingHorizontal: 18,
     paddingTop: 8,
     paddingBottom: 8,
+  },
+  bodyWrapper: {
+    flex: 1,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  collapsibleQuickAddContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: colors.background,
+    zIndex: 1000,
+    elevation: 6,
+    paddingTop: 4,
+    paddingBottom: 2,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
   },
   headerTitleCol: {
     flex: 1,

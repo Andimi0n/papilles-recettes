@@ -12,6 +12,8 @@ import {
   SectionList,
   Modal,
   Animated,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -77,6 +79,113 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
   const [selectedAisle, setSelectedAisle] = useState<ShoppingAisle | null>(null);
   const [isAislePickerVisible, setIsAislePickerVisible] = useState(false);
   const [isUnitModalVisible, setIsUnitModalVisible] = useState(false);
+
+  // Ajouts rapides rétractables au défilement (haute performance, 60fps via useNativeDriver)
+  const [quickAddHeight, setQuickAddHeight] = useState(155);
+  const [quickAddAnim] = useState(() => new Animated.Value(1));
+  const isQuickAddVisibleRef = useRef(true);
+  const [isQuickAddVisible, setIsQuickAddVisible] = useState(true);
+
+  const isAnimatingRef = useRef(false);
+  const prevScrollY = useRef(0);
+  const scrollDeltaAcc = useRef(0);
+
+  const showQuickAdd = useCallback(() => {
+    if (!isQuickAddVisibleRef.current && !isAnimatingRef.current) {
+      isQuickAddVisibleRef.current = true;
+      setIsQuickAddVisible(true);
+      isAnimatingRef.current = true;
+      Animated.timing(quickAddAnim, {
+        toValue: 1,
+        duration: 220,
+        useNativeDriver: true,
+      }).start(() => {
+        isAnimatingRef.current = false;
+        scrollDeltaAcc.current = 0;
+      });
+    }
+  }, [quickAddAnim]);
+
+  const forceShowQuickAdd = useCallback(() => {
+    isQuickAddVisibleRef.current = true;
+    setIsQuickAddVisible(true);
+    isAnimatingRef.current = false;
+    quickAddAnim.stopAnimation();
+    Animated.timing(quickAddAnim, {
+      toValue: 1,
+      duration: 180,
+      useNativeDriver: true,
+    }).start(() => {
+      isAnimatingRef.current = false;
+      scrollDeltaAcc.current = 0;
+    });
+  }, [quickAddAnim]);
+
+  const hideQuickAdd = useCallback(() => {
+    if (isQuickAddVisibleRef.current && !isAnimatingRef.current) {
+      isQuickAddVisibleRef.current = false;
+      isAnimatingRef.current = true;
+      Animated.timing(quickAddAnim, {
+        toValue: 0,
+        duration: 220,
+        useNativeDriver: true,
+      }).start(() => {
+        isAnimatingRef.current = false;
+        setIsQuickAddVisible(false);
+        scrollDeltaAcc.current = 0;
+      });
+    }
+  }, [quickAddAnim]);
+
+  const handleScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const currentY = event.nativeEvent.contentOffset.y;
+      const diff = currentY - prevScrollY.current;
+      prevScrollY.current = currentY;
+
+      // Tout en haut de la liste : toujours afficher et réinitialiser
+      if (currentY <= 35) {
+        scrollDeltaAcc.current = 0;
+        if (!isQuickAddVisibleRef.current) {
+          showQuickAdd();
+        }
+        return;
+      }
+
+      if (isAnimatingRef.current) {
+        scrollDeltaAcc.current = 0;
+        return;
+      }
+
+      if (Math.abs(diff) < 1.5) {
+        return;
+      }
+
+      // Défilement vers le bas
+      if (diff > 0) {
+        if (scrollDeltaAcc.current < 0) {
+          scrollDeltaAcc.current = 0;
+        }
+        scrollDeltaAcc.current += diff;
+
+        if (scrollDeltaAcc.current > 70 && isQuickAddVisibleRef.current && currentY > 60) {
+          hideQuickAdd();
+        }
+      }
+      // Défilement vers le haut
+      else if (diff < 0) {
+        if (scrollDeltaAcc.current > 0) {
+          scrollDeltaAcc.current = 0;
+        }
+        scrollDeltaAcc.current += diff;
+
+        if (scrollDeltaAcc.current < -65 && !isQuickAddVisibleRef.current) {
+          showQuickAdd();
+        }
+      }
+    },
+    [hideQuickAdd, showQuickAdd]
+  );
 
   // Section des articles cochés repliée/dépliée
   const [showCompleted, setShowCompleted] = useState(false);
@@ -307,6 +416,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
   };
 
   const handleAddItem = async () => {
+    forceShowQuickAdd();
     const trimmed = newItemText.trim();
     if (!trimmed) return;
 
@@ -321,6 +431,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
   };
 
   const handleAddQuickSuggestion = async (ing: CanonicalIngredient) => {
+    forceShowQuickAdd();
     try {
       const trimmed = newItemText.trim();
       let textToAdd = ing.canonicalName;
@@ -726,231 +837,142 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
             </View>
           )}
 
-          {/* Barre d'ajout rapide vérouillée en haut (masquée pendant la recherche) */}
-          {!isSearching && (
-            <View style={styles.quickAddCard}>
-              <View style={styles.quickAddMainRow}>
-                <UnifiedIngredientInput
-                  containerStyle={{ flex: 1, zIndex: 99 }}
-                  style={styles.nameInput}
-                  placeholder="Ex: 1kg carottes, 6 œufs, Coca-cola, lessive..."
-                  placeholderTextColor={colors.textMuted}
-                  value={newItemText}
-                  onChangeText={setNewItemText}
-                  context="shopping"
-                  clearOnSelect={false}
-                  keepFocusOnSelect
-                  returnKeyType="done"
-                  onSubmitEditing={() => handleAddItem()}
-                  onSelectIngredient={(ing) => {
-                    handleSelectDropdownSuggestion(ing);
-                  }}
-                />
-
-                <TouchableOpacity
-                  style={[
-                    styles.addButton,
-                    !newItemText.trim() && styles.addButtonDisabled,
-                  ]}
-                  onPress={() => handleAddItem()}
-                  disabled={!newItemText.trim()}
-                >
-                  <Ionicons name="add" size={24} color="#FFFFFF" />
-                </TouchableOpacity>
-              </View>
-
-              {/* Options d'appoint : Rayon forcé & Puces d'unités 1-tap */}
-              <View style={styles.quickOptionsRow}>
-                <TouchableOpacity
-                  style={[
-                    styles.aislePickerBtn,
-                    selectedAisle ? { borderColor: AISLE_CONFIGS[selectedAisle].color } : null,
-                  ]}
-                  onPress={() => setIsAislePickerVisible(true)}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons
-                    name={
-                      selectedAisle
-                        ? (AISLE_CONFIGS[selectedAisle].iconName as any)
-                        : 'funnel-outline'
-                    }
-                    size={12}
-                    color={selectedAisle ? AISLE_CONFIGS[selectedAisle].color : colors.textSecondary}
-                  />
-                  <Text
-                    style={[
-                      styles.aislePickerBtnText,
-                      selectedAisle ? { color: AISLE_CONFIGS[selectedAisle].color, fontWeight: '700' } : null,
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {selectedAisle || 'Rayon auto'}
-                  </Text>
-                  <Ionicons name="chevron-down" size={11} color={colors.textSecondary} />
-                </TouchableOpacity>
-
-                <View style={styles.unitPickerFlexContainer}>
-                  <UnitQuickPicker
-                    value={''}
-                    onChangeUnit={(unitId) => handleQuickUnitPress(unitId)}
-                    onOpenFullPicker={() => setIsUnitModalVisible(true)}
-                    compact
-                  />
-                </View>
-              </View>
-            </View>
-          )}
-
-          {/* Ajout rapide en 1 clic vérouillé sous le bloc d'ajout (masqué pendant la recherche) */}
-          {!isSearching && availableSuggestions.length > 0 && (
-            <View style={styles.pinnedSuggestionsContainer}>
-              <Text style={styles.suggestionsTitle}>Ajout rapide en 1 clic :</Text>
+          <View style={styles.bodyWrapper}>
+            {/* Contenu principal : liste par rayons */}
+            {totalCount === 0 ? (
               <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled"
-                contentContainerStyle={styles.suggestionsScroll}
-              >
-                {availableSuggestions.slice(0, 15).map((sug) => (
-                  <TouchableOpacity
-                    key={sug.id}
-                    style={styles.suggestionChip}
-                    onPress={() => handleAddQuickSuggestion(sug)}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons name="add" size={13} color={colors.primary} />
-                    <Text style={styles.suggestionChipText}>{sug.canonicalName}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-          )}
-
-          {/* Barre de partage rapide direct (masquée pendant la recherche) */}
-          {!isSearching && totalCount > 0 && (
-            <View style={styles.shareStrip}>
-              <Text style={styles.shareStripLabel}>Partager :</Text>
-              <TouchableOpacity
-                style={[
-                  styles.sharePill,
-                  { backgroundColor: isDark ? '#143823' : '#E7FCE9' },
+                style={styles.scrollArea}
+                contentContainerStyle={[
+                  styles.scrollContent,
+                  !isSearching && { paddingTop: quickAddHeight + 8 },
                 ]}
-                onPress={handleShareWhatsApp}
-                activeOpacity={0.8}
+                showsVerticalScrollIndicator={false}
+                onScroll={handleScroll}
+                scrollEventThrottle={16}
               >
-                <Ionicons name="logo-whatsapp" size={14} color="#16A34A" />
-                <Text style={[styles.sharePillText, { color: '#16A34A' }]}>WhatsApp</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.sharePill,
-                  { backgroundColor: isDark ? '#162A45' : '#EFF6FF' },
-                ]}
-                onPress={handleShareSMS}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="chatbox-ellipses-outline" size={14} color="#2563EB" />
-                <Text style={[styles.sharePillText, { color: '#2563EB' }]}>SMS</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.sharePill, { backgroundColor: colors.surfaceAlt }]}
-                onPress={handleNativeShare}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="share-outline" size={14} color={colors.textSecondary} />
-                <Text style={[styles.sharePillText, { color: colors.textSecondary }]}>Autre</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {/* Accès rapide au Mode Course en magasin (ultra-épuré & zoomé) */}
-          {totalCount > 0 && !isSearching && (
-            <TouchableOpacity
-              style={styles.inStoreBanner}
-              onPress={() => setIsInStoreModeVisible(true)}
-              activeOpacity={0.85}
-            >
-              <View style={styles.inStoreBannerLeft}>
-                <View style={styles.inStoreBannerIconBox}>
-                  <Ionicons name="cart" size={20} color="#FFFFFF" />
-                </View>
-                <View style={styles.inStoreBannerTextCol}>
-                  <Text style={styles.inStoreBannerTitle}>Mode Course en Magasin</Text>
-                  <Text style={styles.inStoreBannerSubtitle}>
-                    Vue zoomée avec checklist & liaison étagères pour vos achats
-                  </Text>
-                </View>
-              </View>
-              <Ionicons name="arrow-forward" size={16} color={colors.secondary} />
-            </TouchableOpacity>
-          )}
-
-          {/* Contenu principal : liste par rayons */}
-          {totalCount === 0 ? (
-            <ScrollView
-              style={styles.scrollArea}
-              contentContainerStyle={styles.scrollContent}
-              showsVerticalScrollIndicator={false}
-            >
-              <View style={styles.emptyContainer}>
-                <View style={styles.emptyIconCircle}>
-                  <Ionicons name="cart-outline" size={46} color={colors.primary} />
-                </View>
-                <Text style={styles.emptyTitle}>Votre panier est vide</Text>
-                <Text style={styles.emptySubtitle}>
-                  Ajoutez des articles avec la barre ci-dessus ou en 1 clic depuis vos recettes
-                  et le planning de la semaine !
-                </Text>
-
-                <View style={styles.emptyButtonsRow}>
-                  {onNavigateToRecipes && (
-                    <TouchableOpacity
-                      style={styles.emptyActionBtn}
-                      onPress={() => onNavigateToRecipes()}
-                      activeOpacity={0.85}
-                    >
-                      <Ionicons name="book-outline" size={17} color="#FFFFFF" />
-                      <Text style={styles.emptyActionBtnText}>Voir mes recettes</Text>
-                    </TouchableOpacity>
-                  )}
-
-                  {onNavigateToPlanner && (
-                    <TouchableOpacity
-                      style={[styles.emptyActionBtn, styles.emptyActionBtnSecondary]}
-                      onPress={() => onNavigateToPlanner()}
-                      activeOpacity={0.85}
-                    >
-                      <Ionicons name="calendar-outline" size={17} color={colors.primary} />
-                      <Text style={styles.emptyActionBtnSecondaryText}>Planning</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              </View>
-            </ScrollView>
-          ) : (
-            <SectionList
-              style={styles.scrollArea}
-              contentContainerStyle={styles.scrollContent}
-              showsVerticalScrollIndicator={false}
-              stickySectionHeadersEnabled={false}
-              sections={groupedActive.map(g => ({ title: g.aisle, data: g.items }))}
-              keyExtractor={(item, index) => item.id}
-              initialNumToRender={15}
-              maxToRenderPerBatch={15}
-              windowSize={5}
-              ListHeaderComponent={
-                isSearching && searchQuery?.trim() ? (
-                  <View style={styles.searchSummaryStrip}>
-                    <Text style={styles.searchSummaryText}>
-                      {totalFilteredCount} article{totalFilteredCount > 1 ? 's' : ''} trouvé{totalFilteredCount > 1 ? 's' : ''}
-                      {filteredCompletedItems.length > 0 ? ` (dont ${filteredCompletedItems.length} déjà coché${filteredCompletedItems.length > 1 ? 's' : ''})` : ''} pour « {searchQuery.trim()} »
-                    </Text>
+                <View style={styles.emptyContainer}>
+                  <View style={styles.emptyIconCircle}>
+                    <Ionicons name="cart-outline" size={46} color={colors.primary} />
                   </View>
-                ) : undefined
-              }
+                  <Text style={styles.emptyTitle}>Votre panier est vide</Text>
+                  <Text style={styles.emptySubtitle}>
+                    Ajoutez des articles avec la barre ci-dessus ou en 1 clic depuis vos recettes
+                    et le planning de la semaine !
+                  </Text>
+
+                  <View style={styles.emptyButtonsRow}>
+                    {onNavigateToRecipes && (
+                      <TouchableOpacity
+                        style={styles.emptyActionBtn}
+                        onPress={() => onNavigateToRecipes()}
+                        activeOpacity={0.85}
+                      >
+                        <Ionicons name="book-outline" size={17} color="#FFFFFF" />
+                        <Text style={styles.emptyActionBtnText}>Voir mes recettes</Text>
+                      </TouchableOpacity>
+                    )}
+
+                    {onNavigateToPlanner && (
+                      <TouchableOpacity
+                        style={[styles.emptyActionBtn, styles.emptyActionBtnSecondary]}
+                        onPress={() => onNavigateToPlanner()}
+                        activeOpacity={0.85}
+                      >
+                        <Ionicons name="calendar-outline" size={17} color={colors.primary} />
+                        <Text style={styles.emptyActionBtnSecondaryText}>Planning</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+              </ScrollView>
+            ) : (
+              <SectionList
+                style={styles.scrollArea}
+                contentContainerStyle={[
+                  styles.scrollContent,
+                  !isSearching && { paddingTop: quickAddHeight + 8 },
+                ]}
+                showsVerticalScrollIndicator={false}
+                stickySectionHeadersEnabled={false}
+                sections={groupedActive.map(g => ({ title: g.aisle, data: g.items }))}
+                keyExtractor={(item, index) => item.id}
+                initialNumToRender={15}
+                maxToRenderPerBatch={15}
+                windowSize={5}
+                onScroll={handleScroll}
+                scrollEventThrottle={16}
+                ListHeaderComponent={
+                  <>
+                    {!isSearching && totalCount > 0 && (
+                      <>
+                        {/* Barre de partage rapide direct */}
+                        <View style={styles.shareStrip}>
+                          <Text style={styles.shareStripLabel}>Partager :</Text>
+                          <TouchableOpacity
+                            style={[
+                              styles.sharePill,
+                              { backgroundColor: isDark ? '#143823' : '#E7FCE9' },
+                            ]}
+                            onPress={handleShareWhatsApp}
+                            activeOpacity={0.8}
+                          >
+                            <Ionicons name="logo-whatsapp" size={14} color="#16A34A" />
+                            <Text style={[styles.sharePillText, { color: '#16A34A' }]}>WhatsApp</Text>
+                          </TouchableOpacity>
+
+                          <TouchableOpacity
+                            style={[
+                              styles.sharePill,
+                              { backgroundColor: isDark ? '#162A45' : '#EFF6FF' },
+                            ]}
+                            onPress={handleShareSMS}
+                            activeOpacity={0.8}
+                          >
+                            <Ionicons name="chatbox-ellipses-outline" size={14} color="#2563EB" />
+                            <Text style={[styles.sharePillText, { color: '#2563EB' }]}>SMS</Text>
+                          </TouchableOpacity>
+
+                          <TouchableOpacity
+                            style={[styles.sharePill, { backgroundColor: colors.surfaceAlt }]}
+                            onPress={handleNativeShare}
+                            activeOpacity={0.8}
+                          >
+                            <Ionicons name="share-outline" size={14} color={colors.textSecondary} />
+                            <Text style={[styles.sharePillText, { color: colors.textSecondary }]}>Autre</Text>
+                          </TouchableOpacity>
+                        </View>
+
+                        {/* Accès rapide au Mode Course en magasin (ultra-épuré & zoomé) */}
+                        <TouchableOpacity
+                          style={styles.inStoreBanner}
+                          onPress={() => setIsInStoreModeVisible(true)}
+                          activeOpacity={0.85}
+                        >
+                          <View style={styles.inStoreBannerLeft}>
+                            <View style={styles.inStoreBannerIconBox}>
+                              <Ionicons name="cart" size={20} color="#FFFFFF" />
+                            </View>
+                            <View style={styles.inStoreBannerTextCol}>
+                              <Text style={styles.inStoreBannerTitle}>Mode Course en Magasin</Text>
+                              <Text style={styles.inStoreBannerSubtitle}>
+                                Vue zoomée avec checklist & liaison étagères pour vos achats
+                              </Text>
+                            </View>
+                          </View>
+                          <Ionicons name="arrow-forward" size={16} color={colors.secondary} />
+                        </TouchableOpacity>
+                      </>
+                    )}
+                    {isSearching && searchQuery?.trim() ? (
+                      <View style={styles.searchSummaryStrip}>
+                        <Text style={styles.searchSummaryText}>
+                          {totalFilteredCount} article{totalFilteredCount > 1 ? 's' : ''} trouvé{totalFilteredCount > 1 ? 's' : ''}
+                          {filteredCompletedItems.length > 0 ? ` (dont ${filteredCompletedItems.length} déjà coché${filteredCompletedItems.length > 1 ? 's' : ''})` : ''} pour « {searchQuery.trim()} »
+                        </Text>
+                      </View>
+                    ) : null}
+                  </>
+                }
               ListEmptyComponent={
                 isSearching && searchQuery?.trim() && totalFilteredCount === 0 ? (
                   <View style={styles.emptySearchContainer}>
@@ -1160,8 +1182,141 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
               }
             />
           )}
+
+          {/* Ajout rapide rétractable au défilement (masqué pendant la recherche) */}
+          {!isSearching && (
+            <Animated.View
+              style={[
+                styles.collapsibleQuickAddContainer,
+                {
+                  transform: [
+                    {
+                      translateY: quickAddAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [-quickAddHeight, 0],
+                      }),
+                    },
+                  ],
+                  opacity: quickAddAnim.interpolate({
+                    inputRange: [0, 0.35, 1],
+                    outputRange: [0, 0.2, 1],
+                  }),
+                },
+              ]}
+              pointerEvents={isQuickAddVisible ? 'auto' : 'none'}
+              onLayout={(e) => {
+                const h = e.nativeEvent.layout.height;
+                if (h > 0 && Math.abs(h - quickAddHeight) > 2) {
+                  setQuickAddHeight(h);
+                }
+              }}
+            >
+              <View style={styles.quickAddCard}>
+                <View style={styles.quickAddMainRow}>
+                  <UnifiedIngredientInput
+                    containerStyle={{ flex: 1, zIndex: 99 }}
+                    style={styles.nameInput}
+                    placeholder="Ex: 1kg carottes, 6 œufs, Coca-cola, lessive..."
+                    placeholderTextColor={colors.textMuted}
+                    value={newItemText}
+                    onChangeText={(text) => {
+                      setNewItemText(text);
+                      forceShowQuickAdd();
+                    }}
+                    onFocus={() => forceShowQuickAdd()}
+                    context="shopping"
+                    clearOnSelect={false}
+                    keepFocusOnSelect
+                    returnKeyType="done"
+                    onSubmitEditing={() => handleAddItem()}
+                    onSelectIngredient={(ing) => {
+                      handleSelectDropdownSuggestion(ing);
+                    }}
+                  />
+
+                  <TouchableOpacity
+                    style={[
+                      styles.addButton,
+                      !newItemText.trim() && styles.addButtonDisabled,
+                    ]}
+                    onPress={() => handleAddItem()}
+                    disabled={!newItemText.trim()}
+                  >
+                    <Ionicons name="add" size={24} color="#FFFFFF" />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Options d'appoint : Rayon forcé & Puces d'unités 1-tap */}
+                <View style={styles.quickOptionsRow}>
+                  <TouchableOpacity
+                    style={[
+                      styles.aislePickerBtn,
+                      selectedAisle ? { borderColor: AISLE_CONFIGS[selectedAisle].color } : null,
+                    ]}
+                    onPress={() => setIsAislePickerVisible(true)}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons
+                      name={
+                        selectedAisle
+                          ? (AISLE_CONFIGS[selectedAisle].iconName as any)
+                          : 'funnel-outline'
+                      }
+                      size={12}
+                      color={selectedAisle ? AISLE_CONFIGS[selectedAisle].color : colors.textSecondary}
+                    />
+                    <Text
+                      style={[
+                        styles.aislePickerBtnText,
+                        selectedAisle ? { color: AISLE_CONFIGS[selectedAisle].color, fontWeight: '700' } : null,
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {selectedAisle || 'Rayon auto'}
+                    </Text>
+                    <Ionicons name="chevron-down" size={11} color={colors.textSecondary} />
+                  </TouchableOpacity>
+
+                  <View style={styles.unitPickerFlexContainer}>
+                    <UnitQuickPicker
+                      value={''}
+                      onChangeUnit={(unitId) => handleQuickUnitPress(unitId)}
+                      onOpenFullPicker={() => setIsUnitModalVisible(true)}
+                      compact
+                    />
+                  </View>
+                </View>
+              </View>
+
+              {/* Ajout rapide en 1 clic vérouillé sous le bloc d'ajout */}
+              {availableSuggestions.length > 0 && (
+                <View style={styles.pinnedSuggestionsContainer}>
+                  <Text style={styles.suggestionsTitle}>Ajout rapide en 1 clic :</Text>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                    contentContainerStyle={styles.suggestionsScroll}
+                  >
+                    {availableSuggestions.slice(0, 15).map((sug) => (
+                      <TouchableOpacity
+                        key={sug.id}
+                        style={styles.suggestionChip}
+                        onPress={() => handleAddQuickSuggestion(sug)}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons name="add" size={13} color={colors.primary} />
+                        <Text style={styles.suggestionChipText}>{sug.canonicalName}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
+            </Animated.View>
+          )}
         </View>
-      )}
+      </View>
+    )}
 
       {/* Modal de sélection de rayon supermarché */}
       <Modal
@@ -1405,6 +1560,24 @@ const styles = createDynamicStyles((colors, shadows) => ({
   },
   shoppingListWrapper: {
     flex: 1,
+  },
+  bodyWrapper: {
+    flex: 1,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  collapsibleQuickAddContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: colors.background,
+    zIndex: 1000,
+    elevation: 6,
+    paddingTop: 4,
+    paddingBottom: 2,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
   },
   header: {
     flexDirection: 'row',

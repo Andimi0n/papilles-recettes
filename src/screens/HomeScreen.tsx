@@ -2,12 +2,10 @@ import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import {
   View,
   Text,
-  StyleSheet,
   FlatList,
   TouchableOpacity,
   Modal,
   ScrollView,
-  Platform,
   Image,
   Animated,
   NativeSyntheticEvent,
@@ -120,10 +118,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const [isStockModalVisible, setIsStockModalVisible] = useState(false);
   const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
   const [isMarmitonModalVisible, setIsMarmitonModalVisible] = useState(false);
+  const [isAddMenuVisible, setIsAddMenuVisible] = useState(false);
 
   // Double bandeau de filtres rétractable au défilement (haute performance, 60fps via useNativeDriver)
   const FILTER_BAR_HEIGHT = 88;
-  const filterBarAnim = useRef(new Animated.Value(1)).current;
+  const [filterBarAnim] = useState(() => new Animated.Value(1));
   const isFilterBarVisibleRef = useRef(true);
   const [isFilterBarVisible, setIsFilterBarVisible] = useState(true);
 
@@ -925,9 +924,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       <View style={styles.container}>
         {/* En-tête supérieur FIXE (reste en haut lors du défilement, NE perd jamais le focus pendant la frappe) */}
         <View style={styles.fixedTopHeader}>
-          {/* Top Brand Bar : Identité culinaire avec logo à gauche & Actions verticales à droite */}
+          {/* Top Brand Bar : Identité culinaire avec logo à gauche & Bouton Ajouter proéminent à droite */}
           <View style={styles.topBrandRow}>
-            {/* Identité / Marque */}
+            {/* Identité / Marque (Titre seul épuré) */}
             <View style={styles.brandContainer}>
               <Image
                 source={require('../../assets/icon.png')}
@@ -936,47 +935,19 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               />
               <View style={styles.brandTitleCol}>
                 <Text style={styles.brandTitle}>Papilles</Text>
-                <Text style={styles.brandSubtitle} numberOfLines={1}>
-                  Carnet & inspirations
-                </Text>
               </View>
             </View>
 
-            {/* Actions rapides empilées à la verticale : Marmiton, Scan, Ajouter */}
-            <View style={styles.topActionsCol}>
-              {/* Import Web */}
-              <TouchableOpacity
-                style={styles.marmitonBtn}
-                onPress={() => setIsMarmitonModalVisible(true)}
-                activeOpacity={0.8}
-                accessibilityLabel="Importer une recette depuis le Web"
-              >
-                <Ionicons name="globe-outline" size={12} color={colors.primary} />
-                <Text style={styles.marmitonBtnText}>Import Web</Text>
-              </TouchableOpacity>
-
-              {/* Scan */}
-              <TouchableOpacity
-                style={styles.scanBtn}
-                onPress={() => onScanRecipe('photo')}
-                activeOpacity={0.8}
-                accessibilityLabel="Scanner une photo de recette"
-              >
-                <Ionicons name="camera-outline" size={12} color={colors.primary} />
-                <Text style={styles.scanBtnText}>Scan</Text>
-              </TouchableOpacity>
-
-              {/* Ajouter */}
-              <TouchableOpacity
-                style={styles.addBtn}
-                onPress={onAddNewRecipe}
-                activeOpacity={0.8}
-                accessibilityLabel="Ajouter une recette"
-              >
-                <Ionicons name="add" size={15} color="#FFFFFF" />
-                <Text style={styles.addBtnText}>Ajouter</Text>
-              </TouchableOpacity>
-            </View>
+            {/* Bouton proéminent + ouvrant le menu fluide à 3 choix */}
+            <TouchableOpacity
+              style={styles.prominentAddBtn}
+              onPress={() => setIsAddMenuVisible(true)}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Ajouter une recette"
+            >
+              <Ionicons name="add" size={26} color="#FFFFFF" />
+            </TouchableOpacity>
           </View>
 
           {/* Barre de Recherche & Bouton Filtres Avancés (Famille 2) */}
@@ -1136,6 +1107,95 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             </ScrollView>
           </Animated.View>
         </View>
+
+        {/* Modal Menu d'Ajout Fluide à 3 Choix */}
+        <Modal
+          visible={isAddMenuVisible}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setIsAddMenuVisible(false)}
+        >
+          <TouchableOpacity
+            style={styles.modalBackdrop}
+            activeOpacity={1}
+            onPress={() => setIsAddMenuVisible(false)}
+          >
+            <View style={styles.addMenuBox} onStartShouldSetResponder={() => true}>
+              <View style={styles.modalHeaderRow}>
+                <Text style={styles.addMenuTitle}>Ajouter une recette</Text>
+                <TouchableOpacity
+                  onPress={() => setIsAddMenuVisible(false)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons name="close" size={22} color={colors.textSecondary} />
+                </TouchableOpacity>
+              </View>
+
+              {/* Choix 1 : Texte brut (manuellement ou par IA) */}
+              <TouchableOpacity
+                style={styles.addMenuOption}
+                onPress={() => {
+                  setIsAddMenuVisible(false);
+                  onAddNewRecipe();
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.addMenuIconBox, { backgroundColor: colors.primaryLight }]}>
+                  <Ionicons name="create-outline" size={22} color={colors.primary} />
+                </View>
+                <View style={styles.addMenuTextCol}>
+                  <Text style={styles.addMenuOptionTitle}>Texte brut</Text>
+                  <Text style={styles.addMenuOptionSubtitle}>
+                    Saisir manuellement ou coller une recette (IA)
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+              </TouchableOpacity>
+
+              {/* Choix 2 : Scanner (Photo/Caméra) */}
+              <TouchableOpacity
+                style={styles.addMenuOption}
+                onPress={() => {
+                  setIsAddMenuVisible(false);
+                  onScanRecipe('photo');
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.addMenuIconBox, { backgroundColor: colors.secondaryLight }]}>
+                  <Ionicons name="camera-outline" size={22} color={colors.secondary} />
+                </View>
+                <View style={styles.addMenuTextCol}>
+                  <Text style={styles.addMenuOptionTitle}>Scanner (Photo/Caméra)</Text>
+                  <Text style={styles.addMenuOptionSubtitle}>
+                    Numériser un livre ou une note de recette
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+              </TouchableOpacity>
+
+              {/* Choix 3 : Importer un lien web */}
+              <TouchableOpacity
+                style={styles.addMenuOption}
+                onPress={() => {
+                  setIsAddMenuVisible(false);
+                  setIsMarmitonModalVisible(true);
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.addMenuIconBox, { backgroundColor: colors.surfaceAlt }]}>
+                  <Ionicons name="globe-outline" size={22} color={colors.textPrimary} />
+                </View>
+                <View style={styles.addMenuTextCol}>
+                  <Text style={styles.addMenuOptionTitle}>Importer un lien web</Text>
+                  <Text style={styles.addMenuOptionSubtitle}>
+                    Marmiton ou tout autre site culinaire
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </Modal>
 
         {/* Modal de Tri (labels concis et instinctifs) */}
         <Modal
@@ -1375,68 +1435,61 @@ const styles = createDynamicStyles((colors, shadows) => ({
     color: colors.primary,
     letterSpacing: -0.4,
   },
-  brandSubtitle: {
-    fontSize: 11.5,
-    color: colors.textSecondary,
-    fontWeight: '500',
-    marginTop: 1,
-  },
-  topActionsCol: {
-    flexDirection: 'column',
-    alignItems: 'stretch',
-    justifyContent: 'center',
-    gap: 4,
-    minWidth: 106,
-  },
-  marmitonBtn: {
-    height: 27,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.primaryLight,
-    paddingHorizontal: 8,
-    borderRadius: 8,
-    gap: 5,
-    borderWidth: 1,
-    borderColor: colors.primary + '30',
-  },
-  marmitonBtnText: {
-    color: colors.primary,
-    fontWeight: '700',
-    fontSize: 11.5,
-  },
-  scanBtn: {
-    height: 27,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.primaryLight,
-    paddingHorizontal: 8,
-    borderRadius: 8,
-    gap: 5,
-    borderWidth: 1,
-    borderColor: colors.primary + '30',
-  },
-  scanBtnText: {
-    color: colors.primary,
-    fontWeight: '700',
-    fontSize: 11.5,
-  },
-  addBtn: {
-    height: 27,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+  prominentAddBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     backgroundColor: colors.primary,
-    paddingHorizontal: 10,
-    borderRadius: 8,
-    gap: 4,
-    ...shadows.small,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...shadows.medium,
   },
-  addBtnText: {
-    color: '#FFFFFF',
-    fontWeight: '800',
-    fontSize: 11.5,
+  addMenuBox: {
+    width: '90%',
+    maxWidth: 420,
+    backgroundColor: colors.cardBackground,
+    borderRadius: 20,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    ...shadows.large,
+  },
+  addMenuTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  addMenuOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    backgroundColor: colors.surfaceAlt,
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  addMenuIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  addMenuTextCol: {
+    flex: 1,
+  },
+  addMenuOptionTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  addMenuOptionSubtitle: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 2,
   },
   stockActiveBanner: {
     flexDirection: 'row',

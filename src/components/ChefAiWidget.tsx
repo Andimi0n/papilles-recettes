@@ -15,16 +15,10 @@ interface ChefAiWidgetProps {
 
 export const ChefAiWidget: React.FC<ChefAiWidgetProps> = ({
   stockCount,
-  stockItems = [],
-  doableCount = 0,
   onOpenChefAi,
   onNavigateToStock,
 }) => {
   const { colors } = useTheme();
-
-  // Prendre jusqu'à 4 aliments représentatifs pour le teaser
-  const sampleIngredients = stockItems.slice(0, 4);
-  const remainingCount = Math.max(0, stockCount - sampleIngredients.length);
 
   const handlePressCard = () => {
     if (stockCount === 0 && onNavigateToStock) {
@@ -70,32 +64,13 @@ export const ChefAiWidget: React.FC<ChefAiWidgetProps> = ({
         )}
       </View>
 
-      {/* Contenu : Teaser des ingrédients & CTA */}
+      {/* Contenu : Bouton d'action épuré */}
       {stockCount > 0 ? (
-        <>
-          {/* Pastilles d'ingrédients en stock */}
-          <View style={styles.chipsRow}>
-            {sampleIngredients.map((item) => (
-              <View key={item.id} style={styles.ingredientChip}>
-                <Text style={styles.ingredientChipText} numberOfLines={1}>
-                  {item.name}
-                </Text>
-              </View>
-            ))}
-            {remainingCount > 0 && (
-              <View style={[styles.ingredientChip, styles.remainingChip]}>
-                <Text style={styles.remainingChipText}>+{remainingCount}</Text>
-              </View>
-            )}
-          </View>
-
-          {/* Bouton d'action */}
-          <View style={styles.actionBtn}>
-            <Ionicons name="bulb-outline" size={15} color="#FFFFFF" />
-            <Text style={styles.actionBtnText}>Trouver 3 idées de recettes</Text>
-            <Ionicons name="chevron-forward" size={14} color="#FFFFFF" />
-          </View>
-        </>
+        <View style={styles.actionBtn}>
+          <Ionicons name="bulb-outline" size={15} color="#FFFFFF" />
+          <Text style={styles.actionBtnText}>Trouver 3 idées de recettes</Text>
+          <Ionicons name="chevron-forward" size={14} color="#FFFFFF" />
+        </View>
       ) : (
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyText}>
@@ -178,35 +153,6 @@ const styles = createDynamicStyles((colors, shadows) => ({
     fontSize: 11,
     fontWeight: '500',
     color: colors.textMuted,
-  },
-  chipsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginBottom: 10,
-  },
-  ingredientChip: {
-    backgroundColor: colors.surfaceAlt,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-    maxWidth: 120,
-  },
-  ingredientChipText: {
-    fontSize: 11,
-    color: colors.textPrimary,
-    fontWeight: '500',
-  },
-  remainingChip: {
-    backgroundColor: colors.secondary + '18',
-    borderColor: colors.secondary + '30',
-  },
-  remainingChipText: {
-    fontSize: 11,
-    color: colors.secondary,
-    fontWeight: '700',
   },
   actionBtn: {
     flexDirection: 'row',
