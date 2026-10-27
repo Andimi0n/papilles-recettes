@@ -45,6 +45,7 @@ export const VocabularyManagerModal: React.FC<VocabularyManagerModalProps> = ({
   const [formAliases, setFormAliases] = useState('');
   const [formIsPantryStaple, setFormIsPantryStaple] = useState(false);
   const [formAllergen, setFormAllergen] = useState<AllergenFamily | null>(null);
+  const [formDensity, setFormDensity] = useState('');
   const [isAllergenPickerOpen, setIsAllergenPickerOpen] = useState(false);
 
   // État du modal de fusion
@@ -97,6 +98,7 @@ export const VocabularyManagerModal: React.FC<VocabularyManagerModalProps> = ({
     setFormAliases('');
     setFormIsPantryStaple(false);
     setFormAllergen(null);
+    setFormDensity('');
     setIsEditModalOpen(true);
   };
 
@@ -107,6 +109,7 @@ export const VocabularyManagerModal: React.FC<VocabularyManagerModalProps> = ({
     setFormAliases(item.aliases.filter((a) => a !== item.normalizedName).join(', '));
     setFormIsPantryStaple(Boolean(item.isPantryStaple));
     setFormAllergen(item.allergen || null);
+    setFormDensity(item.density !== undefined ? item.density.toString() : '');
     setIsEditModalOpen(true);
   };
 
@@ -195,6 +198,20 @@ export const VocabularyManagerModal: React.FC<VocabularyManagerModalProps> = ({
       return;
     }
 
+    let parsedDensity: number | undefined = undefined;
+    if (formDensity.trim()) {
+      const cleanD = formDensity.trim().replace(',', '.');
+      const dVal = parseFloat(cleanD);
+      if (isNaN(dVal) || dVal <= 0) {
+        Alert.alert(
+          'Densité non valide',
+          'La densité doit être un nombre positif en g/ml (ex: 1.0 pour eau/lait, 0.57 pour farine, 0.85 pour sucre, 0.92 pour huile...).'
+        );
+        return;
+      }
+      parsedDensity = dVal;
+    }
+
     try {
       if (editingItem) {
         await VocabularyService.update(editingItem.id, {
@@ -203,6 +220,7 @@ export const VocabularyManagerModal: React.FC<VocabularyManagerModalProps> = ({
           aliases: validAliases,
           isPantryStaple: formIsPantryStaple,
           allergen: formAllergen || undefined,
+          density: parsedDensity,
         });
       } else {
         await VocabularyService.add({
@@ -212,6 +230,7 @@ export const VocabularyManagerModal: React.FC<VocabularyManagerModalProps> = ({
           isCustom: true,
           isPantryStaple: formIsPantryStaple,
           allergen: formAllergen || undefined,
+          density: parsedDensity,
         });
       }
 
@@ -463,6 +482,15 @@ export const VocabularyManagerModal: React.FC<VocabularyManagerModalProps> = ({
                             </View>
                           );
                         })()}
+
+                        {typeof item.density === 'number' && item.density > 0 && (
+                          <View style={[styles.densityBadge, { backgroundColor: colors.surfaceAlt, borderColor: colors.borderLight }]}>
+                            <Ionicons name="scale-outline" size={10} color={colors.textSecondary} style={{ marginRight: 3 }} />
+                            <Text style={[styles.densityBadgeText, { color: colors.textSecondary }]}>
+                              {item.density} g/ml
+                            </Text>
+                          </View>
+                        )}
                       </View>
                       <Text style={styles.itemAisleName}>{item.defaultAisle}</Text>
                     </View>
@@ -629,6 +657,20 @@ export const VocabularyManagerModal: React.FC<VocabularyManagerModalProps> = ({
                   )}
                   <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
                 </TouchableOpacity>
+
+                {/* Champ Densité (optionnel) */}
+                <Text style={styles.fieldLabel}>Densité en g/ml (optionnel) :</Text>
+                <TextInput
+                  style={styles.dialogInput}
+                  value={formDensity}
+                  onChangeText={setFormDensity}
+                  placeholder="Ex: 1.0 (eau/lait), 0.57 (farine), 0.85 (sucre), 0.92 (huile)..."
+                  placeholderTextColor={colors.textMuted}
+                  keyboardType="decimal-pad"
+                />
+                <Text style={[styles.dialogToggleSubtitle, { marginTop: -6, marginBottom: 14 }]}>
+                  Permet la conversion automatique entre grammes et volumes (ml/cl/L) dans vos recettes.
+                </Text>
 
                 {/* Option Dans les placards */}
                 <TouchableOpacity
@@ -890,6 +932,18 @@ const styles = createDynamicStyles((colors, shadows) => ({
   allergenBadgeText: {
     fontSize: 10,
     fontWeight: '700',
+  },
+  densityBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  densityBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
   },
   itemAisleName: {
     fontSize: 11,

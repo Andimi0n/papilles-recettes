@@ -33,6 +33,13 @@ import {
 import { prepareUserAllergens, evaluateRecipeAllergens } from '../utils/allergenMatcher';
 import { formatQuantityWithUnit } from '../constants/units';
 import { findLinkedRecipeForIngredient, getLinkedRecipesForRecipe } from '../utils/recipeLinkMatcher';
+import { VocabularyService } from '../services/vocabularyService';
+import {
+  ConversionMode,
+  convertIngredientQuantity,
+  getNextConversionTarget,
+  isIngredientConvertible,
+} from '../utils/unitConverter';
 
 interface InlineStepTimer {
   id: string;
@@ -87,6 +94,25 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
     };
     fetchDefaultServings();
   }, [recipe.id, recipe.servings]);
+
+  // Modes de conversion d'unités (global et overrides par ingrédient)
+  const [globalConversionMode, setGlobalConversionMode] = useState<ConversionMode>('original');
+  const [ingredientModes, setIngredientModes] = useState<Record<string, ConversionMode>>({});
+
+  useEffect(() => {
+    setGlobalConversionMode('original');
+    setIngredientModes({});
+  }, [recipe.id]);
+
+  const handleCycleIngredientUnit = (ing: Recipe['ingredients'][number]) => {
+    const currentMode = ingredientModes[ing.id] ?? globalConversionMode;
+    const density = VocabularyService.getDensity(ing.canonicalId || ing.name);
+    const nextMode = getNextConversionTarget(currentMode, ing.unit, density);
+    setIngredientModes((prev) => ({
+      ...prev,
+      [ing.id]: nextMode,
+    }));
+  };
 
   // Checklists locales pour la session de cuisine
   const [checkedIngredients, setCheckedIngredients] = useState<Record<string, boolean>>({});
@@ -349,7 +375,10 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
       const ingredientList = recipe.ingredients
         .map((i) => {
           const scaled = scaleQuantity(i.quantity, recipe.servings || 4, currentServings);
-          const formatted = formatQuantityWithUnit(scaled, i.unit);
+          const effectiveMode = ingredientModes[i.id] ?? globalConversionMode;
+          const density = VocabularyService.getDensity(i.canonicalId || i.name);
+          const converted = convertIngredientQuantity(scaled, i.unit, effectiveMode, density);
+          const formatted = formatQuantityWithUnit(converted.quantity, converted.unit);
           return `• ${i.name} ${formatted ? `(${formatted})` : ''}`.trim();
         })
         .join('\n');
@@ -770,6 +799,90 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
               </Text>
             </TouchableOpacity>
 
+            {/* Barre de conversion d'unités (Base / Grammes / Volume) */}
+            <View style={styles.conversionBar}>
+              <View style={styles.conversionBarLeft}>
+                <Ionicons name="swap-horizontal" size={13} color={colors.textSecondary} />
+                <Text style={styles.conversionBarLabel}>Unités :</Text>
+              </View>
+              <View style={styles.conversionPillsRow}>
+                <TouchableOpacity
+                  style={[
+                    styles.conversionPill,
+                    globalConversionMode === 'original' && styles.conversionPillActive,
+                  ]}
+                  onPress={() => {
+                    setGlobalConversionMode('original');
+                    setIngredientModes({});
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text
+                    style={[
+                      styles.conversionPillText,
+                      globalConversionMode === 'original' && styles.conversionPillTextActive,
+                    ]}
+                  >
+                    Base
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.conversionPill,
+                    globalConversionMode === 'mass' && styles.conversionPillActive,
+                  ]}
+                  onPress={() => {
+                    setGlobalConversionMode('mass');
+                    setIngredientModes({});
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons
+                    name="scale-outline"
+                    size={11}
+                    color={globalConversionMode === 'mass' ? '#FFFFFF' : colors.textSecondary}
+                    style={{ marginRight: 3 }}
+                  />
+                  <Text
+                    style={[
+                      styles.conversionPillText,
+                      globalConversionMode === 'mass' && styles.conversionPillTextActive,
+                    ]}
+                  >
+                    Tout en g
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.conversionPill,
+                    globalConversionMode === 'volume' && styles.conversionPillActive,
+                  ]}
+                  onPress={() => {
+                    setGlobalConversionMode('volume');
+                    setIngredientModes({});
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons
+                    name="water-outline"
+                    size={11}
+                    color={globalConversionMode === 'volume' ? '#FFFFFF' : colors.textSecondary}
+                    style={{ marginRight: 3 }}
+                  />
+                  <Text
+                    style={[
+                      styles.conversionPillText,
+                      globalConversionMode === 'volume' && styles.conversionPillTextActive,
+                    ]}
+                  >
+                    Tout en vol.
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
             {/* Préparations maison associées (ex: pâte brisée maison pour une quiche) */}
             {linkedPreparations.length > 0 && (
               <View style={styles.linkedPreparationsCard}>
@@ -838,6 +951,15 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
                   const isAllergen = allergenIngredientIdsSet.has(ing.id) || allergenIngredientIdsSet.has(normalizeString(ing.name));
                   const linkedRecipe = linkedRecipesMap.get(ing.id);
 
+                  // Calcul de conversion d'unité culinaire
+                  const effectiveMode = ingredientModes[ing.id] ?? globalConversionMode;
+                  const density = VocabularyService.getDensity(ing.canonicalId || ing.name);
+                  const conv = convertIngredientQuantity(scaledQty, ing.unit, effectiveMode, density);
+                  const displayQty = conv.quantity;
+                  const displayUnit = conv.unit;
+                  const isConverted = conv.isConverted;
+                  const canConvert = isIngredientConvertible(scaledQty, ing.unit, density);
+
                   return (
                     <TouchableOpacity
                       key={ing.id}
@@ -889,16 +1011,37 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
                         )}
                       </View>
                       {scaledQty ? (
-                        <Text
+                        <TouchableOpacity
+                          disabled={!canConvert}
+                          onPress={() => handleCycleIngredientUnit(ing)}
+                          activeOpacity={canConvert ? 0.6 : 1}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                           style={[
-                            styles.ingredientQty,
-                            isScaled && styles.ingredientQtyScaled,
-                            isChecked && styles.textChecked,
-                            isAllergen && !isChecked && { color: colors.danger, fontWeight: '700' },
+                            styles.ingredientQtyBtn,
+                            isConverted && styles.ingredientQtyBtnConverted,
+                            canConvert && styles.ingredientQtyBtnInteractive,
                           ]}
                         >
-                          {formatQuantityWithUnit(scaledQty, ing.unit)}
-                        </Text>
+                          <Text
+                            style={[
+                              styles.ingredientQty,
+                              isScaled && styles.ingredientQtyScaled,
+                              isChecked && styles.textChecked,
+                              isConverted && styles.ingredientQtyConvertedText,
+                              isAllergen && !isChecked && { color: colors.danger, fontWeight: '700' },
+                            ]}
+                          >
+                            {formatQuantityWithUnit(displayQty, displayUnit)}
+                          </Text>
+                          {canConvert && (
+                            <Ionicons
+                              name={isConverted ? 'swap-horizontal' : 'swap-horizontal-outline'}
+                              size={11}
+                              color={isConverted ? colors.primary : colors.textMuted}
+                              style={styles.convertIcon}
+                            />
+                          )}
+                        </TouchableOpacity>
                       ) : null}
                     </TouchableOpacity>
                   );
@@ -1818,6 +1961,24 @@ const styles = createDynamicStyles((colors, shadows) => ({
     color: colors.primary,
     marginRight: 2,
   },
+  ingredientQtyBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 8,
+    gap: 4,
+  },
+  ingredientQtyBtnInteractive: {
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 0.5,
+    borderColor: colors.borderLight,
+  },
+  ingredientQtyBtnConverted: {
+    backgroundColor: colors.primary + '18',
+    borderColor: colors.primary + '55',
+    borderWidth: 1,
+  },
   ingredientQty: {
     fontSize: 14,
     fontWeight: '600',
@@ -1826,6 +1987,13 @@ const styles = createDynamicStyles((colors, shadows) => ({
   ingredientQtyScaled: {
     color: '#D97706',
     fontWeight: '700',
+  },
+  ingredientQtyConvertedText: {
+    color: colors.primary,
+    fontWeight: '700',
+  },
+  convertIcon: {
+    marginLeft: 1,
   },
   textChecked: {
     textDecorationLine: 'line-through',
@@ -2160,6 +2328,57 @@ const styles = createDynamicStyles((colors, shadows) => ({
   addToShoppingBtnText: {
     color: '#FFFFFF',
     fontSize: 13,
+    fontWeight: '700',
+  },
+  conversionBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.surfaceAlt,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    marginTop: 8,
+    marginBottom: 6,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  conversionBarLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  conversionBarLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.textSecondary,
+  },
+  conversionPillsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  conversionPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: colors.cardBackground,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  conversionPillActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  conversionPillText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  conversionPillTextActive: {
+    color: '#FFFFFF',
     fontWeight: '700',
   },
   shoppingDialogCard: {
