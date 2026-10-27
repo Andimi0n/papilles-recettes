@@ -31,6 +31,7 @@ import {
 } from '../utils/helpers';
 import { prepareUserAllergens, evaluateRecipeAllergens } from '../utils/allergenMatcher';
 import { formatQuantityWithUnit } from '../constants/units';
+import { isKnownDefaultPantryStaple } from '../data/canonicalVocabulary';
 import { StarRating } from './StarRating';
 
 interface CookingModeModalProps {
@@ -57,6 +58,19 @@ const IGNORED_INGREDIENT_DETECTION_WORDS = new Set([
   'sachets', 'trait', 'traits', 'noisette', 'noisettes', 'noix', 'zeste', 'zestes',
 ]);
 
+const isIngredientPantryStaple = (ing: Ingredient): boolean => {
+  if (typeof ing.isPantryStaple === 'boolean') {
+    return ing.isPantryStaple;
+  }
+  if (ing.canonicalId) {
+    const canon = VocabularyService.getSyncMapById().get(ing.canonicalId);
+    if (canon && typeof canon.isPantryStaple === 'boolean') {
+      return canon.isPantryStaple;
+    }
+  }
+  return isKnownDefaultPantryStaple(ing.name);
+};
+
 const detectIngredientsInInstruction = (
   instruction: string,
   ingredients: Ingredient[],
@@ -77,6 +91,11 @@ const detectIngredientsInInstruction = (
   };
 
   ingredients.forEach((ing) => {
+    // Les ingrédients fonds de placard (sel, poivre, huiles...) ne doivent pas être détectés
+    if (isIngredientPantryStaple(ing)) {
+      return;
+    }
+
     let targetNameNorm = getCanonicalNormName(ing.canonicalId);
     if (!targetNameNorm) {
       targetNameNorm = normalizeString(ing.name);
@@ -174,11 +193,6 @@ export const CookingModeModal: React.FC<CookingModeModalProps> = ({
     );
   }, [steps, recipe.ingredients]);
 
-  // Ingrédients détectés dynamiquement dans l'étape courante
-  const detectedIngredients = useMemo(() => {
-    return stepDetectedIngredientsList[currentStepIndex] || [];
-  }, [stepDetectedIngredientsList, currentStepIndex]);
-
   // Identifiants et clés des ingrédients déjà détectés lors des étapes antérieures
   const previouslyDetectedIngredientKeys = useMemo(() => {
     const keys = new Set<string>();
@@ -192,6 +206,19 @@ export const CookingModeModal: React.FC<CookingModeModalProps> = ({
     }
     return keys;
   }, [stepDetectedIngredientsList, currentStepIndex]);
+
+  // Ingrédients détectés dynamiquement dans l'étape courante,
+  // excluant ceux déjà apparus lors des étapes antérieures (pas de réapparition aux étapes suivantes)
+  const detectedIngredients = useMemo(() => {
+    const rawList = stepDetectedIngredientsList[currentStepIndex] || [];
+    return rawList.filter((ing) => {
+      const alreadyDetected =
+        (ing.id && previouslyDetectedIngredientKeys.has(ing.id)) ||
+        (ing.canonicalId && previouslyDetectedIngredientKeys.has(ing.canonicalId)) ||
+        previouslyDetectedIngredientKeys.has(normalizeString(ing.name));
+      return !alreadyDetected;
+    });
+  }, [stepDetectedIngredientsList, currentStepIndex, previouslyDetectedIngredientKeys]);
 
 
   // Gestion du compte à rebours du minuteur actif
@@ -497,19 +524,11 @@ export const CookingModeModal: React.FC<CookingModeModalProps> = ({
               <Text style={styles.stepCountSub}>sur {steps.length}</Text>
             </View>
 
-            {/* Ingrédients détectés dynamiquement dans cette étape */}
+            {/* Ingrédients détectés dynamiquement dans cette étape (première apparition uniquement, hors fonds de placard) */}
             {detectedIngredients.length > 0 && (
               <View style={styles.detectedIngredientsRow}>
                 {detectedIngredients.map((ing) => {
-                  const alreadyDetected =
-                    (ing.id && previouslyDetectedIngredientKeys.has(ing.id)) ||
-                    (ing.canonicalId && previouslyDetectedIngredientKeys.has(ing.canonicalId)) ||
-                    previouslyDetectedIngredientKeys.has(normalizeString(ing.name));
-
-                  // Si l'ingrédient a déjà été détecté dans une étape antérieure, on n'affiche plus sa quantité
-                  const scaledQty = !alreadyDetected
-                    ? scaleQuantity(ing.quantity, recipe.servings || 4, servings)
-                    : null;
+                  const scaledQty = scaleQuantity(ing.quantity, recipe.servings || 4, servings);
                   const qtyStr = scaledQty ? formatQuantityWithUnit(scaledQty, ing.unit) : '';
 
                   return (
