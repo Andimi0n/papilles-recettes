@@ -779,13 +779,21 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
 
           {/* Ingredients Section with Dynamic Servings Stepper */}
           <View style={styles.sectionCard}>
+            {/* Titre Ingrédients avec micro-indicateur de stock accolé */}
             <View style={styles.sectionHeader}>
               <View style={styles.sectionTitleRow}>
                 <Text style={styles.sectionTitle}>
                   Ingrédients ({recipe.ingredients.length})
+                  {stockEvaluation && stockItems.length > 0 && stockEvaluation.totalEssentialCount > 0 ? (
+                    <Text style={[styles.stockMicroBadge, stockEvaluation.isDoable && styles.stockMicroBadgeReady]}>
+                      {` • ${Math.round(stockEvaluation.matchPercentage)}% en stock`}
+                    </Text>
+                  ) : null}
                 </Text>
+              </View>
 
-                {/* Stepper de portions interactif */}
+              {/* Ligne technique discrète : portions & conversion d'unités */}
+              <View style={styles.techBarRow}>
                 <View style={styles.servingsSelector}>
                   <TouchableOpacity
                     onPress={() => setCurrentServings((prev) => Math.max(1, prev - 1))}
@@ -793,11 +801,11 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     activeOpacity={0.7}
                   >
-                    <Ionicons name="remove" size={16} color={Colors.primary} />
+                    <Ionicons name="remove" size={14} color={colors.primary} />
                   </TouchableOpacity>
 
                   <View style={styles.servingsCountBox}>
-                    <Ionicons name="people" size={13} color={Colors.primary} style={styles.servingsIcon} />
+                    <Ionicons name="people" size={12} color={colors.primary} style={styles.servingsIcon} />
                     <Text style={styles.servingsCountText}>{currentServings} pers.</Text>
                   </View>
 
@@ -807,55 +815,99 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     activeOpacity={0.7}
                   >
-                    <Ionicons name="add" size={16} color={Colors.primary} />
+                    <Ionicons name="add" size={14} color={colors.primary} />
                   </TouchableOpacity>
-                </View>
-              </View>
 
-              <View style={styles.sectionSubRow}>
-                <Text style={styles.sectionHint}>
-                  {currentServings !== recipe.servings
-                    ? `Quantités recalculées pour ${currentServings} personnes`
-                    : 'Cochez au fil de la recette'}
-                </Text>
-                {currentServings !== recipe.servings && (
+                  {currentServings !== recipe.servings && (
+                    <TouchableOpacity
+                      onPress={() => setCurrentServings(recipe.servings || 4)}
+                      style={styles.resetServingsBtn}
+                      activeOpacity={0.7}
+                      hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                    >
+                      <Ionicons name="refresh" size={12} color={colors.primary} />
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                <View style={styles.conversionPillsRow}>
                   <TouchableOpacity
-                    onPress={() => setCurrentServings(recipe.servings || 4)}
-                    style={styles.resetServingsBtn}
+                    style={[
+                      styles.conversionPill,
+                      globalConversionMode === 'original' && styles.conversionPillActive,
+                    ]}
+                    onPress={() => {
+                      setGlobalConversionMode('original');
+                      setIngredientModes({});
+                    }}
                     activeOpacity={0.7}
                   >
-                    <Ionicons name="refresh" size={12} color={Colors.primary} />
-                    <Text style={styles.resetServingsText}>
-                      Rétablir ({recipe.servings} p.)
+                    <Text
+                      style={[
+                        styles.conversionPillText,
+                        globalConversionMode === 'original' && styles.conversionPillTextActive,
+                      ]}
+                    >
+                      Base
                     </Text>
                   </TouchableOpacity>
-                )}
+
+                  <TouchableOpacity
+                    style={[
+                      styles.conversionPill,
+                      globalConversionMode === 'mass' && styles.conversionPillActive,
+                    ]}
+                    onPress={() => {
+                      setGlobalConversionMode('mass');
+                      setIngredientModes({});
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons
+                      name="scale-outline"
+                      size={11}
+                      color={globalConversionMode === 'mass' ? '#FFFFFF' : colors.textSecondary}
+                      style={{ marginRight: 2 }}
+                    />
+                    <Text
+                      style={[
+                        styles.conversionPillText,
+                        globalConversionMode === 'mass' && styles.conversionPillTextActive,
+                      ]}
+                    >
+                      En g
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.conversionPill,
+                      globalConversionMode === 'volume' && styles.conversionPillActive,
+                    ]}
+                    onPress={() => {
+                      setGlobalConversionMode('volume');
+                      setIngredientModes({});
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons
+                      name="water-outline"
+                      size={11}
+                      color={globalConversionMode === 'volume' ? '#FFFFFF' : colors.textSecondary}
+                      style={{ marginRight: 2 }}
+                    />
+                    <Text
+                      style={[
+                        styles.conversionPillText,
+                        globalConversionMode === 'volume' && styles.conversionPillTextActive,
+                      ]}
+                    >
+                      En vol.
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
-
-            {/* Badge de couverture du stock frigo / étagères */}
-            {stockEvaluation && stockItems.length > 0 && stockEvaluation.totalEssentialCount > 0 && (
-              <View style={styles.detailStockProgressRow}>
-                <View style={styles.detailStockLeft}>
-                  <Ionicons
-                    name={stockEvaluation.isDoable ? 'checkmark-circle' : 'cube-outline'}
-                    size={14}
-                    color={stockEvaluation.isDoable ? colors.secondary : colors.textSecondary}
-                  />
-                  <Text style={styles.detailStockText}>
-                    {stockEvaluation.matchedEssentialCount}/{stockEvaluation.totalEssentialCount} ingrédients en stock
-                  </Text>
-                  <Text style={styles.detailStockPct}>
-                    ({Math.round(stockEvaluation.matchPercentage)}%)
-                  </Text>
-                </View>
-                {stockEvaluation.isDoable && (
-                  <View style={styles.detailStockReadyPill}>
-                    <Text style={styles.detailStockReadyText}>Prêt à cuisiner !</Text>
-                  </View>
-                )}
-              </View>
-            )}
 
             {/* Bouton 1 clic : Ajouter à ma liste de courses */}
             <TouchableOpacity
@@ -869,90 +921,6 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
                 Ajouter à ma liste de courses ({currentServings} pers.)
               </Text>
             </TouchableOpacity>
-
-            {/* Barre de conversion d'unités (Base / Grammes / Volume) */}
-            <View style={styles.conversionBar}>
-              <View style={styles.conversionBarLeft}>
-                <Ionicons name="swap-horizontal" size={13} color={colors.textSecondary} />
-                <Text style={styles.conversionBarLabel}>Unités :</Text>
-              </View>
-              <View style={styles.conversionPillsRow}>
-                <TouchableOpacity
-                  style={[
-                    styles.conversionPill,
-                    globalConversionMode === 'original' && styles.conversionPillActive,
-                  ]}
-                  onPress={() => {
-                    setGlobalConversionMode('original');
-                    setIngredientModes({});
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Text
-                    style={[
-                      styles.conversionPillText,
-                      globalConversionMode === 'original' && styles.conversionPillTextActive,
-                    ]}
-                  >
-                    Base
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[
-                    styles.conversionPill,
-                    globalConversionMode === 'mass' && styles.conversionPillActive,
-                  ]}
-                  onPress={() => {
-                    setGlobalConversionMode('mass');
-                    setIngredientModes({});
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons
-                    name="scale-outline"
-                    size={11}
-                    color={globalConversionMode === 'mass' ? '#FFFFFF' : colors.textSecondary}
-                    style={{ marginRight: 3 }}
-                  />
-                  <Text
-                    style={[
-                      styles.conversionPillText,
-                      globalConversionMode === 'mass' && styles.conversionPillTextActive,
-                    ]}
-                  >
-                    Tout en g
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[
-                    styles.conversionPill,
-                    globalConversionMode === 'volume' && styles.conversionPillActive,
-                  ]}
-                  onPress={() => {
-                    setGlobalConversionMode('volume');
-                    setIngredientModes({});
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons
-                    name="water-outline"
-                    size={11}
-                    color={globalConversionMode === 'volume' ? '#FFFFFF' : colors.textSecondary}
-                    style={{ marginRight: 3 }}
-                  />
-                  <Text
-                    style={[
-                      styles.conversionPillText,
-                      globalConversionMode === 'volume' && styles.conversionPillTextActive,
-                    ]}
-                  >
-                    Tout en vol.
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
 
             {/* Préparations maison associées (ex: pâte brisée maison pour une quiche) */}
             {linkedPreparations.length > 0 && (
@@ -2058,80 +2026,73 @@ const styles = createDynamicStyles((colors, shadows) => ({
     ...Shadows.small,
   },
   sectionHeader: {
-    marginBottom: 12,
+    marginBottom: 6,
   },
   sectionTitleRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
+  },
+  stockMicroBadge: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  stockMicroBadgeReady: {
+    color: colors.secondary,
+  },
+  techBarRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.surfaceAlt,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+    marginTop: 6,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
   },
   servingsSelector: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.primaryLight,
-    borderRadius: 20,
-    paddingHorizontal: 4,
-    paddingVertical: 3,
+    backgroundColor: colors.cardBackground,
+    borderRadius: 8,
+    paddingHorizontal: 2,
+    paddingVertical: 2,
     borderWidth: 1,
-    borderColor: Colors.primary + '33',
+    borderColor: colors.borderLight,
   },
   servingsStepBtn: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    width: 24,
+    height: 24,
+    borderRadius: 6,
     backgroundColor: colors.surfaceAlt,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-    ...shadows.small,
   },
   servingsCountBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
-    gap: 4,
+    paddingHorizontal: 6,
+    gap: 3,
   },
   servingsIcon: {
-    marginRight: 2,
+    marginRight: 1,
   },
   servingsCountText: {
     fontSize: 12,
     fontWeight: '700',
-    color: Colors.primaryDark,
-  },
-  sectionSubRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 2,
-  },
-  sectionHint: {
-    fontSize: 12,
-    color: Colors.textMuted,
-    flex: 1,
+    color: colors.primary,
   },
   resetServingsBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.surfaceAlt,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
-    gap: 3,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  resetServingsText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: Colors.primary,
+    padding: 3,
+    marginLeft: 2,
   },
   ingredientGroupBlock: {
     marginBottom: 6,
@@ -2695,97 +2656,35 @@ const styles = createDynamicStyles((colors, shadows) => ({
     fontSize: 12,
     fontWeight: '600',
   },
-  detailStockProgressRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: colors.surfaceAlt,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 12,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-  },
-  detailStockLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    flex: 1,
-  },
-  detailStockText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  detailStockPct: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  detailStockReadyPill: {
-    backgroundColor: colors.secondary + '22',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  detailStockReadyText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.secondary,
-  },
   addToShoppingBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: Colors.secondary,
+    backgroundColor: colors.secondary,
     paddingVertical: 10,
     paddingHorizontal: 14,
     borderRadius: 10,
-    marginTop: 10,
+    marginTop: 6,
     marginBottom: 8,
-    ...Shadows.small,
+    ...shadows.small,
   },
   addToShoppingBtnText: {
     color: '#FFFFFF',
     fontSize: 13,
     fontWeight: '700',
   },
-  conversionBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: colors.surfaceAlt,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 12,
-    marginTop: 8,
-    marginBottom: 6,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-  },
-  conversionBarLeft: {
+  conversionPillsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
   },
-  conversionBarLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.textSecondary,
-  },
-  conversionPillsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
   conversionPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 9,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
     backgroundColor: colors.cardBackground,
     borderWidth: 1,
     borderColor: colors.borderLight,

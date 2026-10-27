@@ -54,13 +54,11 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
 }) => {
   const { isDark, colors } = useTheme();
   const [activeMainTab, setActiveMainTab] = useState<'journal' | 'planner'>(initialTab);
-
-  // Synchronise si initialTab change
-  useEffect(() => {
-    if (initialTab) {
-      setActiveMainTab(initialTab);
-    }
-  }, [initialTab]);
+  const [prevInitialTab, setPrevInitialTab] = useState(initialTab);
+  if (initialTab && prevInitialTab !== initialTab) {
+    setPrevInitialTab(initialTab);
+    setActiveMainTab(initialTab);
+  }
 
   // --- ÉTAT DU PLANNING HEBDOMADAIRE & RÉGLAGES ---
   const [weeklyPlan, setWeeklyPlan] = useState<WeeklyPlanMap>({});
@@ -122,8 +120,10 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
   }, []);
 
   useEffect(() => {
-    loadPlan();
-    loadMealLogs();
+    void (async () => {
+      await loadPlan();
+      await loadMealLogs();
+    })();
   }, [loadPlan, loadMealLogs]);
 
   // Génération des 7 créneaux journaliers (Fixe ou Dynamique)
@@ -506,7 +506,7 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
               activeOpacity={0.7}
             >
               <Ionicons name="today-outline" size={14} color={colors.primary} />
-              <Text style={styles.returnTodayText}>Revenir à Aujourd'hui</Text>
+              <Text style={styles.returnTodayText}>Revenir à Aujourd’hui</Text>
             </TouchableOpacity>
           )}
 
@@ -566,7 +566,7 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
                 >
                   <Ionicons name="add-circle" size={24} color={colors.primary} />
                   <View style={styles.journalEmptyTextCol}>
-                    <Text style={styles.journalEmptyTitle}>Qu'avez-vous mangé ce midi ?</Text>
+                    <Text style={styles.journalEmptyTitle}>Qu’avez-vous mangé ce midi ?</Text>
                     <Text style={styles.journalEmptySubtitle}>
                       {plannedLunchForDay?.recipeTitle
                         ? `Prévu : ${plannedLunchForDay.recipeTitle} (Toucher pour valider)`
@@ -631,7 +631,7 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
                 >
                   <Ionicons name="add-circle" size={24} color={colors.primary} />
                   <View style={styles.journalEmptyTextCol}>
-                    <Text style={styles.journalEmptyTitle}>Qu'avez-vous mangé ce soir ?</Text>
+                    <Text style={styles.journalEmptyTitle}>Qu’avez-vous mangé ce soir ?</Text>
                     <Text style={styles.journalEmptySubtitle}>
                       {plannedDinnerForDay?.recipeTitle
                         ? `Prévu : ${plannedDinnerForDay.recipeTitle} (Toucher pour valider)`
@@ -814,28 +814,28 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
                   </View>
 
                   {/* Créneau 1 : Midi ☀️ */}
-                  <View
-                    style={[
-                      styles.mealSlotRow,
-                      isLunchPassed && styles.slotPassedWrapper,
-                    ]}
-                  >
-                    <View style={styles.slotTimeBadge}>
-                      <Text style={styles.slotTimeEmoji}>☀️</Text>
-                      <Text style={styles.slotTimeLabel}>Midi</Text>
-                      {isLunchPassed && (
-                        <View style={styles.passedPillBadge}>
-                          <Text style={styles.passedPillText} numberOfLines={1}>Passé</Text>
-                        </View>
-                      )}
-                      {isLunchNext && (
-                        <View style={styles.nextPillBadge}>
-                          <Text style={styles.nextPillText} numberOfLines={1}>Proch.</Text>
-                        </View>
-                      )}
-                    </View>
+                  {lunchMeal ? (
+                    <View
+                      style={[
+                        styles.mealSlotRow,
+                        isLunchPassed && styles.slotPassedWrapper,
+                      ]}
+                    >
+                      <View style={styles.slotTimeBadge}>
+                        <Text style={styles.slotTimeEmoji}>☀️</Text>
+                        <Text style={styles.slotTimeLabel}>Midi</Text>
+                        {isLunchPassed && (
+                          <View style={styles.passedPillBadge}>
+                            <Text style={styles.passedPillText} numberOfLines={1}>Passé</Text>
+                          </View>
+                        )}
+                        {isLunchNext && (
+                          <View style={styles.nextPillBadge}>
+                            <Text style={styles.nextPillText} numberOfLines={1}>Proch.</Text>
+                          </View>
+                        )}
+                      </View>
 
-                    {lunchMeal ? (
                       <View
                         style={[
                           styles.slotFilledCard,
@@ -930,74 +930,67 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
                           </TouchableOpacity>
                         </View>
                       </View>
-                    ) : (
-                      <TouchableOpacity
+                    </View>
+                  ) : (
+                    <TouchableOpacity
+                      style={[
+                        styles.slotEmptyMinimal,
+                        isLunchPassed && styles.slotEmptyMinimalPassed,
+                        isLunchNext && styles.slotEmptyMinimalNext,
+                      ]}
+                      onPress={() =>
+                        handleOpenPicker(
+                          slot.lunchKey,
+                          slot.mainLabel,
+                          slot.dayName,
+                          'lunch',
+                          isLunchPassed,
+                          slot.dateStr
+                        )
+                      }
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons
+                        name={isLunchNext ? 'arrow-forward-circle-outline' : 'add'}
+                        size={14}
+                        color={isLunchPassed ? colors.textMuted : isLunchNext ? colors.primary : colors.textSecondary}
+                      />
+                      <Text
                         style={[
-                          styles.slotEmptyBtn,
-                          isLunchPassed && styles.slotEmptyBtnPassed,
-                          isLunchNext && styles.slotCardNextHighlight,
+                          styles.slotEmptyMinimalText,
+                          isLunchPassed && styles.slotEmptyMinimalTextPassed,
+                          isLunchNext && styles.slotEmptyMinimalTextNext,
                         ]}
-                        onPress={() =>
-                          handleOpenPicker(
-                            slot.lunchKey,
-                            slot.mainLabel,
-                            slot.dayName,
-                            'lunch',
-                            isLunchPassed,
-                            slot.dateStr
-                          )
-                        }
-                        activeOpacity={0.7}
                       >
-                        <Ionicons
-                          name={
-                            isLunchPassed
-                              ? 'time-outline'
-                              : isLunchNext
-                              ? 'arrow-forward-circle'
-                              : 'add-circle-outline'
-                          }
-                          size={18}
-                          color={isLunchPassed ? colors.textMuted : colors.primary}
-                        />
-                        <Text
-                          style={[
-                            styles.slotEmptyText,
-                            isLunchPassed && styles.slotEmptyTextPassed,
-                            isLunchNext && styles.slotEmptyTextNext,
-                          ]}
-                        >
-                          {isLunchPassed
-                            ? 'Déjeuner (Déjà passé • Toucher pour forcer)'
-                            : 'Prévoir le déjeuner'}
-                        </Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
+                        {isLunchPassed ? 'Déjeuner (passé)' : 'Déjeuner'}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
 
                   {/* Créneau 2 : Soir 🌙 */}
-                  <View
-                    style={[
-                      styles.mealSlotRow,
-                      isDinnerPassed && styles.slotPassedWrapper,
-                    ]}
-                  >
-                    <View style={styles.slotTimeBadge}>
-                      <Text style={styles.slotTimeEmoji}>🌙</Text>
-                      <Text style={styles.slotTimeLabel}>Soir</Text>
-                      {isDinnerPassed && (
-                        <View style={styles.passedPillBadge}>
-                          <Text style={styles.passedPillText} numberOfLines={1}>Passé</Text>
-                        </View>
-                      )}
-                      {isDinnerNext && (
-                        <View style={styles.nextPillBadge}>
-                          <Text style={styles.nextPillText} numberOfLines={1}>Proch.</Text>
-                        </View>
-                      )}
-                    </View>
+                  {dinnerMeal ? (
+                    <View
+                      style={[
+                        styles.mealSlotRow,
+                        styles.mealSlotRowLast,
+                        isDinnerPassed && styles.slotPassedWrapper,
+                      ]}
+                    >
+                      <View style={styles.slotTimeBadge}>
+                        <Text style={styles.slotTimeEmoji}>🌙</Text>
+                        <Text style={styles.slotTimeLabel}>Soir</Text>
+                        {isDinnerPassed && (
+                          <View style={styles.passedPillBadge}>
+                            <Text style={styles.passedPillText} numberOfLines={1}>Passé</Text>
+                          </View>
+                        )}
+                        {isDinnerNext && (
+                          <View style={styles.nextPillBadge}>
+                            <Text style={styles.nextPillText} numberOfLines={1}>Proch.</Text>
+                          </View>
+                        )}
+                      </View>
 
-                    {dinnerMeal ? (
                       <View
                         style={[
                           styles.slotFilledCard,
@@ -1092,50 +1085,43 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
                           </TouchableOpacity>
                         </View>
                       </View>
-                    ) : (
-                      <TouchableOpacity
+                    </View>
+                  ) : (
+                    <TouchableOpacity
+                      style={[
+                        styles.slotEmptyMinimal,
+                        styles.slotEmptyMinimalLast,
+                        isDinnerPassed && styles.slotEmptyMinimalPassed,
+                        isDinnerNext && styles.slotEmptyMinimalNext,
+                      ]}
+                      onPress={() =>
+                        handleOpenPicker(
+                          slot.dinnerKey,
+                          slot.mainLabel,
+                          slot.dayName,
+                          'dinner',
+                          isDinnerPassed,
+                          slot.dateStr
+                        )
+                      }
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons
+                        name={isDinnerNext ? 'arrow-forward-circle-outline' : 'add'}
+                        size={14}
+                        color={isDinnerPassed ? colors.textMuted : isDinnerNext ? colors.primary : colors.textSecondary}
+                      />
+                      <Text
                         style={[
-                          styles.slotEmptyBtn,
-                          isDinnerPassed && styles.slotEmptyBtnPassed,
-                          isDinnerNext && styles.slotCardNextHighlight,
+                          styles.slotEmptyMinimalText,
+                          isDinnerPassed && styles.slotEmptyMinimalTextPassed,
+                          isDinnerNext && styles.slotEmptyMinimalTextNext,
                         ]}
-                        onPress={() =>
-                          handleOpenPicker(
-                            slot.dinnerKey,
-                            slot.mainLabel,
-                            slot.dayName,
-                            'dinner',
-                            isDinnerPassed,
-                            slot.dateStr
-                          )
-                        }
-                        activeOpacity={0.7}
                       >
-                        <Ionicons
-                          name={
-                            isDinnerPassed
-                              ? 'time-outline'
-                              : isDinnerNext
-                              ? 'arrow-forward-circle'
-                              : 'add-circle-outline'
-                          }
-                          size={18}
-                          color={isDinnerPassed ? colors.textMuted : colors.primary}
-                        />
-                        <Text
-                          style={[
-                            styles.slotEmptyText,
-                            isDinnerPassed && styles.slotEmptyTextPassed,
-                            isDinnerNext && styles.slotEmptyTextNext,
-                          ]}
-                        >
-                          {isDinnerPassed
-                            ? 'Dîner (Déjà passé • Toucher pour forcer)'
-                            : 'Prévoir le dîner'}
-                        </Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
+                        {isDinnerPassed ? 'Dîner (passé)' : 'Dîner'}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               );
             })}
@@ -1189,7 +1175,7 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
             </View>
 
             <Text style={styles.configModalSubtitle}>
-              Choisissez votre mode d'organisation de la semaine :
+              Choisissez votre mode d’organisation de la semaine :
             </Text>
 
             <View style={styles.modalModeRow}>
@@ -1238,7 +1224,7 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
                 >
                   Dynamique
                 </Text>
-                <Text style={styles.modalModeSubText}>Dès aujourd'hui</Text>
+                <Text style={styles.modalModeSubText}>Dès aujourd’hui</Text>
               </TouchableOpacity>
             </View>
 
@@ -1287,7 +1273,7 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
               <View style={styles.modalDynamicNotice}>
                 <Ionicons name="sparkles-outline" size={16} color={colors.primary} />
                 <Text style={styles.modalDynamicNoticeText}>
-                  Planning glissant sur 7 jours débutant au prochain repas selon l'heure. Les repas passés sont grisés tout en restant modifiables si vous souhaitez forcer un choix.
+                  Planning glissant sur 7 jours débutant au prochain repas selon l’heure. Les repas passés sont grisés tout en restant modifiables si vous souhaitez forcer un choix.
                 </Text>
               </View>
             )}
@@ -1716,8 +1702,11 @@ const styles = createDynamicStyles((colors, shadows) => ({
   mealSlotRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 8,
     gap: 10,
+  },
+  mealSlotRowLast: {
+    marginBottom: 0,
   },
   slotTimeBadge: {
     width: 50,
@@ -1797,23 +1786,42 @@ const styles = createDynamicStyles((colors, shadows) => ({
   slotIconBtn: {
     padding: 6,
   },
-  slotEmptyBtn: {
-    flex: 1,
+  slotEmptyMinimal: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 12,
-    borderRadius: 12,
-    borderWidth: 1.5,
+    gap: 6,
+    paddingVertical: 7,
+    borderRadius: 8,
+    borderWidth: 1,
     borderColor: colors.borderMedium,
     borderStyle: 'dashed',
-    backgroundColor: colors.cardBackground,
+    backgroundColor: 'transparent',
+    marginBottom: 8,
   },
-  slotEmptyText: {
-    fontSize: 13,
+  slotEmptyMinimalLast: {
+    marginBottom: 0,
+  },
+  slotEmptyMinimalPassed: {
+    borderColor: colors.borderLight,
+    opacity: 0.6,
+  },
+  slotEmptyMinimalNext: {
+    borderColor: colors.primary + '88',
+    backgroundColor: colors.primaryLight + '22',
+  },
+  slotEmptyMinimalText: {
+    fontSize: 12,
     fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  slotEmptyMinimalTextPassed: {
+    color: colors.textMuted,
+    fontWeight: '500',
+  },
+  slotEmptyMinimalTextNext: {
     color: colors.primary,
+    fontWeight: '700',
   },
   modeBar: {
     flexDirection: 'row',
@@ -1918,17 +1926,7 @@ const styles = createDynamicStyles((colors, shadows) => ({
   slotMealTitlePassed: {
     color: colors.textSecondary,
   },
-  slotEmptyBtnPassed: {
-    borderColor: colors.borderMedium,
-    backgroundColor: colors.backgroundSecondary,
-  },
-  slotEmptyTextPassed: {
-    color: colors.textMuted,
-    fontSize: 12,
-  },
-  slotEmptyTextNext: {
-    fontWeight: '700',
-  },
+
   configModalBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.55)',
