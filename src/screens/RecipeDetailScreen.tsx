@@ -93,6 +93,7 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
   const [isAddingToShoppingList, setIsAddingToShoppingList] = useState(false);
   const [isShoppingModalVisible, setIsShoppingModalVisible] = useState(false);
   const [shoppingSelection, setShoppingSelection] = useState<Record<string, boolean>>({});
+  const [isContextMenuVisible, setIsContextMenuVisible] = useState(false);
 
   // Synchronise lorsque la recette change
   React.useEffect(() => {
@@ -110,11 +111,6 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
   // Modes de conversion d'unités (global et overrides par ingrédient)
   const [globalConversionMode, setGlobalConversionMode] = useState<ConversionMode>('original');
   const [ingredientModes, setIngredientModes] = useState<Record<string, ConversionMode>>({});
-
-  useEffect(() => {
-    setGlobalConversionMode('original');
-    setIngredientModes({});
-  }, [recipe.id]);
 
   const handleCycleIngredientUnit = (ing: Recipe['ingredients'][number]) => {
     const currentMode = ingredientModes[ing.id] ?? globalConversionMode;
@@ -174,11 +170,6 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
   const [isQrModalVisible, setIsQrModalVisible] = useState(false);
   const [isPrintModalVisible, setIsPrintModalVisible] = useState(false);
   const [detailTagInput, setDetailTagInput] = useState('');
-
-  // Synchronisation des tags brouillons dès que la recette change
-  useEffect(() => {
-    setModalDraftTags(recipe.tags || []);
-  }, [recipe.tags]);
 
   const existingTagsAcrossCarnet = useMemo(() => {
     const set = new Set<string>();
@@ -304,10 +295,15 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
   // Minuteurs interactifs autonomes pour chaque étape
   const [inlineTimers, setInlineTimers] = useState<Record<string, InlineStepTimer>>({});
 
-  // Réinitialiser les minuteurs si l'utilisateur change de recette
-  useEffect(() => {
+  // Synchronisation de l'état lors d'un changement de recette (Pattern React 19)
+  const [prevRecipeId, setPrevRecipeId] = useState(recipe.id);
+  if (prevRecipeId !== recipe.id) {
+    setPrevRecipeId(recipe.id);
+    setGlobalConversionMode('original');
+    setIngredientModes({});
+    setModalDraftTags(recipe.tags || []);
     setInlineTimers({});
-  }, [recipe.id]);
+  }
 
   // Alerte haptique et sonore lors de la fin d'un minuteur
   const triggerInlineTimerAlert = () => {
@@ -573,81 +569,107 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
           </TouchableOpacity>
           <View style={styles.navRight}>
             <TouchableOpacity
-              onPress={handleOpenShoppingModal}
+              onPress={() => setIsCookingModeVisible(true)}
               style={[styles.navBtn, styles.navBtnPrimary]}
-              accessibilityLabel="Ajouter à ma liste de courses"
+              accessibilityLabel="Lancer le mode cuisine"
             >
-              <Ionicons name="cart-outline" size={19} color={colors.primary} />
+              <Ionicons name="restaurant" size={18} color={colors.primary} />
             </TouchableOpacity>
 
             <TouchableOpacity
-              onPress={() => setIsPrintModalVisible(true)}
+              onPress={() => setIsContextMenuVisible(true)}
               style={styles.navBtn}
-              accessibilityLabel="Imprimer la fiche recette"
+              accessibilityLabel="Options de la recette"
             >
-              <Ionicons name="print-outline" size={19} color={colors.textPrimary} />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => setIsQrModalVisible(true)}
-              style={styles.navBtn}
-              accessibilityLabel="Partager la recette"
-            >
-              <Ionicons name="share-social-outline" size={19} color={colors.textPrimary} />
-            </TouchableOpacity>
-
-            <View style={styles.navDivider} />
-
-            <TouchableOpacity
-              onPress={() => onEdit(recipe)}
-              style={styles.navBtn}
-              accessibilityLabel="Modifier la recette"
-            >
-              <Ionicons name="create-outline" size={19} color={colors.textPrimary} />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={handleDeleteConfirm}
-              style={[styles.navBtn, styles.navBtnDanger]}
-              accessibilityLabel="Supprimer la recette"
-            >
-              <Ionicons name="trash-outline" size={19} color={colors.danger} />
+              <Ionicons name="ellipsis-horizontal" size={19} color={colors.textPrimary} />
             </TouchableOpacity>
           </View>
         </View>
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-          {/* Hero Image */}
-          <View style={styles.imageWrapper}>
-            {recipe.imageUrl && recipe.imageUrl.trim().length > 0 ? (
+          {/* Hero Image (compacte si présente, masquée si absente pour rapprocher les ingrédients) */}
+          {recipe.imageUrl && recipe.imageUrl.trim().length > 0 ? (
+            <View style={styles.imageWrapper}>
               <Image
                 source={{ uri: recipe.imageUrl }}
                 style={styles.image}
                 resizeMode="cover"
               />
-            ) : (
-              <View style={styles.noImagePlaceholder}>
-                <Ionicons name="restaurant-outline" size={54} color={Colors.primary + '55'} />
+              <View style={styles.heroBadgesRow}>
+                <View style={styles.categoryPill}>
+                  <Text style={styles.categoryPillText}>{recipe.category}</Text>
+                </View>
+                {recipe.isVegetarian && (
+                  <View style={styles.vegeHeroPill}>
+                    <Ionicons name="leaf" size={11} color="#FFFFFF" />
+                    <Text style={styles.vegeHeroPillText}>Végétarien</Text>
+                  </View>
+                )}
+              </View>
+            </View>
+          ) : null}
+
+          {/* Title, Badges, Compact Rating & Tags */}
+          <View style={styles.headerInfo}>
+            {(!recipe.imageUrl || recipe.imageUrl.trim().length === 0) && (
+              <View style={styles.headerBadgesRow}>
+                <View style={styles.categoryPillInline}>
+                  <Text style={styles.categoryPillTextInline}>{recipe.category}</Text>
+                </View>
+                {recipe.isVegetarian && (
+                  <View style={styles.vegeHeroPillInline}>
+                    <Ionicons name="leaf" size={11} color="#FFFFFF" />
+                    <Text style={styles.vegeHeroPillText}>Végétarien</Text>
+                  </View>
+                )}
               </View>
             )}
-            <View style={styles.heroBadgesRow}>
-              <View style={styles.categoryPill}>
-                <Text style={styles.categoryPillText}>{recipe.category}</Text>
-              </View>
-              {recipe.isVegetarian && (
-                <View style={styles.vegeHeroPill}>
-                  <Ionicons name="leaf" size={13} color="#FFFFFF" />
-                  <Text style={styles.vegeHeroPillText}>🌱 Végétarien</Text>
-                </View>
-              )}
-            </View>
-          </View>
 
-          {/* Title & Description */}
-          <View style={styles.headerInfo}>
             <Text style={styles.title}>{recipe.title}</Text>
             {recipe.description ? (
               <Text style={styles.description}>{recipe.description}</Text>
+            ) : null}
+
+            {/* Notation & Astuce intégrées en ligne compacte */}
+            <View style={styles.compactMetaRow}>
+              <View style={styles.compactRatingLeft}>
+                <StarRating
+                  rating={recipe.rating}
+                  size={18}
+                  interactive={true}
+                  showScore={true}
+                  showClear={recipe.rating > 0}
+                  onRatingChange={(newRating) => onUpdateRating(recipe.id, newRating)}
+                />
+              </View>
+              <TouchableOpacity
+                onPress={() => setIsNoteModalVisible(true)}
+                style={styles.compactNoteBtn}
+                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                activeOpacity={0.75}
+              >
+                <Ionicons
+                  name={recipe.userNote ? 'bulb' : 'bulb-outline'}
+                  size={14}
+                  color={recipe.userNote ? colors.amber : colors.primary}
+                />
+                <Text style={[styles.compactNoteBtnText, recipe.userNote && { color: colors.amber }]}>
+                  {recipe.userNote ? 'Astuce' : '+ Astuce'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {recipe.userNote ? (
+              <TouchableOpacity
+                onPress={() => setIsNoteModalVisible(true)}
+                style={styles.compactChefNoteBox}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="bulb-outline" size={14} color={colors.amber} style={{ marginRight: 6 }} />
+                <Text style={styles.compactChefNoteText} numberOfLines={2}>
+                  {recipe.userNote}
+                </Text>
+              </TouchableOpacity>
             ) : null}
 
             {/* Tags / Étiquettes */}
@@ -668,7 +690,7 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
                         }}
                         activeOpacity={0.75}
                       >
-                        <Ionicons name="pricetag-outline" size={12} color={colors.primary} />
+                        <Ionicons name="pricetag-outline" size={11} color={colors.primary} />
                         <Text style={styles.detailTagText}>#{tag}</Text>
                       </TouchableOpacity>
                     ))
@@ -681,93 +703,38 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
                   }}
                   activeOpacity={0.75}
                 >
-                  <Ionicons name="pricetag-outline" size={12} color={colors.primary} />
+                  <Ionicons name="pricetag-outline" size={11} color={colors.primary} />
                   <Text style={styles.detailAddTagBtnText}>
-                    {recipe.tags && recipe.tags.length > 0 ? '+ Tag' : '+ Ajouter des tags'}
+                    {recipe.tags && recipe.tags.length > 0 ? '+ Tag' : '+ Tags'}
                   </Text>
                 </TouchableOpacity>
               </ScrollView>
             </View>
           </View>
 
-          {/* Interactive Rating Section */}
-          <View style={styles.ratingCard}>
-            <View style={styles.ratingHeaderRow}>
-              <View>
-                <Text style={styles.ratingCardTitle}>Évaluation & Note</Text>
-                <Text style={styles.ratingCardSubtitle}>
-                  {recipe.rating > 0 ? `${recipe.rating.toFixed(1)} / 5` : 'Non notée'}
-                </Text>
-              </View>
-              <TouchableOpacity
-                onPress={() => setIsNoteModalVisible(true)}
-                style={styles.editNoteBtn}
-              >
-                <Ionicons name="chatbubble-ellipses-outline" size={16} color={Colors.primary} />
-                <Text style={styles.editNoteBtnText}>Astuce</Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.starRow}>
-              <StarRating
-                rating={recipe.rating}
-                size={32}
-                interactive={true}
-                showScore={true}
-                showClear={recipe.rating > 0}
-                onRatingChange={(newRating) => onUpdateRating(recipe.id, newRating)}
-              />
-            </View>
-
-            {recipe.userNote ? (
-              <View style={styles.chefNoteBox}>
-                <Ionicons name="bulb-outline" size={18} color={Colors.amber} style={styles.chefNoteIcon} />
-                <Text style={styles.chefNoteText}>{recipe.userNote}</Text>
-              </View>
-            ) : null}
-          </View>
-
-          {/* Key Facts / Metadata Grid */}
+          {/* Key Facts / Metadata Grid épuré */}
           <View style={styles.metaGrid}>
             <View style={styles.metaCell}>
-              <Ionicons name="hourglass-outline" size={20} color={Colors.primary} />
+              <Ionicons name="hourglass-outline" size={17} color={colors.primary} />
               <Text style={styles.metaValue}>{formatDuration(recipe.prepTimeMinutes)}</Text>
               <Text style={styles.metaLabel}>Préparation</Text>
             </View>
             <View style={styles.metaCell}>
-              <Ionicons name="flame-outline" size={20} color={Colors.primary} />
+              <Ionicons name="flame-outline" size={17} color={colors.primary} />
               <Text style={styles.metaValue}>{formatDuration(recipe.cookTimeMinutes)}</Text>
               <Text style={styles.metaLabel}>Cuisson</Text>
             </View>
             <View style={styles.metaCell}>
-              <Ionicons name="people-outline" size={20} color={Colors.primary} />
+              <Ionicons name="people-outline" size={17} color={colors.primary} />
               <Text style={styles.metaValue}>{currentServings}</Text>
               <Text style={styles.metaLabel}>Portions</Text>
             </View>
             <View style={styles.metaCell}>
-              <Ionicons name="speedometer-outline" size={20} color={Colors.primary} />
+              <Ionicons name="speedometer-outline" size={17} color={colors.primary} />
               <Text style={styles.metaValue}>{recipe.difficulty}</Text>
               <Text style={styles.metaLabel}>Difficulté</Text>
             </View>
           </View>
-
-          {/* Bouton Principal : Lancer le Mode Cuisine Pas-à-Pas */}
-          <TouchableOpacity
-            style={styles.startCookingBannerBtn}
-            onPress={() => setIsCookingModeVisible(true)}
-            activeOpacity={0.88}
-          >
-            <View style={styles.startCookingIconCircle}>
-              <Ionicons name="restaurant" size={22} color="#FFFFFF" />
-            </View>
-            <View style={styles.startCookingTextCol}>
-              <Text style={styles.startCookingTitle}>Lancer le Mode Cuisine</Text>
-              <Text style={styles.startCookingSubtitle}>
-                Plein écran • Instructions XXL • Minuteurs intégrés
-              </Text>
-            </View>
-            <Ionicons name="arrow-forward-circle" size={26} color="#FFFFFF" />
-          </TouchableOpacity>
 
           {/* Bannière d'alerte Allergènes si présence détectée */}
           {allergenEval.hasAllergen && (
@@ -775,7 +742,7 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
               <View style={styles.allergenAlertHeader}>
                 <Ionicons name="warning" size={22} color={colors.danger} />
                 <Text style={[styles.allergenAlertTitle, { color: colors.danger }]}>
-                  Attention : Présence d'allergènes
+                  Attention : Présence d’allergènes
                 </Text>
               </View>
               <Text style={[styles.allergenAlertDesc, { color: colors.textPrimary }]}>
@@ -1015,7 +982,7 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
                         {linkedRecipe.title}
                       </Text>
                       <Text style={styles.linkedPrepSub} numberOfLines={1}>
-                        Pour l'ingrédient « {ingredient.name} »
+                        Pour l’ingrédient « {ingredient.name} »
                       </Text>
                     </View>
                     <View style={styles.linkedPrepAction}>
@@ -1716,6 +1683,74 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
           onClose={() => setIsPrintModalVisible(false)}
         />
 
+        {/* Modal Menu Contextuel 3 points (Partager, Imprimer, Modifier, Supprimer) */}
+        <Modal
+          visible={isContextMenuVisible}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setIsContextMenuVisible(false)}
+        >
+          <TouchableOpacity
+            style={styles.contextModalOverlay}
+            activeOpacity={1}
+            onPress={() => setIsContextMenuVisible(false)}
+          >
+            <View style={styles.contextMenuCard}>
+              <TouchableOpacity
+                style={styles.contextMenuItem}
+                onPress={() => {
+                  setIsContextMenuVisible(false);
+                  onEdit(recipe);
+                }}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="create-outline" size={19} color={colors.textPrimary} />
+                <Text style={styles.contextMenuItemText}>Modifier la recette</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.contextMenuItem}
+                onPress={() => {
+                  setIsContextMenuVisible(false);
+                  setIsQrModalVisible(true);
+                }}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="share-social-outline" size={19} color={colors.textPrimary} />
+                <Text style={styles.contextMenuItemText}>Partager la fiche</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.contextMenuItem}
+                onPress={() => {
+                  setIsContextMenuVisible(false);
+                  setIsPrintModalVisible(true);
+                }}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="print-outline" size={19} color={colors.textPrimary} />
+                <Text style={styles.contextMenuItemText}>Imprimer la fiche</Text>
+              </TouchableOpacity>
+
+              <View style={styles.contextMenuDivider} />
+
+              <TouchableOpacity
+                style={styles.contextMenuItem}
+                onPress={() => {
+                  setIsContextMenuVisible(false);
+                  handleDeleteConfirm();
+                }}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="trash-outline" size={19} color={colors.danger} />
+                <Text style={[styles.contextMenuItemText, { color: colors.danger }]}>
+                  Supprimer la recette
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </Modal>
+
         {/* Bandeau flottant des minuteurs en cours si au moins un minuteur est actif */}
         {Object.values(inlineTimers).length > 0 && (
           <View style={styles.floatingTimersSummaryBar}>
@@ -1803,17 +1838,10 @@ const styles = createDynamicStyles((colors, shadows) => ({
     paddingBottom: 40,
   },
   imageWrapper: {
-    height: 250,
+    height: 190,
     width: '100%',
     position: 'relative',
-    backgroundColor: Colors.surfaceAlt,
-  },
-  noImagePlaceholder: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: Colors.primaryLight,
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: colors.surfaceAlt,
   },
   image: {
     width: '100%',
@@ -1821,80 +1849,157 @@ const styles = createDynamicStyles((colors, shadows) => ({
   },
   heroBadgesRow: {
     position: 'absolute',
-    bottom: 16,
-    left: 16,
+    bottom: 12,
+    left: 12,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
   },
   categoryPill: {
     backgroundColor: 'rgba(255, 255, 255, 0.94)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    ...Shadows.small,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 14,
+    ...shadows.card,
+  },
+  categoryPillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.primaryDark,
+    textTransform: 'uppercase',
   },
   vegeHeroPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: 4,
     backgroundColor: '#16A34A',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    ...Shadows.small,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 14,
+    ...shadows.card,
   },
   vegeHeroPillText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
     color: '#FFFFFF',
     textTransform: 'uppercase',
   },
-  categoryPillText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: Colors.primaryDark,
-    textTransform: 'uppercase',
-  },
-  headerInfo: {
-    padding: 16,
-    backgroundColor: Colors.cardBackground,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: Colors.textPrimary,
-    lineHeight: 28,
+  headerBadgesRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     marginBottom: 8,
   },
+  categoryPillInline: {
+    backgroundColor: colors.surfaceAlt,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  categoryPillTextInline: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.primary,
+    textTransform: 'uppercase',
+  },
+  vegeHeroPillInline: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#16A34A',
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  headerInfo: {
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 10,
+    backgroundColor: colors.cardBackground,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
+  },
+  title: {
+    fontSize: 21,
+    fontWeight: '800',
+    color: colors.textPrimary,
+    lineHeight: 27,
+    marginBottom: 4,
+  },
   description: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    lineHeight: 20,
+    fontSize: 13.5,
+    color: colors.textSecondary,
+    lineHeight: 19,
+    marginBottom: 6,
+  },
+  compactMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginVertical: 4,
+  },
+  compactRatingLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  compactNoteBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surfaceAlt,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+    gap: 4,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  compactNoteBtnText: {
+    fontSize: 11.5,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  compactChefNoteBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.amberLight,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    marginTop: 6,
+    marginBottom: 4,
+    borderWidth: 1,
+    borderColor: colors.amber + '40',
+  },
+  compactChefNoteText: {
+    flex: 1,
+    fontSize: 12,
+    color: colors.amber,
+    fontStyle: 'italic',
+    lineHeight: 16,
   },
   detailTagsContainer: {
-    marginTop: 10,
+    marginTop: 6,
   },
   detailTagsScroll: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
   },
   detailTagBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.surfaceAlt,
     borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    borderColor: colors.borderLight,
+    paddingHorizontal: 8,
+    paddingVertical: 3.5,
     borderRadius: 8,
     gap: 4,
   },
   detailTagText: {
-    fontSize: 12.5,
+    fontSize: 11.5,
     fontWeight: '700',
     color: colors.primary,
   },
@@ -1905,103 +2010,42 @@ const styles = createDynamicStyles((colors, shadows) => ({
     borderStyle: 'dashed',
     borderColor: colors.primary,
     backgroundColor: colors.primary + '10',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 3.5,
     borderRadius: 8,
     gap: 4,
   },
   detailAddTagBtnText: {
-    fontSize: 12,
+    fontSize: 11.5,
     fontWeight: '600',
     color: colors.primary,
-  },
-  ratingCard: {
-    margin: 16,
-    padding: 16,
-    backgroundColor: Colors.cardBackground,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    ...Shadows.small,
-  },
-  ratingHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 12,
-  },
-  ratingCardTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: Colors.textPrimary,
-  },
-  ratingCardSubtitle: {
-    fontSize: 13,
-    color: Colors.amber,
-    fontWeight: '600',
-    marginTop: 2,
-  },
-  editNoteBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.primaryLight,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 12,
-  },
-  editNoteBtnText: {
-    fontSize: 12,
-    color: Colors.primary,
-    fontWeight: '600',
-    marginLeft: 4,
-  },
-  starRow: {
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  chefNoteBox: {
-    flexDirection: 'row',
-    backgroundColor: Colors.amberLight,
-    padding: 12,
-    borderRadius: 12,
-    marginTop: 10,
-  },
-  chefNoteIcon: {
-    marginRight: 8,
-    marginTop: 2,
-  },
-  chefNoteText: {
-    flex: 1,
-    fontSize: 13,
-    color: colors.amber,
-    fontStyle: 'italic',
-    lineHeight: 18,
   },
   metaGrid: {
     flexDirection: 'row',
     marginHorizontal: 16,
-    marginBottom: 16,
-    backgroundColor: Colors.cardBackground,
-    borderRadius: 16,
-    paddingVertical: 14,
+    marginTop: 10,
+    marginBottom: 8,
+    backgroundColor: colors.cardBackground,
+    borderRadius: 14,
+    paddingVertical: 9,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: colors.borderLight,
     justifyContent: 'space-around',
-    ...Shadows.small,
+    ...shadows.card,
   },
   metaCell: {
     alignItems: 'center',
   },
   metaValue: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
-    color: Colors.textPrimary,
-    marginTop: 4,
+    color: colors.textPrimary,
+    marginTop: 2,
   },
   metaLabel: {
-    fontSize: 11,
-    color: Colors.textSecondary,
-    marginTop: 2,
+    fontSize: 10,
+    color: colors.textSecondary,
+    marginTop: 1,
   },
   sectionCard: {
     marginHorizontal: 16,
@@ -2454,39 +2498,40 @@ const styles = createDynamicStyles((colors, shadows) => ({
     fontWeight: '700',
     color: '#FFFFFF',
   },
-  // Bouton Bannière Lancer le Mode Cuisine
-  startCookingBannerBtn: {
+  // Menu Contextuel 3 points
+  contextModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.35)',
+    justifyContent: 'flex-start',
+    alignItems: 'flex-end',
+    paddingTop: Platform.OS === 'ios' ? 95 : 55,
+    paddingRight: 16,
+  },
+  contextMenuCard: {
+    width: 215,
+    backgroundColor: colors.cardBackground,
+    borderRadius: 16,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    ...shadows.card,
+  },
+  contextMenuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.primary,
-    borderRadius: 20,
-    padding: 16,
-    marginHorizontal: 16,
-    marginBottom: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
     gap: 12,
-    ...Shadows.medium,
   },
-  startCookingIconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
+  contextMenuItemText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textPrimary,
   },
-  startCookingTextCol: {
-    flex: 1,
-  },
-  startCookingTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    marginBottom: 2,
-  },
-  startCookingSubtitle: {
-    fontSize: 12,
-    color: '#FFEFEA',
-    fontWeight: '500',
+  contextMenuDivider: {
+    height: 1,
+    backgroundColor: colors.borderLight,
+    marginVertical: 4,
   },
   stepsHeaderRow: {
     flexDirection: 'row',
