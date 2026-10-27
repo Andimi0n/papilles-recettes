@@ -652,8 +652,8 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
                   </View>
                   <Text style={styles.emptyStockTitle}>Vos étagères sont vides</Text>
                   <Text style={styles.emptyStockSubtitle}>
-                    Renseignez vos ingrédients du placard ou du frigo dans l'onglet "Courses &
-                    Étagères" pour voir instantanément quelles recettes cuisiner ou inspirer le Chef
+                    Renseignez vos ingrédients du placard ou du frigo dans l'onglet "Étagères &
+                    Courses" pour voir instantanément quelles recettes cuisiner ou inspirer le Chef
                     IA.
                   </Text>
                   {onNavigateToStock && (

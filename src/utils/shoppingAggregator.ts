@@ -377,7 +377,7 @@ export function groupItemsByAisle(
 
   return ALL_AISLES.filter((a) => grouped[a] && grouped[a].length > 0).map((a) => ({
     aisle: a,
-    items: grouped[a],
+    items: grouped[a].sort((x, y) => x.name.localeCompare(y.name, 'fr', { sensitivity: 'base' })),
   }));
 }
 

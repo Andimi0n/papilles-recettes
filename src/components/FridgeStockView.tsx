@@ -18,7 +18,6 @@ import { StorageService } from '../services/storageService';
 import { createDynamicStyles } from '../theme/colors';
 import { useTheme } from '../theme/ThemeContext';
 import { AISLE_CONFIGS, ALL_AISLES, classifyIngredientAisle } from '../utils/aisleClassifier';
-import { evaluateRecipesWithStock, RecipeStockEvaluation } from '../utils/stockMatcher';
 import { normalizeString } from '../utils/helpers';
 import { normalizeIngredient } from '../utils/ingredientNormalizer';
 import { filterIngredientItems, countMatchingItems } from '../utils/ingredientSearchMatcher';
@@ -126,7 +125,7 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
 
   const isSearching = Boolean(isSearchOpen || (searchQuery && searchQuery.trim().length > 0));
 
-  // Groupement des aliments par rayon (sur les éléments filtrés)
+  // Groupement des aliments par rayon (sur les éléments filtrés, triés par ordre alphabétique)
   const groupedByAisle = useMemo(() => {
     const map = new Map<ShoppingAisle, FridgeItem[]>();
     filteredItems.forEach((item) => {
@@ -140,32 +139,19 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
     ALL_AISLES.forEach((aisle) => {
       const aisleItems = map.get(aisle);
       if (aisleItems && aisleItems.length > 0) {
+        aisleItems.sort((a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }));
         result.push({ aisle, items: aisleItems });
       }
     });
 
     const otherItems = map.get('Autre');
     if (otherItems && otherItems.length > 0 && !result.some((r) => r.aisle === 'Autre')) {
+      otherItems.sort((a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }));
       result.push({ aisle: 'Autre', items: otherItems });
     }
 
     return result;
   }, [filteredItems]);
-
-  // Nombre de recettes 100% faisables avec le stock actuel (même fonctionnement que le bouton En stock)
-  const doableRecipesCount = useMemo(() => {
-    if (items.length === 0 || recipes.length === 0) {
-      return 0;
-    }
-    const evaluations = evaluateRecipesWithStock(recipes, items, {
-      assumePantryStaplesAvailable: true,
-    });
-    let count = 0;
-    evaluations.forEach((ev) => {
-      if (ev.isDoable) count++;
-    });
-    return count;
-  }, [recipes, items]);
 
   // Suggestions rapides d'indispensables non encore ajoutés au stock (100% raccord avec le lexique canonique dynamique)
   const availableSuggestions: CanonicalIngredient[] = useMemo(() => {
@@ -483,52 +469,6 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
                   {filteredItems.length} aliment{filteredItems.length > 1 ? 's' : ''} trouvé{filteredItems.length > 1 ? 's' : ''} pour « {searchQuery.trim()} »
                 </Text>
               </View>
-            ) : !isSearching ? (
-              <TouchableOpacity
-                style={[
-                  styles.smartCookBanner,
-                  doableRecipesCount === 0 && styles.smartCookBannerDisabled,
-                ]}
-                onPress={() => {
-                  if (doableRecipesCount > 0) {
-                    if (onNavigateToDoableRecipes) {
-                      onNavigateToDoableRecipes();
-                    }
-                  } else {
-                    Alert.alert(
-                      'Aucune recette 100% réalisable',
-                      'Aucune recette de votre carnet ne peut être cuisinée à 100% avec vos étagères actuelles (hors fonds de placard).\n\nAjoutez quelques ingrédients supplémentaires pour débloquer des recettes !'
-                    );
-                  }
-                }}
-                activeOpacity={doableRecipesCount > 0 ? 0.8 : 0.6}
-              >
-                <View style={styles.smartCookLeft}>
-                  <View
-                    style={[
-                      styles.smartCookIconBox,
-                      doableRecipesCount === 0 && styles.smartCookIconBoxMuted,
-                    ]}
-                  >
-                    <Ionicons name="restaurant" size={20} color="#FFFFFF" />
-                  </View>
-                  <View style={styles.smartCookTextCol}>
-                    <Text style={styles.smartCookTitle}>Que cuisiner aujourd'hui ?</Text>
-                    <Text style={styles.smartCookSubtitle}>
-                      {doableRecipesCount > 0
-                        ? `${doableRecipesCount} recette${doableRecipesCount > 1 ? 's' : ''} 100% faisable${doableRecipesCount > 1 ? 's' : ''} avec votre stock`
-                        : 'Aucune recette 100% faisable avec ce stock'}
-                    </Text>
-                  </View>
-                </View>
-
-                {doableRecipesCount > 0 && (
-                  <View style={styles.smartCookBtn}>
-                    <Text style={styles.smartCookBtnText}>Voir mes recettes</Text>
-                    <Ionicons name="arrow-forward" size={14} color="#FFFFFF" />
-                  </View>
-                )}
-              </TouchableOpacity>
             ) : undefined
           }
           ListEmptyComponent={
@@ -892,67 +832,6 @@ const styles = createDynamicStyles((colors, shadows) => ({
     fontSize: 12,
     fontWeight: '600',
     color: colors.textPrimary,
-  },
-  smartCookBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: colors.cardBackground,
-    marginBottom: 10,
-    padding: 12,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.secondary + '40',
-    ...shadows.small,
-  },
-  smartCookBannerDisabled: {
-    opacity: 0.85,
-    borderColor: colors.borderLight,
-  },
-  smartCookIconBoxMuted: {
-    backgroundColor: colors.textMuted,
-  },
-  smartCookLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    flex: 1,
-  },
-  smartCookIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: colors.secondary,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  smartCookTextCol: {
-    flex: 1,
-  },
-  smartCookTitle: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: colors.textPrimary,
-  },
-  smartCookSubtitle: {
-    fontSize: 11,
-    color: colors.textSecondary,
-    marginTop: 1,
-  },
-  smartCookBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: colors.secondary,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 10,
-    marginLeft: 8,
-  },
-  smartCookBtnText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '700',
   },
   scrollArea: {
     flex: 1,

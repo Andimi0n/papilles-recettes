@@ -462,7 +462,7 @@ function AppContent() {
                   currentScreen === 'shopping' && styles.tabLabelActive,
                 ]}
               >
-                Courses & Étagères
+                Étagères & Courses
               </Text>
             </TouchableOpacity>
 

@@ -31,6 +31,7 @@ import { normalizeString } from '../utils/helpers';
 import { filterIngredientItems, countMatchingItems } from '../utils/ingredientSearchMatcher';
 import { FridgeStockView } from '../components/FridgeStockView';
 import { IngredientSearchBar } from '../components/IngredientSearchBar';
+import { InStoreShoppingModal } from '../components/InStoreShoppingModal';
 import { UnifiedIngredientInput } from '../components/UnifiedIngredientInput';
 import { UnitQuickPicker } from '../components/UnitQuickPicker';
 import { UnitPickerModal } from '../components/UnitPickerModal';
@@ -61,6 +62,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
   // Recherche ergonomique unifiée Étagères ↔ Courses
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchActive, setIsSearchActive] = useState(false);
+  const [isInStoreModeVisible, setIsInStoreModeVisible] = useState(false);
 
   // Synchronise si initialTab change depuis l'extérieur
   useEffect(() => {
@@ -156,7 +158,10 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
   const totalCount = items.length;
   const completedCount = useMemo(() => items.filter((i) => i.isChecked).length, [items]);
   const activeItems = useMemo(() => items.filter((i) => !i.isChecked), [items]);
-  const completedItems = useMemo(() => items.filter((i) => i.isChecked), [items]);
+  const completedItems = useMemo(
+    () => [...items.filter((i) => i.isChecked)].sort((a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' })),
+    [items]
+  );
 
   const isSearching = Boolean(isSearchActive || (searchQuery && searchQuery.trim().length > 0));
 
@@ -561,6 +566,20 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
 
             {/* Boutons d'action supérieurs */}
             <View style={styles.headerActions}>
+              {totalCount > 0 && (
+                <TouchableOpacity
+                  style={[
+                    styles.actionIconBtn,
+                    { backgroundColor: colors.secondaryLight, borderColor: colors.secondary + '40' },
+                  ]}
+                  onPress={() => setIsInStoreModeVisible(true)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  accessibilityLabel="Lancer le mode course"
+                >
+                  <Ionicons name="cart" size={19} color={colors.secondary} />
+                </TouchableOpacity>
+              )}
+
               <TouchableOpacity
                 style={[
                   styles.actionIconBtn,
@@ -758,6 +777,28 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
                 <Text style={[styles.sharePillText, { color: colors.textSecondary }]}>Autre</Text>
               </TouchableOpacity>
             </View>
+          )}
+
+          {/* Accès rapide au Mode Course en magasin (ultra-épuré & zoomé) */}
+          {totalCount > 0 && !isSearching && (
+            <TouchableOpacity
+              style={styles.inStoreBanner}
+              onPress={() => setIsInStoreModeVisible(true)}
+              activeOpacity={0.85}
+            >
+              <View style={styles.inStoreBannerLeft}>
+                <View style={styles.inStoreBannerIconBox}>
+                  <Ionicons name="cart" size={20} color="#FFFFFF" />
+                </View>
+                <View style={styles.inStoreBannerTextCol}>
+                  <Text style={styles.inStoreBannerTitle}>Mode Course en Magasin</Text>
+                  <Text style={styles.inStoreBannerSubtitle}>
+                    Vue zoomée avec checklist & liaison étagères pour vos achats
+                  </Text>
+                </View>
+              </View>
+              <Ionicons name="arrow-forward" size={16} color={colors.secondary} />
+            </TouchableOpacity>
           )}
 
           {/* Contenu principal : liste par rayons */}
@@ -1121,6 +1162,16 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
         onClose={() => setIsUnitModalVisible(false)}
         title="Ajouter une unité"
       />
+
+      {/* Mode Course en magasin (ultra-épuré, zoomé avec checklist & lien étagères) */}
+      <InStoreShoppingModal
+        visible={isInStoreModeVisible}
+        items={items}
+        fridgeItems={fridgeItems}
+        onClose={() => setIsInStoreModeVisible(false)}
+        onItemsChange={(updated) => setItems(updated)}
+        onStockUpdated={(newCount) => setFridgeCount(newCount)}
+      />
     </SafeAreaView>
   );
 };
@@ -1257,6 +1308,46 @@ const styles = createDynamicStyles((colors, shadows) => ({
   actionIconBtnActive: {
     backgroundColor: colors.primaryLight,
     borderColor: colors.primary,
+  },
+  inStoreBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.cardBackground,
+    marginHorizontal: 16,
+    marginBottom: 10,
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.secondary + '40',
+    ...shadows.small,
+  },
+  inStoreBannerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  inStoreBannerIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: colors.secondary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  inStoreBannerTextCol: {
+    flex: 1,
+  },
+  inStoreBannerTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: colors.textPrimary,
+  },
+  inStoreBannerSubtitle: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    marginTop: 1,
   },
   progressContainer: {
     flexDirection: 'row',
