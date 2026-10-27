@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Modal,
   View,
@@ -140,20 +140,27 @@ export const CookingModeModal: React.FC<CookingModeModalProps> = ({
   const [isTimerFinishedModalVisible, setIsTimerFinishedModalVisible] = useState(false);
   const [isCompletedModalVisible, setIsCompletedModalVisible] = useState(false);
   const [userRating, setUserRating] = useState(recipe.rating || 0);
+  const [userAllergens, setUserAllergens] = useState<UserAllergenItem[]>([]);
 
-  // Réinitialise l'étape et les états lors de l'ouverture
-  useEffect(() => {
+  // Réinitialisation d'état lors du basculement d'affichage (Pattern officiel React)
+  const [prevVisible, setPrevVisible] = useState(visible);
+  if (visible !== prevVisible) {
+    setPrevVisible(visible);
     if (visible) {
       setCurrentStepIndex(0);
       setIsCompletedModalVisible(false);
       setUserRating(recipe.rating || 0);
+    }
+  }
+
+  // Chargement asynchrone des allergènes
+  useEffect(() => {
+    if (visible) {
       StorageService.getUserAllergens()
         .then(setUserAllergens)
         .catch(() => {});
     }
   }, [visible, recipe.id]);
-
-  const [userAllergens, setUserAllergens] = useState<UserAllergenItem[]>([]);
 
   const preparedAllergens = useMemo(
     () => prepareUserAllergens(userAllergens),
@@ -269,17 +276,17 @@ export const CookingModeModal: React.FC<CookingModeModalProps> = ({
               gain.connect(ctx.destination);
               osc.start();
               osc.stop(ctx.currentTime + duration);
-            } catch (e) {}
+            } catch {}
           }, delay);
         };
         playTone(880, 0, 0.4);
         playTone(1174.66, 150, 0.6);
         playTone(1760, 400, 0.8);
       }
-    } catch (e) {}
+    } catch {}
   };
 
-  const handleStartTimer = (label: string, totalSec: number) => {
+  const handleStartTimer = useCallback((label: string, totalSec: number) => {
     setActiveTimer({
       id: `timer_${Date.now()}`,
       label,
@@ -288,7 +295,7 @@ export const CookingModeModal: React.FC<CookingModeModalProps> = ({
       remainingSeconds: totalSec,
       isRunning: true,
     });
-  };
+  }, [currentStepIndex]);
 
   const handleToggleTimerPause = () => {
     setActiveTimer((prev) => (prev ? { ...prev, isRunning: !prev.isRunning } : null));
@@ -305,10 +312,6 @@ export const CookingModeModal: React.FC<CookingModeModalProps> = ({
         isRunning: true,
       };
     });
-  };
-
-  const handleAddTimerMinute = (extraMinutes: number) => {
-    handleAdjustTimerMinutes(extraMinutes);
   };
 
   const handleStopTimer = () => {
@@ -538,84 +541,89 @@ export const CookingModeModal: React.FC<CookingModeModalProps> = ({
             </View>
           )}
 
-          {/* Corps de l'étape : XXL, lisible à 1 mètre sur le plan de travail avec zones cliquables latérales */}
+          {/* Corps de l'étape : XXL, épuré, navigation au tap gauche/droite */}
           <View style={styles.stepBodyWrapper}>
-            {/* Zone cliquable latérale GAUCHE : Étape précédente */}
-            <TouchableOpacity
-              style={[
-                styles.sideTapZone,
-                styles.sideTapZoneLeft,
-                currentStepIndex === 0 && styles.sideTapZoneDisabled,
-              ]}
-              onPress={handlePrevStep}
-              disabled={currentStepIndex === 0}
-              activeOpacity={0.65}
-              hitSlop={{ top: 20, bottom: 20, left: 8, right: 8 }}
-              accessibilityLabel="Étape précédente"
-              accessibilityHint="Tapez à gauche pour revenir à l'étape précédente"
-            >
-              <View
-                style={[
-                  styles.sideChevronPill,
-                  currentStepIndex === 0 && styles.sideChevronPillDisabled,
-                ]}
-              >
-                <Ionicons
-                  name="chevron-back"
-                  size={20}
-                  color={currentStepIndex === 0 ? colors.borderLight : colors.textSecondary}
-                />
+            {/* Indicateurs visuels latéraux discrets */}
+            {currentStepIndex > 0 && (
+              <View style={styles.floatingChevronLeft} pointerEvents="none">
+                <Ionicons name="chevron-back" size={20} color={colors.textSecondary} />
               </View>
-            </TouchableOpacity>
+            )}
+            <View
+              style={[
+                styles.floatingChevronRight,
+                currentStepIndex === steps.length - 1 && styles.floatingChevronRightFinish,
+              ]}
+              pointerEvents="none"
+            >
+              <Ionicons
+                name={currentStepIndex === steps.length - 1 ? 'checkmark' : 'chevron-forward'}
+                size={20}
+                color={currentStepIndex === steps.length - 1 ? '#FFFFFF' : colors.textSecondary}
+              />
+            </View>
 
             <ScrollView
               style={styles.stepScrollView}
               contentContainerStyle={styles.stepScrollContent}
               showsVerticalScrollIndicator={false}
             >
-              {/* Badge Numéro d'Étape */}
-              <View style={styles.stepHeaderRow}>
-                <View style={styles.stepBadge}>
-                  <Text style={styles.stepBadgeText}>
-                    Étape {currentStepIndex + 1}
-                  </Text>
-                </View>
-                <Text style={styles.stepCountSub}>sur {steps.length}</Text>
-              </View>
+              {/* Zone tactile GAUCHE (Étape précédente) */}
+              <TouchableOpacity
+                style={styles.tapZoneLeft}
+                onPress={handlePrevStep}
+                disabled={currentStepIndex === 0}
+                activeOpacity={1}
+                accessibilityLabel="Étape précédente"
+              />
 
-              {/* Ingrédients détectés dynamiquement dans cette étape (première apparition uniquement, hors fonds de placard) */}
-              {detectedIngredients.length > 0 && (
-                <View style={styles.detectedIngredientsRow}>
-                  {detectedIngredients.map((ing) => {
-                    const scaledQty = scaleQuantity(ing.quantity, recipe.servings || 4, servings);
-                    const qtyStr = scaledQty ? formatQuantityWithUnit(scaledQty, ing.unit) : '';
+              {/* Zone tactile DROITE (Étape suivante) */}
+              <TouchableOpacity
+                style={styles.tapZoneRight}
+                onPress={handleNextStep}
+                activeOpacity={1}
+                accessibilityLabel={
+                  currentStepIndex === steps.length - 1 ? 'Terminer la recette' : 'Étape suivante'
+                }
+              />
 
-                    return (
-                      <View key={ing.id} style={styles.ingredientChip}>
-                        <Text style={styles.ingredientChipText}>
-                          {qtyStr ? `${qtyStr} ` : ''}{ing.name}
-                        </Text>
-                      </View>
-                    );
-                  })}
-                </View>
-              )}
-
-              {/* Texte de l'instruction en caractères géants */}
-              <Text style={styles.instructionText}>
-                {currentStep.instruction}
-              </Text>
-
-              {/* Minuteurs détectés automatiquement dans cette étape */}
-              {detectedTimers.length > 0 && (
-                <View style={styles.detectedTimersBox}>
-                  <View style={styles.detectedTimersHeader}>
-                    <Ionicons name="alarm-outline" size={16} color={Colors.primary} />
-                    <Text style={styles.detectedTimersTitle}>
-                      Minuteur{detectedTimers.length > 1 ? 's' : ''} détecté{detectedTimers.length > 1 ? 's' : ''} pour cette étape :
+              {/* Contenu textuel et visuel ultra-épuré */}
+              <View style={styles.stepContentInner} pointerEvents="box-none">
+                {/* Badge Numéro d'Étape */}
+                <View style={styles.stepHeaderRow} pointerEvents="none">
+                  <View style={styles.stepBadge}>
+                    <Text style={styles.stepBadgeText}>
+                      Étape {currentStepIndex + 1}
                     </Text>
                   </View>
+                  <Text style={styles.stepCountSub}>sur {steps.length}</Text>
+                </View>
 
+                {/* Ingrédients détectés pour cette étape */}
+                {detectedIngredients.length > 0 && (
+                  <View style={styles.detectedIngredientsRow} pointerEvents="none">
+                    {detectedIngredients.map((ing) => {
+                      const scaledQty = scaleQuantity(ing.quantity, recipe.servings || 4, servings);
+                      const qtyStr = scaledQty ? formatQuantityWithUnit(scaledQty, ing.unit) : '';
+
+                      return (
+                        <View key={ing.id} style={styles.ingredientChip}>
+                          <Text style={styles.ingredientChipText}>
+                            {qtyStr ? `${qtyStr} ` : ''}{ing.name}
+                          </Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                )}
+
+                {/* Texte de l'instruction en caractères géants */}
+                <Text style={styles.instructionText} pointerEvents="none">
+                  {currentStep.instruction}
+                </Text>
+
+                {/* Minuteur détecté automatiquement (s'il y en a un) */}
+                {detectedTimers.length > 0 && (
                   <View style={styles.detectedTimersRow}>
                     {detectedTimers.map((t) => (
                       <TouchableOpacity
@@ -624,102 +632,16 @@ export const CookingModeModal: React.FC<CookingModeModalProps> = ({
                         onPress={() => handleStartTimer(t.label, t.totalSeconds)}
                         activeOpacity={0.8}
                       >
-                        <Ionicons name="play" size={14} color="#FFFFFF" />
+                        <Ionicons name="timer" size={16} color="#FFFFFF" />
                         <Text style={styles.startTimerChipText}>
-                          Lancer {t.label}
+                          Lancer le minuteur ({t.label})
                         </Text>
                       </TouchableOpacity>
                     ))}
                   </View>
-                </View>
-              )}
-
-              {/* Raccourcis de minuteurs rapides manuels */}
-              <View style={styles.quickTimersRow}>
-                <Text style={styles.quickTimersLabel}>Minuteurs d'appoint :</Text>
-                {[1, 3, 5, 10].map((mins) => (
-                  <TouchableOpacity
-                    key={mins}
-                    style={styles.quickTimerChip}
-                    onPress={() => handleStartTimer(`${mins} min`, mins * 60)}
-                    activeOpacity={0.7}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  >
-                    <Text style={styles.quickTimerChipText}>+{mins} min</Text>
-                  </TouchableOpacity>
-                ))}
+                )}
               </View>
             </ScrollView>
-
-            {/* Zone cliquable latérale DROITE : Étape suivante */}
-            <TouchableOpacity
-              style={[styles.sideTapZone, styles.sideTapZoneRight]}
-              onPress={handleNextStep}
-              activeOpacity={0.65}
-              hitSlop={{ top: 20, bottom: 20, left: 8, right: 8 }}
-              accessibilityLabel="Étape suivante"
-              accessibilityHint="Tapez à droite pour passer à l'étape suivante"
-            >
-              <View
-                style={[
-                  styles.sideChevronPill,
-                  currentStepIndex === steps.length - 1 && styles.sideChevronPillFinish,
-                ]}
-              >
-                <Ionicons
-                  name={currentStepIndex === steps.length - 1 ? 'checkmark' : 'chevron-forward'}
-                  size={20}
-                  color={currentStepIndex === steps.length - 1 ? '#FFFFFF' : colors.textSecondary}
-                />
-              </View>
-            </TouchableOpacity>
-          </View>
-
-          {/* Barre de Navigation Inférieure avec Grosses Touches Tactiles */}
-          <View style={styles.bottomNav}>
-            <TouchableOpacity
-              style={[
-                styles.navStepBtn,
-                styles.navStepBtnPrev,
-                currentStepIndex === 0 && styles.navStepBtnDisabled,
-              ]}
-              onPress={handlePrevStep}
-              disabled={currentStepIndex === 0}
-              activeOpacity={0.8}
-            >
-              <Ionicons
-                name="chevron-back"
-                size={22}
-                color={currentStepIndex === 0 ? Colors.textMuted : Colors.textPrimary}
-              />
-              <Text
-                style={[
-                  styles.navStepBtnTextPrev,
-                  currentStepIndex === 0 && styles.navStepBtnTextDisabled,
-                ]}
-              >
-                Précédent
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.navStepBtn,
-                styles.navStepBtnNext,
-                currentStepIndex === steps.length - 1 && styles.navStepBtnFinish,
-              ]}
-              onPress={handleNextStep}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.navStepBtnTextNext}>
-                {currentStepIndex === steps.length - 1 ? 'Terminer 🎉' : 'Étape suivante'}
-              </Text>
-              <Ionicons
-                name={currentStepIndex === steps.length - 1 ? 'checkmark-circle' : 'arrow-forward'}
-                size={22}
-                color="#FFFFFF"
-              />
-            </TouchableOpacity>
           </View>
         </View>
 
@@ -832,7 +754,7 @@ export const CookingModeModal: React.FC<CookingModeModalProps> = ({
 
               <Text style={styles.alertTitle}>Minuteur Terminé !</Text>
               <Text style={styles.alertMessage}>
-                Le temps de cuisson pour l'étape {activeTimer ? activeTimer.stepIndex + 1 : ''} est écoulé.
+                Le temps de cuisson pour l’étape {activeTimer ? activeTimer.stepIndex + 1 : ''} est écoulé.
               </Text>
 
               <TouchableOpacity
@@ -1065,57 +987,76 @@ const styles = createDynamicStyles((colors, shadows) => ({
     fontWeight: '800',
     fontSize: 13,
   },
-  // Zone du corps et navigation latérale
+  // Zone du corps et navigation latérale au clic 50/50
   stepBodyWrapper: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'stretch',
     position: 'relative',
   },
-  sideTapZone: {
-    width: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 10,
+  tapZoneLeft: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    width: '50%',
+    zIndex: 1,
   },
-  sideTapZoneLeft: {
-    paddingLeft: 4,
+  tapZoneRight: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    right: 0,
+    width: '50%',
+    zIndex: 1,
   },
-  sideTapZoneRight: {
-    paddingRight: 4,
-  },
-  sideTapZoneDisabled: {
-    opacity: 0.3,
-  },
-  sideChevronPill: {
-    width: 34,
-    height: 60,
-    borderRadius: 17,
-    backgroundColor: colors.surfaceAlt,
+  floatingChevronLeft: {
+    position: 'absolute',
+    left: 12,
+    top: '46%',
+    zIndex: 3,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.isDark ? 'rgba(30, 41, 36, 0.75)' : 'rgba(255, 255, 255, 0.85)',
     borderWidth: 1,
     borderColor: colors.borderLight,
-    justifyContent: 'center',
     alignItems: 'center',
-    ...Shadows.small,
+    justifyContent: 'center',
+    ...shadows.small,
   },
-  sideChevronPillDisabled: {
-    backgroundColor: 'transparent',
-    borderColor: 'transparent',
-    elevation: 0,
-    shadowOpacity: 0,
+  floatingChevronRight: {
+    position: 'absolute',
+    right: 12,
+    top: '46%',
+    zIndex: 3,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.isDark ? 'rgba(30, 41, 36, 0.75)' : 'rgba(255, 255, 255, 0.85)',
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadows.small,
   },
-  sideChevronPillFinish: {
-    backgroundColor: colors.secondary,
-    borderColor: colors.secondary,
+  floatingChevronRightFinish: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   // Zone de l'instruction
   stepScrollView: {
     flex: 1,
   },
   stepScrollContent: {
-    paddingVertical: 20,
-    paddingHorizontal: 10,
+    flexGrow: 1,
+    position: 'relative',
+    paddingVertical: 24,
+    paddingHorizontal: 28,
     paddingBottom: 40,
+    justifyContent: 'center',
+  },
+  stepContentInner: {
+    width: '100%',
+    zIndex: 2,
   },
   stepHeaderRow: {
     flexDirection: 'row',
@@ -1124,21 +1065,21 @@ const styles = createDynamicStyles((colors, shadows) => ({
     marginBottom: 20,
   },
   stepBadge: {
-    backgroundColor: Colors.primary,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 16,
+    backgroundColor: colors.primaryLight,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 12,
   },
   stepBadgeText: {
-    color: '#FFFFFF',
+    color: colors.primaryDark,
     fontWeight: '800',
-    fontSize: 15,
+    fontSize: 14,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   stepCountSub: {
-    fontSize: 15,
-    color: Colors.textSecondary,
+    fontSize: 14,
+    color: colors.textSecondary,
     fontWeight: '600',
   },
   detectedIngredientsRow: {
@@ -1150,138 +1091,44 @@ const styles = createDynamicStyles((colors, shadows) => ({
   ingredientChip: {
     backgroundColor: colors.surfaceAlt,
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 6,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: colors.borderLight,
   },
   ingredientChipText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
     color: colors.textPrimary,
   },
   instructionText: {
-    fontSize: 22,
-    lineHeight: 36,
+    fontSize: 23,
+    lineHeight: 38,
     fontWeight: '600',
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     marginBottom: 28,
   },
   // Minuteurs détectés
-  detectedTimersBox: {
-    backgroundColor: Colors.cardBackground,
-    borderRadius: 18,
-    padding: 16,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    ...Shadows.small,
-  },
-  detectedTimersHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 12,
-  },
-  detectedTimersTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: Colors.textPrimary,
-  },
   detectedTimersRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 10,
+    marginTop: 4,
   },
   startTimerChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 14,
-    gap: 7,
-    ...Shadows.small,
+    backgroundColor: colors.primary,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 16,
+    gap: 8,
+    ...shadows.medium,
   },
   startTimerChipText: {
     color: '#FFFFFF',
     fontWeight: '700',
-    fontSize: 14,
-  },
-  // Minuteurs manuels rapides
-  quickTimersRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  quickTimersLabel: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-    fontWeight: '500',
-    marginRight: 4,
-  },
-  quickTimerChip: {
-    backgroundColor: Colors.surfaceAlt,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  quickTimerChipText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: Colors.textSecondary,
-  },
-  // Navigation inférieure
-  bottomNav: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    backgroundColor: Colors.cardBackground,
-    borderTopWidth: 1,
-    borderTopColor: Colors.borderLight,
-    gap: 12,
-  },
-  navStepBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 56,
-    borderRadius: 18,
-    gap: 8,
-  },
-  navStepBtnPrev: {
-    flex: 1,
-    backgroundColor: Colors.surfaceAlt,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  navStepBtnDisabled: {
-    opacity: 0.4,
-  },
-  navStepBtnNext: {
-    flex: 2,
-    backgroundColor: Colors.primary,
-    ...Shadows.medium,
-  },
-  navStepBtnFinish: {
-    backgroundColor: Colors.secondary,
-  },
-  navStepBtnTextPrev: {
     fontSize: 15,
-    fontWeight: '700',
-    color: Colors.textPrimary,
-  },
-  navStepBtnTextDisabled: {
-    color: Colors.textMuted,
-  },
-  navStepBtnTextNext: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#FFFFFF',
   },
   // Ingrédients Sheet
   sheetBackdrop: {

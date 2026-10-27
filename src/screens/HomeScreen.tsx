@@ -30,7 +30,6 @@ import { StockCookModal } from '../components/StockCookModal';
 import { AdvancedFiltersModal } from '../components/AdvancedFiltersModal';
 import { ImportMarmitonModal } from '../components/ImportMarmitonModal';
 import { ChefAiWidget } from '../components/ChefAiWidget';
-import { TodayMealWidget } from '../components/TodayMealWidget';
 import { QuickMealLogModal } from '../components/QuickMealLogModal';
 import { normalizeString, getLocalDateString } from '../utils/helpers';
 import {
@@ -1131,7 +1130,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 </TouchableOpacity>
               </View>
 
-              {/* Choix 1 : Texte brut (manuellement ou par IA) */}
+              {/* Choix 1 : Texte brut */}
               <TouchableOpacity
                 style={styles.addMenuOption}
                 onPress={() => {
@@ -1146,13 +1145,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 <View style={styles.addMenuTextCol}>
                   <Text style={styles.addMenuOptionTitle}>Texte brut</Text>
                   <Text style={styles.addMenuOptionSubtitle}>
-                    Saisir manuellement ou coller une recette (IA)
+                    Saisie manuelle ou IA
                   </Text>
                 </View>
                 <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
               </TouchableOpacity>
 
-              {/* Choix 2 : Scanner (Photo/Caméra) */}
+              {/* Choix 2 : Scanner */}
               <TouchableOpacity
                 style={styles.addMenuOption}
                 onPress={() => {
@@ -1165,15 +1164,15 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   <Ionicons name="camera-outline" size={22} color={colors.secondary} />
                 </View>
                 <View style={styles.addMenuTextCol}>
-                  <Text style={styles.addMenuOptionTitle}>Scanner (Photo/Caméra)</Text>
+                  <Text style={styles.addMenuOptionTitle}>Scanner</Text>
                   <Text style={styles.addMenuOptionSubtitle}>
-                    Numériser un livre ou une note de recette
+                    Photo d’un livre ou carnet
                   </Text>
                 </View>
                 <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
               </TouchableOpacity>
 
-              {/* Choix 3 : Importer un lien web */}
+              {/* Choix 3 : Coller un lien web */}
               <TouchableOpacity
                 style={styles.addMenuOption}
                 onPress={() => {
@@ -1186,9 +1185,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   <Ionicons name="globe-outline" size={22} color={colors.textPrimary} />
                 </View>
                 <View style={styles.addMenuTextCol}>
-                  <Text style={styles.addMenuOptionTitle}>Importer un lien web</Text>
+                  <Text style={styles.addMenuOptionTitle}>Coller un lien web</Text>
                   <Text style={styles.addMenuOptionSubtitle}>
-                    Marmiton ou tout autre site culinaire
+                    Marmiton, 750g, blogs...
                   </Text>
                 </View>
                 <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />

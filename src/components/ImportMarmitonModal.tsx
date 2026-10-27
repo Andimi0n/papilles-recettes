@@ -140,9 +140,9 @@ export const ImportMarmitonModal: React.FC<ImportMarmitonModalProps> = ({
                 <Ionicons name="globe-outline" size={20} color={colors.primary} />
               </View>
               <View style={styles.headerTitlesCol}>
-                <Text style={styles.modalTitle}>Importer une recette Web</Text>
+                <Text style={styles.modalTitle}>Coller un lien web</Text>
                 <Text style={styles.modalSubtitle} numberOfLines={1}>
-                  JSON-LD Schema.org universel & Marmiton
+                  Marmiton, 750g, CuisineAZ, blogs...
                 </Text>
               </View>
             </View>
@@ -245,40 +245,13 @@ export const ImportMarmitonModal: React.FC<ImportMarmitonModalProps> = ({
 
                   {/* Puces des sites compatibles */}
                   <View style={styles.platformsContainer}>
-                    <Text style={styles.platformsTitle}>Sites compatibles instantanés :</Text>
+                    <Text style={styles.platformsTitle}>Compatible avec :</Text>
                     <View style={styles.platformsChipsRow}>
                       {POPULAR_PLATFORMS.map((site) => (
                         <View key={site} style={styles.platformChip}>
                           <Text style={styles.platformChipText}>{site}</Text>
                         </View>
                       ))}
-                    </View>
-                  </View>
-
-                  <View style={styles.specRulesBox}>
-                    <View style={styles.specRuleRow}>
-                      <Ionicons name="flash" size={14} color={colors.primary} />
-                      <Text style={styles.specRuleText}>
-                        Parser universel JSON-LD Schema.org (<Text style={{ fontWeight: '700' }}>instantané & gratuit</Text>)
-                      </Text>
-                    </View>
-                    <View style={styles.specRuleRow}>
-                      <Ionicons name="checkmark-circle" size={14} color={colors.secondary} />
-                      <Text style={styles.specRuleText}>
-                        Portions, ingrédients normalisés et étapes structurées
-                      </Text>
-                    </View>
-                    <View style={styles.specRuleRow}>
-                      <Ionicons name="images" size={14} color={colors.secondary} />
-                      <Text style={styles.specRuleText}>
-                        Sélection automatique des photos haute résolution
-                      </Text>
-                    </View>
-                    <View style={styles.specRuleRow}>
-                      <Ionicons name="sparkles" size={14} color={colors.primary} />
-                      <Text style={styles.specRuleText}>
-                        Fallback automatique IA Gemini 3.8 Flash si nécessaire
-                      </Text>
                     </View>
                   </View>
 
@@ -557,24 +530,6 @@ const styles = createDynamicStyles((colors, shadows) => ({
     fontSize: 11,
     color: colors.textSecondary,
     fontWeight: '600',
-  },
-  specRulesBox: {
-    backgroundColor: colors.surfaceAlt,
-    padding: 12,
-    borderRadius: 14,
-    marginBottom: 16,
-    gap: 8,
-  },
-  specRuleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  specRuleText: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    fontWeight: '500',
-    flex: 1,
   },
   importBtn: {
     backgroundColor: colors.primary,

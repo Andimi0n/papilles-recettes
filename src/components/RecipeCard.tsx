@@ -81,17 +81,21 @@ const RecipeCardComponent: React.FC<RecipeCardProps> = ({
           )}
         </View>
 
-        {/* Note / Star badge on top of image (discret si notée) */}
-        {recipe.rating > 0 && (
+        {/* 5 petites étoiles côte à côte transposées en bas à gauche */}
+        {(recipe.rating || 0) > 0 && (
           <View style={styles.ratingBadge}>
-            <Ionicons
-              name="star"
-              size={12}
-              color={Colors.amber}
-            />
-            <Text style={styles.ratingBadgeText}>
-              {recipe.rating.toFixed(1)}
-            </Text>
+            {[1, 2, 3, 4, 5].map((starIndex) => {
+              const isFull = recipe.rating >= starIndex;
+              const isHalf = !isFull && recipe.rating >= starIndex - 0.5;
+              return (
+                <Ionicons
+                  key={starIndex}
+                  name={isFull ? 'star' : isHalf ? 'star-half' : 'star-outline'}
+                  size={11}
+                  color={isFull || isHalf ? Colors.amber : 'rgba(255, 255, 255, 0.4)'}
+                />
+              );
+            })}
           </View>
         )}
       </View>
@@ -230,19 +234,14 @@ const styles = createDynamicStyles((colors, shadows) => ({
   ratingBadge: {
     position: 'absolute',
     bottom: 12,
-    right: 12,
+    left: 12,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
-    paddingHorizontal: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    paddingHorizontal: 7,
     paddingVertical: 4,
-    borderRadius: 12,
-  },
-  ratingBadgeText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 12,
-    marginLeft: 4,
+    borderRadius: 10,
+    gap: 2.5,
   },
   noImagePlaceholder: {
     width: '100%',
