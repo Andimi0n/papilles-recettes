@@ -79,7 +79,7 @@ function sanitizeImageUrl(url: any): string {
  * Assainit une recette chargée depuis le stockage pour éviter les crashs si des champs sont manquants
  * et applique des plafonds stricts pour immuniser SQLite contre les attaques DoS (SEC-06).
  */
-function sanitizeStoredRecipe(r: any): Recipe {
+export function sanitizeStoredRecipe(r: any): Recipe {
   return {
     id: typeof r.id === 'string' && r.id ? r.id.slice(0, 100) : generateUniqueId('rec'),
     title: typeof r.title === 'string' && r.title ? r.title.slice(0, 200) : 'Recette sans titre',

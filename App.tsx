@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Platform,
   BackHandler,
+  Linking,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -20,7 +21,9 @@ import { ScanRecipeScreen } from './src/screens/ScanRecipeScreen';
 import { ShoppingListScreen } from './src/screens/ShoppingListScreen';
 import { MealPlannerScreen } from './src/screens/MealPlannerScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
-import { Colors, Shadows, createDynamicStyles } from './src/theme/colors';
+import { ImportRecipeModal } from './src/components/ImportRecipeModal';
+import { RecipeShareService } from './src/services/recipeShareService';
+import { createDynamicStyles } from './src/theme/colors';
 import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
 
 type AppScreen = 'home' | 'planner' | 'shopping' | 'settings' | 'detail' | 'form' | 'scan';
@@ -35,6 +38,10 @@ function AppContent() {
   const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [shoppingBadgeCount, setShoppingBadgeCount] = useState(0);
+
+  // Recette reçue en partage (via Deep Link ou scan QR code)
+  const [receivedSharedRecipe, setReceivedSharedRecipe] = useState<Recipe | null>(null);
+  const [isImportModalVisible, setIsImportModalVisible] = useState(false);
 
   // Met à jour le compteur d'articles de courses restants pour le badge
   const refreshShoppingBadge = useCallback(async () => {
@@ -80,6 +87,64 @@ function AppContent() {
       refreshShoppingBadge();
     }
   }, [currentScreen, refreshShoppingBadge]);
+
+  // Écoute et décodage des liens profonds de partage (papilles://import?r=...)
+  const handleIncomingUrl = useCallback((url: string | null | undefined) => {
+    if (!url) return;
+    if (RecipeShareService.isSharePayload(url)) {
+      const decoded = RecipeShareService.decodeRecipe(url);
+      if (decoded) {
+        setReceivedSharedRecipe(decoded);
+        setIsImportModalVisible(true);
+      } else {
+        Alert.alert(
+          'Lien invalide',
+          "Impossible de lire la recette partagée. Les données sont peut-être incomplètes ou corrompues."
+        );
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    // 1. URL initiale si l'app est ouverte à froid via un clic sur un lien
+    Linking.getInitialURL().then(handleIncomingUrl).catch(() => {});
+
+    // 2. Événements si l'application était déjà en tâche de fond
+    const subscription = Linking.addEventListener('url', ({ url }) => {
+      handleIncomingUrl(url);
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [handleIncomingUrl]);
+
+  // Traitement de l'import d'une recette partagée
+  const handleConfirmImportSharedRecipe = async (sharedRecipe: Recipe) => {
+    try {
+      await StorageService.saveRecipe(sharedRecipe);
+      await reloadRecipes();
+      setIsImportModalVisible(false);
+      setReceivedSharedRecipe(null);
+      navigateToDetail(sharedRecipe, 'home');
+      Alert.alert('Recette importée', `« ${sharedRecipe.title} » a été ajoutée à votre carnet !`);
+    } catch (e) {
+      console.error('Erreur importation recette partagée:', e);
+      Alert.alert('Erreur', 'Impossible d’enregistrer la recette reçue.');
+    }
+  };
+
+  const handleCustomizeSharedRecipe = (sharedRecipe: Recipe) => {
+    setIsImportModalVisible(false);
+    setReceivedSharedRecipe(null);
+    setEditingRecipe(sharedRecipe);
+    setCurrentScreen('form');
+  };
+
+  const handleRecipeReceivedFromScan = (sharedRecipe: Recipe) => {
+    setReceivedSharedRecipe(sharedRecipe);
+    setIsImportModalVisible(true);
+  };
 
   const selectedRecipe = recipes.find((r) => r.id === selectedRecipeId) || null;
 
@@ -294,6 +359,7 @@ function AppContent() {
             <ScanRecipeScreen
               onBack={() => navigateToHome()}
               onRecipeExtracted={handleRecipeExtracted}
+              onRecipeReceived={handleRecipeReceivedFromScan}
             />
           )}
 
@@ -425,6 +491,18 @@ function AppContent() {
             </TouchableOpacity>
           </View>
         )}
+
+        {/* Modale d'aperçu et d'import de recette reçue (Deep Link ou QR code) */}
+        <ImportRecipeModal
+          visible={isImportModalVisible}
+          recipe={receivedSharedRecipe}
+          onConfirmImport={handleConfirmImportSharedRecipe}
+          onCustomize={handleCustomizeSharedRecipe}
+          onClose={() => {
+            setIsImportModalVisible(false);
+            setReceivedSharedRecipe(null);
+          }}
+        />
       </View>
     </SafeAreaProvider>
   );

@@ -24,11 +24,12 @@ import {
 } from '../services/recipeAiService';
 import { Recipe } from '../types/recipe';
 import { generateUniqueId } from '../utils/helpers';
-
+import { QrScannerModal } from '../components/QrScannerModal';
 
 interface ScanRecipeScreenProps {
   onBack: () => void;
   onRecipeExtracted: (recipeData: Partial<Recipe>, coverImageUri?: string) => void;
+  onRecipeReceived?: (recipe: Recipe) => void;
 }
 
 interface CapturedPhoto {
@@ -40,9 +41,11 @@ interface CapturedPhoto {
 export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
   onBack,
   onRecipeExtracted,
+  onRecipeReceived,
 }) => {
   const { isDark, colors } = useTheme();
   const [photos, setPhotos] = useState<CapturedPhoto[]>([]);
+  const [isQrScannerVisible, setIsQrScannerVisible] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [apiKey, setApiKey] = useState<string>('');
   const [isApiKeyModalVisible, setIsApiKeyModalVisible] = useState(false);
@@ -53,6 +56,15 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
   // État de la vérification de connexion réelle
   const [connectionStatus, setConnectionStatus] = useState<AiConnectionStatus | null>(null);
   const [isCheckingConnection, setIsCheckingConnection] = useState(true);
+
+  const handleQrRecipeScanned = (recipe: Recipe) => {
+    setIsQrScannerVisible(false);
+    if (onRecipeReceived) {
+      onRecipeReceived(recipe);
+    } else {
+      onRecipeExtracted(recipe);
+    }
+  };
 
   // Vérification active de l'IA (vrai ping)
   const verifyAiStatus = useCallback(async (keyToTest?: string) => {
@@ -355,8 +367,17 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
                       onPress={() => handlePickPhoto(false)}
                       activeOpacity={0.8}
                     >
-                      <Ionicons name="images-outline" size={20} color={Colors.textPrimary} />
+                      <Ionicons name="images-outline" size={20} color={colors.textPrimary} />
                       <Text style={styles.heroGalleryBtnText}>Choisir dans la galerie</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.heroQrBtn}
+                      onPress={() => setIsQrScannerVisible(true)}
+                      activeOpacity={0.85}
+                    >
+                      <Ionicons name="qr-code-outline" size={20} color={colors.primary} />
+                      <Text style={styles.heroQrBtnText}>Scanner un QR code Papilles</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -499,6 +520,13 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
             </View>
           </View>
         </Modal>
+
+        {/* Modal Scanner QR Code pour partage direct */}
+        <QrScannerModal
+          visible={isQrScannerVisible}
+          onClose={() => setIsQrScannerVisible(false)}
+          onRecipeScanned={handleQrRecipeScanned}
+        />
       </View>
     </SafeAreaView>
   );
@@ -861,6 +889,22 @@ const styles = createDynamicStyles((colors, shadows) => ({
   heroGalleryBtnText: {
     color: Colors.textPrimary,
     fontWeight: '600',
+    fontSize: 14,
+  },
+  heroQrBtn: {
+    backgroundColor: Colors.primaryLight,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 14,
+    gap: 8,
+  },
+  heroQrBtnText: {
+    color: Colors.primary,
+    fontWeight: '700',
     fontSize: 14,
   },
   photosSection: {

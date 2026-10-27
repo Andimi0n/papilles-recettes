@@ -3,12 +3,16 @@
     "name": "Papilles - Recettes de Cuisine",
     "slug": "papilles-recettes",
     "version": "1.0.0",
+    "scheme": "papilles",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.andimi0n.papilles"
+      "bundleIdentifier": "com.andimi0n.papilles",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Papilles utilise la caméra pour scanner des recettes imprimées et des QR codes de partage."
+      }
     },
     "android": {
       "package": "com.andimi0n.papilles",

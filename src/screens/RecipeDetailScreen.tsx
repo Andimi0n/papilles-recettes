@@ -24,6 +24,8 @@ import { Colors, Shadows, createDynamicStyles } from '../theme/colors';
 import { useTheme } from '../theme/ThemeContext';
 import { StarRating } from '../components/StarRating';
 import { CookingModeModal } from '../components/CookingModeModal';
+import { RecipeQrModal } from '../components/RecipeQrModal';
+import { RecipeShareService } from '../services/recipeShareService';
 import {
   formatDuration,
   scaleQuantity,
@@ -156,6 +158,7 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
   // Gestion rapide des tags de la recette
   const [isTagModalVisible, setIsTagModalVisible] = useState(false);
   const [modalDraftTags, setModalDraftTags] = useState<string[]>(recipe.tags || []);
+  const [isQrModalVisible, setIsQrModalVisible] = useState(false);
   const [detailTagInput, setDetailTagInput] = useState('');
 
   // Synchronisation des tags brouillons dès que la recette change
@@ -443,22 +446,7 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
 
   const handleShare = async () => {
     try {
-      const ingredientList = recipe.ingredients
-        .map((i) => {
-          const scaled = scaleQuantity(i.quantity, recipe.servings || 4, currentServings);
-          const effectiveMode = ingredientModes[i.id] ?? globalConversionMode;
-          const density = VocabularyService.getDensity(i.canonicalId || i.name);
-          const converted = convertIngredientQuantity(scaled, i.unit, effectiveMode, density);
-          const formatted = formatQuantityWithUnit(converted.quantity, converted.unit);
-          return `• ${i.name} ${formatted ? `(${formatted})` : ''}`.trim();
-        })
-        .join('\n');
-      const message = `Recette Papilles : ${recipe.title} (${currentServings} pers.)\n\nIngrédients :\n${ingredientList}\n\nTemps total : ${formatDuration(recipe.prepTimeMinutes + recipe.cookTimeMinutes)} - Note : ${recipe.rating}/5 ⭐`;
-
-      await Share.share({
-        message,
-        title: recipe.title,
-      });
+      await RecipeShareService.shareRecipeViaSystem(recipe, currentServings);
     } catch (error) {
       console.error('Erreur partage:', error);
     }
@@ -634,7 +622,14 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
             >
               <Ionicons name="cart-outline" size={22} color={Colors.primary} />
             </TouchableOpacity>
-            <TouchableOpacity onPress={handleShare} style={styles.navBtn}>
+            <TouchableOpacity
+              onPress={() => setIsQrModalVisible(true)}
+              style={styles.navBtn}
+              accessibilityLabel="Afficher le QR code de la recette"
+            >
+              <Ionicons name="qr-code-outline" size={21} color={Colors.textPrimary} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleShare} style={styles.navBtn} accessibilityLabel="Partager la recette">
               <Ionicons name="share-social-outline" size={22} color={Colors.textPrimary} />
             </TouchableOpacity>
             <TouchableOpacity onPress={() => onEdit(recipe)} style={styles.navBtn}>
@@ -1677,6 +1672,14 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
           servings={currentServings}
           onClose={() => setIsCookingModeVisible(false)}
           onQuickRate={(rating) => onUpdateRating(recipe.id, rating)}
+        />
+
+        {/* Modal QR Code de partage */}
+        <RecipeQrModal
+          visible={isQrModalVisible}
+          recipe={recipe}
+          servings={currentServings}
+          onClose={() => setIsQrModalVisible(false)}
         />
 
         {/* Bandeau flottant des minuteurs en cours si au moins un minuteur est actif */}
