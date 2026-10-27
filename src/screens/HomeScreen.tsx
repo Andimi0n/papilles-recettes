@@ -886,16 +886,38 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
   // Rendu mémoïsé de chaque carte recette
   const renderRecipeItem = useCallback(
-    ({ item }: { item: Recipe }) => (
-      <RecipeCard
-        recipe={item}
-        onPress={() => onSelectRecipe(item)}
-        onQuickRate={(rating) => onQuickRate(item.id, rating)}
-        highlightedIngredients={getMatchedIngredientsForRecipe(item)}
-        hasAllergen={recipeContainsAllergens(item, preparedAllergens)}
-      />
-    ),
-    [onSelectRecipe, onQuickRate, matchedIngredientsMap, selectedIngredients, onlyDoableWithStock, doableRecipesMap, preparedAllergens]
+    ({ item }: { item: Recipe }) => {
+      const stockEval = doableRecipesMap.get(item.id);
+      const stockProgress =
+        stockItems.length > 0 && stockEval && stockEval.totalEssentialCount > 0
+          ? {
+              matchedCount: stockEval.matchedEssentialCount,
+              totalCount: stockEval.totalEssentialCount,
+              percentage: stockEval.matchPercentage,
+            }
+          : undefined;
+
+      return (
+        <RecipeCard
+          recipe={item}
+          onPress={() => onSelectRecipe(item)}
+          onQuickRate={(rating) => onQuickRate(item.id, rating)}
+          highlightedIngredients={getMatchedIngredientsForRecipe(item)}
+          hasAllergen={recipeContainsAllergens(item, preparedAllergens)}
+          stockProgress={stockProgress}
+        />
+      );
+    },
+    [
+      onSelectRecipe,
+      onQuickRate,
+      matchedIngredientsMap,
+      selectedIngredients,
+      onlyDoableWithStock,
+      doableRecipesMap,
+      preparedAllergens,
+      stockItems.length,
+    ]
   );
 
   return (

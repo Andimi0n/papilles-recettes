@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,8 @@ import {
   Modal,
   KeyboardAvoidingView,
   Platform,
+  PanResponder,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -107,6 +109,162 @@ const PRESET_IMAGES = [
   { label: 'Chocolat', url: 'https://images.unsplash.com/photo-1606313564200-e75d5e30476c?auto=format&fit=crop&w=800&q=80' },
   { label: 'Tarte/Gâteau', url: 'https://images.unsplash.com/photo-1568571780765-9276ac8b75a2?auto=format&fit=crop&w=800&q=80' },
 ];
+
+interface DraggableStepRowProps {
+  step: RecipeStep;
+  index: number;
+  totalSteps: number;
+  onUpdate: (val: string) => void;
+  onRemove: () => void;
+  onMoveStep: (fromIndex: number, toIndex: number) => void;
+  setIsDraggingStep: (isDragging: boolean) => void;
+  colors: any;
+  styles: any;
+}
+
+const DraggableStepRow: React.FC<DraggableStepRowProps> = ({
+  step,
+  index,
+  totalSteps,
+  onUpdate,
+  onRemove,
+  onMoveStep,
+  setIsDraggingStep,
+  colors,
+  styles,
+}) => {
+  const panY = useRef(new Animated.Value(0)).current;
+  const [isBeingDragged, setIsBeingDragged] = useState(false);
+  const indexRef = useRef(index);
+  indexRef.current = index;
+  const totalRef = useRef(totalSteps);
+  totalRef.current = totalSteps;
+  const lastDyRef = useRef(0);
+
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: (_, gestureState) => Math.abs(gestureState.dy) > 3,
+        onPanResponderGrant: () => {
+          setIsBeingDragged(true);
+          setIsDraggingStep(true);
+          lastDyRef.current = 0;
+          panY.setValue(0);
+        },
+        onPanResponderMove: (_, gestureState) => {
+          const dy = gestureState.dy;
+          const delta = dy - lastDyRef.current;
+          panY.setValue(delta);
+
+          const THRESHOLD = 46;
+          if (delta > THRESHOLD && indexRef.current < totalRef.current - 1) {
+            onMoveStep(indexRef.current, indexRef.current + 1);
+            lastDyRef.current = dy;
+            panY.setValue(0);
+          } else if (delta < -THRESHOLD && indexRef.current > 0) {
+            onMoveStep(indexRef.current, indexRef.current - 1);
+            lastDyRef.current = dy;
+            panY.setValue(0);
+          }
+        },
+        onPanResponderRelease: () => {
+          setIsBeingDragged(false);
+          setIsDraggingStep(false);
+          Animated.spring(panY, { toValue: 0, useNativeDriver: true }).start();
+        },
+        onPanResponderTerminate: () => {
+          setIsBeingDragged(false);
+          setIsDraggingStep(false);
+          Animated.spring(panY, { toValue: 0, useNativeDriver: true }).start();
+        },
+      }),
+    [onMoveStep, setIsDraggingStep, panY]
+  );
+
+  return (
+    <Animated.View
+      style={[
+        styles.stepEditRow,
+        isBeingDragged && [
+          styles.stepRowDragging,
+          {
+            transform: [{ translateY: panY }],
+            backgroundColor: colors.surfaceAlt,
+            borderColor: colors.primary,
+          },
+        ],
+      ]}
+    >
+      {/* Poignée de glissement direct (Drag Handle) */}
+      <View
+        {...panResponder.panHandlers}
+        style={styles.dragHandle}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        accessibilityLabel={`Glisser pour réordonner l'étape ${index + 1}`}
+      >
+        <Ionicons
+          name="reorder-two-outline"
+          size={24}
+          color={isBeingDragged ? colors.primary : colors.textMuted}
+        />
+      </View>
+
+      <View style={styles.stepNumBadge}>
+        <Text style={styles.stepNumText}>{index + 1}</Text>
+      </View>
+
+      <TextInput
+        style={[styles.textInput, styles.stepInput]}
+        value={step.instruction}
+        onChangeText={onUpdate}
+        placeholder={`Description de l'étape ${index + 1}...`}
+        placeholderTextColor={colors.textMuted}
+        multiline
+      />
+
+      {totalSteps > 1 && (
+        <View style={styles.stepQuickReorderCol}>
+          <TouchableOpacity
+            style={[styles.stepQuickArrowBtn, index === 0 && styles.stepQuickArrowDisabled]}
+            onPress={() => onMoveStep(index, index - 1)}
+            disabled={index === 0}
+            hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+            accessibilityLabel="Monter l'étape"
+          >
+            <Ionicons
+              name="chevron-up"
+              size={13}
+              color={index === 0 ? colors.borderLight : colors.textSecondary}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.stepQuickArrowBtn, index === totalSteps - 1 && styles.stepQuickArrowDisabled]}
+            onPress={() => onMoveStep(index, index + 1)}
+            disabled={index === totalSteps - 1}
+            hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+            accessibilityLabel="Descendre l'étape"
+          >
+            <Ionicons
+              name="chevron-down"
+              size={13}
+              color={index === totalSteps - 1 ? colors.borderLight : colors.textSecondary}
+            />
+          </TouchableOpacity>
+        </View>
+      )}
+
+      <TouchableOpacity
+        onPress={onRemove}
+        style={styles.deleteRowBtn}
+        hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+        accessibilityLabel={`Supprimer l'étape ${index + 1}`}
+      >
+        <Ionicons name="trash-outline" size={18} color={colors.danger} />
+      </TouchableOpacity>
+    </Animated.View>
+  );
+};
 
 export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
   initialRecipe,
@@ -378,6 +536,7 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
       { id: 'stp_1', order: 1, instruction: '' },
     ]
   );
+  const [isDraggingStep, setIsDraggingStep] = useState(false);
 
   // Image picker
   const handlePickImage = async () => {
@@ -582,6 +741,16 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
     const reordered = filtered.map((step, idx) => ({ ...step, order: idx + 1 }));
     setSteps(reordered);
   };
+
+  const handleMoveStep = useCallback((fromIndex: number, toIndex: number) => {
+    setSteps((prev) => {
+      if (toIndex < 0 || toIndex >= prev.length || fromIndex === toIndex) return prev;
+      const updated = [...prev];
+      const [moved] = updated.splice(fromIndex, 1);
+      updated.splice(toIndex, 0, moved);
+      return updated.map((step, idx) => ({ ...step, order: idx + 1 }));
+    });
+  }, []);
 
   const executeSaveRecipe = (finalIngredients: Ingredient[]) => {
     const validSteps = steps.filter((s) => s.instruction.trim().length > 0);
@@ -963,6 +1132,7 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.scrollContent}
             keyboardShouldPersistTaps="handled"
+            scrollEnabled={!isDraggingStep}
           >
 
           {/* Photo Section */}
@@ -1545,25 +1715,18 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
             </View>
 
             {steps.map((step, index) => (
-              <View key={step.id} style={styles.stepEditRow}>
-                <View style={styles.stepNumBadge}>
-                  <Text style={styles.stepNumText}>{index + 1}</Text>
-                </View>
-                <TextInput
-                  style={[styles.textInput, styles.stepInput]}
-                  value={step.instruction}
-                  onChangeText={(val) => handleUpdateStep(index, val)}
-                  placeholder={`Description de l'étape ${index + 1}...`}
-                  placeholderTextColor={Colors.textMuted}
-                  multiline
-                />
-                <TouchableOpacity
-                  onPress={() => handleRemoveStep(index)}
-                  style={styles.deleteRowBtn}
-                >
-                  <Ionicons name="trash-outline" size={18} color={Colors.danger} />
-                </TouchableOpacity>
-              </View>
+              <DraggableStepRow
+                key={step.id}
+                step={step}
+                index={index}
+                totalSteps={steps.length}
+                onUpdate={(val) => handleUpdateStep(index, val)}
+                onRemove={() => handleRemoveStep(index)}
+                onMoveStep={handleMoveStep}
+                setIsDraggingStep={setIsDraggingStep}
+                colors={colors}
+                styles={styles}
+              />
             ))}
           </View>
 
@@ -2117,6 +2280,42 @@ const styles = createDynamicStyles((colors, shadows) => ({
     alignItems: 'flex-start',
     marginBottom: 10,
     gap: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+  },
+  stepRowDragging: {
+    zIndex: 999,
+    elevation: 8,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+  },
+  dragHandle: {
+    paddingVertical: 8,
+    paddingHorizontal: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  stepQuickReorderCol: {
+    flexDirection: 'column',
+    justifyContent: 'center',
+    gap: 2,
+    marginTop: 6,
+  },
+  stepQuickArrowBtn: {
+    padding: 3,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepQuickArrowDisabled: {
+    opacity: 0.2,
   },
   stepNumBadge: {
     width: 26,

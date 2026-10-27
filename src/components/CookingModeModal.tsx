@@ -1,12 +1,10 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Modal,
   View,
   Text,
-  StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Dimensions,
   Platform,
   Vibration,
   Alert,
@@ -296,17 +294,21 @@ export const CookingModeModal: React.FC<CookingModeModalProps> = ({
     setActiveTimer((prev) => (prev ? { ...prev, isRunning: !prev.isRunning } : null));
   };
 
-  const handleAddTimerMinute = (extraMinutes: number) => {
+  const handleAdjustTimerMinutes = (deltaMinutes: number) => {
     setActiveTimer((prev) => {
       if (!prev) return null;
-      const newRem = prev.remainingSeconds + extraMinutes * 60;
+      const newRem = Math.max(1, prev.remainingSeconds + deltaMinutes * 60);
       return {
         ...prev,
         remainingSeconds: newRem,
-        totalSeconds: Math.max(prev.totalSeconds, newRem),
+        totalSeconds: Math.max(newRem, prev.totalSeconds),
         isRunning: true,
       };
     });
+  };
+
+  const handleAddTimerMinute = (extraMinutes: number) => {
+    handleAdjustTimerMinutes(extraMinutes);
   };
 
   const handleStopTimer = () => {
@@ -471,6 +473,7 @@ export const CookingModeModal: React.FC<CookingModeModalProps> = ({
                       onPress={handleToggleTimerPause}
                       activeOpacity={0.7}
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      accessibilityLabel={activeTimer.isRunning ? 'Mettre en pause' : 'Reprendre'}
                     >
                       <Ionicons
                         name={activeTimer.isRunning ? 'pause' : 'play'}
@@ -478,19 +481,46 @@ export const CookingModeModal: React.FC<CookingModeModalProps> = ({
                         color={Colors.primary}
                       />
                     </TouchableOpacity>
+
+                    {/* Bouton -1m */}
                     <TouchableOpacity
-                      style={styles.timerSmallBtn}
-                      onPress={() => handleAddTimerMinute(1)}
+                      style={[
+                        styles.timerSmallBtn,
+                        activeTimer.remainingSeconds <= 60 && styles.timerSmallBtnDisabled,
+                      ]}
+                      onPress={() => handleAdjustTimerMinutes(-1)}
+                      disabled={activeTimer.remainingSeconds <= 60}
                       activeOpacity={0.7}
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      accessibilityLabel="Retirer 1 minute"
+                    >
+                      <Text
+                        style={[
+                          styles.timerAddMinuteText,
+                          activeTimer.remainingSeconds <= 60 && styles.timerMinuteTextDisabled,
+                        ]}
+                      >
+                        -1m
+                      </Text>
+                    </TouchableOpacity>
+
+                    {/* Bouton +1m */}
+                    <TouchableOpacity
+                      style={styles.timerSmallBtn}
+                      onPress={() => handleAdjustTimerMinutes(1)}
+                      activeOpacity={0.7}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      accessibilityLabel="Ajouter 1 minute"
                     >
                       <Text style={styles.timerAddMinuteText}>+1m</Text>
                     </TouchableOpacity>
+
                     <TouchableOpacity
                       style={[styles.timerSmallBtn, styles.timerStopBtn]}
                       onPress={handleStopTimer}
                       activeOpacity={0.7}
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      accessibilityLabel="Arrêter le minuteur"
                     >
                       <Ionicons name="stop" size={14} color={Colors.danger} />
                     </TouchableOpacity>
@@ -508,89 +538,142 @@ export const CookingModeModal: React.FC<CookingModeModalProps> = ({
             </View>
           )}
 
-          {/* Corps de l'étape : XXL, lisible à 1 mètre sur le plan de travail */}
-          <ScrollView
-            style={styles.stepScrollView}
-            contentContainerStyle={styles.stepScrollContent}
-            showsVerticalScrollIndicator={false}
-          >
-            {/* Badge Numéro d'Étape */}
-            <View style={styles.stepHeaderRow}>
-              <View style={styles.stepBadge}>
-                <Text style={styles.stepBadgeText}>
-                  Étape {currentStepIndex + 1}
-                </Text>
+          {/* Corps de l'étape : XXL, lisible à 1 mètre sur le plan de travail avec zones cliquables latérales */}
+          <View style={styles.stepBodyWrapper}>
+            {/* Zone cliquable latérale GAUCHE : Étape précédente */}
+            <TouchableOpacity
+              style={[
+                styles.sideTapZone,
+                styles.sideTapZoneLeft,
+                currentStepIndex === 0 && styles.sideTapZoneDisabled,
+              ]}
+              onPress={handlePrevStep}
+              disabled={currentStepIndex === 0}
+              activeOpacity={0.65}
+              hitSlop={{ top: 20, bottom: 20, left: 8, right: 8 }}
+              accessibilityLabel="Étape précédente"
+              accessibilityHint="Tapez à gauche pour revenir à l'étape précédente"
+            >
+              <View
+                style={[
+                  styles.sideChevronPill,
+                  currentStepIndex === 0 && styles.sideChevronPillDisabled,
+                ]}
+              >
+                <Ionicons
+                  name="chevron-back"
+                  size={20}
+                  color={currentStepIndex === 0 ? colors.borderLight : colors.textSecondary}
+                />
               </View>
-              <Text style={styles.stepCountSub}>sur {steps.length}</Text>
-            </View>
+            </TouchableOpacity>
 
-            {/* Ingrédients détectés dynamiquement dans cette étape (première apparition uniquement, hors fonds de placard) */}
-            {detectedIngredients.length > 0 && (
-              <View style={styles.detectedIngredientsRow}>
-                {detectedIngredients.map((ing) => {
-                  const scaledQty = scaleQuantity(ing.quantity, recipe.servings || 4, servings);
-                  const qtyStr = scaledQty ? formatQuantityWithUnit(scaledQty, ing.unit) : '';
-
-                  return (
-                    <View key={ing.id} style={styles.ingredientChip}>
-                      <Text style={styles.ingredientChipText}>
-                        {qtyStr ? `${qtyStr} ` : ''}{ing.name}
-                      </Text>
-                    </View>
-                  );
-                })}
-              </View>
-            )}
-
-            {/* Texte de l'instruction en caractères géants */}
-            <Text style={styles.instructionText}>
-              {currentStep.instruction}
-            </Text>
-
-            {/* Minuteurs détectés automatiquement dans cette étape */}
-            {detectedTimers.length > 0 && (
-              <View style={styles.detectedTimersBox}>
-                <View style={styles.detectedTimersHeader}>
-                  <Ionicons name="alarm-outline" size={16} color={Colors.primary} />
-                  <Text style={styles.detectedTimersTitle}>
-                    Minuteur{detectedTimers.length > 1 ? 's' : ''} détecté{detectedTimers.length > 1 ? 's' : ''} pour cette étape :
+            <ScrollView
+              style={styles.stepScrollView}
+              contentContainerStyle={styles.stepScrollContent}
+              showsVerticalScrollIndicator={false}
+            >
+              {/* Badge Numéro d'Étape */}
+              <View style={styles.stepHeaderRow}>
+                <View style={styles.stepBadge}>
+                  <Text style={styles.stepBadgeText}>
+                    Étape {currentStepIndex + 1}
                   </Text>
                 </View>
-
-                <View style={styles.detectedTimersRow}>
-                  {detectedTimers.map((t) => (
-                    <TouchableOpacity
-                      key={t.id}
-                      style={styles.startTimerChip}
-                      onPress={() => handleStartTimer(t.label, t.totalSeconds)}
-                      activeOpacity={0.8}
-                    >
-                      <Ionicons name="play" size={14} color="#FFFFFF" />
-                      <Text style={styles.startTimerChipText}>
-                        Lancer {t.label}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+                <Text style={styles.stepCountSub}>sur {steps.length}</Text>
               </View>
-            )}
 
-            {/* Raccourcis de minuteurs rapides manuels */}
-            <View style={styles.quickTimersRow}>
-              <Text style={styles.quickTimersLabel}>Minuteurs d'appoint :</Text>
-              {[1, 3, 5, 10].map((mins) => (
-                <TouchableOpacity
-                  key={mins}
-                  style={styles.quickTimerChip}
-                  onPress={() => handleStartTimer(`${mins} min`, mins * 60)}
-                  activeOpacity={0.7}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  <Text style={styles.quickTimerChipText}>+{mins} min</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </ScrollView>
+              {/* Ingrédients détectés dynamiquement dans cette étape (première apparition uniquement, hors fonds de placard) */}
+              {detectedIngredients.length > 0 && (
+                <View style={styles.detectedIngredientsRow}>
+                  {detectedIngredients.map((ing) => {
+                    const scaledQty = scaleQuantity(ing.quantity, recipe.servings || 4, servings);
+                    const qtyStr = scaledQty ? formatQuantityWithUnit(scaledQty, ing.unit) : '';
+
+                    return (
+                      <View key={ing.id} style={styles.ingredientChip}>
+                        <Text style={styles.ingredientChipText}>
+                          {qtyStr ? `${qtyStr} ` : ''}{ing.name}
+                        </Text>
+                      </View>
+                    );
+                  })}
+                </View>
+              )}
+
+              {/* Texte de l'instruction en caractères géants */}
+              <Text style={styles.instructionText}>
+                {currentStep.instruction}
+              </Text>
+
+              {/* Minuteurs détectés automatiquement dans cette étape */}
+              {detectedTimers.length > 0 && (
+                <View style={styles.detectedTimersBox}>
+                  <View style={styles.detectedTimersHeader}>
+                    <Ionicons name="alarm-outline" size={16} color={Colors.primary} />
+                    <Text style={styles.detectedTimersTitle}>
+                      Minuteur{detectedTimers.length > 1 ? 's' : ''} détecté{detectedTimers.length > 1 ? 's' : ''} pour cette étape :
+                    </Text>
+                  </View>
+
+                  <View style={styles.detectedTimersRow}>
+                    {detectedTimers.map((t) => (
+                      <TouchableOpacity
+                        key={t.id}
+                        style={styles.startTimerChip}
+                        onPress={() => handleStartTimer(t.label, t.totalSeconds)}
+                        activeOpacity={0.8}
+                      >
+                        <Ionicons name="play" size={14} color="#FFFFFF" />
+                        <Text style={styles.startTimerChipText}>
+                          Lancer {t.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              )}
+
+              {/* Raccourcis de minuteurs rapides manuels */}
+              <View style={styles.quickTimersRow}>
+                <Text style={styles.quickTimersLabel}>Minuteurs d'appoint :</Text>
+                {[1, 3, 5, 10].map((mins) => (
+                  <TouchableOpacity
+                    key={mins}
+                    style={styles.quickTimerChip}
+                    onPress={() => handleStartTimer(`${mins} min`, mins * 60)}
+                    activeOpacity={0.7}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Text style={styles.quickTimerChipText}>+{mins} min</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+
+            {/* Zone cliquable latérale DROITE : Étape suivante */}
+            <TouchableOpacity
+              style={[styles.sideTapZone, styles.sideTapZoneRight]}
+              onPress={handleNextStep}
+              activeOpacity={0.65}
+              hitSlop={{ top: 20, bottom: 20, left: 8, right: 8 }}
+              accessibilityLabel="Étape suivante"
+              accessibilityHint="Tapez à droite pour passer à l'étape suivante"
+            >
+              <View
+                style={[
+                  styles.sideChevronPill,
+                  currentStepIndex === steps.length - 1 && styles.sideChevronPillFinish,
+                ]}
+              >
+                <Ionicons
+                  name={currentStepIndex === steps.length - 1 ? 'checkmark' : 'chevron-forward'}
+                  size={20}
+                  color={currentStepIndex === steps.length - 1 ? '#FFFFFF' : colors.textSecondary}
+                />
+              </View>
+            </TouchableOpacity>
+          </View>
 
           {/* Barre de Navigation Inférieure avec Grosses Touches Tactiles */}
           <View style={styles.bottomNav}>
@@ -957,6 +1040,12 @@ const styles = createDynamicStyles((colors, shadows) => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  timerSmallBtnDisabled: {
+    opacity: 0.45,
+  },
+  timerMinuteTextDisabled: {
+    opacity: 0.4,
+  },
   timerStopBtn: {
     borderColor: Colors.dangerLight,
   },
@@ -976,12 +1065,56 @@ const styles = createDynamicStyles((colors, shadows) => ({
     fontWeight: '800',
     fontSize: 13,
   },
+  // Zone du corps et navigation latérale
+  stepBodyWrapper: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    position: 'relative',
+  },
+  sideTapZone: {
+    width: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  sideTapZoneLeft: {
+    paddingLeft: 4,
+  },
+  sideTapZoneRight: {
+    paddingRight: 4,
+  },
+  sideTapZoneDisabled: {
+    opacity: 0.3,
+  },
+  sideChevronPill: {
+    width: 34,
+    height: 60,
+    borderRadius: 17,
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...Shadows.small,
+  },
+  sideChevronPillDisabled: {
+    backgroundColor: 'transparent',
+    borderColor: 'transparent',
+    elevation: 0,
+    shadowOpacity: 0,
+  },
+  sideChevronPillFinish: {
+    backgroundColor: colors.secondary,
+    borderColor: colors.secondary,
+  },
   // Zone de l'instruction
   stepScrollView: {
     flex: 1,
   },
   stepScrollContent: {
-    padding: 24,
+    paddingVertical: 20,
+    paddingHorizontal: 10,
     paddingBottom: 40,
   },
   stepHeaderRow: {

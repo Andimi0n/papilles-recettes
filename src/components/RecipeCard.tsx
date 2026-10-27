@@ -13,13 +13,20 @@ import { useTheme } from '../theme/ThemeContext';
 import { StarRating } from './StarRating';
 import { formatDuration } from '../utils/helpers';
 
-interface RecipeCardProps {
+export interface RecipeStockProgress {
+  matchedCount: number;
+  totalCount: number;
+  percentage: number;
+}
+
+export interface RecipeCardProps {
   recipe: Recipe;
   onPress: () => void;
   onToggleFavorite?: () => void;
   onQuickRate?: (rating: number) => void;
   highlightedIngredients?: string[]; // ingredients matched by search
   hasAllergen?: boolean;
+  stockProgress?: RecipeStockProgress;
 }
 
 const RecipeCardComponent: React.FC<RecipeCardProps> = ({
@@ -28,6 +35,7 @@ const RecipeCardComponent: React.FC<RecipeCardProps> = ({
   onQuickRate,
   highlightedIngredients = [],
   hasAllergen = false,
+  stockProgress,
 }) => {
   const { isDark, colors } = useTheme();
   const totalTime = recipe.prepTimeMinutes + recipe.cookTimeMinutes;
@@ -136,6 +144,48 @@ const RecipeCardComponent: React.FC<RecipeCardProps> = ({
             {recipe.tags.length > 3 && (
               <Text style={styles.cardMoreTagsText}>+{recipe.tags.length - 3}</Text>
             )}
+          </View>
+        )}
+
+        {/* Badge de progression frigo / stock discret */}
+        {stockProgress && stockProgress.totalCount > 0 && (
+          <View style={styles.stockProgressContainer}>
+            <View style={styles.stockProgressHeader}>
+              <View style={styles.stockProgressLeft}>
+                <Ionicons
+                  name={stockProgress.percentage === 100 ? "cube" : "cube-outline"}
+                  size={12}
+                  color={stockProgress.percentage === 100 ? colors.secondary : colors.textSecondary}
+                />
+                <Text style={styles.stockProgressText}>
+                  {stockProgress.matchedCount}/{stockProgress.totalCount} en stock
+                </Text>
+                <Text style={styles.stockProgressPctText}>
+                  ({Math.round(stockProgress.percentage)}%)
+                </Text>
+              </View>
+              {stockProgress.percentage === 100 && (
+                <View style={styles.stockReadyPill}>
+                  <Text style={styles.stockReadyPillText}>Prêt à cuisiner !</Text>
+                </View>
+              )}
+            </View>
+            <View style={styles.stockProgressTrack}>
+              <View
+                style={[
+                  styles.stockProgressBar,
+                  {
+                    width: `${Math.min(100, Math.max(0, stockProgress.percentage))}%`,
+                    backgroundColor:
+                      stockProgress.percentage === 100
+                        ? colors.secondary
+                        : stockProgress.percentage >= 50
+                        ? colors.primary
+                        : colors.amber,
+                  },
+                ]}
+              />
+            </View>
           </View>
         )}
 
@@ -349,6 +399,58 @@ const styles = createDynamicStyles((colors, shadows) => ({
     color: colors.textSecondary,
     marginLeft: 2,
   },
+  stockProgressContainer: {
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  stockProgressHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  stockProgressLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  stockProgressText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  stockProgressPctText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  stockReadyPill: {
+    backgroundColor: colors.secondary + '22',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  stockReadyPillText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.secondary,
+  },
+  stockProgressTrack: {
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.borderLight,
+    overflow: 'hidden',
+    width: '100%',
+  },
+  stockProgressBar: {
+    height: '100%',
+    borderRadius: 2,
+  },
   footer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -380,6 +482,10 @@ export const RecipeCard = React.memo(RecipeCardComponent, (prevProps, nextProps)
     prevProps.recipe.rating === nextProps.recipe.rating &&
     prevProps.recipe.title === nextProps.recipe.title &&
     prevProps.recipe.imageUrl === nextProps.recipe.imageUrl &&
-    (prevProps.highlightedIngredients?.length || 0) === (nextProps.highlightedIngredients?.length || 0)
+    (prevProps.highlightedIngredients?.length || 0) === (nextProps.highlightedIngredients?.length || 0) &&
+    prevProps.hasAllergen === nextProps.hasAllergen &&
+    prevProps.stockProgress?.matchedCount === nextProps.stockProgress?.matchedCount &&
+    prevProps.stockProgress?.totalCount === nextProps.stockProgress?.totalCount &&
+    prevProps.stockProgress?.percentage === nextProps.stockProgress?.percentage
   );
 });

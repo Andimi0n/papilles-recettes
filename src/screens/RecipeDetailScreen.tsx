@@ -39,6 +39,8 @@ import { prepareUserAllergens, evaluateRecipeAllergens } from '../utils/allergen
 import { formatQuantityWithUnit } from '../constants/units';
 import { findLinkedRecipeForIngredient, getLinkedRecipesForRecipe } from '../utils/recipeLinkMatcher';
 import { VocabularyService } from '../services/vocabularyService';
+import { FridgeItem } from '../types/fridge';
+import { prepareStockItems, evaluateRecipeStock } from '../utils/stockMatcher';
 import {
   ConversionMode,
   convertIngredientQuantity,
@@ -130,12 +132,22 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
 
   // Allergènes de l'utilisateur et détection
   const [userAllergens, setUserAllergens] = useState<UserAllergenItem[]>([]);
+  const [stockItems, setStockItems] = useState<FridgeItem[]>([]);
 
   useEffect(() => {
     StorageService.getUserAllergens()
       .then(setUserAllergens)
       .catch((e) => console.error('Erreur chargement allergènes sur RecipeDetailScreen:', e));
+    StorageService.getFridgeItems()
+      .then(setStockItems)
+      .catch((e) => console.error('Erreur chargement stock sur RecipeDetailScreen:', e));
   }, []);
+
+  const stockEvaluation = useMemo(() => {
+    if (stockItems.length === 0 || !recipe) return null;
+    const prepared = prepareStockItems(stockItems);
+    return evaluateRecipeStock(recipe, prepared, { assumePantryStaplesAvailable: true });
+  }, [recipe, stockItems]);
 
   const preparedAllergens = useMemo(
     () => prepareUserAllergens(userAllergens),
@@ -853,6 +865,30 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
                 )}
               </View>
             </View>
+
+            {/* Badge de couverture du stock frigo / étagères */}
+            {stockEvaluation && stockItems.length > 0 && stockEvaluation.totalEssentialCount > 0 && (
+              <View style={styles.detailStockProgressRow}>
+                <View style={styles.detailStockLeft}>
+                  <Ionicons
+                    name={stockEvaluation.isDoable ? 'checkmark-circle' : 'cube-outline'}
+                    size={14}
+                    color={stockEvaluation.isDoable ? colors.secondary : colors.textSecondary}
+                  />
+                  <Text style={styles.detailStockText}>
+                    {stockEvaluation.matchedEssentialCount}/{stockEvaluation.totalEssentialCount} ingrédients en stock
+                  </Text>
+                  <Text style={styles.detailStockPct}>
+                    ({Math.round(stockEvaluation.matchPercentage)}%)
+                  </Text>
+                </View>
+                {stockEvaluation.isDoable && (
+                  <View style={styles.detailStockReadyPill}>
+                    <Text style={styles.detailStockReadyText}>Prêt à cuisiner !</Text>
+                  </View>
+                )}
+              </View>
+            )}
 
             {/* Bouton 1 clic : Ajouter à ma liste de courses */}
             <TouchableOpacity
@@ -2613,6 +2649,45 @@ const styles = createDynamicStyles((colors, shadows) => ({
     color: colors.isDark ? colors.textPrimary : '#FFFFFF',
     fontSize: 12,
     fontWeight: '600',
+  },
+  detailStockProgressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.surfaceAlt,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  detailStockLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flex: 1,
+  },
+  detailStockText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  detailStockPct: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  detailStockReadyPill: {
+    backgroundColor: colors.secondary + '22',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  detailStockReadyText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.secondary,
   },
   addToShoppingBtn: {
     flexDirection: 'row',
