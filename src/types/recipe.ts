@@ -17,6 +17,7 @@ export interface Ingredient {
   unit?: string;     // ex: "g", "ml", "c. à soupe", "pièces"
   isPantryStaple?: boolean; // Ingrédient de base / fond de placard (sel, poivre, huile, épices...)
   isOptional?: boolean;     // Ingrédient facultatif / de finition
+  linkedRecipeId?: string;  // ID de la recette associée (ex: 'rec_pate_brisee' ou 'none' si dissociation explicite)
 }
 
 export interface RecipeStep {

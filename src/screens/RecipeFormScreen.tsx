@@ -31,6 +31,8 @@ import { formatQuantityWithUnit } from '../constants/units';
 import { UnifiedIngredientService } from '../services/unifiedIngredientService';
 import { VocabularyService } from '../services/vocabularyService';
 import { isKnownDefaultPantryStaple } from '../data/canonicalVocabulary';
+import { RecipeLinkPickerModal } from '../components/RecipeLinkPickerModal';
+import { findAutoMatchCandidate } from '../utils/recipeLinkMatcher';
 import {
   RecipeAiService,
   ExtractedRecipeData,
@@ -41,6 +43,7 @@ interface RecipeFormScreenProps {
   initialRecipe?: Recipe | null;
   onSave: (recipe: Recipe) => void;
   onCancel: () => void;
+  availableRecipes?: Recipe[];
 }
 
 const SAMPLE_RECIPES = [
@@ -109,6 +112,7 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
   initialRecipe,
   onSave,
   onCancel,
+  availableRecipes = [],
 }) => {
   const { isDark, colors } = useTheme();
   const isEditing = Boolean(
@@ -291,6 +295,21 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
   const [queueProgress, setQueueProgress] = useState<{ current: number; total: number } | undefined>();
   const [isUnitModalVisible, setIsUnitModalVisible] = useState(false);
   const [unitModalTargetIndex, setUnitModalTargetIndex] = useState<number | null>(null);
+
+  // État de liaison de recette (sous-recettes / préparations maison)
+  const [isLinkModalVisible, setIsLinkModalVisible] = useState(false);
+  const [linkModalTargetIndex, setLinkModalTargetIndex] = useState<number | null>(null);
+
+  const handleOpenLinkModal = (index: number) => {
+    setLinkModalTargetIndex(index);
+    setIsLinkModalVisible(true);
+  };
+
+  const handleSelectLinkedRecipe = (linkedRecipeId?: string) => {
+    if (linkModalTargetIndex !== null) {
+      handleUpdateIngredient(linkModalTargetIndex, 'linkedRecipeId', linkedRecipeId);
+    }
+  };
 
   const isSubmittingRef = useRef(false);
   const queueTotalRef = useRef(0);
@@ -1305,6 +1324,78 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
                       {ing.isOptional ? 'En finition (au goût)' : '+ En finition'}
                     </Text>
                   </TouchableOpacity>
+
+                  {/* Puce Recette Liée (Sous-recette / Fait maison) */}
+                  {(() => {
+                    const manualRecipe =
+                      ing.linkedRecipeId && ing.linkedRecipeId !== 'none'
+                        ? availableRecipes.find((r) => r.id === ing.linkedRecipeId)
+                        : null;
+                    const isNone = ing.linkedRecipeId === 'none';
+                    const autoCandidate = !ing.linkedRecipeId
+                      ? findAutoMatchCandidate(ing.name, availableRecipes, initialRecipe?.id)
+                      : null;
+
+                    if (manualRecipe) {
+                      return (
+                        <TouchableOpacity
+                          style={[styles.flagChip, styles.flagChipActiveLinked]}
+                          onPress={() => handleOpenLinkModal(index)}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons name="link" size={12} color={colors.primary} />
+                          <Text
+                            style={[styles.flagChipText, styles.flagChipTextActiveLinked]}
+                            numberOfLines={1}
+                          >
+                            Recette : {manualRecipe.title}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    }
+
+                    if (isNone) {
+                      return (
+                        <TouchableOpacity
+                          style={styles.flagChip}
+                          onPress={() => handleOpenLinkModal(index)}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons name="ban-outline" size={12} color={colors.textMuted} />
+                          <Text style={styles.flagChipText}>Pas de lien</Text>
+                        </TouchableOpacity>
+                      );
+                    }
+
+                    if (autoCandidate) {
+                      return (
+                        <TouchableOpacity
+                          style={[styles.flagChip, styles.flagChipAutoLinked]}
+                          onPress={() => handleOpenLinkModal(index)}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons name="sparkles" size={12} color={colors.primary} />
+                          <Text
+                            style={[styles.flagChipText, styles.flagChipTextAutoLinked]}
+                            numberOfLines={1}
+                          >
+                            Lien auto : {autoCandidate.title}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    }
+
+                    return (
+                      <TouchableOpacity
+                        style={styles.flagChip}
+                        onPress={() => handleOpenLinkModal(index)}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons name="link-outline" size={12} color={colors.textMuted} />
+                        <Text style={styles.flagChipText}>+ Lier recette</Text>
+                      </TouchableOpacity>
+                    );
+                  })()}
                 </View>
               </View>
             ))}
@@ -1443,6 +1534,22 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
         setUnitModalTargetIndex(null);
       }}
       title="Unité pour l'ingrédient"
+    />
+
+    {/* Modal de sélection de recette liée pour un ingrédient */}
+    <RecipeLinkPickerModal
+      visible={isLinkModalVisible}
+      ingredientName={linkModalTargetIndex !== null ? ingredients[linkModalTargetIndex]?.name : ''}
+      currentLinkedRecipeId={
+        linkModalTargetIndex !== null ? ingredients[linkModalTargetIndex]?.linkedRecipeId : undefined
+      }
+      availableRecipes={availableRecipes}
+      currentRecipeId={initialRecipe?.id}
+      onSelectRecipe={handleSelectLinkedRecipe}
+      onClose={() => {
+        setIsLinkModalVisible(false);
+        setLinkModalTargetIndex(null);
+      }}
     />
   </SafeAreaView>
   );
@@ -1744,6 +1851,24 @@ const styles = createDynamicStyles((colors, shadows) => ({
   flagChipTextActiveOptional: {
     color: colors.amber,
     fontWeight: '700',
+  },
+  flagChipActiveLinked: {
+    backgroundColor: colors.primary + '18',
+    borderColor: colors.primary,
+  },
+  flagChipTextActiveLinked: {
+    color: colors.primary,
+    fontWeight: '700',
+    maxWidth: 130,
+  },
+  flagChipAutoLinked: {
+    backgroundColor: colors.primaryLight + '25',
+    borderColor: colors.primaryLight + '70',
+  },
+  flagChipTextAutoLinked: {
+    color: colors.primary,
+    fontWeight: '600',
+    maxWidth: 130,
   },
   lexiconBadgeOk: {
     flexDirection: 'row',

@@ -6,6 +6,7 @@ import {
   Alert,
   TouchableOpacity,
   Platform,
+  BackHandler,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -30,6 +31,7 @@ function AppContent() {
   const [returnScreenAfterDetail, setReturnScreenAfterDetail] = useState<'home' | 'planner' | 'shopping' | 'settings'>('home');
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [selectedRecipeId, setSelectedRecipeId] = useState<string | null>(null);
+  const [recipeDetailStack, setRecipeDetailStack] = useState<string[]>([]);
   const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [shoppingBadgeCount, setShoppingBadgeCount] = useState(0);
@@ -84,9 +86,48 @@ function AppContent() {
   // Actions de navigation
   const navigateToDetail = (recipe: Recipe, fromScreen: 'home' | 'planner' | 'shopping' = 'home') => {
     setSelectedRecipeId(recipe.id);
+    setRecipeDetailStack([recipe.id]);
     setReturnScreenAfterDetail(fromScreen);
     setCurrentScreen('detail');
   };
+
+  const handleOpenLinkedRecipe = (linkedRecipeId: string) => {
+    setSelectedRecipeId(linkedRecipeId);
+    setRecipeDetailStack((prev) => [...prev, linkedRecipeId]);
+  };
+
+  const handleBackFromDetail = () => {
+    if (recipeDetailStack.length > 1) {
+      const nextStack = recipeDetailStack.slice(0, -1);
+      const prevId = nextStack[nextStack.length - 1];
+      setRecipeDetailStack(nextStack);
+      setSelectedRecipeId(prevId);
+    } else {
+      setRecipeDetailStack([]);
+      setSelectedRecipeId(null);
+      setCurrentScreen(returnScreenAfterDetail);
+      refreshShoppingBadge();
+    }
+  };
+
+  const previousRecipeTitle =
+    recipeDetailStack.length > 1
+      ? recipes.find((r) => r.id === recipeDetailStack[recipeDetailStack.length - 2])?.title
+      : undefined;
+
+  // Prise en charge du bouton retour matériel Android sur la pile de recettes
+  useEffect(() => {
+    const onHardwareBack = () => {
+      if (currentScreen === 'detail') {
+        handleBackFromDetail();
+        return true;
+      }
+      return false;
+    };
+
+    const sub = BackHandler.addEventListener('hardwareBackPress', onHardwareBack);
+    return () => sub.remove();
+  }, [currentScreen, recipeDetailStack, returnScreenAfterDetail]);
 
   const navigateToCreate = () => {
     setEditingRecipe(null);
@@ -117,6 +158,7 @@ function AppContent() {
   const navigateToHome = (options?: { onlyDoable?: boolean }) => {
     setCurrentScreen('home');
     setSelectedRecipeId(null);
+    setRecipeDetailStack([]);
     setEditingRecipe(null);
     setInitialHomeDoableFilter(Boolean(options?.onlyDoable));
   };
@@ -128,6 +170,7 @@ function AppContent() {
     setShoppingInitialTab(tab);
     setCurrentScreen('shopping');
     setSelectedRecipeId(null);
+    setRecipeDetailStack([]);
     setEditingRecipe(null);
     refreshShoppingBadge();
   };
@@ -136,6 +179,7 @@ function AppContent() {
     setPlannerInitialTab(tab);
     setCurrentScreen('planner');
     setSelectedRecipeId(null);
+    setRecipeDetailStack([]);
     setEditingRecipe(null);
   };
 
@@ -149,6 +193,9 @@ function AppContent() {
       const updated = await StorageService.saveRecipe(savedRecipe);
       setRecipes(updated);
       setSelectedRecipeId(savedRecipe.id);
+      setRecipeDetailStack((prev) =>
+        prev.length > 0 ? [...prev.slice(0, -1), savedRecipe.id] : [savedRecipe.id]
+      );
       setCurrentScreen('detail');
     } catch (e) {
       Alert.alert('Erreur', "Impossible d'enregistrer la recette.");
@@ -159,6 +206,7 @@ function AppContent() {
     try {
       const updated = await StorageService.deleteRecipe(id);
       setRecipes(updated);
+      setRecipeDetailStack([]);
       navigateToHome();
     } catch (e) {
       Alert.alert('Erreur', 'Impossible de supprimer la recette.');
@@ -242,10 +290,10 @@ function AppContent() {
           {currentScreen === 'detail' && selectedRecipe && (
             <RecipeDetailScreen
               recipe={selectedRecipe}
-              onBack={() => {
-                setCurrentScreen(returnScreenAfterDetail);
-                refreshShoppingBadge();
-              }}
+              allRecipes={recipes}
+              onOpenLinkedRecipe={handleOpenLinkedRecipe}
+              previousRecipeTitle={previousRecipeTitle}
+              onBack={handleBackFromDetail}
               onEdit={navigateToEdit}
               onDelete={handleDeleteRecipe}
               onUpdateRating={handleUpdateRating}
@@ -256,6 +304,7 @@ function AppContent() {
           {currentScreen === 'form' && (
             <RecipeFormScreen
               initialRecipe={editingRecipe}
+              availableRecipes={recipes}
               onSave={handleSaveRecipe}
               onCancel={() => {
                 if (selectedRecipeId) {

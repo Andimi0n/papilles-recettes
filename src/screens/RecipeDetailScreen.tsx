@@ -32,6 +32,7 @@ import {
 } from '../utils/helpers';
 import { prepareUserAllergens, evaluateRecipeAllergens } from '../utils/allergenMatcher';
 import { formatQuantityWithUnit } from '../constants/units';
+import { findLinkedRecipeForIngredient, getLinkedRecipesForRecipe } from '../utils/recipeLinkMatcher';
 
 interface InlineStepTimer {
   id: string;
@@ -45,6 +46,9 @@ interface InlineStepTimer {
 
 interface RecipeDetailScreenProps {
   recipe: Recipe;
+  allRecipes?: Recipe[];
+  onOpenLinkedRecipe?: (recipeId: string) => void;
+  previousRecipeTitle?: string;
   onBack: () => void;
   onEdit: (recipe: Recipe) => void;
   onDelete: (id: string) => void;
@@ -55,6 +59,9 @@ interface RecipeDetailScreenProps {
 
 export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
   recipe,
+  allRecipes = [],
+  onOpenLinkedRecipe,
+  previousRecipeTitle,
   onBack,
   onEdit,
   onDelete,
@@ -112,6 +119,24 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
     });
     return set;
   }, [allergenEval]);
+
+  // Résolution et indexation des recettes liées (ex: pâte brisée maison pour une quiche)
+  const linkedRecipesMap = useMemo(() => {
+    if (!allRecipes || allRecipes.length === 0) return new Map<string, Recipe>();
+    const map = new Map<string, Recipe>();
+    (recipe.ingredients || []).forEach((ing) => {
+      const matched = findLinkedRecipeForIngredient(ing, allRecipes, recipe.id);
+      if (matched) {
+        map.set(ing.id, matched);
+      }
+    });
+    return map;
+  }, [recipe.ingredients, allRecipes, recipe.id]);
+
+  const linkedPreparations = useMemo(() => {
+    if (!allRecipes || allRecipes.length === 0) return [];
+    return getLinkedRecipesForRecipe(recipe, allRecipes);
+  }, [recipe, allRecipes]);
 
   // Regroupement culinaire par sections ("Livre de Chef")
   const ingredientGroups = useMemo(() => {
@@ -482,8 +507,17 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
       <View style={styles.container}>
         {/* Top Floating Navigation Header */}
         <View style={styles.topNav}>
-          <TouchableOpacity onPress={onBack} style={styles.navBtn}>
-            <Ionicons name="arrow-back" size={22} color={Colors.textPrimary} />
+          <TouchableOpacity
+            onPress={onBack}
+            style={previousRecipeTitle ? styles.navBtnWithLabel : styles.navBtn}
+            accessibilityLabel={previousRecipeTitle ? `Retour à ${previousRecipeTitle}` : 'Retour'}
+          >
+            <Ionicons name="arrow-back" size={20} color={colors.textPrimary} />
+            {previousRecipeTitle ? (
+              <Text style={styles.navBackLabel} numberOfLines={1}>
+                {previousRecipeTitle}
+              </Text>
+            ) : null}
           </TouchableOpacity>
           <View style={styles.navRight}>
             <TouchableOpacity
@@ -736,6 +770,46 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
               </Text>
             </TouchableOpacity>
 
+            {/* Préparations maison associées (ex: pâte brisée maison pour une quiche) */}
+            {linkedPreparations.length > 0 && (
+              <View style={styles.linkedPreparationsCard}>
+                <View style={styles.linkedPreparationsHeader}>
+                  <Ionicons name="restaurant-outline" size={15} color={colors.primary} />
+                  <Text style={styles.linkedPreparationsTitle}>
+                    Préparation{linkedPreparations.length > 1 ? 's' : ''} maison associée{linkedPreparations.length > 1 ? 's' : ''} ({linkedPreparations.length})
+                  </Text>
+                </View>
+                {linkedPreparations.map(({ ingredient, linkedRecipe }) => (
+                  <TouchableOpacity
+                    key={`prep_${ingredient.id}_${linkedRecipe.id}`}
+                    style={styles.linkedPreparationItem}
+                    onPress={() => onOpenLinkedRecipe?.(linkedRecipe.id)}
+                    activeOpacity={0.7}
+                  >
+                    {linkedRecipe.imageUrl ? (
+                      <Image source={{ uri: linkedRecipe.imageUrl }} style={styles.linkedPrepThumb} />
+                    ) : (
+                      <View style={[styles.linkedPrepThumb, styles.linkedPrepThumbPlaceholder]}>
+                        <Ionicons name="restaurant-outline" size={16} color={colors.textMuted} />
+                      </View>
+                    )}
+                    <View style={styles.linkedPrepTextCol}>
+                      <Text style={styles.linkedPrepTitle} numberOfLines={1}>
+                        {linkedRecipe.title}
+                      </Text>
+                      <Text style={styles.linkedPrepSub} numberOfLines={1}>
+                        Pour l'ingrédient « {ingredient.name} »
+                      </Text>
+                    </View>
+                    <View style={styles.linkedPrepAction}>
+                      <Text style={styles.linkedPrepActionText}>Voir</Text>
+                      <Ionicons name="chevron-forward" size={14} color={colors.primary} />
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
             {ingredientGroups.groups.map((group) => (
               <View key={`ing_group_${group.key}`} style={styles.ingredientGroupBlock}>
                 {group.title ? (
@@ -762,6 +836,7 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
                   const scaledQty = scaleQuantity(ing.quantity, recipe.servings || 4, currentServings);
                   const isScaled = currentServings !== recipe.servings && !!ing.quantity;
                   const isAllergen = allergenIngredientIdsSet.has(ing.id) || allergenIngredientIdsSet.has(normalizeString(ing.name));
+                  const linkedRecipe = linkedRecipesMap.get(ing.id);
 
                   return (
                     <TouchableOpacity
@@ -795,6 +870,20 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
                           <View style={[styles.allergenInlineTag, { backgroundColor: colors.dangerLight, borderColor: colors.danger }]}>
                             <Text style={[styles.allergenInlineTagText, { color: colors.danger }]}>Allergène</Text>
                           </View>
+                        )}
+                        {linkedRecipe && (
+                          <TouchableOpacity
+                            style={styles.linkedRecipeInlineBtn}
+                            onPress={() => onOpenLinkedRecipe?.(linkedRecipe.id)}
+                            activeOpacity={0.7}
+                            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                          >
+                            <Ionicons name="book-outline" size={12} color={colors.primary} />
+                            <Text style={styles.linkedRecipeInlineBtnText} numberOfLines={1}>
+                              Recette maison : {linkedRecipe.title}
+                            </Text>
+                            <Ionicons name="chevron-forward" size={11} color={colors.primary} />
+                          </TouchableOpacity>
                         )}
                       </View>
                       {scaledQty ? (
@@ -1246,6 +1335,24 @@ const styles = createDynamicStyles((colors, shadows) => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  navBtnWithLabel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 20,
+    backgroundColor: colors.cardBackground,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    ...shadows.card,
+    maxWidth: '65%',
+  },
+  navBackLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    marginLeft: 6,
+  },
   navRight: {
     flexDirection: 'row',
     gap: 10,
@@ -1620,6 +1727,87 @@ const styles = createDynamicStyles((colors, shadows) => ({
     fontSize: 10,
     fontWeight: '700',
     textTransform: 'uppercase',
+  },
+  linkedRecipeInlineBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primaryLight + '35',
+    paddingHorizontal: 8,
+    paddingVertical: 3.5,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.primaryLight + '70',
+    marginTop: 2,
+  },
+  linkedRecipeInlineBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.primary,
+    marginHorizontal: 4,
+  },
+  linkedPreparationsCard: {
+    backgroundColor: colors.background,
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  linkedPreparationsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  linkedPreparationsTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginLeft: 6,
+  },
+  linkedPreparationItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.cardBackground,
+    padding: 10,
+    borderRadius: 10,
+    marginTop: 6,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  linkedPrepThumb: {
+    width: 38,
+    height: 38,
+    borderRadius: 8,
+    marginRight: 10,
+  },
+  linkedPrepThumbPlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.borderLight,
+  },
+  linkedPrepTextCol: {
+    flex: 1,
+    marginRight: 8,
+  },
+  linkedPrepTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  linkedPrepSub: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  linkedPrepAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  linkedPrepActionText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.primary,
+    marginRight: 2,
   },
   ingredientQty: {
     fontSize: 14,

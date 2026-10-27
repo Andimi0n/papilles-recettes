@@ -116,6 +116,10 @@ function sanitizeStoredRecipe(r: any): Recipe {
               ? true
               : undefined,
           isOptional: typeof ing.isOptional === 'boolean' ? ing.isOptional : undefined,
+          linkedRecipeId:
+            typeof ing.linkedRecipeId === 'string' && ing.linkedRecipeId
+              ? ing.linkedRecipeId.slice(0, 100)
+              : undefined,
         }))
       : [],
     steps: Array.isArray(r.steps)
