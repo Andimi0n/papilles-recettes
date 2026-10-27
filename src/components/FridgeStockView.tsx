@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { FridgeItem } from '../types/fridge';
-import { ShoppingAisle } from '../types/shopping';
+import { ShoppingAisle, ShoppingItem } from '../types/shopping';
 import { Recipe } from '../types/recipe';
 import { CanonicalIngredient } from '../types/vocabulary';
 import { StorageService } from '../services/storageService';
@@ -21,6 +21,7 @@ import { AISLE_CONFIGS, ALL_AISLES, classifyIngredientAisle } from '../utils/ais
 import { evaluateRecipesWithStock, RecipeStockEvaluation } from '../utils/stockMatcher';
 import { normalizeString } from '../utils/helpers';
 import { normalizeIngredient } from '../utils/ingredientNormalizer';
+import { filterIngredientItems, countMatchingItems } from '../utils/ingredientSearchMatcher';
 import { VocabularyService } from '../services/vocabularyService';
 import { UnifiedIngredientInput } from './UnifiedIngredientInput';
 import {
@@ -35,6 +36,11 @@ interface FridgeStockViewProps {
   onItemCopiedToShopping?: (name: string) => void;
   onFridgeCountChange?: (count: number) => void;
   onNavigateToDoableRecipes?: () => void;
+  searchQuery?: string;
+  isSearchOpen?: boolean;
+  onToggleSearch?: (open: boolean) => void;
+  shoppingItems?: ShoppingItem[];
+  onNavigateToShoppingWithSearch?: (query: string) => void;
 }
 
 export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
@@ -44,6 +50,11 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
   onItemCopiedToShopping,
   onFridgeCountChange,
   onNavigateToDoableRecipes,
+  searchQuery = '',
+  isSearchOpen = false,
+  onToggleSearch,
+  shoppingItems = [],
+  onNavigateToShoppingWithSearch,
 }) => {
   const { isDark, colors } = useTheme();
   const [items, setItems] = useState<FridgeItem[]>([]);
@@ -99,10 +110,26 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
     };
   }, [loadStock, onFridgeCountChange]);
 
-  // Groupement des aliments par rayon
+  // Aliments filtrés selon la recherche
+  const filteredItems = useMemo(() => {
+    if (!searchQuery || !searchQuery.trim()) {
+      return items;
+    }
+    return filterIngredientItems(items, searchQuery);
+  }, [items, searchQuery]);
+
+  // Nombre de correspondances croisées dans la liste de courses
+  const shoppingCrossCount = useMemo(() => {
+    if (!shoppingItems || !searchQuery || !searchQuery.trim()) return 0;
+    return countMatchingItems(shoppingItems, searchQuery);
+  }, [shoppingItems, searchQuery]);
+
+  const isSearching = Boolean(isSearchOpen || (searchQuery && searchQuery.trim().length > 0));
+
+  // Groupement des aliments par rayon (sur les éléments filtrés)
   const groupedByAisle = useMemo(() => {
     const map = new Map<ShoppingAisle, FridgeItem[]>();
-    items.forEach((item) => {
+    filteredItems.forEach((item) => {
       const aisle = item.aisle || 'Autre';
       const existing = map.get(aisle) || [];
       existing.push(item);
@@ -123,7 +150,7 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
     }
 
     return result;
-  }, [items]);
+  }, [filteredItems]);
 
   // Nombre de recettes 100% faisables avec le stock actuel (même fonctionnement que le bouton En stock)
   const doableRecipesCount = useMemo(() => {
@@ -286,7 +313,7 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
 
   return (
     <View style={styles.container}>
-      {/* En-tête Étagères avec titre et bouton vider */}
+      {/* En-tête Étagères avec titre, recherche et bouton vider */}
       <View style={styles.header}>
         <View style={styles.headerTitleCol}>
           <Text style={styles.headerTitle}>Mes Étagères</Text>
@@ -297,8 +324,29 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
           </Text>
         </View>
 
-        {totalCount > 0 && (
-          <View style={styles.headerActions}>
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            style={[
+              styles.actionIconBtn,
+              isSearchOpen && styles.actionIconBtnActive,
+              totalCount > 0 ? { marginRight: 8 } : null,
+            ]}
+            onPress={() => {
+              if (onToggleSearch) {
+                onToggleSearch(!isSearchOpen);
+              }
+            }}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityLabel="Rechercher dans mes étagères"
+          >
+            <Ionicons
+              name={isSearchOpen ? 'search' : 'search-outline'}
+              size={19}
+              color={isSearchOpen ? colors.primary : colors.textPrimary}
+            />
+          </TouchableOpacity>
+
+          {totalCount > 0 && (
             <TouchableOpacity
               style={styles.actionIconBtn}
               onPress={handleClearStock}
@@ -307,73 +355,75 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
             >
               <Ionicons name="trash-outline" size={19} color={colors.danger} />
             </TouchableOpacity>
-          </View>
-        )}
+          )}
+        </View>
       </View>
 
-      {/* Bloc Ajouter un aliment vérouillé en haut */}
-      <View style={styles.quickAddCard}>
-        <View style={styles.quickAddMainRow}>
-          <UnifiedIngredientInput
-            containerStyle={{ flex: 1, zIndex: 1002, overflow: 'visible' }}
-            style={styles.nameInput}
-            placeholder="Ajouter un aliment (placards, frigo, épices...)"
-            placeholderTextColor={colors.textMuted}
-            value={newItemName}
-            onChangeText={setNewItemName}
-            clearOnSelect
-            keepFocusOnSelect
-            returnKeyType="done"
-            context="stock"
-            onRequestQualify={(name) => {
-              setPendingUnrecognizedName(name);
-              setIsQualifyModalVisible(true);
-            }}
-            onSubmitEditing={() => handleAddItem()}
-            onSelectIngredient={(ing) => {
-              handleAddItem(ing.canonicalName, ing.defaultAisle, ing.id);
-            }}
-          />
-
-          <TouchableOpacity
-            style={[
-              styles.addButton,
-              !newItemName.trim() && styles.addButtonDisabled,
-            ]}
-            onPress={() => handleAddItem()}
-            disabled={!newItemName.trim()}
-          >
-            <Ionicons name="add" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-        </View>
-
-        {/* Sélection facultative du rayon */}
-        <View style={styles.quickAddDetailsRow}>
-          <TouchableOpacity
-            style={styles.aislePickerBtn}
-            onPress={() => setIsAislePickerVisible(true)}
-          >
-            <Ionicons
-              name={selectedAisle ? (AISLE_CONFIGS[selectedAisle].iconName as any) : 'funnel-outline'}
-              size={13}
-              color={selectedAisle ? AISLE_CONFIGS[selectedAisle].color : colors.textSecondary}
+      {/* Bloc Ajouter un aliment vérouillé en haut (masqué pendant la recherche) */}
+      {!isSearching && (
+        <View style={styles.quickAddCard}>
+          <View style={styles.quickAddMainRow}>
+            <UnifiedIngredientInput
+              containerStyle={{ flex: 1, zIndex: 1002, overflow: 'visible' }}
+              style={styles.nameInput}
+              placeholder="Ajouter un aliment (placards, frigo, épices...)"
+              placeholderTextColor={colors.textMuted}
+              value={newItemName}
+              onChangeText={setNewItemName}
+              clearOnSelect
+              keepFocusOnSelect
+              returnKeyType="done"
+              context="stock"
+              onRequestQualify={(name) => {
+                setPendingUnrecognizedName(name);
+                setIsQualifyModalVisible(true);
+              }}
+              onSubmitEditing={() => handleAddItem()}
+              onSelectIngredient={(ing) => {
+                handleAddItem(ing.canonicalName, ing.defaultAisle, ing.id);
+              }}
             />
-            <Text
-              style={[
-                styles.aislePickerBtnText,
-                selectedAisle ? { color: AISLE_CONFIGS[selectedAisle].color } : null,
-              ]}
-              numberOfLines={1}
-            >
-              {selectedAisle || 'Rayon : détection auto'}
-            </Text>
-            <Ionicons name="chevron-down" size={12} color={colors.textSecondary} />
-          </TouchableOpacity>
-        </View>
-      </View>
 
-      {/* Ajout rapide (suggestions d'indispensables) vérouillé sous le bloc d'ajout */}
-      {availableSuggestions.length > 0 && newItemName.trim().length === 0 && (
+            <TouchableOpacity
+              style={[
+                styles.addButton,
+                !newItemName.trim() && styles.addButtonDisabled,
+              ]}
+              onPress={() => handleAddItem()}
+              disabled={!newItemName.trim()}
+            >
+              <Ionicons name="add" size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Sélection facultative du rayon */}
+          <View style={styles.quickAddDetailsRow}>
+            <TouchableOpacity
+              style={styles.aislePickerBtn}
+              onPress={() => setIsAislePickerVisible(true)}
+            >
+              <Ionicons
+                name={selectedAisle ? (AISLE_CONFIGS[selectedAisle].iconName as any) : 'funnel-outline'}
+                size={13}
+                color={selectedAisle ? AISLE_CONFIGS[selectedAisle].color : colors.textSecondary}
+              />
+              <Text
+                style={[
+                  styles.aislePickerBtnText,
+                  selectedAisle ? { color: AISLE_CONFIGS[selectedAisle].color } : null,
+                ]}
+                numberOfLines={1}
+              >
+                {selectedAisle || 'Rayon : détection auto'}
+              </Text>
+              <Ionicons name="chevron-down" size={12} color={colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {/* Ajout rapide (suggestions d'indispensables) vérouillé sous le bloc d'ajout (masqué pendant la recherche) */}
+      {!isSearching && availableSuggestions.length > 0 && newItemName.trim().length === 0 && (
         <View style={styles.pinnedSuggestionsContainer}>
           <Text style={styles.suggestionsTitle}>Ajout rapide en 1 clic :</Text>
           <ScrollView
@@ -427,51 +477,96 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
           maxToRenderPerBatch={15}
           windowSize={5}
           ListHeaderComponent={
-            <TouchableOpacity
-              style={[
-                styles.smartCookBanner,
-                doableRecipesCount === 0 && styles.smartCookBannerDisabled,
-              ]}
-              onPress={() => {
-                if (doableRecipesCount > 0) {
-                  if (onNavigateToDoableRecipes) {
-                    onNavigateToDoableRecipes();
-                  }
-                } else {
-                  Alert.alert(
-                    'Aucune recette 100% réalisable',
-                    'Aucune recette de votre carnet ne peut être cuisinée à 100% avec vos étagères actuelles (hors fonds de placard).\n\nAjoutez quelques ingrédients supplémentaires pour débloquer des recettes !'
-                  );
-                }
-              }}
-              activeOpacity={doableRecipesCount > 0 ? 0.8 : 0.6}
-            >
-              <View style={styles.smartCookLeft}>
-                <View
-                  style={[
-                    styles.smartCookIconBox,
-                    doableRecipesCount === 0 && styles.smartCookIconBoxMuted,
-                  ]}
-                >
-                  <Ionicons name="restaurant" size={20} color="#FFFFFF" />
-                </View>
-                <View style={styles.smartCookTextCol}>
-                  <Text style={styles.smartCookTitle}>Que cuisiner aujourd'hui ?</Text>
-                  <Text style={styles.smartCookSubtitle}>
-                    {doableRecipesCount > 0
-                      ? `${doableRecipesCount} recette${doableRecipesCount > 1 ? 's' : ''} 100% faisable${doableRecipesCount > 1 ? 's' : ''} avec votre stock`
-                      : 'Aucune recette 100% faisable avec ce stock'}
-                  </Text>
-                </View>
+            isSearching && searchQuery?.trim() ? (
+              <View style={styles.searchSummaryStrip}>
+                <Text style={styles.searchSummaryText}>
+                  {filteredItems.length} aliment{filteredItems.length > 1 ? 's' : ''} trouvé{filteredItems.length > 1 ? 's' : ''} pour « {searchQuery.trim()} »
+                </Text>
               </View>
-
-              {doableRecipesCount > 0 && (
-                <View style={styles.smartCookBtn}>
-                  <Text style={styles.smartCookBtnText}>Voir mes recettes</Text>
-                  <Ionicons name="arrow-forward" size={14} color="#FFFFFF" />
+            ) : !isSearching ? (
+              <TouchableOpacity
+                style={[
+                  styles.smartCookBanner,
+                  doableRecipesCount === 0 && styles.smartCookBannerDisabled,
+                ]}
+                onPress={() => {
+                  if (doableRecipesCount > 0) {
+                    if (onNavigateToDoableRecipes) {
+                      onNavigateToDoableRecipes();
+                    }
+                  } else {
+                    Alert.alert(
+                      'Aucune recette 100% réalisable',
+                      'Aucune recette de votre carnet ne peut être cuisinée à 100% avec vos étagères actuelles (hors fonds de placard).\n\nAjoutez quelques ingrédients supplémentaires pour débloquer des recettes !'
+                    );
+                  }
+                }}
+                activeOpacity={doableRecipesCount > 0 ? 0.8 : 0.6}
+              >
+                <View style={styles.smartCookLeft}>
+                  <View
+                    style={[
+                      styles.smartCookIconBox,
+                      doableRecipesCount === 0 && styles.smartCookIconBoxMuted,
+                    ]}
+                  >
+                    <Ionicons name="restaurant" size={20} color="#FFFFFF" />
+                  </View>
+                  <View style={styles.smartCookTextCol}>
+                    <Text style={styles.smartCookTitle}>Que cuisiner aujourd'hui ?</Text>
+                    <Text style={styles.smartCookSubtitle}>
+                      {doableRecipesCount > 0
+                        ? `${doableRecipesCount} recette${doableRecipesCount > 1 ? 's' : ''} 100% faisable${doableRecipesCount > 1 ? 's' : ''} avec votre stock`
+                        : 'Aucune recette 100% faisable avec ce stock'}
+                    </Text>
+                  </View>
                 </View>
-              )}
-            </TouchableOpacity>
+
+                {doableRecipesCount > 0 && (
+                  <View style={styles.smartCookBtn}>
+                    <Text style={styles.smartCookBtnText}>Voir mes recettes</Text>
+                    <Ionicons name="arrow-forward" size={14} color="#FFFFFF" />
+                  </View>
+                )}
+              </TouchableOpacity>
+            ) : undefined
+          }
+          ListEmptyComponent={
+            isSearching && searchQuery?.trim() ? (
+              <View style={styles.emptySearchContainer}>
+                <View style={styles.emptyIconCircle}>
+                  <Ionicons name="search-outline" size={38} color={colors.primary} />
+                </View>
+                <Text style={styles.emptyTitle}>Aliment introuvable</Text>
+                <Text style={styles.emptySubtitle}>
+                  « {searchQuery.trim()} » n'est pas présent dans vos étagères.
+                </Text>
+
+                <TouchableOpacity
+                  style={styles.searchAddBtn}
+                  onPress={() => handleAddItem(searchQuery.trim())}
+                  activeOpacity={0.85}
+                >
+                  <Ionicons name="add-circle" size={18} color="#FFFFFF" />
+                  <Text style={styles.searchAddBtnText}>
+                    Ajouter « {searchQuery.trim()} » à mes étagères
+                  </Text>
+                </TouchableOpacity>
+
+                {shoppingCrossCount > 0 && onNavigateToShoppingWithSearch && (
+                  <TouchableOpacity
+                    style={styles.searchCrossBtn}
+                    onPress={() => onNavigateToShoppingWithSearch(searchQuery.trim())}
+                    activeOpacity={0.85}
+                  >
+                    <Ionicons name="cart-outline" size={17} color={colors.primary} />
+                    <Text style={styles.searchCrossBtnText}>
+                      Voir dans mes courses ({shoppingCrossCount} article{shoppingCrossCount > 1 ? 's' : ''})
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            ) : undefined
           }
           renderSectionHeader={({ section: { title, data } }) => {
             const aisle = title as ShoppingAisle;
@@ -704,6 +799,10 @@ const styles = createDynamicStyles((colors, shadows) => ({
     borderColor: colors.borderLight,
     ...shadows.small,
   },
+  actionIconBtnActive: {
+    backgroundColor: colors.primaryLight,
+    borderColor: colors.primary,
+  },
   quickAddCard: {
     backgroundColor: colors.cardBackground,
     marginHorizontal: 16,
@@ -891,6 +990,58 @@ const styles = createDynamicStyles((colors, shadows) => ({
     textAlign: 'center',
     lineHeight: 19,
     marginBottom: 20,
+  },
+  searchSummaryStrip: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    marginBottom: 8,
+    borderRadius: 8,
+    backgroundColor: colors.surfaceAlt,
+    alignSelf: 'flex-start',
+  },
+  searchSummaryText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.textSecondary,
+  },
+  emptySearchContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 32,
+    paddingHorizontal: 16,
+  },
+  searchAddBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: colors.primary,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 14,
+    marginTop: 12,
+    ...shadows.small,
+  },
+  searchAddBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  searchCrossBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: colors.primaryLight,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 14,
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: colors.primary + '33',
+  },
+  searchCrossBtnText: {
+    color: colors.primary,
+    fontSize: 13,
+    fontWeight: '700',
   },
   aisleSection: {
     marginBottom: 14,

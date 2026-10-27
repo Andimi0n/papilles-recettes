@@ -15,6 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { ShoppingItem, ShoppingAisle } from '../types/shopping';
+import { FridgeItem } from '../types/fridge';
 import { CanonicalIngredient } from '../types/vocabulary';
 import { Recipe } from '../types/recipe';
 import { StorageService } from '../services/storageService';
@@ -27,7 +28,9 @@ import { useTheme } from '../theme/ThemeContext';
 import { AISLE_CONFIGS, ALL_AISLES } from '../utils/aisleClassifier';
 import { groupItemsByAisle, formatShoppingListForShare } from '../utils/shoppingAggregator';
 import { normalizeString } from '../utils/helpers';
+import { filterIngredientItems, countMatchingItems } from '../utils/ingredientSearchMatcher';
 import { FridgeStockView } from '../components/FridgeStockView';
+import { IngredientSearchBar } from '../components/IngredientSearchBar';
 import { UnifiedIngredientInput } from '../components/UnifiedIngredientInput';
 import { UnitQuickPicker } from '../components/UnitQuickPicker';
 import { UnitPickerModal } from '../components/UnitPickerModal';
@@ -52,7 +55,12 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
   const [activeTab, setActiveTab] = useState<'shopping' | 'fridge'>(initialTab);
   const [items, setItems] = useState<ShoppingItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [fridgeItems, setFridgeItems] = useState<FridgeItem[]>([]);
   const [fridgeCount, setFridgeCount] = useState<number>(0);
+
+  // Recherche ergonomique unifiée Étagères ↔ Courses
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchActive, setIsSearchActive] = useState(false);
 
   // Synchronise si initialTab change depuis l'extérieur
   useEffect(() => {
@@ -108,31 +116,33 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
     }
   }, []);
 
-  // Chargement du nombre d'aliments du frigo pour le badge
-  const loadFridgeCount = useCallback(async () => {
+  // Chargement des aliments du frigo pour les étagères et le comptage croisé
+  const loadFridgeItems = useCallback(async () => {
     try {
-      const fridgeItems = await StorageService.getFridgeItems();
-      setFridgeCount(fridgeItems.length);
+      const data = await StorageService.getFridgeItems();
+      setFridgeItems(data);
+      setFridgeCount(data.length);
     } catch (e) {
-      console.error('Erreur chargement compteur frigo:', e);
+      console.error('Erreur chargement aliments étagères:', e);
     }
   }, []);
 
   useEffect(() => {
     loadShoppingList();
-    loadFridgeCount();
+    loadFridgeItems();
 
     const unsubShopping = StorageService.onShoppingListChange((updatedList) => {
       setItems(updatedList);
     });
 
     const unsubFridge = StorageService.onFridgeChange((updatedFridge) => {
+      setFridgeItems(updatedFridge);
       setFridgeCount(updatedFridge.length);
     });
 
     const unsubVocab = VocabularyService.onVocabularyCascade(async () => {
       await loadShoppingList();
-      await loadFridgeCount();
+      await loadFridgeItems();
     });
 
     return () => {
@@ -140,16 +150,48 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
       unsubFridge();
       unsubVocab();
     };
-  }, [loadShoppingList, loadFridgeCount]);
+  }, [loadShoppingList, loadFridgeItems]);
 
-  // Statistiques
+  // Statistiques et filtrage
   const totalCount = items.length;
   const completedCount = useMemo(() => items.filter((i) => i.isChecked).length, [items]);
   const activeItems = useMemo(() => items.filter((i) => !i.isChecked), [items]);
   const completedItems = useMemo(() => items.filter((i) => i.isChecked), [items]);
 
-  // Groupement par rayon des articles actifs
-  const groupedActive = useMemo(() => groupItemsByAisle(activeItems), [activeItems]);
+  const isSearching = Boolean(isSearchActive || (searchQuery && searchQuery.trim().length > 0));
+
+  const filteredActiveItems = useMemo(() => {
+    if (!searchQuery || !searchQuery.trim()) return activeItems;
+    return filterIngredientItems(activeItems, searchQuery);
+  }, [activeItems, searchQuery]);
+
+  const filteredCompletedItems = useMemo(() => {
+    if (!searchQuery || !searchQuery.trim()) return completedItems;
+    return filterIngredientItems(completedItems, searchQuery);
+  }, [completedItems, searchQuery]);
+
+  const totalFilteredCount = filteredActiveItems.length + filteredCompletedItems.length;
+
+  // Groupement par rayon des articles actifs (filtrés si recherche)
+  const groupedActive = useMemo(() => groupItemsByAisle(filteredActiveItems), [filteredActiveItems]);
+
+  // Nombre de correspondances croisées dans les étagères
+  const fridgeCrossCount = useMemo(() => {
+    if (!searchQuery || !searchQuery.trim()) return 0;
+    return countMatchingItems(fridgeItems, searchQuery);
+  }, [fridgeItems, searchQuery]);
+
+  // Action rapide : ajouter un article directement depuis l'écran de recherche vide
+  const handleAddDirectSearchItem = async (rawText: string) => {
+    const trimmed = rawText.trim();
+    if (!trimmed) return;
+    try {
+      const updated = await StorageService.addFreeformShoppingItem(trimmed, null);
+      setItems(updated);
+    } catch (e) {
+      Alert.alert('Erreur', "Impossible d'ajouter cet article.");
+    }
+  };
 
   // Actions utilisateur sur les courses
   const handleToggleItem = async (id: string) => {
@@ -451,6 +493,33 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
         </View>
       </View>
 
+      {/* Barre de recherche ergonomique (commune aux deux univers) */}
+      {isSearchActive && (
+        <IngredientSearchBar
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          onClear={() => setSearchQuery('')}
+          onClose={() => {
+            setIsSearchActive(false);
+            setSearchQuery('');
+          }}
+          currentTab={activeTab}
+          currentMatchCount={
+            activeTab === 'fridge'
+              ? countMatchingItems(fridgeItems, searchQuery)
+              : totalFilteredCount
+          }
+          crossMatchCount={
+            activeTab === 'fridge'
+              ? totalFilteredCount
+              : fridgeCrossCount
+          }
+          onPressCrossUniverse={() => {
+            setActiveTab(activeTab === 'fridge' ? 'shopping' : 'fridge');
+          }}
+        />
+      )}
+
       {/* VUE 1 : DANS MON FRIGO */}
       {activeTab === 'fridge' ? (
         <FridgeStockView
@@ -465,6 +534,15 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
             if (onNavigateToRecipes) {
               onNavigateToRecipes({ onlyDoable: true });
             }
+          }}
+          searchQuery={searchQuery}
+          isSearchOpen={isSearchActive}
+          onToggleSearch={(open) => setIsSearchActive(open)}
+          shoppingItems={items}
+          onNavigateToShoppingWithSearch={(q) => {
+            setActiveTab('shopping');
+            setIsSearchActive(true);
+            setSearchQuery(q);
           }}
         />
       ) : (
@@ -483,6 +561,22 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
 
             {/* Boutons d'action supérieurs */}
             <View style={styles.headerActions}>
+              <TouchableOpacity
+                style={[
+                  styles.actionIconBtn,
+                  isSearchActive && styles.actionIconBtnActive,
+                ]}
+                onPress={() => setIsSearchActive((prev) => !prev)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityLabel="Rechercher dans les courses"
+              >
+                <Ionicons
+                  name={isSearchActive ? 'search' : 'search-outline'}
+                  size={19}
+                  color={isSearchActive ? colors.primary : colors.textPrimary}
+                />
+              </TouchableOpacity>
+
               <TouchableOpacity
                 style={styles.actionIconBtn}
                 onPress={handleNativeShare}
@@ -516,8 +610,8 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
             </View>
           </View>
 
-          {/* Barre de progression si articles présents */}
-          {totalCount > 0 && (
+          {/* Barre de progression si articles présents (masquée pendant la recherche) */}
+          {!isSearching && totalCount > 0 && (
             <View style={styles.progressContainer}>
               <View style={styles.progressBarTrack}>
                 <View style={[styles.progressBarFill, { width: `${progressPercent}%` }]} />
@@ -526,82 +620,84 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
             </View>
           )}
 
-          {/* Barre d'ajout rapide vérouillée en haut */}
-          <View style={styles.quickAddCard}>
-            <View style={styles.quickAddMainRow}>
-              <UnifiedIngredientInput
-                containerStyle={{ flex: 1, zIndex: 99 }}
-                style={styles.nameInput}
-                placeholder="Ex: 1kg carottes, 6 œufs, Coca-cola, lessive..."
-                placeholderTextColor={colors.textMuted}
-                value={newItemText}
-                onChangeText={setNewItemText}
-                context="shopping"
-                clearOnSelect={false}
-                keepFocusOnSelect
-                returnKeyType="done"
-                onSubmitEditing={() => handleAddItem()}
-                onSelectIngredient={(ing) => {
-                  handleSelectDropdownSuggestion(ing);
-                }}
-              />
-
-              <TouchableOpacity
-                style={[
-                  styles.addButton,
-                  !newItemText.trim() && styles.addButtonDisabled,
-                ]}
-                onPress={() => handleAddItem()}
-                disabled={!newItemText.trim()}
-              >
-                <Ionicons name="add" size={24} color="#FFFFFF" />
-              </TouchableOpacity>
-            </View>
-
-            {/* Options d'appoint : Rayon forcé & Puces d'unités 1-tap */}
-            <View style={styles.quickOptionsRow}>
-              <TouchableOpacity
-                style={[
-                  styles.aislePickerBtn,
-                  selectedAisle ? { borderColor: AISLE_CONFIGS[selectedAisle].color } : null,
-                ]}
-                onPress={() => setIsAislePickerVisible(true)}
-                activeOpacity={0.7}
-              >
-                <Ionicons
-                  name={
-                    selectedAisle
-                      ? (AISLE_CONFIGS[selectedAisle].iconName as any)
-                      : 'funnel-outline'
-                  }
-                  size={12}
-                  color={selectedAisle ? AISLE_CONFIGS[selectedAisle].color : colors.textSecondary}
+          {/* Barre d'ajout rapide vérouillée en haut (masquée pendant la recherche) */}
+          {!isSearching && (
+            <View style={styles.quickAddCard}>
+              <View style={styles.quickAddMainRow}>
+                <UnifiedIngredientInput
+                  containerStyle={{ flex: 1, zIndex: 99 }}
+                  style={styles.nameInput}
+                  placeholder="Ex: 1kg carottes, 6 œufs, Coca-cola, lessive..."
+                  placeholderTextColor={colors.textMuted}
+                  value={newItemText}
+                  onChangeText={setNewItemText}
+                  context="shopping"
+                  clearOnSelect={false}
+                  keepFocusOnSelect
+                  returnKeyType="done"
+                  onSubmitEditing={() => handleAddItem()}
+                  onSelectIngredient={(ing) => {
+                    handleSelectDropdownSuggestion(ing);
+                  }}
                 />
-                <Text
+
+                <TouchableOpacity
                   style={[
-                    styles.aislePickerBtnText,
-                    selectedAisle ? { color: AISLE_CONFIGS[selectedAisle].color, fontWeight: '700' } : null,
+                    styles.addButton,
+                    !newItemText.trim() && styles.addButtonDisabled,
                   ]}
-                  numberOfLines={1}
+                  onPress={() => handleAddItem()}
+                  disabled={!newItemText.trim()}
                 >
-                  {selectedAisle || 'Rayon auto'}
-                </Text>
-                <Ionicons name="chevron-down" size={11} color={colors.textSecondary} />
-              </TouchableOpacity>
+                  <Ionicons name="add" size={24} color="#FFFFFF" />
+                </TouchableOpacity>
+              </View>
 
-              <View style={styles.unitPickerFlexContainer}>
-                <UnitQuickPicker
-                  value={''}
-                  onChangeUnit={(unitId) => handleQuickUnitPress(unitId)}
-                  onOpenFullPicker={() => setIsUnitModalVisible(true)}
-                  compact
-                />
+              {/* Options d'appoint : Rayon forcé & Puces d'unités 1-tap */}
+              <View style={styles.quickOptionsRow}>
+                <TouchableOpacity
+                  style={[
+                    styles.aislePickerBtn,
+                    selectedAisle ? { borderColor: AISLE_CONFIGS[selectedAisle].color } : null,
+                  ]}
+                  onPress={() => setIsAislePickerVisible(true)}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons
+                    name={
+                      selectedAisle
+                        ? (AISLE_CONFIGS[selectedAisle].iconName as any)
+                        : 'funnel-outline'
+                    }
+                    size={12}
+                    color={selectedAisle ? AISLE_CONFIGS[selectedAisle].color : colors.textSecondary}
+                  />
+                  <Text
+                    style={[
+                      styles.aislePickerBtnText,
+                      selectedAisle ? { color: AISLE_CONFIGS[selectedAisle].color, fontWeight: '700' } : null,
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {selectedAisle || 'Rayon auto'}
+                  </Text>
+                  <Ionicons name="chevron-down" size={11} color={colors.textSecondary} />
+                </TouchableOpacity>
+
+                <View style={styles.unitPickerFlexContainer}>
+                  <UnitQuickPicker
+                    value={''}
+                    onChangeUnit={(unitId) => handleQuickUnitPress(unitId)}
+                    onOpenFullPicker={() => setIsUnitModalVisible(true)}
+                    compact
+                  />
+                </View>
               </View>
             </View>
-          </View>
+          )}
 
-          {/* Ajout rapide en 1 clic vérouillé sous le bloc d'ajout */}
-          {availableSuggestions.length > 0 && (
+          {/* Ajout rapide en 1 clic vérouillé sous le bloc d'ajout (masqué pendant la recherche) */}
+          {!isSearching && availableSuggestions.length > 0 && (
             <View style={styles.pinnedSuggestionsContainer}>
               <Text style={styles.suggestionsTitle}>Ajout rapide en 1 clic :</Text>
               <ScrollView
@@ -625,8 +721,8 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
             </View>
           )}
 
-          {/* Barre de partage rapide direct */}
-          {totalCount > 0 && (
+          {/* Barre de partage rapide direct (masquée pendant la recherche) */}
+          {!isSearching && totalCount > 0 && (
             <View style={styles.shareStrip}>
               <Text style={styles.shareStripLabel}>Partager :</Text>
               <TouchableOpacity
@@ -717,6 +813,53 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
               initialNumToRender={15}
               maxToRenderPerBatch={15}
               windowSize={5}
+              ListHeaderComponent={
+                isSearching && searchQuery?.trim() ? (
+                  <View style={styles.searchSummaryStrip}>
+                    <Text style={styles.searchSummaryText}>
+                      {totalFilteredCount} article{totalFilteredCount > 1 ? 's' : ''} trouvé{totalFilteredCount > 1 ? 's' : ''}
+                      {filteredCompletedItems.length > 0 ? ` (dont ${filteredCompletedItems.length} déjà coché${filteredCompletedItems.length > 1 ? 's' : ''})` : ''} pour « {searchQuery.trim()} »
+                    </Text>
+                  </View>
+                ) : undefined
+              }
+              ListEmptyComponent={
+                isSearching && searchQuery?.trim() && totalFilteredCount === 0 ? (
+                  <View style={styles.emptySearchContainer}>
+                    <View style={styles.emptyIconCircle}>
+                      <Ionicons name="search-outline" size={38} color={colors.primary} />
+                    </View>
+                    <Text style={styles.emptyTitle}>Article introuvable</Text>
+                    <Text style={styles.emptySubtitle}>
+                      « {searchQuery.trim()} » n'est pas dans votre liste de courses.
+                    </Text>
+
+                    <TouchableOpacity
+                      style={styles.searchAddBtn}
+                      onPress={() => handleAddDirectSearchItem(searchQuery.trim())}
+                      activeOpacity={0.85}
+                    >
+                      <Ionicons name="add-circle" size={18} color="#FFFFFF" />
+                      <Text style={styles.searchAddBtnText}>
+                        Ajouter « {searchQuery.trim()} » aux courses
+                      </Text>
+                    </TouchableOpacity>
+
+                    {fridgeCrossCount > 0 && (
+                      <TouchableOpacity
+                        style={styles.searchCrossBtn}
+                        onPress={() => setActiveTab('fridge')}
+                        activeOpacity={0.85}
+                      >
+                        <Ionicons name="layers-outline" size={17} color={colors.primary} />
+                        <Text style={styles.searchCrossBtnText}>
+                          Voir dans mes étagères ({fridgeCrossCount} aliment{fridgeCrossCount > 1 ? 's' : ''})
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                ) : undefined
+              }
               renderSectionHeader={({ section: { title, data } }) => {
                 const aisle = title as ShoppingAisle;
                 const cfg = AISLE_CONFIGS[aisle] || AISLE_CONFIGS['Autre'];
@@ -805,7 +948,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
                 );
               }}
               ListFooterComponent={
-                completedItems.length > 0 ? (
+                filteredCompletedItems.length > 0 ? (
                   <View style={styles.completedSection}>
                     <TouchableOpacity
                       style={styles.completedHeader}
@@ -815,24 +958,24 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
                       <View style={styles.completedHeaderLeft}>
                         <Ionicons name="checkmark-done" size={17} color={colors.secondary} />
                         <Text style={styles.completedHeaderText}>
-                          Articles déjà pris ({completedItems.length})
+                          Articles déjà pris ({filteredCompletedItems.length})
                         </Text>
                       </View>
                       <Ionicons
-                        name={showCompleted ? 'chevron-up' : 'chevron-down'}
+                        name={showCompleted || isSearching ? 'chevron-up' : 'chevron-down'}
                         size={17}
                         color={colors.textSecondary}
                       />
                     </TouchableOpacity>
 
-                    {showCompleted && (
+                    {(showCompleted || isSearching) && (
                       <View style={styles.itemsCard}>
-                        {completedItems.map((item, index) => (
+                        {filteredCompletedItems.map((item, index) => (
                           <View
                             key={item.id}
                             style={[
                               styles.itemRow,
-                              index < completedItems.length - 1 && styles.itemRowBorder,
+                              index < filteredCompletedItems.length - 1 && styles.itemRowBorder,
                             ]}
                           >
                             <TouchableOpacity
@@ -1110,6 +1253,10 @@ const styles = createDynamicStyles((colors, shadows) => ({
     borderWidth: 1,
     borderColor: colors.borderLight,
     ...shadows.small,
+  },
+  actionIconBtnActive: {
+    backgroundColor: colors.primaryLight,
+    borderColor: colors.primary,
   },
   progressContainer: {
     flexDirection: 'row',
@@ -1397,6 +1544,58 @@ const styles = createDynamicStyles((colors, shadows) => ({
     textAlign: 'center',
     lineHeight: 19,
     marginBottom: 22,
+  },
+  searchSummaryStrip: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    marginBottom: 8,
+    borderRadius: 8,
+    backgroundColor: colors.surfaceAlt,
+    alignSelf: 'flex-start',
+  },
+  searchSummaryText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.textSecondary,
+  },
+  emptySearchContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 36,
+    paddingHorizontal: 16,
+  },
+  searchAddBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: colors.primary,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 14,
+    marginTop: 12,
+    ...shadows.small,
+  },
+  searchAddBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  searchCrossBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: colors.primaryLight,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 14,
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: colors.primary + '33',
+  },
+  searchCrossBtnText: {
+    color: colors.primary,
+    fontSize: 13,
+    fontWeight: '700',
   },
   emptyButtonsRow: {
     flexDirection: 'row',
