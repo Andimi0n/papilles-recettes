@@ -7,6 +7,7 @@ interface SeedIngredientDef {
   aliases: string[];
   isPantryStaple?: boolean;
   allergen?: AllergenFamily;
+  density?: number; // Densité en g/ml (ex: 1.0 pour eau/lait, 0.57 pour farine, 0.85 pour sucre, 0.92 pour huile...)
 }
 
 const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
@@ -360,23 +361,27 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
     aisle: 'Produits Frais & Crèmerie',
     aliases: ['beurres', 'beurre doux', 'beurre demi sel', 'beurre fondu', 'beurre tendre', 'noix de beurre'],
     allergen: 'lait',
+    density: 0.95,
   },
   {
     name: 'Margarine',
     aisle: 'Produits Frais & Crèmerie',
     aliases: ['margarines', 'margarine vegetale', 'beurre vegetal'],
+    density: 0.95,
   },
   {
     name: 'Crème fraîche',
     aisle: 'Produits Frais & Crèmerie',
     aliases: ['creme fraiche', 'cremes fraiches', 'creme liquide', 'creme epaisse', 'creme fleurette', 'creme entiere', 'brique de creme'],
     allergen: 'lait',
+    density: 1.0,
   },
   {
     name: 'Lait',
     aisle: 'Produits Frais & Crèmerie',
     aliases: ['laits', 'lait demi ecreme', 'lait entier', 'lait ecreme', 'bouteille de lait'],
     allergen: 'lait',
+    density: 1.03,
   },
   {
     name: 'Fromage râpé',
@@ -449,6 +454,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
     aisle: 'Produits Frais & Crèmerie',
     aliases: ['yaourts', 'yogourt', 'yaourt nature', 'yaourt grec', 'pot de yaourt'],
     allergen: 'lait',
+    density: 1.05,
   },
   {
     name: 'Fromage frais',
@@ -708,56 +714,66 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
     aisle: 'Épicerie & Condiments',
     aliases: ['farines', 'farine de ble', 'farine t55', 'farine t45', 'farine fluide', 'farine tamisee'],
     allergen: 'gluten',
+    density: 0.57,
   },
   {
     name: 'Fécule de maïs',
     aisle: 'Épicerie & Condiments',
     aliases: ['fecule de mais', 'maizena', 'fecule'],
+    density: 0.55,
   },
   {
     name: 'Sucre',
     aisle: 'Épicerie & Condiments',
     aliases: ['sucres', 'sucre en poudre', 'sucre semoule', 'sucre blanc'],
+    density: 0.85,
   },
   {
     name: 'Sucre glace',
     aisle: 'Épicerie & Condiments',
     aliases: ['sucres glaces', 'sucre impalpable'],
+    density: 0.60,
   },
   {
     name: 'Sel',
     aisle: 'Épicerie & Condiments',
     aliases: ['sels', 'sel fin', 'gros sel', 'fleur de sel', 'pincee de sel'],
     isPantryStaple: true,
+    density: 1.20,
   },
   {
     name: 'Poivre',
     aisle: 'Épicerie & Condiments',
     aliases: ['poivres', 'poivre moulu', 'poivre du moulin', 'poivre noir', 'tours de moulin a poivre'],
     isPantryStaple: true,
+    density: 0.55,
   },
   {
     name: 'Huile d\'olive',
     aisle: 'Épicerie & Condiments',
     aliases: ['huile d olive', 'huile olive', 'huile d\'olive vierge', 'filet d huile d olive'],
     isPantryStaple: true,
+    density: 0.92,
   },
   {
     name: 'Huile de tournesol',
     aisle: 'Épicerie & Condiments',
     aliases: ['huile neutre', 'huile vegetale', 'huile de colza', 'huile de friture', 'huile de cuisson'],
     isPantryStaple: true,
+    density: 0.92,
   },
   {
     name: 'Pâtes',
     aisle: 'Épicerie & Condiments',
     aliases: ['pates', 'spaghetti', 'spaghettis', 'penne', 'pennes', 'coquillette', 'coquillettes', 'tagliatelle', 'tagliatelles', 'fusilli', 'fusillis', 'macaroni', 'macaronis', 'linguine', 'linguines', 'farfalle'],
     allergen: 'gluten',
+    density: 0.65,
   },
   {
     name: 'Riz',
     aisle: 'Épicerie & Condiments',
     aliases: ['riz basmati', 'riz thai', 'riz rond', 'riz arborio', 'riz long', 'riz blanc'],
+    density: 0.85,
   },
   {
     name: 'Muscade',
@@ -770,6 +786,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
     aisle: 'Épicerie & Condiments',
     aliases: ['moutarde de dijon', 'moutarde a l ancienne', 'cuillere de moutarde'],
     allergen: 'moutarde',
+    density: 1.15,
   },
   {
     name: 'Mayonnaise',
@@ -793,6 +810,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
     aisle: 'Épicerie & Condiments',
     aliases: ['vinaigre de vin', 'vinaigre rouge'],
     isPantryStaple: true,
+    density: 1.0,
   },
   {
     name: 'Vinaigre balsamique',
@@ -800,28 +818,33 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
     aliases: ['vinaigre balsamique de modene', 'creme de balsamique'],
     isPantryStaple: true,
     allergen: 'sulfites',
+    density: 1.05,
   },
   {
     name: 'Vinaigre de cidre',
     aisle: 'Épicerie & Condiments',
     aliases: ['vinaigre de pomme'],
     isPantryStaple: true,
+    density: 1.0,
   },
   {
     name: 'Vinaigre blanc',
     aisle: 'Épicerie & Condiments',
     aliases: ['vinaigre d alcool', 'vinaigre cristal'],
     isPantryStaple: true,
+    density: 1.0,
   },
   {
     name: 'Coulis de tomate',
     aisle: 'Épicerie & Condiments',
     aliases: ['sauce tomate', 'puree de tomate', 'pulpe de tomate', 'passata'],
+    density: 1.05,
   },
   {
     name: 'Concentré de tomate',
     aisle: 'Épicerie & Condiments',
     aliases: ['concentre de tomates', 'tube de concentre de tomate', 'petite boite de concentre'],
+    density: 1.15,
   },
   {
     name: 'Tomates pelées',
@@ -870,6 +893,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
     name: 'Miel',
     aisle: 'Épicerie & Condiments',
     aliases: ['pot de miel', 'miel de fleurs', 'miel d acacia'],
+    density: 1.42,
   },
   {
     name: 'Thym',
@@ -934,12 +958,14 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
     aisle: 'Épicerie & Condiments',
     aliases: ['sauce soja salee', 'tamari'],
     allergen: 'soja',
+    density: 1.15,
   },
   {
     name: 'Sauce soja sucrée',
     aisle: 'Épicerie & Condiments',
     aliases: ['sauce soja sucree', 'sauce teriyaki'],
     allergen: 'soja',
+    density: 1.20,
   },
   {
     name: 'Cacahuète',
@@ -959,6 +985,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
     aliases: ['huile d arachide', 'huile arachide'],
     allergen: 'arachides',
     isPantryStaple: true,
+    density: 0.92,
   },
   {
     name: 'Sésame',
@@ -978,6 +1005,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
     aliases: ['huile de sesame', 'huile sesame'],
     allergen: 'sesame',
     isPantryStaple: true,
+    density: 0.92,
   },
   {
     name: 'Noix',
@@ -1093,6 +1121,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
     aisle: 'Épicerie & Condiments',
     aliases: ['couscous', 'graine de couscous', 'semoule de ble', 'semoule moyenne', 'semoule fine'],
     allergen: 'gluten',
+    density: 0.80,
   },
   {
     name: 'Boulgour',
@@ -1105,6 +1134,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
     aisle: 'Épicerie & Condiments',
     aliases: ['flocons d avoine', 'avoine', 'porridge'],
     allergen: 'gluten',
+    density: 0.40,
   },
   {
     name: 'Chapelure',
@@ -1147,16 +1177,19 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
     name: 'Lait de coco',
     aisle: 'Épicerie & Condiments',
     aliases: ['creme de coco', 'brique de lait de coco', 'boite de lait de coco'],
+    density: 0.97,
   },
   {
     name: 'Cacao en poudre',
     aisle: 'Épicerie & Condiments',
     aliases: ['cacao', 'cacao non sucre', 'cacao amer', 'poudre de cacao'],
+    density: 0.50,
   },
   {
     name: 'Cassonade',
     aisle: 'Épicerie & Condiments',
     aliases: ['sucre roux', 'vergeoise', 'sucre de canne'],
+    density: 0.85,
   },
   {
     name: 'Sucre vanillé',
@@ -1167,6 +1200,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
     name: 'Sirop d\'érable',
     aisle: 'Épicerie & Condiments',
     aliases: ['sirop d erable', 'sirop erable'],
+    density: 1.33,
   },
   {
     name: 'Confiture',
@@ -1245,12 +1279,14 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
     aisle: 'Boulangerie & Pâtisserie',
     aliases: ['poudre d amande', 'amandes en poudre', 'amande en poudre', 'farine d amande'],
     allergen: 'fruits_a_coque',
+    density: 0.50,
   },
   {
     name: 'Poudre de noisette',
     aisle: 'Boulangerie & Pâtisserie',
     aliases: ['poudre de noisettes', 'noisettes en poudre', 'noisette en poudre'],
     allergen: 'fruits_a_coque',
+    density: 0.50,
   },
   {
     name: 'Tortilla',
@@ -1279,12 +1315,14 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
     aisle: 'Boissons',
     aliases: ['vin blanc sec', 'verre de vin blanc', 'bouteille de vin blanc'],
     allergen: 'sulfites',
+    density: 1.0,
   },
   {
     name: 'Vin rouge',
     aisle: 'Boissons',
     aliases: ['vin rouge sec', 'verre de vin rouge'],
     allergen: 'sulfites',
+    density: 1.0,
   },
   {
     name: 'Bière',
@@ -1309,6 +1347,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
     aisle: 'Boissons',
     aliases: ['eau tiede', 'eau chaude', 'eau froide', 'eau gazeuse', 'verre d eau'],
     isPantryStaple: true,
+    density: 1.0,
   },
   {
     name: 'Café',
@@ -1492,6 +1531,7 @@ export function getInitialCanonicalVocabulary(): CanonicalIngredient[] {
       isCustom: false,
       isPantryStaple: Boolean(item.isPantryStaple),
       allergen: item.allergen,
+      density: item.density,
       usageCount: 0,
       createdAt: now,
       updatedAt: now,

@@ -95,6 +95,12 @@ export const VocabularyService = {
               canonicalMap.set(item.normalizedName, item.id);
             });
 
+            // Map de la graine initiale pour enrichir rétroactivement les densités par défaut
+            const initialSeedMap = new Map<string, CanonicalIngredient>();
+            getInitialCanonicalVocabulary().forEach((s) => {
+              initialSeedMap.set(s.normalizedName, s);
+            });
+
             const sanitized = parsed.map((item) => {
               let itemUpdated = false;
               let isPantryStaple = item.isPantryStaple;
@@ -109,6 +115,15 @@ export const VocabularyService = {
                 const defaultAllergen = getDefaultAllergen(item.canonicalName) || getDefaultAllergen(item.normalizedName);
                 if (defaultAllergen) {
                   allergen = defaultAllergen;
+                  itemUpdated = true;
+                }
+              }
+
+              let density = item.density;
+              if (density === undefined && !item.isCustom) {
+                const seed = initialSeedMap.get(item.normalizedName);
+                if (seed?.density !== undefined) {
+                  density = seed.density;
                   itemUpdated = true;
                 }
               }
@@ -176,6 +191,7 @@ export const VocabularyService = {
                   id,
                   isPantryStaple,
                   allergen,
+                  density,
                   aliases: cleanedAliases,
                   updatedAt: new Date().toISOString(),
                 };
@@ -383,6 +399,7 @@ export const VocabularyService = {
     isCustom?: boolean;
     isPantryStaple?: boolean;
     allergen?: AllergenFamily;
+    density?: number;
   }): Promise<CanonicalIngredient> {
     const list = await this.getAll();
     const cleanName = item.canonicalName.trim();
@@ -460,6 +477,7 @@ export const VocabularyService = {
       isCustom: item.isCustom ?? true,
       isPantryStaple,
       allergen: item.allergen,
+      density: typeof item.density === 'number' && item.density > 0 ? item.density : undefined,
       usageCount: 1,
       createdAt: now,
       updatedAt: now,
@@ -880,5 +898,23 @@ export const VocabularyService = {
 
     matches.sort((a, b) => b.score - a.score);
     return matches.slice(0, limit).map((m) => m.item);
+  },
+
+  /**
+   * Retourne la densité (en g/ml) d'un ingrédient par son identifiant ou son nom (lookup synchrone O(1))
+   */
+  getDensity(nameOrId?: string): number | undefined {
+    if (!nameOrId || !nameOrId.trim()) return undefined;
+    const clean = nameOrId.trim();
+    const byId = this.getSyncMapById().get(clean);
+    if (byId?.density && byId.density > 0) return byId.density;
+    const norm = normalizeString(clean);
+    const byNorm = this.getSyncMapByNormName().get(norm);
+    if (byNorm?.density && byNorm.density > 0) return byNorm.density;
+    if (memoryMapByAlias) {
+      const byAlias = memoryMapByAlias.get(norm);
+      if (byAlias?.density && byAlias.density > 0) return byAlias.density;
+    }
+    return undefined;
   },
 };
