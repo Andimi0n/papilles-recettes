@@ -525,19 +525,7 @@ export const StorageService = {
     });
   },
 
-  subscribeFridge(listener: StorageListener<FridgeItem[]>): () => void {
-    fridgeListeners.push(listener);
-    return () => {
-      fridgeListeners = fridgeListeners.filter((l) => l !== listener);
-    };
-  },
 
-  subscribeShopping(listener: StorageListener<ShoppingItem[]>): () => void {
-    shoppingListeners.push(listener);
-    return () => {
-      shoppingListeners = shoppingListeners.filter((l) => l !== listener);
-    };
-  },
 
   async handleVocabularyCascade(event: VocabularyCascadeEvent): Promise<{
     recipesUpdated: number;
