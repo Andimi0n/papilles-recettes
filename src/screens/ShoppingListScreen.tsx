@@ -1147,12 +1147,14 @@ const styles = createDynamicStyles((colors, shadows) => ({
     zIndex: 1000,
     ...shadows.small,
     elevation: 10,
+    overflow: 'visible',
   },
   quickAddMainRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
     zIndex: 1001,
+    overflow: 'visible',
   },
   nameInput: {
     height: 48,

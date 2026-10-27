@@ -83,6 +83,7 @@ export const UnifiedIngredientInput: React.FC<UnifiedIngredientInputProps> = ({
   const inputRef = useRef<React.ElementRef<typeof TextInput>>(null);
   const blurTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isSelectingRef = useRef(false);
+  const isInteractingRef = useRef(false);
 
   // Nettoyage de sécurité au démontage pour éviter les fuites mémoire
   useEffect(() => {
@@ -115,7 +116,7 @@ export const UnifiedIngredientInput: React.FC<UnifiedIngredientInputProps> = ({
 
     const trimmed = value.trim();
     const cleanSearch = extractedDetails?.cleanName || trimmed;
-    const matches = UnifiedIngredientService.getQualitativeDropdownSuggestions(cleanSearch, 6);
+    const matches = UnifiedIngredientService.getQualitativeDropdownSuggestions(cleanSearch, 25);
     setSuggestions(matches);
   }, [value, isFocused, extractedDetails]);
 
@@ -221,7 +222,8 @@ export const UnifiedIngredientInput: React.FC<UnifiedIngredientInputProps> = ({
       clearTimeout(blurTimeoutRef.current);
     }
     blurTimeoutRef.current = setTimeout(() => {
-      if (isSelectingRef.current) {
+      // Si l'utilisateur est en train de scroller ou de sélectionner une suggestion, ne pas fermer
+      if (isSelectingRef.current || isInteractingRef.current) {
         return;
       }
       setIsFocused(false);
@@ -235,7 +237,7 @@ export const UnifiedIngredientInput: React.FC<UnifiedIngredientInputProps> = ({
           unit: extractedDetails.unit,
         });
       }
-    }, 200);
+    }, 400);
   };
 
   return (
@@ -272,7 +274,18 @@ export const UnifiedIngredientInput: React.FC<UnifiedIngredientInputProps> = ({
 
       {/* Menu déroulant de suggestions qualitatives */}
       {isFocused && (suggestions.length > 0 || value.trim().length >= 2) && (
-        <View style={[styles.dropdownContainer, { width: dropdownWidth }, dropdownStyle]}>
+        <View
+          style={[styles.dropdownContainer, { width: dropdownWidth }, dropdownStyle]}
+          onStartShouldSetResponder={() => true}
+          onTouchStart={() => {
+            isInteractingRef.current = true;
+          }}
+          onTouchEnd={() => {
+            setTimeout(() => {
+              isInteractingRef.current = false;
+            }, 500);
+          }}
+        >
           <View style={styles.dropdownHeader}>
             <Ionicons name="sparkles-outline" size={12} color={colors.primary} />
             <Text style={styles.dropdownHeaderText}>Suggestions du lexique</Text>
@@ -287,9 +300,28 @@ export const UnifiedIngredientInput: React.FC<UnifiedIngredientInputProps> = ({
 
           <ScrollView
             style={styles.dropdownScroll}
-            keyboardShouldPersistTaps="handled"
-            nestedScrollEnabled
+            contentContainerStyle={styles.dropdownScrollContent}
+            keyboardShouldPersistTaps="always"
+            nestedScrollEnabled={true}
             showsVerticalScrollIndicator={true}
+            bounces={true}
+            overScrollMode="always"
+            onScrollBeginDrag={() => {
+              isInteractingRef.current = true;
+            }}
+            onScrollEndDrag={() => {
+              setTimeout(() => {
+                isInteractingRef.current = false;
+              }, 500);
+            }}
+            onMomentumScrollBegin={() => {
+              isInteractingRef.current = true;
+            }}
+            onMomentumScrollEnd={() => {
+              setTimeout(() => {
+                isInteractingRef.current = false;
+              }, 500);
+            }}
           >
             {/* 1. Correspondances directes et qualitatives (phonétiques / orthographe) */}
             {suggestions.map(({ item, isFuzzySuggestion, suggestionLabel }) => {
@@ -361,10 +393,10 @@ export const UnifiedIngredientInput: React.FC<UnifiedIngredientInputProps> = ({
                   </View>
                   <View style={styles.textColumn}>
                     <Text style={styles.qualifyActionName} numberOfLines={1}>
-                      « {value.trim()} » n'est pas dans la liste ?
+                      « {value.trim()} » n&apos;est pas dans la liste ?
                     </Text>
                     <Text style={styles.qualifyActionSubtitle} numberOfLines={1}>
-                      L'ajouter ou l'associer au lexique officiel...
+                      L&apos;ajouter ou l&apos;associer au lexique officiel...
                     </Text>
                   </View>
                   <Ionicons name="chevron-forward" size={15} color={colors.primary} />
@@ -405,12 +437,14 @@ const styles = createDynamicStyles((colors) => ({
     position: 'relative',
     zIndex: 10,
     width: '100%',
+    overflow: 'visible',
   },
   inputWrapper: {
     position: 'relative',
     justifyContent: 'center',
     width: '100%',
     minHeight: 46,
+    overflow: 'visible',
   },
   input: {
     height: 46,
@@ -441,6 +475,7 @@ const styles = createDynamicStyles((colors) => ({
     top: '100%',
     left: 0,
     minWidth: '100%',
+    maxHeight: 290,
     marginTop: 4,
     backgroundColor: colors.cardBackground,
     borderRadius: 14,
@@ -453,9 +488,15 @@ const styles = createDynamicStyles((colors) => ({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.18,
     shadowRadius: 10,
+    overflow: 'hidden',
   },
   dropdownScroll: {
     maxHeight: 250,
+    flexGrow: 0,
+  },
+  dropdownScrollContent: {
+    flexGrow: 1,
+    paddingBottom: 4,
   },
   dropdownHeader: {
     flexDirection: 'row',

@@ -315,7 +315,7 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
       <View style={styles.quickAddCard}>
         <View style={styles.quickAddMainRow}>
           <UnifiedIngredientInput
-            containerStyle={{ flex: 1, zIndex: 99 }}
+            containerStyle={{ flex: 1, zIndex: 1002, overflow: 'visible' }}
             style={styles.nameInput}
             placeholder="Ajouter un aliment (placards, frigo, épices...)"
             placeholderTextColor={colors.textMuted}
@@ -373,7 +373,7 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
       </View>
 
       {/* Ajout rapide (suggestions d'indispensables) vérouillé sous le bloc d'ajout */}
-      {availableSuggestions.length > 0 && (
+      {availableSuggestions.length > 0 && newItemName.trim().length === 0 && (
         <View style={styles.pinnedSuggestionsContainer}>
           <Text style={styles.suggestionsTitle}>Ajout rapide en 1 clic :</Text>
           <ScrollView
@@ -715,12 +715,14 @@ const styles = createDynamicStyles((colors, shadows) => ({
     zIndex: 1000,
     ...shadows.small,
     elevation: 10,
+    overflow: 'visible',
   },
   quickAddMainRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
     zIndex: 1001,
+    overflow: 'visible',
   },
   nameInput: {
     height: 48,
