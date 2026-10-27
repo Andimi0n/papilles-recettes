@@ -51,13 +51,13 @@ export const RecipeQrModal: React.FC<RecipeQrModalProps> = ({
           {/* En-tête */}
           <View style={styles.header}>
             <View style={styles.headerIcon}>
-              <Ionicons name="qr-code" size={24} color={colors.primary} />
+              <Ionicons name="share-social" size={22} color={colors.primary} />
             </View>
             <View style={styles.headerTextContainer}>
               <Text style={styles.title} numberOfLines={1}>
                 {recipe.title}
               </Text>
-              <Text style={styles.subtitle}>{"Partage d'écran à écran"}</Text>
+              <Text style={styles.subtitle}>{"Partager la recette (QR Code & Lien)"}</Text>
             </View>
             <TouchableOpacity
               onPress={onClose}

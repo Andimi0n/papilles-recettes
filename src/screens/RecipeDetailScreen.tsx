@@ -25,6 +25,7 @@ import { useTheme } from '../theme/ThemeContext';
 import { StarRating } from '../components/StarRating';
 import { CookingModeModal } from '../components/CookingModeModal';
 import { RecipeQrModal } from '../components/RecipeQrModal';
+import { RecipePrintModal } from '../components/RecipePrintModal';
 import { RecipeShareService } from '../services/recipeShareService';
 import {
   formatDuration,
@@ -159,6 +160,7 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
   const [isTagModalVisible, setIsTagModalVisible] = useState(false);
   const [modalDraftTags, setModalDraftTags] = useState<string[]>(recipe.tags || []);
   const [isQrModalVisible, setIsQrModalVisible] = useState(false);
+  const [isPrintModalVisible, setIsPrintModalVisible] = useState(false);
   const [detailTagInput, setDetailTagInput] = useState('');
 
   // Synchronisation des tags brouillons dès que la recette change
@@ -444,14 +446,6 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
     setCheckedSteps((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const handleShare = async () => {
-    try {
-      await RecipeShareService.shareRecipeViaSystem(recipe, currentServings);
-    } catch (error) {
-      console.error('Erreur partage:', error);
-    }
-  };
-
   const handleDeleteConfirm = () => {
     Alert.alert(
       'Supprimer la recette',
@@ -546,48 +540,6 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
     }
   };
 
-  const handleMarkAsEatenToday = () => {
-    Alert.alert(
-      '🍽️ Noter dans mon suivi',
-      `À quel moment avez-vous mangé « ${recipe.title} » aujourd'hui ?`,
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: '☀️ Ce midi',
-          onPress: async () => {
-            try {
-              const todayStr = getLocalDateString();
-              await StorageService.setMealLog(todayStr, 'lunch', {
-                title: recipe.title,
-                recipeId: recipe.id,
-                recipeImageUrl: recipe.imageUrl,
-              });
-              Alert.alert('✅ Enregistré', `Ce plat a été noté pour votre déjeuner de ce midi !`);
-            } catch (e) {
-              Alert.alert('Erreur', "Impossible d'enregistrer le repas.");
-            }
-          },
-        },
-        {
-          text: '🌙 Ce soir',
-          onPress: async () => {
-            try {
-              const todayStr = getLocalDateString();
-              await StorageService.setMealLog(todayStr, 'dinner', {
-                title: recipe.title,
-                recipeId: recipe.id,
-                recipeImageUrl: recipe.imageUrl,
-              });
-              Alert.alert('✅ Enregistré', `Ce plat a été noté pour votre dîner de ce soir !`);
-            } catch (e) {
-              Alert.alert('Erreur', "Impossible d'enregistrer le repas.");
-            }
-          },
-        },
-      ]
-    );
-  };
-
   const totalTime = recipe.prepTimeMinutes + recipe.cookTimeMinutes;
 
   return (
@@ -609,34 +561,45 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
           </TouchableOpacity>
           <View style={styles.navRight}>
             <TouchableOpacity
-              onPress={handleMarkAsEatenToday}
-              style={styles.navBtn}
-              accessibilityLabel="Marquer comme mangé aujourd'hui"
-            >
-              <Ionicons name="restaurant-outline" size={20} color={colors.primary} />
-            </TouchableOpacity>
-            <TouchableOpacity
               onPress={handleOpenShoppingModal}
-              style={styles.navBtn}
+              style={[styles.navBtn, styles.navBtnPrimary]}
               accessibilityLabel="Ajouter à ma liste de courses"
             >
-              <Ionicons name="cart-outline" size={22} color={Colors.primary} />
+              <Ionicons name="cart-outline" size={19} color={colors.primary} />
             </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => setIsPrintModalVisible(true)}
+              style={styles.navBtn}
+              accessibilityLabel="Imprimer la fiche recette"
+            >
+              <Ionicons name="print-outline" size={19} color={colors.textPrimary} />
+            </TouchableOpacity>
+
             <TouchableOpacity
               onPress={() => setIsQrModalVisible(true)}
               style={styles.navBtn}
-              accessibilityLabel="Afficher le QR code de la recette"
+              accessibilityLabel="Partager la recette"
             >
-              <Ionicons name="qr-code-outline" size={21} color={Colors.textPrimary} />
+              <Ionicons name="share-social-outline" size={19} color={colors.textPrimary} />
             </TouchableOpacity>
-            <TouchableOpacity onPress={handleShare} style={styles.navBtn} accessibilityLabel="Partager la recette">
-              <Ionicons name="share-social-outline" size={22} color={Colors.textPrimary} />
+
+            <View style={styles.navDivider} />
+
+            <TouchableOpacity
+              onPress={() => onEdit(recipe)}
+              style={styles.navBtn}
+              accessibilityLabel="Modifier la recette"
+            >
+              <Ionicons name="create-outline" size={19} color={colors.textPrimary} />
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => onEdit(recipe)} style={styles.navBtn}>
-              <Ionicons name="create-outline" size={22} color={Colors.textPrimary} />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={handleDeleteConfirm} style={styles.navBtn}>
-              <Ionicons name="trash-outline" size={22} color={Colors.danger} />
+
+            <TouchableOpacity
+              onPress={handleDeleteConfirm}
+              style={[styles.navBtn, styles.navBtnDanger]}
+              accessibilityLabel="Supprimer la recette"
+            >
+              <Ionicons name="trash-outline" size={19} color={colors.danger} />
             </TouchableOpacity>
           </View>
         </View>
@@ -1342,6 +1305,33 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
               );
             })}
           </View>
+
+          {/* Bannière Fiche Recette Imprimable (A4) */}
+          <View style={styles.printSectionCard}>
+            <View style={styles.printSectionHeaderRow}>
+              <View style={styles.printSectionIconWrap}>
+                <Ionicons name="print-outline" size={22} color={colors.primary} />
+              </View>
+              <View style={styles.printSectionTextCol}>
+                <Text style={styles.printSectionTitle}>Fiche recette imprimable (A4)</Text>
+                <Text style={styles.printSectionSubtitle}>
+                  Photo, ingrédients sur 2 colonnes & notes familiales
+                </Text>
+              </View>
+            </View>
+            <Text style={styles.printSectionDesc}>
+              Générez une fiche propre à glisser dans votre classeur familial ou à aimanter sur le réfrigérateur.
+            </Text>
+            <TouchableOpacity
+              style={styles.printSectionBtn}
+              onPress={() => setIsPrintModalVisible(true)}
+              activeOpacity={0.88}
+              accessibilityLabel="Imprimer ou exporter la fiche recette en PDF"
+            >
+              <Ionicons name="print" size={17} color="#FFFFFF" style={{ marginRight: 6 }} />
+              <Text style={styles.printSectionBtnText}>Imprimer / Exporter le PDF</Text>
+            </TouchableOpacity>
+          </View>
         </ScrollView>
 
         {/* Modal Modification Astuce */}
@@ -1682,6 +1672,14 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
           onClose={() => setIsQrModalVisible(false)}
         />
 
+        {/* Modal d'impression et export PDF A4 */}
+        <RecipePrintModal
+          visible={isPrintModalVisible}
+          recipe={recipe}
+          initialServings={currentServings}
+          onClose={() => setIsPrintModalVisible(false)}
+        />
+
         {/* Bandeau flottant des minuteurs en cours si au moins un minuteur est actif */}
         {Object.values(inlineTimers).length > 0 && (
           <View style={styles.floatingTimersSummaryBar}>
@@ -1718,39 +1716,52 @@ const styles = createDynamicStyles((colors, shadows) => ({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 10,
-    backgroundColor: Colors.cardBackground,
+    backgroundColor: colors.cardBackground,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderBottomColor: colors.borderLight,
   },
   navBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: Colors.surfaceAlt,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.surfaceAlt,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  navBtnPrimary: {
+    backgroundColor: colors.primaryLight,
+  },
+  navBtnDanger: {
+    backgroundColor: colors.surfaceAlt,
+  },
+  navDivider: {
+    width: 1,
+    height: 18,
+    backgroundColor: colors.border,
+    marginHorizontal: 2,
   },
   navBtnWithLabel: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 18,
     backgroundColor: colors.cardBackground,
     borderWidth: 1,
     borderColor: colors.borderLight,
     ...shadows.card,
-    maxWidth: '65%',
+    maxWidth: '42%',
   },
   navBackLabel: {
-    fontSize: 13,
+    fontSize: 12.5,
     fontWeight: '600',
     color: colors.textPrimary,
-    marginLeft: 6,
+    marginLeft: 5,
   },
   navRight: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 6,
+    alignItems: 'center',
   },
   scrollContent: {
     paddingBottom: 40,
@@ -2970,6 +2981,66 @@ const styles = createDynamicStyles((colors, shadows) => ({
   },
   shoppingConfirmBtnText: {
     fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  // Bannière Fiche Recette Imprimable (A4)
+  printSectionCard: {
+    marginHorizontal: 16,
+    marginTop: 18,
+    marginBottom: 10,
+    backgroundColor: colors.cardBackground,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    ...shadows.card,
+  },
+  printSectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  printSectionIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: colors.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  printSectionTextCol: {
+    flex: 1,
+  },
+  printSectionTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  printSectionSubtitle: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 1,
+  },
+  printSectionDesc: {
+    fontSize: 12.5,
+    color: colors.textSecondary,
+    lineHeight: 18,
+    marginBottom: 14,
+  },
+  printSectionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary,
+    paddingVertical: 11,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    ...shadows.small,
+  },
+  printSectionBtnText: {
+    fontSize: 14,
     fontWeight: '700',
     color: '#FFFFFF',
   },
