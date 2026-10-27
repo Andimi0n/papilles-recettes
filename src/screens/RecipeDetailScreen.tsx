@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useKeepAwake } from 'expo-keep-awake';
 import { Recipe } from '../types/recipe';
 import { UserAllergenItem } from '../types/vocabulary';
 import { StorageService } from '../services/storageService';
@@ -75,6 +76,9 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
   onUpdateRating,
   onNavigateToShoppingList,
 }) => {
+  // Maintient l'écran du smartphone allumé pendant la lecture de la fiche recette
+  useKeepAwake();
+
   const { isDark, colors } = useTheme();
   // Nombre de portions ajustables dynamiquement
   const [currentServings, setCurrentServings] = useState<number>(recipe.servings || 4);
