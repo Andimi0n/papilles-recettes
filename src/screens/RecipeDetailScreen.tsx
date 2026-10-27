@@ -14,7 +14,7 @@ import {
   Vibration,
   KeyboardAvoidingView,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useKeepAwake } from 'expo-keep-awake';
 import { Recipe } from '../types/recipe';
@@ -88,6 +88,7 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
   useKeepAwake();
 
   const { isDark, colors } = useTheme();
+  const insets = useSafeAreaInsets();
   // Nombre de portions ajustables dynamiquement
   const [currentServings, setCurrentServings] = useState<number>(recipe.servings || 4);
   const [isAddingToShoppingList, setIsAddingToShoppingList] = useState(false);
@@ -111,6 +112,15 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
   // Modes de conversion d'unités (global et overrides par ingrédient)
   const [globalConversionMode, setGlobalConversionMode] = useState<ConversionMode>('original');
   const [ingredientModes, setIngredientModes] = useState<Record<string, ConversionMode>>({});
+
+  const handleCycleGlobalConversion = () => {
+    setGlobalConversionMode((prev) => {
+      if (prev === 'original') return 'mass';
+      if (prev === 'mass') return 'volume';
+      return 'original';
+    });
+    setIngredientModes({});
+  };
 
   const handleCycleIngredientUnit = (ing: Recipe['ingredients'][number]) => {
     const currentMode = ingredientModes[ing.id] ?? globalConversionMode;
@@ -569,14 +579,6 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
           </TouchableOpacity>
           <View style={styles.navRight}>
             <TouchableOpacity
-              onPress={() => setIsCookingModeVisible(true)}
-              style={[styles.navBtn, styles.navBtnPrimary]}
-              accessibilityLabel="Lancer le mode cuisine"
-            >
-              <Ionicons name="restaurant" size={18} color={colors.primary} />
-            </TouchableOpacity>
-
-            <TouchableOpacity
               onPress={() => setIsContextMenuVisible(true)}
               style={styles.navBtn}
               accessibilityLabel="Options de la recette"
@@ -586,7 +588,11 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
           </View>
         </View>
 
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        <ScrollView
+          style={styles.scrollArea}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+        >
           {/* Hero Image (compacte si présente, masquée si absente pour rapprocher les ingrédients) */}
           {recipe.imageUrl && recipe.imageUrl.trim().length > 0 ? (
             <View style={styles.imageWrapper}>
@@ -830,97 +836,49 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
                   )}
                 </View>
 
-                <View style={styles.conversionPillsRow}>
-                  <TouchableOpacity
+                {/* Bouton cyclique de conversion d'unités (Base -> En g -> En vol.) */}
+                <TouchableOpacity
+                  style={[
+                    styles.conversionCycleBtn,
+                    globalConversionMode !== 'original' && styles.conversionCycleBtnActive,
+                  ]}
+                  onPress={handleCycleGlobalConversion}
+                  activeOpacity={0.7}
+                  accessibilityLabel="Changer les unités d’ingrédients"
+                >
+                  <Ionicons
+                    name={
+                      globalConversionMode === 'mass'
+                        ? 'scale-outline'
+                        : globalConversionMode === 'volume'
+                        ? 'water-outline'
+                        : 'swap-horizontal'
+                    }
+                    size={12}
+                    color={globalConversionMode !== 'original' ? '#FFFFFF' : colors.primary}
+                    style={{ marginRight: 4 }}
+                  />
+                  <Text
                     style={[
-                      styles.conversionPill,
-                      globalConversionMode === 'original' && styles.conversionPillActive,
+                      styles.conversionCycleBtnText,
+                      globalConversionMode !== 'original' && styles.conversionCycleBtnTextActive,
                     ]}
-                    onPress={() => {
-                      setGlobalConversionMode('original');
-                      setIngredientModes({});
-                    }}
-                    activeOpacity={0.7}
                   >
-                    <Text
-                      style={[
-                        styles.conversionPillText,
-                        globalConversionMode === 'original' && styles.conversionPillTextActive,
-                      ]}
-                    >
-                      Base
-                    </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.conversionPill,
-                      globalConversionMode === 'mass' && styles.conversionPillActive,
-                    ]}
-                    onPress={() => {
-                      setGlobalConversionMode('mass');
-                      setIngredientModes({});
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons
-                      name="scale-outline"
-                      size={11}
-                      color={globalConversionMode === 'mass' ? '#FFFFFF' : colors.textSecondary}
-                      style={{ marginRight: 2 }}
-                    />
-                    <Text
-                      style={[
-                        styles.conversionPillText,
-                        globalConversionMode === 'mass' && styles.conversionPillTextActive,
-                      ]}
-                    >
-                      En g
-                    </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.conversionPill,
-                      globalConversionMode === 'volume' && styles.conversionPillActive,
-                    ]}
-                    onPress={() => {
-                      setGlobalConversionMode('volume');
-                      setIngredientModes({});
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons
-                      name="water-outline"
-                      size={11}
-                      color={globalConversionMode === 'volume' ? '#FFFFFF' : colors.textSecondary}
-                      style={{ marginRight: 2 }}
-                    />
-                    <Text
-                      style={[
-                        styles.conversionPillText,
-                        globalConversionMode === 'volume' && styles.conversionPillTextActive,
-                      ]}
-                    >
-                      En vol.
-                    </Text>
-                  </TouchableOpacity>
-                </View>
+                    {globalConversionMode === 'mass'
+                      ? 'En g'
+                      : globalConversionMode === 'volume'
+                      ? 'En vol.'
+                      : 'Base'}
+                  </Text>
+                  <Ionicons
+                    name="chevron-forward"
+                    size={10}
+                    color={globalConversionMode !== 'original' ? '#FFFFFF' : colors.textMuted}
+                    style={{ marginLeft: 3 }}
+                  />
+                </TouchableOpacity>
               </View>
             </View>
-
-            {/* Bouton 1 clic : Ajouter à ma liste de courses */}
-            <TouchableOpacity
-              style={styles.addToShoppingBtn}
-              onPress={handleOpenShoppingModal}
-              activeOpacity={0.85}
-              disabled={isAddingToShoppingList}
-            >
-              <Ionicons name="cart" size={17} color="#FFFFFF" />
-              <Text style={styles.addToShoppingBtnText}>
-                Ajouter à ma liste de courses ({currentServings} pers.)
-              </Text>
-            </TouchableOpacity>
 
             {/* Préparations maison associées (ex: pâte brisée maison pour une quiche) */}
             {linkedPreparations.length > 0 && (
@@ -1096,14 +1054,6 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
                 <Text style={styles.sectionTitle}>
                   Préparation ({recipe.steps.length} étapes)
                 </Text>
-                <TouchableOpacity
-                  style={styles.headerCookBtn}
-                  onPress={() => setIsCookingModeVisible(true)}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="play" size={13} color="#FFFFFF" />
-                  <Text style={styles.headerCookBtnText}>Cuisiner</Text>
-                </TouchableOpacity>
               </View>
             </View>
 
@@ -1304,6 +1254,33 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
             </TouchableOpacity>
           </View>
         </ScrollView>
+
+        {/* Bandeau d’actions flottant en bas : Courses & Cuisiner */}
+        <View
+          style={[
+            styles.floatingBottomBar,
+            { paddingBottom: Math.max(insets.bottom, 12) },
+          ]}
+        >
+          <TouchableOpacity
+            style={styles.floatingCartBtn}
+            onPress={handleOpenShoppingModal}
+            activeOpacity={0.85}
+            disabled={isAddingToShoppingList}
+          >
+            <Ionicons name="cart" size={18} color={colors.primary} />
+            <Text style={styles.floatingCartBtnText}>Ajouter aux courses</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.floatingCookBtn}
+            onPress={() => setIsCookingModeVisible(true)}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="play" size={16} color="#FFFFFF" />
+            <Text style={styles.floatingCookBtnText}>Cuisiner</Text>
+          </TouchableOpacity>
+        </View>
 
         {/* Modal Modification Astuce */}
         <Modal
@@ -1802,8 +1779,11 @@ const styles = createDynamicStyles((colors, shadows) => ({
     gap: 6,
     alignItems: 'center',
   },
+  scrollArea: {
+    flex: 1,
+  },
   scrollContent: {
-    paddingBottom: 40,
+    paddingBottom: 24,
   },
   imageWrapper: {
     height: 190,
@@ -2500,20 +2480,6 @@ const styles = createDynamicStyles((colors, shadows) => ({
     justifyContent: 'space-between',
     width: '100%',
   },
-  headerCookBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.primary,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 14,
-    gap: 5,
-  },
-  headerCookBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
   stepItemContainer: {
     paddingVertical: 12,
     borderBottomWidth: 1,
@@ -2656,51 +2622,72 @@ const styles = createDynamicStyles((colors, shadows) => ({
     fontSize: 12,
     fontWeight: '600',
   },
-  addToShoppingBtn: {
+  conversionCycleBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: colors.secondary,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 10,
-    marginTop: 6,
-    marginBottom: 8,
-    ...shadows.small,
-  },
-  addToShoppingBtnText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  conversionPillsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  conversionPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 8,
     backgroundColor: colors.cardBackground,
     borderWidth: 1,
     borderColor: colors.borderLight,
   },
-  conversionPillActive: {
+  conversionCycleBtnActive: {
     backgroundColor: colors.primary,
     borderColor: colors.primary,
   },
-  conversionPillText: {
-    fontSize: 11,
+  conversionCycleBtnText: {
+    fontSize: 11.5,
     fontWeight: '600',
     color: colors.textSecondary,
   },
-  conversionPillTextActive: {
+  conversionCycleBtnTextActive: {
     color: '#FFFFFF',
     fontWeight: '700',
+  },
+  floatingBottomBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    backgroundColor: colors.cardBackground,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderLight,
+    ...shadows.card,
+  },
+  floatingCartBtn: {
+    flex: 1.25,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    height: 46,
+    borderRadius: 14,
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1.5,
+    borderColor: colors.primaryLight,
+  },
+  floatingCartBtnText: {
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  floatingCookBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    height: 46,
+    borderRadius: 14,
+    backgroundColor: colors.primary,
+    ...shadows.small,
+  },
+  floatingCookBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   tagDialogCard: {
     width: '92%',

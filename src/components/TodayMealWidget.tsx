@@ -27,7 +27,7 @@ export const TodayMealWidget: React.FC<TodayMealWidgetProps> = ({
       <View style={styles.headerRow}>
         <View style={styles.titleRow}>
           <Text style={styles.headerEmoji}>🍽️</Text>
-          <Text style={styles.headerTitle}>Ce que j'ai mangé aujourd'hui</Text>
+          <Text style={styles.headerTitle}>Ce que j’ai mangé aujourd’hui</Text>
         </View>
 
         {onNavigateToJournal && (
@@ -37,7 +37,7 @@ export const TodayMealWidget: React.FC<TodayMealWidgetProps> = ({
             activeOpacity={0.7}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <Text style={styles.journalLinkText}>Journal</Text>
+            <Text style={styles.journalLinkText}>Aujourd’hui</Text>
             <Ionicons name="chevron-forward" size={13} color={colors.primary} />
           </TouchableOpacity>
         )}

@@ -383,11 +383,11 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      {/* En-tête principal avec Switcher d'onglets (Suivi vs Menu) */}
+      {/* En-tête principal avec Switcher d'onglets (Aujourd’hui vs Semaine) */}
       <View style={styles.header}>
         <View style={styles.headerTitleCol}>
           <Text style={styles.headerTitle}>
-            {activeMainTab === 'journal' ? 'Suivi des Repas' : 'Menu de la Semaine'}
+            {activeMainTab === 'journal' ? 'Aujourd’hui' : 'Semaine'}
           </Text>
           <Text style={styles.headerSubtitle}>
             {activeMainTab === 'journal'
@@ -421,7 +421,7 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
             activeOpacity={0.8}
           >
             <Ionicons
-              name={activeMainTab === 'journal' ? 'restaurant' : 'restaurant-outline'}
+              name={activeMainTab === 'journal' ? 'today' : 'today-outline'}
               size={15}
               color={activeMainTab === 'journal' ? '#FFFFFF' : colors.textSecondary}
             />
@@ -431,7 +431,7 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
                 activeMainTab === 'journal' && styles.tabSwitcherTextActive,
               ]}
             >
-              Suivi des repas
+              Aujourd’hui
             </Text>
           </TouchableOpacity>
 
@@ -454,7 +454,7 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
                 activeMainTab === 'planner' && styles.tabSwitcherTextActive,
               ]}
             >
-              Menu de la semaine
+              Semaine
             </Text>
           </TouchableOpacity>
         </View>
