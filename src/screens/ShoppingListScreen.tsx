@@ -527,18 +527,24 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
     }
   };
 
-  // Nettoyage des articles cochés avec auto-rangement dans les étagères
+  // Nettoyage des articles cochés avec auto-rangement intelligent dans les étagères
   const handleClearCompleted = async () => {
     if (completedCount === 0) return;
     try {
-      const completedNames = completedItems.map((i) => i.name);
-      await StorageService.addMultipleFridgeItems(completedNames);
+      // On range uniquement les denrées alimentaires (on exclut les articles non-alimentaires du rayon 'Autre')
+      const foodItems = completedItems.filter((i) => i.aisle !== 'Autre');
+      const foodNames = foodItems.map((i) => i.name);
+      if (foodNames.length > 0) {
+        await StorageService.addMultipleFridgeItems(foodNames);
+        setFridgeCount((prev) => prev + foodNames.length);
+      }
       const updated = await StorageService.clearCompletedShoppingItems();
       setItems(updated);
-      setFridgeCount((prev) => prev + completedNames.length);
       Alert.alert(
         'Rangement terminé !',
-        `${completedNames.length} aliment(s) rangé(s) dans vos étagères.`
+        foodNames.length > 0
+          ? `${foodNames.length} aliment${foodNames.length > 1 ? 's' : ''} rangé${foodNames.length > 1 ? 's' : ''} dans vos étagères.`
+          : 'Articles cochés retirés de la liste.'
       );
     } catch (e) {
       Alert.alert('Erreur', "Impossible de ranger les articles dans vos étagères.");

@@ -5,14 +5,15 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
+  SectionList,
   Alert,
   Modal,
   Animated,
+  PanResponder,
   NativeSyntheticEvent,
   NativeScrollEvent,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { SwipeListView } from 'react-native-swipe-list-view';
 import { FridgeItem } from '../types/fridge';
 import { ShoppingAisle, ShoppingItem } from '../types/shopping';
 import { Recipe } from '../types/recipe';
@@ -44,6 +45,151 @@ interface FridgeStockViewProps {
   shoppingItems?: ShoppingItem[];
   onNavigateToShoppingWithSearch?: (query: string) => void;
 }
+
+interface SwipeableStockItemRowProps {
+  children: React.ReactNode;
+  onEmptyItem: () => void;
+  isFirst: boolean;
+  isLast: boolean;
+  styles: any;
+}
+
+const SwipeableStockItemRow: React.FC<SwipeableStockItemRowProps> = ({
+  children,
+  onEmptyItem,
+  isFirst,
+  isLast,
+  styles,
+}) => {
+  const [translateX] = useState(() => new Animated.Value(0));
+
+  const snapClose = useCallback(() => {
+    Animated.spring(translateX, {
+      toValue: 0,
+      useNativeDriver: true,
+      bounciness: 4,
+    }).start();
+  }, [translateX]);
+
+  const [panResponder] = useState(() => {
+    let isOpen = false;
+    return PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        return (
+          Math.abs(gestureState.dx) > 12 &&
+          Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.5
+        );
+      },
+      onPanResponderMove: (_, gestureState) => {
+        if (isOpen) {
+          const nextVal = -110 + gestureState.dx;
+          translateX.setValue(Math.min(0, Math.max(nextVal, -130)));
+        } else if (gestureState.dx < 0) {
+          translateX.setValue(Math.max(gestureState.dx, -130));
+        }
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        if (isOpen) {
+          if (gestureState.dx > 40) {
+            isOpen = false;
+            Animated.spring(translateX, {
+              toValue: 0,
+              useNativeDriver: true,
+              bounciness: 4,
+            }).start();
+          } else {
+            Animated.timing(translateX, {
+              toValue: -110,
+              duration: 160,
+              useNativeDriver: true,
+            }).start();
+          }
+        } else {
+          if (gestureState.dx < -50) {
+            isOpen = true;
+            Animated.timing(translateX, {
+              toValue: -110,
+              duration: 160,
+              useNativeDriver: true,
+            }).start();
+          } else {
+            Animated.spring(translateX, {
+              toValue: 0,
+              useNativeDriver: true,
+              bounciness: 4,
+            }).start();
+          }
+        }
+      },
+      onPanResponderTerminate: () => {
+        isOpen = false;
+        Animated.spring(translateX, {
+          toValue: 0,
+          useNativeDriver: true,
+          bounciness: 4,
+        }).start();
+      },
+    });
+  });
+
+  return (
+    <View
+      style={[
+        styles.swipeRowContainer,
+        isFirst && isLast && { borderRadius: 14 },
+        isFirst && !isLast && {
+          borderTopLeftRadius: 14,
+          borderTopRightRadius: 14,
+          borderBottomLeftRadius: 0,
+          borderBottomRightRadius: 0,
+        },
+        !isFirst && !isLast && {
+          borderRadius: 0,
+          borderTopWidth: 0,
+          borderBottomWidth: 0,
+          elevation: 0,
+          shadowOpacity: 0,
+        },
+        !isFirst && isLast && {
+          borderTopLeftRadius: 0,
+          borderTopRightRadius: 0,
+          borderBottomLeftRadius: 14,
+          borderBottomRightRadius: 14,
+          borderTopWidth: 0,
+          elevation: 0,
+          shadowOpacity: 0,
+        },
+      ]}
+    >
+      {/* Bouton d'action vert révélé par le swipe gauche */}
+      <View style={styles.swipeHiddenActionWrap}>
+        <TouchableOpacity
+          style={styles.swipeEmptyBtn}
+          onPress={() => {
+            snapClose();
+            onEmptyItem();
+          }}
+          activeOpacity={0.85}
+          accessibilityLabel="J'en ai plus, basculer dans ma liste de courses"
+        >
+          <Ionicons name="cart-outline" size={20} color="#FFFFFF" />
+          <Text style={styles.swipeEmptyBtnText}>J&apos;en ai plus</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Rangée de premier plan qui glisse */}
+      <Animated.View
+        style={[
+          styles.swipeForeground,
+          { transform: [{ translateX }] },
+        ]}
+        {...panResponder.panHandlers}
+      >
+        {children}
+      </Animated.View>
+    </View>
+  );
+};
 
 export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
   recipes,
@@ -520,12 +666,13 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
     }
   };
 
-  const handleEmptyItem = async (item: FridgeItem, rowMap: any) => {
-    if (rowMap[item.id]) {
-      rowMap[item.id].closeRow();
+  const handleEmptyItem = async (item: FridgeItem) => {
+    try {
+      await handleCopyToShopping(item);
+      await handleDeleteItem(item.id);
+    } catch (e) {
+      Alert.alert('Erreur', "Impossible de basculer l'aliment dans la liste de courses.");
     }
-    await handleCopyToShopping(item);
-    await handleDeleteItem(item.id);
   };
 
   const totalCount = items.length;
@@ -603,8 +750,7 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
             </View>
           </ScrollView>
         ) : (
-          <SwipeListView
-            useSectionList
+          <SectionList
             style={styles.scrollArea}
             contentContainerStyle={[
               styles.scrollContent,
@@ -612,131 +758,122 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
             ]}
             showsVerticalScrollIndicator={false}
             stickySectionHeadersEnabled={false}
-            sections={groupedByAisle.map(g => ({ title: g.aisle, data: g.items }))}
-            keyExtractor={(item, index) => item.id}
+            sections={groupedByAisle.map((g) => ({ title: g.aisle, data: g.items }))}
+            keyExtractor={(item) => item.id}
             initialNumToRender={15}
             maxToRenderPerBatch={15}
             windowSize={5}
             onScroll={handleScroll}
             scrollEventThrottle={16}
-          ListHeaderComponent={
-            isSearching && searchQuery?.trim() ? (
-              <View style={styles.searchSummaryStrip}>
-                <Text style={styles.searchSummaryText}>
-                  {filteredItems.length} aliment{filteredItems.length > 1 ? 's' : ''} trouvé{filteredItems.length > 1 ? 's' : ''} pour « {searchQuery.trim()} »
-                </Text>
-              </View>
-            ) : undefined
-          }
-            disableRightSwipe
-            rightOpenValue={-120}
-            renderHiddenItem={(data: any, rowMap: any) => {
-              const item = data.item as FridgeItem;
-              return (
-                <View style={styles.rowBack}>
+            ListHeaderComponent={
+              isSearching && searchQuery?.trim() ? (
+                <View style={styles.searchSummaryStrip}>
+                  <Text style={styles.searchSummaryText}>
+                    {filteredItems.length} aliment{filteredItems.length > 1 ? 's' : ''} trouvé{filteredItems.length > 1 ? 's' : ''} pour « {searchQuery.trim()} »
+                  </Text>
+                </View>
+              ) : undefined
+            }
+            ListEmptyComponent={
+              isSearching && searchQuery?.trim() ? (
+                <View style={styles.emptySearchContainer}>
+                  <View style={styles.emptyIconCircle}>
+                    <Ionicons name="search-outline" size={38} color={colors.primary} />
+                  </View>
+                  <Text style={styles.emptyTitle}>Aliment introuvable</Text>
+                  <Text style={styles.emptySubtitle}>
+                    « {searchQuery.trim()} » n&apos;est pas présent dans vos étagères.
+                  </Text>
+
                   <TouchableOpacity
-                    style={[styles.backRightBtn, styles.backRightBtnRight]}
-                    onPress={() => handleEmptyItem(item, rowMap)}
+                    style={styles.searchAddBtn}
+                    onPress={() => handleAddItem(searchQuery.trim())}
+                    activeOpacity={0.85}
                   >
-                    <Ionicons name="cart-outline" size={24} color="#FFF" />
-                    <Text style={styles.backTextWhite}>J'en ai plus</Text>
+                    <Ionicons name="add-circle" size={18} color="#FFFFFF" />
+                    <Text style={styles.searchAddBtnText}>
+                      Ajouter « {searchQuery.trim()} » à mes étagères
+                    </Text>
                   </TouchableOpacity>
+
+                  {shoppingCrossCount > 0 && onNavigateToShoppingWithSearch && (
+                    <TouchableOpacity
+                      style={styles.searchCrossBtn}
+                      onPress={() => onNavigateToShoppingWithSearch(searchQuery.trim())}
+                      activeOpacity={0.85}
+                    >
+                      <Ionicons name="cart-outline" size={17} color={colors.primary} />
+                      <Text style={styles.searchCrossBtnText}>
+                        Voir dans mes courses ({shoppingCrossCount} article{shoppingCrossCount > 1 ? 's' : ''})
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              ) : undefined
+            }
+            renderSectionHeader={({ section: { title, data } }) => {
+              const aisle = title as ShoppingAisle;
+              const cfg = AISLE_CONFIGS[aisle] || AISLE_CONFIGS['Autre'];
+              return (
+                <View style={styles.aisleSection}>
+                  <View style={styles.aisleHeaderRow}>
+                    <View
+                      style={[
+                        styles.aisleIconBox,
+                        { backgroundColor: isDark ? cfg.color + '26' : cfg.bgColor },
+                      ]}
+                    >
+                      <Ionicons name={cfg.iconName as any} size={15} color={cfg.color} />
+                    </View>
+                    <Text style={[styles.aisleTitle, { color: cfg.color }]}>{aisle}</Text>
+                    <View style={styles.aisleCountBadge}>
+                      <Text style={styles.aisleCountText}>{data.length}</Text>
+                    </View>
+                  </View>
                 </View>
               );
             }}
-          ListEmptyComponent={
-            isSearching && searchQuery?.trim() ? (
-              <View style={styles.emptySearchContainer}>
-                <View style={styles.emptyIconCircle}>
-                  <Ionicons name="search-outline" size={38} color={colors.primary} />
-                </View>
-                <Text style={styles.emptyTitle}>Aliment introuvable</Text>
-                <Text style={styles.emptySubtitle}>
-                  « {searchQuery.trim()} » n&apos;est pas présent dans vos étagères.
-                </Text>
+            renderItem={({ item, index, section }) => {
+              const isFirst = index === 0;
+              const isLast = index === section.data.length - 1;
+              const aisle = section.title as ShoppingAisle;
+              const cfg = AISLE_CONFIGS[aisle] || AISLE_CONFIGS['Autre'];
 
-                <TouchableOpacity
-                  style={styles.searchAddBtn}
-                  onPress={() => handleAddItem(searchQuery.trim())}
-                  activeOpacity={0.85}
+              return (
+                <SwipeableStockItemRow
+                  key={item.id}
+                  isFirst={isFirst}
+                  isLast={isLast}
+                  onEmptyItem={() => handleEmptyItem(item)}
+                  styles={styles}
                 >
-                  <Ionicons name="add-circle" size={18} color="#FFFFFF" />
-                  <Text style={styles.searchAddBtnText}>
-                    Ajouter « {searchQuery.trim()} » à mes étagères
-                  </Text>
-                </TouchableOpacity>
-
-                {shoppingCrossCount > 0 && onNavigateToShoppingWithSearch && (
-                  <TouchableOpacity
-                    style={styles.searchCrossBtn}
-                    onPress={() => onNavigateToShoppingWithSearch(searchQuery.trim())}
-                    activeOpacity={0.85}
-                  >
-                    <Ionicons name="cart-outline" size={17} color={colors.primary} />
-                    <Text style={styles.searchCrossBtnText}>
-                      Voir dans mes courses ({shoppingCrossCount} article{shoppingCrossCount > 1 ? 's' : ''})
-                    </Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            ) : undefined
-          }
-          renderSectionHeader={({ section: { title, data } }) => {
-            const aisle = title as ShoppingAisle;
-            const cfg = AISLE_CONFIGS[aisle] || AISLE_CONFIGS['Autre'];
-            return (
-              <View style={styles.aisleSection}>
-                <View style={styles.aisleHeaderRow}>
                   <View
                     style={[
-                      styles.aisleIconBox,
-                      { backgroundColor: isDark ? cfg.color + '26' : cfg.bgColor },
+                      styles.itemRow,
+                      !isLast && styles.itemRowBorder,
                     ]}
                   >
-                    <Ionicons name={cfg.iconName as any} size={15} color={cfg.color} />
-                  </View>
-                  <Text style={[styles.aisleTitle, { color: cfg.color }]}>{aisle}</Text>
-                  <View style={styles.aisleCountBadge}>
-                    <Text style={styles.aisleCountText}>{data.length}</Text>
-                  </View>
-                </View>
-              </View>
-            );
-          }}
-          renderItem={({ item, index, section }) => {
-            const isCopied = justCopiedId === item.id;
-            const isLast = index === section.data.length - 1;
-            const aisle = section.title as ShoppingAisle;
-            const cfg = AISLE_CONFIGS[aisle] || AISLE_CONFIGS['Autre'];
-            return (
-              <View style={index === 0 ? [styles.itemsCard, {borderBottomLeftRadius: isLast ? 14 : 0, borderBottomRightRadius: isLast ? 14 : 0}] : isLast ? [styles.itemsCard, {borderTopLeftRadius: 0, borderTopRightRadius: 0, borderTopWidth: 0, elevation: 0, shadowOpacity: 0}] : [styles.itemsCard, {borderRadius: 0, borderTopWidth: 0, borderBottomWidth: 0, elevation: 0, shadowOpacity: 0}]}>
-                <View
-                  style={[
-                    styles.itemRow,
-                    !isLast && styles.itemRowBorder,
-                  ]}
-                >
-                  <View style={styles.bulletPoint}>
-                    <Ionicons name="ellipse" size={8} color={cfg.color} />
-                  </View>
+                    <View style={styles.bulletPoint}>
+                      <Ionicons name="ellipse" size={8} color={cfg.color} />
+                    </View>
 
-                  <View style={styles.itemTextContainer}>
-                    <Text style={styles.itemName}>{item.name}</Text>
-                  </View>
+                    <View style={styles.itemTextContainer}>
+                      <Text style={styles.itemName}>{item.name}</Text>
+                    </View>
 
-                  {/* Bouton supprimer */}
-                  <TouchableOpacity
-                    style={styles.deleteItemBtn}
-                    onPress={() => handleDeleteItem(item.id)}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    accessibilityLabel="Supprimer de mes étagères"
-                  >
-                    <Ionicons name="close" size={18} color={colors.textMuted} />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            );
-          }}
+                    {/* Bouton supprimer */}
+                    <TouchableOpacity
+                      style={styles.deleteItemBtn}
+                      onPress={() => handleDeleteItem(item.id)}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      accessibilityLabel="Supprimer de mes étagères"
+                    >
+                      <Ionicons name="close" size={18} color={colors.textMuted} />
+                    </TouchableOpacity>
+                  </View>
+                </SwipeableStockItemRow>
+              );
+            }}
         />
       )}
 
@@ -1372,39 +1509,43 @@ const styles = createDynamicStyles((colors, shadows) => ({
     flex: 1,
     backgroundColor: colors.background,
   },
-    rowBack: {
-      alignItems: 'center',
-      backgroundColor: colors.cardBackground,
-      flex: 1,
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      paddingLeft: 15,
-      borderRadius: 14,
-      marginBottom: 0,
-      marginHorizontal: 0,
-    },
-    backRightBtn: {
-      alignItems: 'center',
-      bottom: 0,
-      justifyContent: 'center',
-      position: 'absolute',
-      top: 0,
-      width: 120,
-      height: '100%',
-      borderTopRightRadius: 14,
-      borderBottomRightRadius: 14,
-    },
-    backRightBtnRight: {
-      backgroundColor: '#16A34A',
-      right: 0,
-      flexDirection: 'column',
-      gap: 4,
-    },
-    backTextWhite: {
-      color: '#FFF',
-      fontSize: 12,
-      fontWeight: '700',
-    },
+  swipeRowContainer: {
+    backgroundColor: colors.cardBackground,
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: 'hidden',
+    position: 'relative',
+    ...shadows.card,
+  },
+  swipeHiddenActionWrap: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    right: 0,
+    width: 110,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#16A34A',
+    borderTopRightRadius: 14,
+    borderBottomRightRadius: 14,
+  },
+  swipeEmptyBtn: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexDirection: 'column',
+    gap: 3,
+  },
+  swipeEmptyBtnText: {
+    color: '#FFFFFF',
+    fontSize: 11.5,
+    fontWeight: '700',
+  },
+  swipeForeground: {
+    backgroundColor: colors.cardBackground,
+    width: '100%',
+  },
   modalContent: {
     flex: 1,
     backgroundColor: colors.background,
