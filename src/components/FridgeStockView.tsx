@@ -5,7 +5,6 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
-  SectionList,
   Alert,
   Modal,
   Animated,
@@ -13,6 +12,7 @@ import {
   NativeScrollEvent,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { SwipeListView } from 'react-native-swipe-list-view';
 import { FridgeItem } from '../types/fridge';
 import { ShoppingAisle, ShoppingItem } from '../types/shopping';
 import { Recipe } from '../types/recipe';
@@ -520,6 +520,14 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
     }
   };
 
+  const handleEmptyItem = async (item: FridgeItem, rowMap: any) => {
+    if (rowMap[item.id]) {
+      rowMap[item.id].closeRow();
+    }
+    await handleCopyToShopping(item);
+    await handleDeleteItem(item.id);
+  };
+
   const totalCount = items.length;
 
   return (
@@ -595,7 +603,8 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
             </View>
           </ScrollView>
         ) : (
-          <SectionList
+          <SwipeListView
+            useSectionList
             style={styles.scrollArea}
             contentContainerStyle={[
               styles.scrollContent,
@@ -619,6 +628,22 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
               </View>
             ) : undefined
           }
+            disableRightSwipe
+            rightOpenValue={-120}
+            renderHiddenItem={(data: any, rowMap: any) => {
+              const item = data.item as FridgeItem;
+              return (
+                <View style={styles.rowBack}>
+                  <TouchableOpacity
+                    style={[styles.backRightBtn, styles.backRightBtnRight]}
+                    onPress={() => handleEmptyItem(item, rowMap)}
+                  >
+                    <Ionicons name="cart-outline" size={24} color="#FFF" />
+                    <Text style={styles.backTextWhite}>J'en ai plus</Text>
+                  </TouchableOpacity>
+                </View>
+              );
+            }}
           ListEmptyComponent={
             isSearching && searchQuery?.trim() ? (
               <View style={styles.emptySearchContainer}>
@@ -698,31 +723,6 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
                   <View style={styles.itemTextContainer}>
                     <Text style={styles.itemName}>{item.name}</Text>
                   </View>
-
-                  {/* Bouton d'action : Ajouter à la liste de courses */}
-                  <TouchableOpacity
-                    style={[
-                      styles.copyToShoppingBtn,
-                      isCopied && styles.copyToShoppingBtnSuccess,
-                    ]}
-                    onPress={() => handleCopyToShopping(item)}
-                    hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                    accessibilityLabel="Ajouter à la liste de courses"
-                  >
-                    <Ionicons
-                      name={isCopied ? 'checkmark' : 'cart-outline'}
-                      size={16}
-                      color={isCopied ? '#FFFFFF' : colors.primary}
-                    />
-                    <Text
-                      style={[
-                        styles.copyToShoppingText,
-                        isCopied && styles.copyToShoppingTextSuccess,
-                      ]}
-                    >
-                      {isCopied ? 'Ajouté' : 'Courses'}
-                    </Text>
-                  </TouchableOpacity>
 
                   {/* Bouton supprimer */}
                   <TouchableOpacity
@@ -1372,6 +1372,39 @@ const styles = createDynamicStyles((colors, shadows) => ({
     flex: 1,
     backgroundColor: colors.background,
   },
+    rowBack: {
+      alignItems: 'center',
+      backgroundColor: colors.cardBackground,
+      flex: 1,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      paddingLeft: 15,
+      borderRadius: 14,
+      marginBottom: 0,
+      marginHorizontal: 0,
+    },
+    backRightBtn: {
+      alignItems: 'center',
+      bottom: 0,
+      justifyContent: 'center',
+      position: 'absolute',
+      top: 0,
+      width: 120,
+      height: '100%',
+      borderTopRightRadius: 14,
+      borderBottomRightRadius: 14,
+    },
+    backRightBtnRight: {
+      backgroundColor: '#16A34A',
+      right: 0,
+      flexDirection: 'column',
+      gap: 4,
+    },
+    backTextWhite: {
+      color: '#FFF',
+      fontSize: 12,
+      fontWeight: '700',
+    },
   modalContent: {
     flex: 1,
     backgroundColor: colors.background,
