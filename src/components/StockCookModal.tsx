@@ -75,6 +75,7 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
   const [servings, setServings] = useState<number>(4);
   const [isVegetarian, setIsVegetarian] = useState<boolean>(false);
   const [mealType, setMealType] = useState<AllowedMealType>('Plat');
+  const [additionalPreferences, setAdditionalPreferences] = useState<string>('');
 
   // Flow d'invention IA en 2 étapes (Solution 4)
   const [aiFlowStep, setAiFlowStep] = useState<
@@ -267,6 +268,7 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
           existingDoableTitles: doableTitles,
           excludedAllergens,
           chefMood,
+          additionalPreferences: additionalPreferences.trim(),
           onModelAttempt: (model, isFallback) => {
             setActiveModelInfo({ model, isFallback });
           },
@@ -815,6 +817,22 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
                           onValueChange={setIsVegetarian}
                           trackColor={{ false: colors.border, true: colors.primary }}
                           thumbColor="#FFFFFF"
+                        />
+                      </View>
+
+                      {/* Instructions libres */}
+                      <View style={styles.aiPreferencesRow}>
+                        <View style={styles.aiParamLabelCol}>
+                          <Text style={styles.aiParamTitle}>Instructions libres (optionnel)</Text>
+                          <Text style={styles.aiParamSub}>Ex: Sans gluten, épicé, avec du fromage...</Text>
+                        </View>
+                        <TextInput
+                          style={styles.aiPreferencesInput}
+                          placeholder="Vos envies..."
+                          placeholderTextColor={colors.textMuted}
+                          value={additionalPreferences}
+                          onChangeText={setAdditionalPreferences}
+                          maxLength={150}
                         />
                       </View>
 
@@ -1458,6 +1476,22 @@ const styles = createDynamicStyles((colors, shadows) => ({
     paddingHorizontal: 8,
     minWidth: 26,
     textAlign: 'center',
+  },
+  aiPreferencesRow: {
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  aiPreferencesInput: {
+    marginTop: 8,
+    backgroundColor: colors.cardBackground,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 14,
+    color: colors.textPrimary,
   },
   // Sélecteur de type de plat (Entrée / Plat / Dessert)
   mealTypeSection: {
