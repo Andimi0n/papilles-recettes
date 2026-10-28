@@ -956,6 +956,23 @@ export const styles = createDynamicStyles((colors, shadows) => ({
     fontWeight: '700',
     color: colors.primary,
   },
+  floatingPimpBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    height: 46,
+    borderRadius: 14,
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1.5,
+    borderColor: colors.primaryLight,
+  },
+  floatingPimpBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.primary,
+  },
   floatingCookBtn: {
     flex: 1,
     flexDirection: 'row',
@@ -1332,5 +1349,68 @@ export const styles = createDynamicStyles((colors, shadows) => ({
     fontSize: 14,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+
+  // Modal Pimper ma recette
+  pimpModalCard: {
+    width: '90%',
+    maxHeight: '80%',
+    backgroundColor: colors.cardBackground,
+    borderRadius: 20,
+    padding: 20,
+    ...shadows.large,
+  },
+  pimpModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  pimpModalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  pimpChefNote: {
+    fontSize: 14,
+    fontStyle: 'italic',
+    color: colors.textSecondary,
+    marginBottom: 16,
+  },
+  pimpSuggestionCard: {
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  pimpSuggestionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.primary,
+    marginBottom: 4,
+  },
+  pimpSuggestionReason: {
+    fontSize: 14,
+    color: colors.textPrimary,
+    marginBottom: 8,
+  },
+  pimpSuggestionUsage: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
+  },
+  pimpModalCloseBtn: {
+    marginTop: 12,
+    backgroundColor: colors.primary,
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  pimpModalCloseBtnText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '700',
   },
 }));

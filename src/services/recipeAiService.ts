@@ -623,6 +623,37 @@ async function fetchGeminiJsonWithFallbackAndRetry(
   throw lastError || new Error("Impossible d'obtenir une réponse valide des serveurs Google Gemini.");
 }
 
+export interface PimpSuggestion {
+  ingredientName: string;
+  reason: string;
+  howToUse: string;
+}
+
+export interface PimpRecipeResponse {
+  suggestions: PimpSuggestion[];
+  chefNote: string;
+}
+
+const RECIPE_PIMP_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    suggestions: {
+      type: 'ARRAY',
+      items: {
+        type: 'OBJECT',
+        properties: {
+          ingredientName: { type: 'STRING' },
+          reason: { type: 'STRING' },
+          howToUse: { type: 'STRING' },
+        },
+        required: ['ingredientName', 'reason', 'howToUse'],
+      },
+    },
+    chefNote: { type: 'STRING' },
+  },
+  required: ['suggestions', 'chefNote'],
+};
+
 export interface ExtractedRecipeData {
   title: string;
   description: string;
@@ -1468,5 +1499,78 @@ ${sanitizedIngredients.join(', ')}
       60000
     );
     return sanitizeExtractedRecipe(parsed);
+  },
+
+  /**
+   * Analyse une recette et le stock du frigo pour suggérer des améliorations (Pimper ma recette).
+   */
+  async pimpRecipeWithStock(
+    recipe: { title: string; ingredients: { name: string; quantity?: string; unit?: string }[] },
+    stockItems: string[],
+    providedKey?: string,
+    onModelAttempt?: (modelName: string, isFallback: boolean) => void
+  ): Promise<PimpRecipeResponse> {
+    const apiKey = providedKey || (await this.getApiKey());
+    if (!apiKey) {
+      throw new Error(
+        'Clé API Gemini non configurée. Veuillez renseigner votre clé API dans les paramètres.'
+      );
+    }
+
+    if (!stockItems || stockItems.length === 0) {
+      throw new Error('Votre frigo est vide. Ajoutez des ingrédients pour pimper vos recettes !');
+    }
+
+    const systemPrompt = `Tu es un chef cuisinier créatif. L'utilisateur veut "pimper" (améliorer) une recette existante en utilisant uniquement les ingrédients qu'il a actuellement dans son stock.
+Analyse la recette et le stock, et propose jusqu'à 3 suggestions d'ingrédients pertinents à ajouter ou substituer pour rendre le plat plus savoureux, original ou équilibré.
+Tu dois renvoyer un JSON strict respectant la structure demandée. "ingredientName" doit être le nom canonique simple de l'ingrédient issu du stock.`;
+
+    const sanitizedStock = stockItems.slice(0, 50).map((i) =>
+      escapeUntrustedDelimiters(i, 'untrusted_stock')
+    );
+    const recipeIngredients = recipe.ingredients
+      .map((i) => `${i.name}${i.quantity ? ' ' + i.quantity : ''}${i.unit ? ' ' + i.unit : ''}`)
+      .join(', ');
+
+    const userPayload = `Recette originale : ${escapeUntrustedDelimiters(recipe.title, 'untrusted_recipe_title')}
+Ingrédients originaux : ${escapeUntrustedDelimiters(recipeIngredients, 'untrusted_recipe_ingredients')}
+
+Stock disponible :
+<untrusted_stock>
+${sanitizedStock.join(', ')}
+</untrusted_stock>
+
+Propose des améliorations à partir de ce stock.`;
+
+    const payload = {
+      system_instruction: {
+        parts: [{ text: systemPrompt }],
+      },
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: userPayload }],
+        },
+      ],
+      generationConfig: {
+        response_mime_type: 'application/json',
+        response_schema: RECIPE_PIMP_SCHEMA,
+        temperature: 0.5,
+        max_output_tokens: 1500,
+      },
+    };
+
+    const { parsed } = await fetchGeminiJsonWithFallbackAndRetry(
+      apiKey,
+      payload,
+      FAST_GEMINI_MODELS_CASCADE,
+      onModelAttempt,
+      30000
+    );
+
+    return {
+      suggestions: Array.isArray(parsed?.suggestions) ? parsed.suggestions : [],
+      chefNote: parsed?.chefNote || "Bon appétit !",
+    };
   },
 };
