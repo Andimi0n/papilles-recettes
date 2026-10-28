@@ -737,7 +737,7 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
               <Text style={styles.description}>{recipe.description}</Text>
             ) : null}
 
-            {/* Notation & Astuce intégrées en ligne compacte */}
+            {/* Notation, Pimper & Astuce intégrées en ligne compacte */}
             <View style={styles.compactMetaRow}>
               <View style={styles.compactRatingLeft}>
                 <StarRating
@@ -749,21 +749,41 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
                   onRatingChange={(newRating) => onUpdateRating(recipe.id, newRating)}
                 />
               </View>
-              <TouchableOpacity
-                onPress={() => setIsNoteModalVisible(true)}
-                style={styles.compactNoteBtn}
-                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                activeOpacity={0.75}
-              >
-                <Ionicons
-                  name={recipe.userNote ? 'bulb' : 'bulb-outline'}
-                  size={14}
-                  color={recipe.userNote ? colors.amber : colors.primary}
-                />
-                <Text style={[styles.compactNoteBtnText, recipe.userNote && { color: colors.amber }]}>
-                  {recipe.userNote ? 'Astuce' : '+ Astuce'}
-                </Text>
-              </TouchableOpacity>
+              <View style={styles.compactMetaActionsRight}>
+                <TouchableOpacity
+                  onPress={handlePimpRecipe}
+                  style={styles.compactPimpBtn}
+                  disabled={isPimping}
+                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                  activeOpacity={0.75}
+                  accessibilityLabel="Pimper la recette avec mon stock"
+                >
+                  {isPimping ? (
+                    <ActivityIndicator size="small" color={colors.primary} />
+                  ) : (
+                    <>
+                      <Ionicons name="sparkles-outline" size={13} color={colors.primary} />
+                      <Text style={styles.compactPimpBtnText}>Pimper</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => setIsNoteModalVisible(true)}
+                  style={styles.compactNoteBtn}
+                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                  activeOpacity={0.75}
+                >
+                  <Ionicons
+                    name={recipe.userNote ? 'bulb' : 'bulb-outline'}
+                    size={14}
+                    color={recipe.userNote ? colors.amber : colors.primary}
+                  />
+                  <Text style={[styles.compactNoteBtnText, recipe.userNote && { color: colors.amber }]}>
+                    {recipe.userNote ? 'Astuce' : '+ Astuce'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
 
             {recipe.userNote ? (
@@ -934,30 +954,14 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
             accessibilityLabel="Ajouter aux courses"
           >
             <Ionicons name="cart" size={18} color={colors.primary} />
-            <Text style={styles.floatingCartBtnText}>Courses</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.floatingPimpBtn}
-            onPress={handlePimpRecipe}
-            activeOpacity={0.85}
-            disabled={isPimping}
-            accessibilityLabel="Pimper la recette avec mon stock"
-          >
-            {isPimping ? (
-              <ActivityIndicator size="small" color={colors.primary} />
-            ) : (
-              <>
-                <Ionicons name="sparkles" size={18} color={colors.primary} />
-                <Text style={styles.floatingPimpBtnText}>Pimper</Text>
-              </>
-            )}
+            <Text style={styles.floatingCartBtnText}>Ajouter aux courses</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.floatingCookBtn}
             onPress={() => setIsCookingModeVisible(true)}
             activeOpacity={0.85}
+            accessibilityLabel="Lancer le mode cuisine"
           >
             <Ionicons name="play" size={16} color="#FFFFFF" />
             <Text style={styles.floatingCookBtnText}>Cuisiner</Text>
