@@ -120,8 +120,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     if (selectedDifficulties.length > 0) count++;
     if (selectedIngredients.length > 0) count++;
     if (selectedTags.length > 0) count++;
+    if (minRatingFilter > 0) count++;
     return count;
-  }, [targetTotalTime, selectedDifficulties.length, selectedIngredients.length, selectedTags.length]);
+  }, [targetTotalTime, selectedDifficulties.length, selectedIngredients.length, selectedTags.length, minRatingFilter]);
 
   const [prevInitialOnlyDoable, setPrevInitialOnlyDoable] = useState(initialOnlyDoable);
   if (prevInitialOnlyDoable !== initialOnlyDoable) {
@@ -771,7 +772,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   <View style={styles.activePillChip}>
                     <Ionicons name="nutrition-outline" size={12} color={colors.secondary} />
                     <Text style={styles.activePillChipText}>
-                      {ingredientMatchMode === 'all' ? 'Avec (ET) : ' : 'Avec (OU) : '}
+                      {ingredientMatchMode === 'all' ? 'Avec (tous) : ' : 'Avec (au choix) : '}
                       {selectedIngredients.join(', ')}
                     </Text>
                     <TouchableOpacity
@@ -787,7 +788,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   <View style={styles.activePillChip}>
                     <Ionicons name="pricetag-outline" size={12} color={colors.primary} />
                     <Text style={styles.activePillChipText}>
-                      {tagMatchMode === 'all' ? 'Tags (ET) : ' : 'Tags (OU) : '}
+                      {tagMatchMode === 'all' ? 'Tags (tous) : ' : 'Tags (au choix) : '}
                       {selectedTags.join(', ')}
                     </Text>
                     <TouchableOpacity
@@ -1379,6 +1380,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             selectedTags: newTags,
             tagMatchMode: newTagMatchMode,
             minRating: newMinRating,
+            onlyVegetarian: newOnlyVegetarian,
+            onlyDoableWithStock: newOnlyDoableWithStock,
           }) => {
             setCurrentPage(1);
             setTargetTotalTime(newTargetTime);
@@ -1389,6 +1392,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             if (newTags !== undefined) setSelectedTags(newTags);
             if (newTagMatchMode !== undefined) setTagMatchMode(newTagMatchMode);
             if (newMinRating !== undefined) setMinRatingFilter(newMinRating);
+            if (newOnlyVegetarian !== undefined) setOnlyVegetarian(newOnlyVegetarian);
+            if (newOnlyDoableWithStock !== undefined) setOnlyDoableWithStock(newOnlyDoableWithStock);
           }}
           onReset={() => {
             setCurrentPage(1);
@@ -1400,6 +1405,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             setSelectedTags([]);
             setTagMatchMode('any');
             setMinRatingFilter(0);
+            setOnlyVegetarian(false);
+            setOnlyDoableWithStock(false);
           }}
           targetTotalTime={targetTotalTime}
           timeFilterMode={timeFilterMode}

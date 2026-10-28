@@ -1,10 +1,9 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
   Modal,
   TouchableOpacity,
-  TextInput,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
@@ -12,8 +11,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Recipe, Difficulty, Category, TimeFilterMode } from '../types/recipe';
-import { CanonicalIngredient } from '../types/vocabulary';
-import { VocabularyService } from '../services/vocabularyService';
 import { RecipeStockEvaluation } from '../utils/stockMatcher';
 import {
   recipeMatchesIngredients,
@@ -71,13 +68,55 @@ const formatMinutes = (minutes: number): string => {
   return `${h} h ${m.toString().padStart(2, '0')}`;
 };
 
-const TIME_QUICK_PRESETS: { label: string; value: number }[] = [
-  { label: '15 min', value: 15 },
-  { label: '30 min', value: 30 },
-  { label: '45 min', value: 45 },
-  { label: '1 h', value: 60 },
-  { label: '1 h 30', value: 90 },
-  { label: '2 h', value: 120 },
+interface TimePreset {
+  id: string;
+  label: string;
+  badge: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  targetMinutes: number;
+  mode: TimeFilterMode;
+}
+
+const TIME_PRESETS: TimePreset[] = [
+  {
+    id: 'express',
+    label: 'Express',
+    badge: '≤ 20 min',
+    icon: 'flash-outline',
+    targetMinutes: 20,
+    mode: 'max',
+  },
+  {
+    id: 'daily',
+    label: 'Quotidien',
+    badge: '≤ 40 min',
+    icon: 'time-outline',
+    targetMinutes: 40,
+    mode: 'max',
+  },
+  {
+    id: 'comfort',
+    label: 'Confort',
+    badge: '≤ 1 h',
+    icon: 'restaurant-outline',
+    targetMinutes: 60,
+    mode: 'max',
+  },
+  {
+    id: 'slow',
+    label: 'Mijoté',
+    badge: '≥ 1 h',
+    icon: 'flame-outline',
+    targetMinutes: 60,
+    mode: 'min',
+  },
+];
+
+const TIME_FINE_PRESETS = [
+  { label: '15 min', value: 15, mode: 'max' as TimeFilterMode },
+  { label: '30 min', value: 30, mode: 'max' as TimeFilterMode },
+  { label: '45 min', value: 45, mode: 'max' as TimeFilterMode },
+  { label: '1 h 30', value: 90, mode: 'max' as TimeFilterMode },
 ];
 
 const DIFFICULTY_CONFIG: {
@@ -134,7 +173,10 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
   // États locaux de brouillon (draft) pour ajuster les filtres avant application
   const [draftTargetTotalTime, setDraftTargetTotalTime] = useState<number | null>(initialTime);
   const [draftTimeFilterMode, setDraftTimeFilterMode] = useState<TimeFilterMode>(timeFilterMode || 'max');
-  const [timeInputString, setTimeInputString] = useState<string>(initialTime !== null ? String(initialTime) : '');
+
+  // Filtres rapides (Végé & En stock) éditables directement dans le modal
+  const [draftOnlyVegetarian, setDraftOnlyVegetarian] = useState<boolean>(onlyVegetarian);
+  const [draftOnlyDoableWithStock, setDraftOnlyDoableWithStock] = useState<boolean>(onlyDoableWithStock);
 
   const [draftMinRating, setDraftMinRating] = useState<number>(minRating);
   const [draftDifficulties, setDraftDifficulties] = useState<Difficulty[]>(difficulties);
@@ -147,6 +189,16 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
 
   // Saisie pour les ingrédients
   const [ingredientInputText, setIngredientInputText] = useState('');
+
+  // Décompte des recettes faisables avec le stock
+  const doableCount = useMemo(() => {
+    if (!doableRecipesMap) return 0;
+    let count = 0;
+    recipes.forEach((r) => {
+      if (doableRecipesMap.get(r.id)?.isDoable) count++;
+    });
+    return count;
+  }, [recipes, doableRecipesMap]);
 
   // Liste de tous les tags existants dans les recettes
   const availableTags = useMemo(() => {
@@ -169,7 +221,8 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
     const activeTime = targetTotalTime !== undefined ? targetTotalTime : (maxTotalTime !== undefined ? maxTotalTime : null);
     setDraftTargetTotalTime(activeTime);
     setDraftTimeFilterMode(timeFilterMode || 'max');
-    setTimeInputString(activeTime !== null ? String(activeTime) : '');
+    setDraftOnlyVegetarian(onlyVegetarian);
+    setDraftOnlyDoableWithStock(onlyDoableWithStock);
     setDraftMinRating(minRating);
     setDraftDifficulties(difficulties);
     setDraftIngredients(selectedIngredients);
@@ -206,58 +259,19 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
     });
   };
 
-  const handleTimeTextChange = (text: string) => {
-    const clean = text.replace(/[^0-9]/g, '');
-    setTimeInputString(clean);
-    if (clean.length === 0) {
+  const handleToggleTimePreset = (minutes: number, mode: TimeFilterMode) => {
+    if (draftTargetTotalTime === minutes && draftTimeFilterMode === mode) {
       setDraftTargetTotalTime(null);
+      setDraftTimeFilterMode('max');
     } else {
-      const val = parseInt(clean, 10);
-      if (!isNaN(val)) {
-        setDraftTargetTotalTime(Math.min(360, Math.max(1, val)));
-      }
+      setDraftTargetTotalTime(minutes);
+      setDraftTimeFilterMode(mode);
     }
   };
 
-  const handleSetTimeValue = (val: number | null) => {
-    setDraftTargetTotalTime(val);
-    setTimeInputString(val !== null ? String(val) : '');
-  };
-
-  const handleIncrementTime = () => {
-    setDraftTargetTotalTime((prev) => {
-      const current = prev ?? 0;
-      let next: number;
-      if (current < 30) {
-        next = current + 5;
-      } else if (current < 120) {
-        next = current + 10;
-      } else {
-        next = current + 15;
-      }
-      next = Math.min(360, next);
-      setTimeInputString(String(next));
-      return next;
-    });
-  };
-
-  const handleDecrementTime = () => {
-    setDraftTargetTotalTime((prev) => {
-      if (prev === null || prev <= 5) {
-        setTimeInputString('');
-        return null;
-      }
-      let next: number;
-      if (prev <= 30) {
-        next = Math.max(5, prev - 5);
-      } else if (prev <= 120) {
-        next = prev - 10;
-      } else {
-        next = prev - 15;
-      }
-      setTimeInputString(String(next));
-      return next;
-    });
+  const handleClearTime = () => {
+    setDraftTargetTotalTime(null);
+    setDraftTimeFilterMode('max');
   };
 
   const handleToggleTag = (tag: string) => {
@@ -273,7 +287,8 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
   const handleResetDrafts = () => {
     setDraftTargetTotalTime(null);
     setDraftTimeFilterMode('max');
-    setTimeInputString('');
+    setDraftOnlyVegetarian(false);
+    setDraftOnlyDoableWithStock(false);
     setDraftMinRating(0);
     setDraftDifficulties([]);
     setDraftIngredients([]);
@@ -281,6 +296,7 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
     setDraftTags([]);
     setDraftTagMatchMode('any');
     setIngredientInputText('');
+    onReset();
   };
 
   const handleApply = () => {
@@ -294,6 +310,8 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
       minRating: draftMinRating,
       selectedTags: draftTags,
       tagMatchMode: draftTagMatchMode,
+      onlyVegetarian: draftOnlyVegetarian,
+      onlyDoableWithStock: draftOnlyDoableWithStock,
     });
     onClose();
   };
@@ -317,13 +335,13 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
       result = result.filter((r) => selectedCategories.includes(r.category));
     }
 
-    // Filtre végétarien (synchronisé depuis la barre d'accueil)
-    if (onlyVegetarian) {
+    // Filtre végétarien (draft local éditable dans le modal)
+    if (draftOnlyVegetarian) {
       result = result.filter((r) => r.isVegetarian);
     }
 
-    // Filtre stock (recettes 100% faisables, synchronisé depuis la barre d'accueil)
-    if (onlyDoableWithStock && doableRecipesMap) {
+    // Filtre stock (recettes 100% faisables, draft local éditable dans le modal)
+    if (draftOnlyDoableWithStock && doableRecipesMap) {
       result = result.filter((r) => doableRecipesMap.get(r.id)?.isDoable);
     }
 
@@ -363,8 +381,8 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
     recipes,
     searchQuery,
     selectedCategories,
-    onlyVegetarian,
-    onlyDoableWithStock,
+    draftOnlyVegetarian,
+    draftOnlyDoableWithStock,
     draftTargetTotalTime,
     draftTimeFilterMode,
     draftMinRating,
@@ -424,7 +442,98 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
             >
-              {/* SECTION 1 : TEMPS TOTAL (RAPIDE ≤ / MIJOTÉ ≥, RACCOURCIS) */}
+              {/* SECTION 1 : EN UN COUP D'ŒIL (FILTRES RAPIDES EN STOCK & VÉGÉ) */}
+              <View style={styles.sectionCard}>
+                <View style={styles.sectionHeader}>
+                  <Ionicons name="sparkles-outline" size={17} color={colors.primary} />
+                  <Text style={styles.sectionTitle}>En un coup d’œil</Text>
+                </View>
+                <Text style={styles.sectionDescription}>
+                  Priorisez selon votre frigo et vos habitudes alimentaires.
+                </Text>
+
+                <View style={styles.quickFiltersRow}>
+                  {/* Carte En Stock */}
+                  <TouchableOpacity
+                    style={[
+                      styles.quickFilterCard,
+                      draftOnlyDoableWithStock && styles.quickFilterCardStockActive,
+                    ]}
+                    onPress={() => setDraftOnlyDoableWithStock((prev) => !prev)}
+                    activeOpacity={0.75}
+                  >
+                    <View style={styles.quickFilterHeader}>
+                      <Ionicons
+                        name={draftOnlyDoableWithStock ? 'restaurant' : 'restaurant-outline'}
+                        size={18}
+                        color={draftOnlyDoableWithStock ? '#FFFFFF' : colors.primary}
+                      />
+                      <Ionicons
+                        name={draftOnlyDoableWithStock ? 'checkmark-circle' : 'ellipse-outline'}
+                        size={16}
+                        color={draftOnlyDoableWithStock ? '#FFFFFF' : colors.textMuted}
+                      />
+                    </View>
+                    <Text
+                      style={[
+                        styles.quickFilterTitle,
+                        draftOnlyDoableWithStock && styles.quickFilterTitleActive,
+                      ]}
+                    >
+                      En stock
+                    </Text>
+                    <Text
+                      style={[
+                        styles.quickFilterSubtitle,
+                        draftOnlyDoableWithStock && styles.quickFilterSubtitleActive,
+                      ]}
+                    >
+                      {doableCount > 0 ? `${doableCount} faisable${doableCount > 1 ? 's' : ''}` : '100% cuisinable'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  {/* Carte Végétarien */}
+                  <TouchableOpacity
+                    style={[
+                      styles.quickFilterCard,
+                      draftOnlyVegetarian && styles.quickFilterCardVegeActive,
+                    ]}
+                    onPress={() => setDraftOnlyVegetarian((prev) => !prev)}
+                    activeOpacity={0.75}
+                  >
+                    <View style={styles.quickFilterHeader}>
+                      <Ionicons
+                        name={draftOnlyVegetarian ? 'leaf' : 'leaf-outline'}
+                        size={18}
+                        color={draftOnlyVegetarian ? '#FFFFFF' : (isDark ? '#4ADE80' : '#15803D')}
+                      />
+                      <Ionicons
+                        name={draftOnlyVegetarian ? 'checkmark-circle' : 'ellipse-outline'}
+                        size={16}
+                        color={draftOnlyVegetarian ? '#FFFFFF' : colors.textMuted}
+                      />
+                    </View>
+                    <Text
+                      style={[
+                        styles.quickFilterTitle,
+                        draftOnlyVegetarian && styles.quickFilterTitleActive,
+                      ]}
+                    >
+                      Végétarien
+                    </Text>
+                    <Text
+                      style={[
+                        styles.quickFilterSubtitle,
+                        draftOnlyVegetarian && styles.quickFilterSubtitleActive,
+                      ]}
+                    >
+                      Sans viande ni poisson
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* SECTION 2 : TEMPS TOTAL (4 PRESETS UNIVERSELS + RACCOURCIS FINS) */}
               <View style={styles.sectionCard}>
                 <View style={styles.sectionHeader}>
                   <Ionicons
@@ -434,141 +543,101 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
                   />
                   <Text style={styles.sectionTitle}>Temps total</Text>
                   {draftTargetTotalTime !== null ? (
-                    <View style={styles.countBadge}>
+                    <TouchableOpacity
+                      onPress={handleClearTime}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      style={styles.countBadge}
+                    >
                       <Text style={styles.countBadgeText}>
                         {draftTimeFilterMode === 'min' ? '≥ ' : '≤ '}
                         {formatMinutes(draftTargetTotalTime)}
                       </Text>
-                    </View>
+                      <Ionicons name="close" size={12} color="#FFFFFF" style={{ marginLeft: 4 }} />
+                    </TouchableOpacity>
                   ) : (
                     <Text style={styles.sectionHeaderHint}>Illimité</Text>
                   )}
                 </View>
                 <Text style={styles.sectionDescription}>
-                  Préparation + cuisson cumulées pour des repas rapides ou mijotés.
+                  Préparation et cuisson cumulées.
                 </Text>
 
-                {/* Commutateur de mode : Moins de (≤) vs Plus de (≥) */}
-                <View style={styles.timeModeSegmented}>
-                  <TouchableOpacity
-                    style={[
-                      styles.timeModeBtn,
-                      draftTimeFilterMode === 'max' && styles.timeModeBtnActive,
-                    ]}
-                    onPress={() => setDraftTimeFilterMode('max')}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons
-                      name="flash-outline"
-                      size={14}
-                      color={draftTimeFilterMode === 'max' ? '#FFFFFF' : colors.textSecondary}
-                      style={{ marginRight: 5 }}
-                    />
-                    <Text
-                      style={[
-                        styles.timeModeBtnText,
-                        draftTimeFilterMode === 'max' && styles.timeModeBtnTextActive,
-                      ]}
-                    >
-                      ≤ Moins de (Rapide)
-                    </Text>
-                  </TouchableOpacity>
+                {/* 4 Grandes Cartes Presets Universels (Grille 2x2) */}
+                <View style={styles.timeGrid}>
+                  {TIME_PRESETS.map((preset) => {
+                    const isSelected =
+                      draftTargetTotalTime === preset.targetMinutes &&
+                      draftTimeFilterMode === preset.mode;
 
-                  <TouchableOpacity
-                    style={[
-                      styles.timeModeBtn,
-                      draftTimeFilterMode === 'min' && styles.timeModeBtnActive,
-                    ]}
-                    onPress={() => setDraftTimeFilterMode('min')}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons
-                      name="flame-outline"
-                      size={14}
-                      color={draftTimeFilterMode === 'min' ? '#FFFFFF' : colors.textSecondary}
-                      style={{ marginRight: 5 }}
-                    />
-                    <Text
-                      style={[
-                        styles.timeModeBtnText,
-                        draftTimeFilterMode === 'min' && styles.timeModeBtnTextActive,
-                      ]}
-                    >
-                      ≥ Plus de (Mijoté)
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-
-                {/* Entrée libre & Pas-à-pas : [-] [ TextInput ] [+] */}
-                <View style={styles.timeStepperRow}>
-                  <TouchableOpacity
-                    style={[
-                      styles.timeStepBtn,
-                      (!draftTargetTotalTime || draftTargetTotalTime <= 5) && styles.timeStepBtnDisabled,
-                    ]}
-                    onPress={handleDecrementTime}
-                    disabled={!draftTargetTotalTime || draftTargetTotalTime <= 5}
-                    activeOpacity={0.7}
-                    accessibilityLabel="Diminuer la durée"
-                  >
-                    <Ionicons
-                      name="remove"
-                      size={20}
-                      color={(!draftTargetTotalTime || draftTargetTotalTime <= 5) ? colors.textMuted : colors.textPrimary}
-                    />
-                  </TouchableOpacity>
-
-                  <View style={styles.timeInputBox}>
-                    <TextInput
-                      style={styles.timeTextInput}
-                      value={timeInputString}
-                      onChangeText={handleTimeTextChange}
-                      placeholder="—"
-                      placeholderTextColor={colors.textMuted}
-                      keyboardType="number-pad"
-                      maxLength={3}
-                      returnKeyType="done"
-                    />
-                    <Text style={styles.timeInputUnit}>min</Text>
-                  </View>
-
-                  <TouchableOpacity
-                    style={styles.timeStepBtn}
-                    onPress={handleIncrementTime}
-                    activeOpacity={0.7}
-                    accessibilityLabel="Augmenter la durée"
-                  >
-                    <Ionicons name="add" size={20} color={colors.textPrimary} />
-                  </TouchableOpacity>
-                </View>
-
-                {/* Explication lisible en langage naturel */}
-                <Text style={styles.timeHumanText}>
-                  {draftTargetTotalTime !== null
-                    ? draftTimeFilterMode === 'max'
-                      ? `Recettes prêtes en moins de ${formatMinutes(draftTargetTotalTime)}`
-                      : `Recettes nécessitant plus de ${formatMinutes(draftTargetTotalTime)} (mijoté)`
-                    : 'Toutes les durées sont affichées'}
-                </Text>
-
-                {/* Raccourcis rapides en 1 clic */}
-                <View style={styles.timePresetsRow}>
-                  {TIME_QUICK_PRESETS.map((preset) => {
-                    const isSelected = draftTargetTotalTime === preset.value;
                     return (
                       <TouchableOpacity
-                        key={preset.label}
-                        style={[styles.timePresetChip, isSelected && styles.timePresetChipActive]}
-                        onPress={() => handleSetTimeValue(isSelected ? null : preset.value)}
+                        key={preset.id}
+                        style={[
+                          styles.timeCard,
+                          isSelected && styles.timeCardActive,
+                        ]}
+                        onPress={() => handleToggleTimePreset(preset.targetMinutes, preset.mode)}
+                        activeOpacity={0.75}
+                      >
+                        <View style={styles.timeCardHeader}>
+                          <Ionicons
+                            name={preset.icon}
+                            size={18}
+                            color={isSelected ? '#FFFFFF' : colors.primary}
+                          />
+                          <View
+                            style={[
+                              styles.timeCardBadge,
+                              isSelected && styles.timeCardBadgeActive,
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.timeCardBadgeText,
+                                isSelected && styles.timeCardBadgeTextActive,
+                              ]}
+                            >
+                              {preset.badge}
+                            </Text>
+                          </View>
+                        </View>
+                        <Text
+                          style={[
+                            styles.timeCardTitle,
+                            isSelected && styles.timeCardTitleActive,
+                          ]}
+                        >
+                          {preset.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                {/* Raccourcis complémentaires fins */}
+                <View style={styles.timeFinePresetsRow}>
+                  {TIME_FINE_PRESETS.map((fine) => {
+                    const isSelected =
+                      draftTargetTotalTime === fine.value &&
+                      draftTimeFilterMode === fine.mode;
+
+                    return (
+                      <TouchableOpacity
+                        key={fine.label}
+                        style={[
+                          styles.timeFineChip,
+                          isSelected && styles.timeFineChipActive,
+                        ]}
+                        onPress={() => handleToggleTimePreset(fine.value, fine.mode)}
                         activeOpacity={0.75}
                       >
                         <Text
                           style={[
-                            styles.timePresetChipText,
-                            isSelected && styles.timePresetChipTextActive,
+                            styles.timeFineChipText,
+                            isSelected && styles.timeFineChipTextActive,
                           ]}
                         >
-                          {preset.label}
+                          {fine.label}
                         </Text>
                       </TouchableOpacity>
                     );
@@ -577,7 +646,7 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
                   {draftTargetTotalTime !== null && (
                     <TouchableOpacity
                       style={styles.timeClearChip}
-                      onPress={() => handleSetTimeValue(null)}
+                      onPress={handleClearTime}
                       activeOpacity={0.75}
                     >
                       <Ionicons name="close-circle-outline" size={13} color={colors.textSecondary} />
@@ -587,7 +656,7 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
                 </View>
               </View>
 
-              {/* SECTION 2 : NOTE MINIMALE */}
+              {/* SECTION 3 : NOTE MINIMALE */}
               <View style={styles.sectionCard}>
                 <View style={styles.sectionHeader}>
                   <Ionicons name="star" size={17} color={colors.amber} />
@@ -661,7 +730,7 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
                 </View>
               </View>
 
-              {/* SECTION 3 : NIVEAU DE DIFFICULTÉ */}
+              {/* SECTION 4 : NIVEAU DE DIFFICULTÉ */}
               <View style={styles.sectionCard}>
                 <View style={styles.sectionHeader}>
                   <Ionicons name="bar-chart-outline" size={17} color={colors.primary} />
@@ -712,7 +781,7 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
                 </View>
               </View>
 
-              {/* SECTION 4 : INGRÉDIENTS SOUHAITÉS */}
+              {/* SECTION 5 : INGRÉDIENTS SOUHAITÉS */}
               <View style={styles.sectionCard}>
                 <View style={styles.sectionHeader}>
                   <Ionicons name="nutrition-outline" size={17} color={colors.secondary} />
@@ -751,8 +820,9 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
                           <Text style={styles.selectedIngredientChipText}>{ing}</Text>
                           <TouchableOpacity
                             onPress={() => handleRemoveIngredient(ing)}
-                            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                             style={styles.removeChipBtn}
+                            accessibilityLabel={`Retirer ${ing}`}
                           >
                             <Ionicons name="close" size={14} color="#FFFFFF" />
                           </TouchableOpacity>
@@ -760,10 +830,10 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
                       ))}
                     </View>
 
-                    {/* Règle de correspondance si au moins 2 ingrédients sélectionnés (ET vs OU) */}
+                    {/* Règle de correspondance si au moins 2 ingrédients sélectionnés */}
                     {draftIngredients.length >= 2 && (
                       <View style={styles.matchModeContainer}>
-                        <Text style={styles.matchModeLabel}>Règle de combinaison :</Text>
+                        <Text style={styles.matchModeLabel}>Critère de combinaison :</Text>
                         <View style={styles.matchModeSegmented}>
                           <TouchableOpacity
                             style={[
@@ -773,13 +843,19 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
                             onPress={() => setDraftIngredientMatchMode('all')}
                             activeOpacity={0.8}
                           >
+                            <Ionicons
+                              name="checkbox-outline"
+                              size={13}
+                              color={draftIngredientMatchMode === 'all' ? '#FFFFFF' : colors.textSecondary}
+                              style={{ marginRight: 5 }}
+                            />
                             <Text
                               style={[
                                 styles.matchModeBtnText,
                                 draftIngredientMatchMode === 'all' && styles.matchModeBtnTextActive,
                               ]}
                             >
-                              Tous (ET)
+                              Tous ces ingrédients
                             </Text>
                           </TouchableOpacity>
 
@@ -791,20 +867,26 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
                             onPress={() => setDraftIngredientMatchMode('any')}
                             activeOpacity={0.8}
                           >
+                            <Ionicons
+                              name="shuffle-outline"
+                              size={13}
+                              color={draftIngredientMatchMode === 'any' ? '#FFFFFF' : colors.textSecondary}
+                              style={{ marginRight: 5 }}
+                            />
                             <Text
                               style={[
                                 styles.matchModeBtnText,
                                 draftIngredientMatchMode === 'any' && styles.matchModeBtnTextActive,
                               ]}
                             >
-                              Au moins un (OU)
+                              Au moins l’un d’eux
                             </Text>
                           </TouchableOpacity>
                         </View>
                         <Text style={styles.matchModeExplanation}>
                           {draftIngredientMatchMode === 'all'
-                            ? 'La recette doit obligatoirement inclure tous ces ingrédients.'
-                            : 'La recette peut inclure n’importe lequel de ces ingrédients.'}
+                            ? 'La recette doit contenir l’ensemble de ces ingrédients.'
+                            : 'La recette peut contenir n’importe lequel de ces ingrédients.'}
                         </Text>
                       </View>
                     )}
@@ -829,7 +911,7 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
                 )}
               </View>
 
-              {/* SECTION 5 : TAGS & ÉTIQUETTES */}
+              {/* SECTION 6 : TAGS & ÉTIQUETTES */}
               <View style={styles.sectionCard}>
                 <View style={styles.sectionHeader}>
                   <Ionicons name="pricetag-outline" size={17} color={colors.primary} />
@@ -850,12 +932,12 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
                   <View style={styles.emptyTagsNotice}>
                     <Ionicons
                       name="information-circle-outline"
-                      size={18}
+                      size={16}
                       color={colors.textSecondary}
-                      style={{ marginRight: 8 }}
+                      style={{ marginRight: 6 }}
                     />
                     <Text style={styles.emptyTagsNoticeText}>
-                      Aucun tag n&apos;est encore associé à vos recettes. Ajoutez des tags lors de la création ou l&apos;édition d&apos;une recette pour filtrer ici.
+                      Aucune étiquette n’est encore associée à vos recettes.
                     </Text>
                   </View>
                 ) : (
@@ -906,7 +988,7 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
                                 draftTagMatchMode === 'any' && styles.matchModeBtnTextActive,
                               ]}
                             >
-                              Au moins un tag (OU)
+                              Au moins une étiquette
                             </Text>
                           </TouchableOpacity>
 
@@ -924,15 +1006,10 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
                                 draftTagMatchMode === 'all' && styles.matchModeBtnTextActive,
                               ]}
                             >
-                              Tous les tags (ET)
+                              Toutes les étiquettes
                             </Text>
                           </TouchableOpacity>
                         </View>
-                        <Text style={styles.matchModeExplanation}>
-                          {draftTagMatchMode === 'all'
-                            ? 'La recette doit posséder tous les tags sélectionnés.'
-                            : 'La recette peut posséder n’importe lequel de ces tags.'}
-                        </Text>
                       </View>
                     )}
 
@@ -964,20 +1041,26 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
                   <Text style={styles.resetBtnText}>Réinitialiser</Text>
                 </TouchableOpacity>
 
-                {/* Bouton Appliquer avec décompte temps réel */}
+                {/* Bouton Appliquer avec décompte temps réel & état désactivé sécurisé */}
                 <TouchableOpacity
-                  style={styles.applyBtn}
+                  style={[
+                    styles.applyBtn,
+                    matchingRecipesCount === 0 && styles.applyBtnDisabled,
+                  ]}
                   onPress={handleApply}
+                  disabled={matchingRecipesCount === 0}
                   activeOpacity={0.85}
                 >
                   <Text style={styles.applyBtnText}>
                     {matchingRecipesCount === 0
-                      ? 'Aucune recette correspondante'
+                      ? '0 recette correspondante'
                       : matchingRecipesCount === 1
                       ? 'Voir 1 recette'
                       : `Voir les ${matchingRecipesCount} recettes`}
                   </Text>
-                  <Ionicons name="arrow-forward" size={17} color="#FFFFFF" />
+                  {matchingRecipesCount > 0 && (
+                    <Ionicons name="arrow-forward" size={17} color="#FFFFFF" />
+                  )}
                 </TouchableOpacity>
               </View>
             </SafeAreaView>
@@ -1046,9 +1129,9 @@ const styles = createDynamicStyles((colors, shadows) => ({
     marginTop: 2,
   },
   closeBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: colors.background,
     justifyContent: 'center',
     alignItems: 'center',
@@ -1082,9 +1165,11 @@ const styles = createDynamicStyles((colors, shadows) => ({
     flex: 1,
   },
   countBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: colors.primary,
     paddingHorizontal: 8,
-    paddingVertical: 2,
+    paddingVertical: 3,
     borderRadius: 10,
   },
   countBadgeText: {
@@ -1098,6 +1183,148 @@ const styles = createDynamicStyles((colors, shadows) => ({
     marginTop: 4,
     marginBottom: 12,
     lineHeight: 16,
+  },
+  /* Section 1 : En un coup d'œil */
+  quickFiltersRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  quickFilterCard: {
+    flex: 1,
+    backgroundColor: colors.cardBackground,
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    minHeight: 82,
+    justifyContent: 'space-between',
+  },
+  quickFilterCardStockActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  quickFilterCardVegeActive: {
+    backgroundColor: '#15803D',
+    borderColor: '#15803D',
+  },
+  quickFilterHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  quickFilterTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  quickFilterTitleActive: {
+    color: '#FFFFFF',
+  },
+  quickFilterSubtitle: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  quickFilterSubtitleActive: {
+    color: 'rgba(255, 255, 255, 0.85)',
+  },
+  /* Section 2 : Presets Temps Universels */
+  timeGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 10,
+  },
+  timeCard: {
+    width: '48%',
+    backgroundColor: colors.cardBackground,
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    minHeight: 74,
+    justifyContent: 'space-between',
+  },
+  timeCardActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  timeCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  timeCardBadge: {
+    backgroundColor: colors.surfaceAlt,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  timeCardBadgeActive: {
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+  },
+  timeCardBadgeText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: colors.textSecondary,
+  },
+  timeCardBadgeTextActive: {
+    color: '#FFFFFF',
+  },
+  timeCardTitle: {
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginTop: 6,
+  },
+  timeCardTitleActive: {
+    color: '#FFFFFF',
+  },
+  timeFinePresetsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  timeFineChip: {
+    backgroundColor: colors.cardBackground,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  timeFineChipActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  timeFineChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  timeFineChipTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  timeClearChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.background,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginLeft: 'auto',
+  },
+  timeClearChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
   },
   inputRow: {
     flexDirection: 'row',
@@ -1147,7 +1374,7 @@ const styles = createDynamicStyles((colors, shadows) => ({
     gap: 6,
     backgroundColor: colors.primary,
     paddingLeft: 12,
-    paddingRight: 8,
+    paddingRight: 6,
     paddingVertical: 6,
     borderRadius: 16,
     ...shadows.card,
@@ -1158,9 +1385,9 @@ const styles = createDynamicStyles((colors, shadows) => ({
     fontWeight: '700',
   },
   removeChipBtn: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     backgroundColor: 'rgba(255, 255, 255, 0.25)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -1187,15 +1414,17 @@ const styles = createDynamicStyles((colors, shadows) => ({
   },
   matchModeBtn: {
     flex: 1,
-    paddingVertical: 7,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
     borderRadius: 9,
   },
   matchModeBtnActive: {
     backgroundColor: colors.secondary,
   },
   matchModeBtnText: {
-    fontSize: 12.5,
+    fontSize: 12,
     fontWeight: '600',
     color: colors.textSecondary,
   },
@@ -1241,134 +1470,7 @@ const styles = createDynamicStyles((colors, shadows) => ({
     fontWeight: '600',
     color: colors.textMuted,
   },
-  timeModeSegmented: {
-    flexDirection: 'row',
-    backgroundColor: colors.cardBackground,
-    borderRadius: 12,
-    padding: 3,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: 12,
-  },
-  timeModeBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-    borderRadius: 9,
-  },
-  timeModeBtnActive: {
-    backgroundColor: colors.primary,
-  },
-  timeModeBtnText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  timeModeBtnTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
-  timeStepperRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 14,
-    marginBottom: 8,
-  },
-  timeStepBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.cardBackground,
-    borderWidth: 1,
-    borderColor: colors.border,
-    justifyContent: 'center',
-    alignItems: 'center',
-    ...shadows.card,
-  },
-  timeStepBtnDisabled: {
-    opacity: 0.35,
-    elevation: 0,
-    shadowOpacity: 0,
-  },
-  timeInputBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.cardBackground,
-    borderWidth: 1.5,
-    borderColor: colors.primary + '55',
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    minWidth: 120,
-  },
-  timeTextInput: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    textAlign: 'center',
-    minWidth: 46,
-    padding: 0,
-  },
-  timeInputUnit: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.textSecondary,
-    marginLeft: 4,
-  },
-  timeHumanText: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginBottom: 12,
-    fontStyle: 'italic',
-  },
-  timePresetsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    justifyContent: 'center',
-  },
-  timePresetChip: {
-    backgroundColor: colors.cardBackground,
-    paddingHorizontal: 11,
-    paddingVertical: 6,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  timePresetChipActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  timePresetChipText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  timePresetChipTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
-  timeClearChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: colors.background,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  timeClearChipText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
+  /* Section Tags */
   emptyTagsNotice: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1435,6 +1537,7 @@ const styles = createDynamicStyles((colors, shadows) => ({
     fontWeight: '600',
     color: colors.textSecondary,
   },
+
   difficultyRow: {
     flexDirection: 'row',
     gap: 8,
@@ -1559,6 +1662,14 @@ const styles = createDynamicStyles((colors, shadows) => ({
     paddingVertical: 12,
     borderRadius: 14,
     ...shadows.card,
+  },
+  applyBtnDisabled: {
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.border,
+    elevation: 0,
+    shadowOpacity: 0,
+    opacity: 0.6,
   },
   applyBtnText: {
     color: '#FFFFFF',
