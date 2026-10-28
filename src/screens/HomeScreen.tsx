@@ -1405,8 +1405,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             setSelectedTags([]);
             setTagMatchMode('any');
             setMinRatingFilter(0);
-            setOnlyVegetarian(false);
-            setOnlyDoableWithStock(false);
           }}
           targetTotalTime={targetTotalTime}
           timeFilterMode={timeFilterMode}
