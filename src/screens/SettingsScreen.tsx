@@ -16,11 +16,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
 import {
-  createDynamicStyles,
   BotaniqueColors,
   NocturneColors,
   ColorblindColors,
 } from '../theme/colors';
+import { styles } from './SettingsScreen.styles';
 import { StorageService } from '../services/storageService';
 import { RecipeAiService } from '../services/recipeAiService';
 import { VocabularyService } from '../services/vocabularyService';
@@ -198,7 +198,33 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   };
 
   useEffect(() => {
-    loadInitialSettings();
+    let isMounted = true;
+    const initSettings = async () => {
+      try {
+        const [key, servings, allergens, filterEnabled, excludeAi, pSettings] = await Promise.all([
+          RecipeAiService.getApiKey(),
+          StorageService.getDefaultServings(),
+          StorageService.getUserAllergens(),
+          StorageService.getAllergenFilterEnabled(),
+          StorageService.getAiAllergenExclusionEnabled(),
+          StorageService.getPlannerSettings(),
+        ]);
+        if (isMounted) {
+          setApiKey(key || '');
+          setDefaultServings(servings);
+          setUserAllergens(allergens);
+          setIsAllergenFilterEnabled(filterEnabled);
+          setIsAiAllergenExclusionEnabled(excludeAi);
+          setPlannerSettings(pSettings);
+        }
+      } catch (e) {
+        console.error('Erreur chargement paramètres initiaux:', e);
+      }
+    };
+    initSettings();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const handleSaveApiKey = async () => {
@@ -573,7 +599,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
               <Text style={styles.sectionTitle}>Ambiance Visuelle & Thème</Text>
             </View>
             <Text style={styles.sectionSubtitle}>
-              Basculez entre l'herboristerie fraîche et l'ambiance feutrée du soir.
+              Basculez entre l&apos;herboristerie fraîche et l&apos;ambiance feutrée du soir.
             </Text>
 
             <View style={styles.themeVerticalList}>
@@ -748,7 +774,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                 <Text style={{ fontWeight: '700', color: colors.primary }}>
                   aistudio.google.com
                 </Text>
-                . Aucun moyen de paiement n'est nécessaire.
+                . Aucun moyen de paiement n&apos;est nécessaire.
               </Text>
             </View>
           </View>
@@ -836,7 +862,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                     </Text>
                   </View>
                   <Text style={[styles.allergenToggleSub, { color: colors.textMuted }]}>
-                    Masque automatiquement sur l'accueil et la recherche les recettes contenant vos allergènes.
+                    Masque automatiquement sur l&apos;accueil et la recherche les recettes contenant vos allergènes.
                   </Text>
                 </View>
                 <Switch
@@ -859,7 +885,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                     </Text>
                   </View>
                   <Text style={[styles.allergenToggleSub, { color: colors.textMuted }]}>
-                    Interdit à l'IA de proposer des idées ou recettes contenant vos allergènes.
+                    Interdit à l&apos;IA de proposer des idées ou recettes contenant vos allergènes.
                   </Text>
                 </View>
                 <Switch
@@ -1183,7 +1209,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                 >
                   Dynamique
                 </Text>
-                <Text style={styles.plannerModeSub}>Dès aujourd'hui</Text>
+                <Text style={styles.plannerModeSub}>Dès aujourd&apos;hui</Text>
               </TouchableOpacity>
             </View>
 
@@ -1224,7 +1250,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                 <View style={styles.plannerSummaryBox}>
                   <Ionicons name="information-circle-outline" size={16} color={colors.primary} />
                   <Text style={styles.plannerSummaryText}>
-                    Votre menu s'organisera du{' '}
+                    Votre menu s&apos;organisera du{' '}
                     <Text style={{ fontWeight: '700', color: colors.primary }}>
                       {plannerSettings.startDay}
                     </Text>
@@ -1248,7 +1274,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                       Planning continu sur 7 jours
                     </Text>
                     <Text style={styles.plannerSummaryText}>
-                      Vos prévisions s'affichent à partir d'aujourd'hui, en commençant par le prochain repas à préparer. Les repas passés sont grisés et restent modifiables si vous souhaitez forcer un choix.
+                      Vos prévisions s&apos;affichent à partir d&apos;aujourd&apos;hui, en commençant par le prochain repas à préparer. Les repas passés sont grisés et restent modifiables si vous souhaitez forcer un choix.
                     </Text>
                   </View>
                 </View>
@@ -1263,7 +1289,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
               <Text style={styles.sectionTitle}>Lexique & Ingrédients Canoniques</Text>
             </View>
             <Text style={styles.sectionSubtitle}>
-              Standardisation stricte pour éviter les doublons et synonymes ('petits pois' vs 'boîte de petits pois', 'muscade', 'carotte'...).
+              Standardisation stricte pour éviter les doublons et synonymes (&apos;petits pois&apos; vs &apos;boîte de petits pois&apos;, &apos;muscade&apos;, &apos;carotte&apos;...).
             </Text>
 
             <View style={styles.dataActionsColumn}>
@@ -1291,7 +1317,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
               >
                 <Ionicons name="refresh-outline" size={20} color={colors.primary} />
                 <View style={styles.dataActionInfo}>
-                  <Text style={styles.dataActionTitle}>Réinitialiser le lexique d'origine</Text>
+                  <Text style={styles.dataActionTitle}>Réinitialiser le lexique d&apos;origine</Text>
                   <Text style={styles.dataActionDesc}>Recharge les 208 ingrédients et alias certifiés</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
@@ -1409,7 +1435,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           <View style={styles.importDialog}>
             <Text style={styles.importDialogTitle}>Importer des Recettes</Text>
             <Text style={styles.importDialogDesc}>
-              Collez ci-dessous le code JSON issu d'un export précédent :
+              Collez ci-dessous le code JSON issu d&apos;un export précédent :
             </Text>
             <TextInput
               style={styles.importTextInput}
@@ -1470,694 +1496,3 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   );
 };
 
-const styles = createDynamicStyles((colors, shadows) => ({
-  safeArea: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  container: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 14,
-    paddingBottom: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.borderLight,
-    backgroundColor: colors.cardBackground,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  headerIconCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    backgroundColor: colors.primaryLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: colors.textPrimary,
-  },
-  headerSubtitle: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginTop: 1,
-  },
-  scrollContent: {
-    padding: 16,
-  },
-  sectionCard: {
-    backgroundColor: colors.cardBackground,
-    borderRadius: 18,
-    padding: 18,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-    ...shadows.small,
-  },
-  sectionTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    marginLeft: 8,
-  },
-  sectionSubtitle: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    lineHeight: 18,
-    marginBottom: 16,
-  },
-  themeVerticalList: {
-    gap: 9,
-    marginBottom: 4,
-  },
-  themeVerticalItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: 14,
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    borderWidth: 1.5,
-    borderColor: 'transparent',
-  },
-  themeVerticalItemActive: {
-    backgroundColor: colors.cardBackground,
-    borderColor: colors.primary,
-    ...shadows.small,
-  },
-  themeVerticalLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    flex: 1,
-    marginRight: 10,
-  },
-  themeVerticalIcon: {
-    width: 22,
-    textAlign: 'center',
-  },
-  themeVerticalEmoji: {
-    fontSize: 18,
-    width: 22,
-    textAlign: 'center',
-  },
-  themeVerticalTextCol: {
-    flex: 1,
-  },
-  themeVerticalTitle: {
-    fontSize: 13.5,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  themeVerticalTitleActive: {
-    color: colors.primary,
-    fontWeight: '700',
-  },
-  themeVerticalSubtitle: {
-    fontSize: 11,
-    color: colors.textSecondary,
-    marginTop: 1,
-  },
-  themeVerticalSwatchesRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-  },
-  themeVerticalSwatchDot: {
-    width: 17,
-    height: 17,
-    borderRadius: 8.5,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-  },
-  apiKeyInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-    paddingHorizontal: 12,
-    marginBottom: 12,
-  },
-  apiKeyInput: {
-    flex: 1,
-    height: 46,
-    fontSize: 14,
-    color: colors.textPrimary,
-  },
-  inputActionBtn: {
-    padding: 8,
-  },
-  apiBtnRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 12,
-  },
-  saveKeyBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.primary,
-    paddingVertical: 11,
-    borderRadius: 12,
-    gap: 6,
-  },
-  saveKeyBtnText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 14,
-  },
-  testKeyBtn: {
-    flex: 1.2,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surfaceAlt,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingVertical: 11,
-    borderRadius: 12,
-    gap: 6,
-  },
-  testKeyBtnText: {
-    color: colors.primary,
-    fontWeight: '700',
-    fontSize: 13,
-  },
-  statusBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 10,
-    borderRadius: 10,
-    gap: 8,
-    marginBottom: 12,
-  },
-  statusSuccess: {
-    backgroundColor: '#DCFCE7',
-  },
-  statusError: {
-    backgroundColor: '#FEE2E2',
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '600',
-    flex: 1,
-  },
-  aiInfoBox: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: 10,
-    padding: 10,
-    gap: 8,
-  },
-  aiInfoText: {
-    flex: 1,
-    fontSize: 12,
-    color: colors.textSecondary,
-    lineHeight: 17,
-  },
-  servingsStepperRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-    padding: 6,
-  },
-  stepperBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 11,
-    backgroundColor: colors.cardBackground,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-    ...shadows.small,
-  },
-  stepperBtnDisabled: {
-    opacity: 0.35,
-    backgroundColor: colors.surfaceAlt,
-    elevation: 0,
-    shadowOpacity: 0,
-  },
-  stepperValueContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  stepperValueText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  countBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
-    marginLeft: 8,
-  },
-  countBadgeText: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  allergenSubSection: {
-    marginBottom: 16,
-  },
-  allergenSettingsBox: {
-    borderRadius: 14,
-    borderWidth: 1,
-    padding: 12,
-    marginBottom: 16,
-  },
-  allergenToggleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  allergenToggleTextCol: {
-    flex: 1,
-  },
-  allergenToggleTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 2,
-  },
-  allergenToggleTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  allergenToggleSub: {
-    fontSize: 11,
-    lineHeight: 15,
-  },
-  allergenToggleDivider: {
-    height: 1,
-    marginVertical: 10,
-  },
-  allergenSubHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  allergenSubTitle: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  allergenButtonsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 7,
-  },
-  allergenFamilyBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    borderRadius: 10,
-    borderWidth: 1,
-    gap: 5,
-  },
-  allergenFamilyEmoji: {
-    fontSize: 14,
-  },
-  allergenFamilyText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  partialCountText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  quickAddMainRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  nameInput: {
-    height: 44,
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    fontSize: 14,
-    color: colors.textPrimary,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-  },
-  addButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...shadows.small,
-  },
-  addButtonDisabled: {
-    opacity: 0.4,
-  },
-  listSectionHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
-  clearAllBtnText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  emptyAllergenBox: {
-    borderRadius: 14,
-    borderWidth: 1,
-    padding: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emptyAllergenTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    marginTop: 8,
-    marginBottom: 4,
-  },
-  emptyAllergenDesc: {
-    fontSize: 12,
-    textAlign: 'center',
-    lineHeight: 16,
-    paddingHorizontal: 16,
-  },
-  groupedAllergensContainer: {
-    gap: 10,
-  },
-  allergenGroupCard: {
-    borderRadius: 14,
-    borderWidth: 1,
-    padding: 12,
-  },
-  allergenGroupHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  allergenGroupHeaderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  allergenGroupEmoji: {
-    fontSize: 16,
-  },
-  allergenGroupTitle: {
-    fontSize: 13.5,
-    fontWeight: '700',
-  },
-  groupCountBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    borderRadius: 6,
-  },
-  groupCountText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  chipsWrapRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-  },
-  allergenChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 8,
-    borderWidth: 1,
-    paddingLeft: 10,
-    paddingRight: 6,
-    paddingVertical: 5,
-    gap: 6,
-  },
-  chipTextContainer: {
-    justifyContent: 'center',
-  },
-  chipText: {
-    fontSize: 12.5,
-    fontWeight: '600',
-  },
-  chipDeleteBtn: {
-    padding: 2,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  plannerModeRow: {
-    flexDirection: 'row',
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: 14,
-    padding: 3,
-    overflow: 'hidden',
-    marginBottom: 16,
-  },
-  plannerModeBtn: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 11,
-    gap: 2,
-  },
-  plannerModeBtnActive: {
-    backgroundColor: colors.cardBackground,
-    ...shadows.small,
-  },
-  plannerModeBtnText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  plannerModeBtnTextActive: {
-    color: colors.primary,
-    fontWeight: '700',
-  },
-  plannerModeSub: {
-    fontSize: 10,
-    color: colors.textMuted,
-  },
-  fixedConfigContainer: {
-    gap: 10,
-  },
-  configLabel: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  configSubLabel: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginBottom: 4,
-  },
-  daysChipsRow: {
-    flexDirection: 'row',
-    gap: 6,
-    flexWrap: 'wrap',
-    marginBottom: 6,
-  },
-  dayChip: {
-    flex: 1,
-    minWidth: 40,
-    paddingVertical: 8,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surfaceAlt,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-  },
-  dayChipActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  dayChipText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.textSecondary,
-  },
-  dayChipTextActive: {
-    color: '#FFFFFF',
-  },
-  plannerSummaryBox: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: 12,
-    padding: 12,
-    gap: 8,
-    marginTop: 4,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-  },
-  plannerSummaryText: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    lineHeight: 17,
-    flex: 1,
-  },
-  dynamicConfigContainer: {
-    gap: 8,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 16,
-  },
-  statBox: {
-    flex: 1,
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: 12,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  statNumber: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: colors.primary,
-    marginBottom: 2,
-  },
-  statLabel: {
-    fontSize: 11,
-    color: colors.textSecondary,
-    fontWeight: '500',
-  },
-  dataActionsColumn: {
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-    backgroundColor: colors.cardBackground,
-    overflow: 'hidden',
-  },
-  dataActionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.borderLight,
-  },
-  dataActionInfo: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  dataActionTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  dataActionDesc: {
-    fontSize: 11,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  aboutCard: {
-    alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-  },
-  aboutTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.textSecondary,
-    marginBottom: 4,
-  },
-  aboutVersion: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginBottom: 10,
-  },
-  aboutPrivacy: {
-    fontSize: 11,
-    color: colors.textMuted,
-    textAlign: 'center',
-    lineHeight: 16,
-  },
-  importBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    padding: 20,
-  },
-  importDialog: {
-    backgroundColor: colors.cardBackground,
-    borderRadius: 20,
-    padding: 20,
-    ...shadows.large,
-  },
-  importDialogTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    marginBottom: 6,
-  },
-  importDialogDesc: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    marginBottom: 12,
-  },
-  importTextInput: {
-    height: 140,
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: 12,
-    padding: 12,
-    fontSize: 12,
-    color: colors.textPrimary,
-    textAlignVertical: 'top',
-    marginBottom: 16,
-  },
-  importDialogBtnRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 12,
-  },
-  importCancelBtn: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 10,
-  },
-  importCancelText: {
-    color: colors.textSecondary,
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  importConfirmBtn: {
-    backgroundColor: colors.primary,
-    paddingVertical: 10,
-    paddingHorizontal: 18,
-    borderRadius: 10,
-  },
-  importConfirmText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 14,
-  },
-}));
