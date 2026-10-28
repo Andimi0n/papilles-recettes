@@ -880,6 +880,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
                 ]}
                 showsVerticalScrollIndicator={false}
                 stickySectionHeadersEnabled={false}
+                keyboardShouldPersistTaps="handled"
                 sections={groupedActive.map(g => ({ title: g.aisle, data: g.items }))}
                 keyExtractor={(item, index) => item.id}
                 initialNumToRender={15}

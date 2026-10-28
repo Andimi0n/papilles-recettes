@@ -48,6 +48,7 @@ interface SwipeableStockItemRowProps {
   isFirst: boolean;
   isLast: boolean;
   styles: any;
+  shouldAnimateHint?: boolean;
 }
 
 const SwipeableStockItemRow: React.FC<SwipeableStockItemRowProps> = ({
@@ -56,8 +57,32 @@ const SwipeableStockItemRow: React.FC<SwipeableStockItemRowProps> = ({
   isFirst,
   isLast,
   styles,
+  shouldAnimateHint = false,
 }) => {
   const [translateX] = useState(() => new Animated.Value(0));
+
+  useEffect(() => {
+    if (shouldAnimateHint) {
+      const timer = setTimeout(() => {
+        Animated.sequence([
+          Animated.timing(translateX, {
+            toValue: -65,
+            duration: 340,
+            useNativeDriver: true,
+          }),
+          Animated.delay(220),
+          Animated.spring(translateX, {
+            toValue: 0,
+            friction: 7,
+            tension: 40,
+            useNativeDriver: true,
+          }),
+        ]).start();
+      }, 400);
+
+      return () => clearTimeout(timer);
+    }
+  }, [shouldAnimateHint, translateX]);
 
   const snapClose = useCallback(() => {
     Animated.spring(translateX, {
@@ -214,6 +239,17 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
   useEffect(() => {
     onFridgeCountChangeRef.current = onFridgeCountChange;
   }, [onFridgeCountChange]);
+
+  // Animation d'amorce (hint) pour faire découvrir le geste de swipe gauche
+  const hasAnimatedHintRef = useRef(false);
+  const [shouldAnimateFirstItem, setShouldAnimateFirstItem] = useState(false);
+
+  useEffect(() => {
+    if (items.length > 0 && !hasAnimatedHintRef.current) {
+      hasAnimatedHintRef.current = true;
+      setShouldAnimateFirstItem(true);
+    }
+  }, [items.length]);
 
   // Snackbar d'annulation de suppression ou basculement temporaire (4 secondes)
   interface DeletedSnackbarInfo {
@@ -780,6 +816,7 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
             ]}
             showsVerticalScrollIndicator={false}
             stickySectionHeadersEnabled={false}
+            keyboardShouldPersistTaps="handled"
             sections={groupedByAisle.map((g) => ({ title: g.aisle, data: g.items }))}
             keyExtractor={(item, index) => `${item.id}_${index}`}
             initialNumToRender={15}
@@ -860,12 +897,14 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
               const isLast = index === section.data.length - 1;
               const aisle = section.title as ShoppingAisle;
               const cfg = AISLE_CONFIGS[aisle] || AISLE_CONFIGS['Autre'];
+              const isGlobalFirstItem = groupedByAisle[0]?.items[0]?.id === item.id;
 
               return (
                 <SwipeableStockItemRow
                   key={item.id}
                   isFirst={isFirst}
                   isLast={isLast}
+                  shouldAnimateHint={shouldAnimateFirstItem && isGlobalFirstItem}
                   onEmptyItem={() => handleEmptyItem(item)}
                   styles={styles}
                 >
@@ -992,7 +1031,7 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
             </View>
 
             {/* Ajout rapide (suggestions d'indispensables) */}
-            {availableSuggestions.length > 0 && newItemName.trim().length === 0 && (
+            {availableSuggestions.length > 0 && (
               <View style={styles.pinnedSuggestionsContainer}>
                 <Text style={styles.suggestionsTitle}>Ajout rapide en 1 clic :</Text>
                 <ScrollView
