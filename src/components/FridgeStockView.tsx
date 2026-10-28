@@ -9,6 +9,7 @@ import {
   Alert,
   Modal,
   Animated,
+  PanResponder,
   NativeSyntheticEvent,
   NativeScrollEvent,
 } from 'react-native';
@@ -45,6 +46,151 @@ interface FridgeStockViewProps {
   onNavigateToShoppingWithSearch?: (query: string) => void;
 }
 
+interface SwipeableStockItemRowProps {
+  children: React.ReactNode;
+  onEmptyItem: () => void;
+  isFirst: boolean;
+  isLast: boolean;
+  styles: any;
+}
+
+const SwipeableStockItemRow: React.FC<SwipeableStockItemRowProps> = ({
+  children,
+  onEmptyItem,
+  isFirst,
+  isLast,
+  styles,
+}) => {
+  const [translateX] = useState(() => new Animated.Value(0));
+
+  const snapClose = useCallback(() => {
+    Animated.spring(translateX, {
+      toValue: 0,
+      useNativeDriver: true,
+      bounciness: 4,
+    }).start();
+  }, [translateX]);
+
+  const [panResponder] = useState(() => {
+    let isOpen = false;
+    return PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        return (
+          Math.abs(gestureState.dx) > 12 &&
+          Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.5
+        );
+      },
+      onPanResponderMove: (_, gestureState) => {
+        if (isOpen) {
+          const nextVal = -110 + gestureState.dx;
+          translateX.setValue(Math.min(0, Math.max(nextVal, -130)));
+        } else if (gestureState.dx < 0) {
+          translateX.setValue(Math.max(gestureState.dx, -130));
+        }
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        if (isOpen) {
+          if (gestureState.dx > 40) {
+            isOpen = false;
+            Animated.spring(translateX, {
+              toValue: 0,
+              useNativeDriver: true,
+              bounciness: 4,
+            }).start();
+          } else {
+            Animated.timing(translateX, {
+              toValue: -110,
+              duration: 160,
+              useNativeDriver: true,
+            }).start();
+          }
+        } else {
+          if (gestureState.dx < -50) {
+            isOpen = true;
+            Animated.timing(translateX, {
+              toValue: -110,
+              duration: 160,
+              useNativeDriver: true,
+            }).start();
+          } else {
+            Animated.spring(translateX, {
+              toValue: 0,
+              useNativeDriver: true,
+              bounciness: 4,
+            }).start();
+          }
+        }
+      },
+      onPanResponderTerminate: () => {
+        isOpen = false;
+        Animated.spring(translateX, {
+          toValue: 0,
+          useNativeDriver: true,
+          bounciness: 4,
+        }).start();
+      },
+    });
+  });
+
+  return (
+    <View
+      style={[
+        styles.swipeRowContainer,
+        isFirst && isLast && { borderRadius: 14 },
+        isFirst && !isLast && {
+          borderTopLeftRadius: 14,
+          borderTopRightRadius: 14,
+          borderBottomLeftRadius: 0,
+          borderBottomRightRadius: 0,
+        },
+        !isFirst && !isLast && {
+          borderRadius: 0,
+          borderTopWidth: 0,
+          borderBottomWidth: 0,
+          elevation: 0,
+          shadowOpacity: 0,
+        },
+        !isFirst && isLast && {
+          borderTopLeftRadius: 0,
+          borderTopRightRadius: 0,
+          borderBottomLeftRadius: 14,
+          borderBottomRightRadius: 14,
+          borderTopWidth: 0,
+          elevation: 0,
+          shadowOpacity: 0,
+        },
+      ]}
+    >
+      {/* Bouton d'action vert révélé par le swipe gauche */}
+      <View style={styles.swipeHiddenActionWrap}>
+        <TouchableOpacity
+          style={styles.swipeEmptyBtn}
+          onPress={() => {
+            snapClose();
+            onEmptyItem();
+          }}
+          activeOpacity={0.85}
+          accessibilityLabel="J'en ai plus, basculer dans ma liste de courses"
+        >
+          <Ionicons name="cart-outline" size={20} color="#FFFFFF" />
+          <Text style={styles.swipeEmptyBtnText}>J&apos;en ai plus</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Rangée de premier plan qui glisse */}
+      <Animated.View
+        style={[
+          styles.swipeForeground,
+          { transform: [{ translateX }] },
+        ]}
+        {...panResponder.panHandlers}
+      >
+        {children}
+      </Animated.View>
+    </View>
+  );
+};
+
 export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
   recipes,
   onSelectRecipe,
@@ -71,13 +217,22 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
     VocabularyService.getSyncList()
   );
 
-  // Snackbar d'annulation de suppression temporaire (4 secondes)
-  const [deletedSnackbar, setDeletedSnackbar] = useState<{
+  const onFridgeCountChangeRef = useRef(onFridgeCountChange);
+  useEffect(() => {
+    onFridgeCountChangeRef.current = onFridgeCountChange;
+  }, [onFridgeCountChange]);
+
+  // Snackbar d'annulation de suppression ou basculement temporaire (4 secondes)
+  interface DeletedSnackbarInfo {
     item: FridgeItem;
     index: number;
-  } | null>(null);
+    action?: 'delete' | 'transfer';
+    previousShoppingList?: ShoppingItem[];
+  }
+
+  const [deletedSnackbar, setDeletedSnackbar] = useState<DeletedSnackbarInfo | null>(null);
   const snackbarTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pendingDeletedItemRef = useRef<{ item: FridgeItem; index: number } | null>(null);
+  const pendingDeletedItemRef = useRef<DeletedSnackbarInfo | null>(null);
   const [snackbarAnim] = useState(() => new Animated.Value(1));
   const [snackbarFadeAnim] = useState(() => new Animated.Value(0));
 
@@ -205,15 +360,13 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
     try {
       const data = await StorageService.getFridgeItems();
       setItems(data);
-      if (onFridgeCountChange) {
-        onFridgeCountChange(data.length);
-      }
+      onFridgeCountChangeRef.current?.(data.length);
     } catch (e) {
       console.error('Erreur chargement étagères:', e);
     } finally {
       setIsLoading(false);
     }
-  }, [onFridgeCountChange]);
+  }, []);
 
   // Chargement et synchronisation du stock et du vocabulaire canonique
   useEffect(() => {
@@ -227,9 +380,7 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
         if (isMounted) {
           setItems(loadedStock);
           setCanonicalVocabulary(vocab);
-          if (onFridgeCountChange) {
-            onFridgeCountChange(loadedStock.length);
-          }
+          onFridgeCountChangeRef.current?.(loadedStock.length);
         }
       } catch (e) {
         console.error('Erreur chargement stock FridgeStockView:', e);
@@ -239,9 +390,7 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
 
     const unsubFridge = StorageService.onFridgeChange((updatedStock) => {
       setItems(updatedStock);
-      if (onFridgeCountChange) {
-        onFridgeCountChange(updatedStock.length);
-      }
+      onFridgeCountChangeRef.current?.(updatedStock.length);
     });
 
     const unsubVocab = VocabularyService.onVocabularyCascade(async () => {
@@ -255,7 +404,7 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
       unsubFridge();
       unsubVocab();
     };
-  }, [loadStock, onFridgeCountChange]);
+  }, [loadStock]);
 
   // Aliments filtrés selon la recherche
   const filteredItems = useMemo(() => {
@@ -276,7 +425,10 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
   // Groupement des aliments par rayon (sur les éléments filtrés, triés par ordre alphabétique)
   const groupedByAisle = useMemo(() => {
     const map = new Map<ShoppingAisle, FridgeItem[]>();
+    const seenIds = new Set<string>();
     filteredItems.forEach((item) => {
+      if (!item || !item.id || seenIds.has(item.id)) return;
+      seenIds.add(item.id);
       const aisle = item.aisle || 'Autre';
       const existing = map.get(aisle) || [];
       existing.push(item);
@@ -387,9 +539,7 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
       const updated = await StorageService.addFridgeItem(name, resolvedAisle, resolvedCanonicalId);
       setItems(updated);
       VocabularyService.incrementUsage(resolvedCanonicalId || name).catch(() => {});
-      if (onFridgeCountChange) {
-        onFridgeCountChange(updated.length);
-      }
+      onFridgeCountChangeRef.current?.(updated.length);
       setNewItemName('');
       setSelectedAisle(null);
     } catch (e) {
@@ -397,7 +547,11 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
     }
   };
 
-  const handleDeleteItem = async (id: string) => {
+  const handleDeleteItem = async (
+    id: string,
+    action: 'delete' | 'transfer' = 'delete',
+    previousShoppingList?: ShoppingItem[]
+  ) => {
     const itemToDelete = items.find((it) => it.id === id);
     if (!itemToDelete) return;
     const itemIndex = items.findIndex((it) => it.id === id);
@@ -414,11 +568,15 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
     // Retrait optimiste de la liste affichée
     const updated = items.filter((it) => it.id !== id);
     setItems(updated);
-    if (onFridgeCountChange) {
-      onFridgeCountChange(updated.length);
-    }
-    pendingDeletedItemRef.current = { item: itemToDelete, index: itemIndex };
-    setDeletedSnackbar({ item: itemToDelete, index: itemIndex });
+    onFridgeCountChangeRef.current?.(updated.length);
+    const snackbarInfo: DeletedSnackbarInfo = {
+      item: itemToDelete,
+      index: itemIndex,
+      action,
+      previousShoppingList,
+    };
+    pendingDeletedItemRef.current = snackbarInfo;
+    setDeletedSnackbar(snackbarInfo);
 
     // Animation de la jauge sur 4 secondes (4000ms) et entrée fluide
     snackbarAnim.setValue(1);
@@ -456,19 +614,37 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
     const info = pendingDeletedItemRef.current || deletedSnackbar;
     if (!info) return;
 
-    setItems((prev) => {
-      const updated = [...prev];
-      const insertIdx = Math.min(Math.max(0, info.index), updated.length);
-      updated.splice(insertIdx, 0, info.item);
-      StorageService.saveFridgeItems(updated).catch(() => {});
-      if (onFridgeCountChange) {
-        onFridgeCountChange(updated.length);
-      }
-      return updated;
-    });
-
     setDeletedSnackbar(null);
     pendingDeletedItemRef.current = null;
+
+    // 1. Si l'action était un basculement vers les courses, rétablir la liste de courses antérieure
+    if (info.action === 'transfer' && info.previousShoppingList) {
+      try {
+        await StorageService.saveShoppingList(info.previousShoppingList);
+        onItemCopiedToShopping?.(info.item.name);
+      } catch (e) {
+        console.error('Erreur annulation transfert courses:', e);
+      }
+    }
+
+    // 2. Restaurer l'aliment dans les étagères
+    try {
+      const current = await StorageService.getFridgeItems();
+      let updated: FridgeItem[];
+      if (!current.some((it) => it.id === info.item.id)) {
+        updated = [...current];
+        const insertIdx = Math.min(Math.max(0, info.index), updated.length);
+        updated.splice(insertIdx, 0, info.item);
+        const saved = await StorageService.saveFridgeItems(updated);
+        updated = saved;
+      } else {
+        updated = current;
+      }
+      setItems(updated);
+      onFridgeCountChangeRef.current?.(updated.length);
+    } catch (e) {
+      console.error('Erreur restauration fridge item:', e);
+    }
   };
 
   const handleDismissSnackbar = async () => {
@@ -498,9 +674,7 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
           onPress: async () => {
             const updated = await StorageService.clearFridge();
             setItems(updated);
-            if (onFridgeCountChange) {
-              onFridgeCountChange(0);
-            }
+            onFridgeCountChangeRef.current?.(0);
           },
         },
       ]
@@ -517,6 +691,16 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
       }
     } catch (e) {
       Alert.alert('Erreur', "Impossible d'ajouter cet article à la liste de courses.");
+    }
+  };
+
+  const handleEmptyItem = async (item: FridgeItem) => {
+    try {
+      const prevShoppingList = await StorageService.getShoppingList();
+      await handleCopyToShopping(item);
+      await handleDeleteItem(item.id, 'transfer', prevShoppingList);
+    } catch (e) {
+      Alert.alert('Erreur', "Impossible de basculer l'aliment dans la liste de courses.");
     }
   };
 
@@ -603,140 +787,122 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
             ]}
             showsVerticalScrollIndicator={false}
             stickySectionHeadersEnabled={false}
-            sections={groupedByAisle.map(g => ({ title: g.aisle, data: g.items }))}
-            keyExtractor={(item, index) => item.id}
+            sections={groupedByAisle.map((g) => ({ title: g.aisle, data: g.items }))}
+            keyExtractor={(item, index) => `${item.id}_${index}`}
             initialNumToRender={15}
             maxToRenderPerBatch={15}
             windowSize={5}
             onScroll={handleScroll}
             scrollEventThrottle={16}
-          ListHeaderComponent={
-            isSearching && searchQuery?.trim() ? (
-              <View style={styles.searchSummaryStrip}>
-                <Text style={styles.searchSummaryText}>
-                  {filteredItems.length} aliment{filteredItems.length > 1 ? 's' : ''} trouvé{filteredItems.length > 1 ? 's' : ''} pour « {searchQuery.trim()} »
-                </Text>
-              </View>
-            ) : undefined
-          }
-          ListEmptyComponent={
-            isSearching && searchQuery?.trim() ? (
-              <View style={styles.emptySearchContainer}>
-                <View style={styles.emptyIconCircle}>
-                  <Ionicons name="search-outline" size={38} color={colors.primary} />
-                </View>
-                <Text style={styles.emptyTitle}>Aliment introuvable</Text>
-                <Text style={styles.emptySubtitle}>
-                  « {searchQuery.trim()} » n&apos;est pas présent dans vos étagères.
-                </Text>
-
-                <TouchableOpacity
-                  style={styles.searchAddBtn}
-                  onPress={() => handleAddItem(searchQuery.trim())}
-                  activeOpacity={0.85}
-                >
-                  <Ionicons name="add-circle" size={18} color="#FFFFFF" />
-                  <Text style={styles.searchAddBtnText}>
-                    Ajouter « {searchQuery.trim()} » à mes étagères
+            ListHeaderComponent={
+              isSearching && searchQuery?.trim() ? (
+                <View style={styles.searchSummaryStrip}>
+                  <Text style={styles.searchSummaryText}>
+                    {filteredItems.length} aliment{filteredItems.length > 1 ? 's' : ''} trouvé{filteredItems.length > 1 ? 's' : ''} pour « {searchQuery.trim()} »
                   </Text>
-                </TouchableOpacity>
+                </View>
+              ) : undefined
+            }
+            ListEmptyComponent={
+              isSearching && searchQuery?.trim() ? (
+                <View style={styles.emptySearchContainer}>
+                  <View style={styles.emptyIconCircle}>
+                    <Ionicons name="search-outline" size={38} color={colors.primary} />
+                  </View>
+                  <Text style={styles.emptyTitle}>Aliment introuvable</Text>
+                  <Text style={styles.emptySubtitle}>
+                    « {searchQuery.trim()} » n&apos;est pas présent dans vos étagères.
+                  </Text>
 
-                {shoppingCrossCount > 0 && onNavigateToShoppingWithSearch && (
                   <TouchableOpacity
-                    style={styles.searchCrossBtn}
-                    onPress={() => onNavigateToShoppingWithSearch(searchQuery.trim())}
+                    style={styles.searchAddBtn}
+                    onPress={() => handleAddItem(searchQuery.trim())}
                     activeOpacity={0.85}
                   >
-                    <Ionicons name="cart-outline" size={17} color={colors.primary} />
-                    <Text style={styles.searchCrossBtnText}>
-                      Voir dans mes courses ({shoppingCrossCount} article{shoppingCrossCount > 1 ? 's' : ''})
+                    <Ionicons name="add-circle" size={18} color="#FFFFFF" />
+                    <Text style={styles.searchAddBtnText}>
+                      Ajouter « {searchQuery.trim()} » à mes étagères
                     </Text>
                   </TouchableOpacity>
-                )}
-              </View>
-            ) : undefined
-          }
-          renderSectionHeader={({ section: { title, data } }) => {
-            const aisle = title as ShoppingAisle;
-            const cfg = AISLE_CONFIGS[aisle] || AISLE_CONFIGS['Autre'];
-            return (
-              <View style={styles.aisleSection}>
-                <View style={styles.aisleHeaderRow}>
-                  <View
-                    style={[
-                      styles.aisleIconBox,
-                      { backgroundColor: isDark ? cfg.color + '26' : cfg.bgColor },
-                    ]}
-                  >
-                    <Ionicons name={cfg.iconName as any} size={15} color={cfg.color} />
-                  </View>
-                  <Text style={[styles.aisleTitle, { color: cfg.color }]}>{aisle}</Text>
-                  <View style={styles.aisleCountBadge}>
-                    <Text style={styles.aisleCountText}>{data.length}</Text>
-                  </View>
+
+                  {shoppingCrossCount > 0 && onNavigateToShoppingWithSearch && (
+                    <TouchableOpacity
+                      style={styles.searchCrossBtn}
+                      onPress={() => onNavigateToShoppingWithSearch(searchQuery.trim())}
+                      activeOpacity={0.85}
+                    >
+                      <Ionicons name="cart-outline" size={17} color={colors.primary} />
+                      <Text style={styles.searchCrossBtnText}>
+                        Voir dans mes courses ({shoppingCrossCount} article{shoppingCrossCount > 1 ? 's' : ''})
+                      </Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
-              </View>
-            );
-          }}
-          renderItem={({ item, index, section }) => {
-            const isCopied = justCopiedId === item.id;
-            const isLast = index === section.data.length - 1;
-            const aisle = section.title as ShoppingAisle;
-            const cfg = AISLE_CONFIGS[aisle] || AISLE_CONFIGS['Autre'];
-            return (
-              <View style={index === 0 ? [styles.itemsCard, {borderBottomLeftRadius: isLast ? 14 : 0, borderBottomRightRadius: isLast ? 14 : 0}] : isLast ? [styles.itemsCard, {borderTopLeftRadius: 0, borderTopRightRadius: 0, borderTopWidth: 0, elevation: 0, shadowOpacity: 0}] : [styles.itemsCard, {borderRadius: 0, borderTopWidth: 0, borderBottomWidth: 0, elevation: 0, shadowOpacity: 0}]}>
-                <View
-                  style={[
-                    styles.itemRow,
-                    !isLast && styles.itemRowBorder,
-                  ]}
-                >
-                  <View style={styles.bulletPoint}>
-                    <Ionicons name="ellipse" size={8} color={cfg.color} />
-                  </View>
-
-                  <View style={styles.itemTextContainer}>
-                    <Text style={styles.itemName}>{item.name}</Text>
-                  </View>
-
-                  {/* Bouton d'action : Ajouter à la liste de courses */}
-                  <TouchableOpacity
-                    style={[
-                      styles.copyToShoppingBtn,
-                      isCopied && styles.copyToShoppingBtnSuccess,
-                    ]}
-                    onPress={() => handleCopyToShopping(item)}
-                    hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                    accessibilityLabel="Ajouter à la liste de courses"
-                  >
-                    <Ionicons
-                      name={isCopied ? 'checkmark' : 'cart-outline'}
-                      size={16}
-                      color={isCopied ? '#FFFFFF' : colors.primary}
-                    />
-                    <Text
+              ) : undefined
+            }
+            renderSectionHeader={({ section: { title, data } }) => {
+              const aisle = title as ShoppingAisle;
+              const cfg = AISLE_CONFIGS[aisle] || AISLE_CONFIGS['Autre'];
+              return (
+                <View style={styles.aisleSection}>
+                  <View style={styles.aisleHeaderRow}>
+                    <View
                       style={[
-                        styles.copyToShoppingText,
-                        isCopied && styles.copyToShoppingTextSuccess,
+                        styles.aisleIconBox,
+                        { backgroundColor: isDark ? cfg.color + '26' : cfg.bgColor },
                       ]}
                     >
-                      {isCopied ? 'Ajouté' : 'Courses'}
-                    </Text>
-                  </TouchableOpacity>
-
-                  {/* Bouton supprimer */}
-                  <TouchableOpacity
-                    style={styles.deleteItemBtn}
-                    onPress={() => handleDeleteItem(item.id)}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    accessibilityLabel="Supprimer de mes étagères"
-                  >
-                    <Ionicons name="close" size={18} color={colors.textMuted} />
-                  </TouchableOpacity>
+                      <Ionicons name={cfg.iconName as any} size={15} color={cfg.color} />
+                    </View>
+                    <Text style={[styles.aisleTitle, { color: cfg.color }]}>{aisle}</Text>
+                    <View style={styles.aisleCountBadge}>
+                      <Text style={styles.aisleCountText}>{data.length}</Text>
+                    </View>
+                  </View>
                 </View>
-              </View>
-            );
-          }}
+              );
+            }}
+            renderItem={({ item, index, section }) => {
+              const isFirst = index === 0;
+              const isLast = index === section.data.length - 1;
+              const aisle = section.title as ShoppingAisle;
+              const cfg = AISLE_CONFIGS[aisle] || AISLE_CONFIGS['Autre'];
+
+              return (
+                <SwipeableStockItemRow
+                  key={item.id}
+                  isFirst={isFirst}
+                  isLast={isLast}
+                  onEmptyItem={() => handleEmptyItem(item)}
+                  styles={styles}
+                >
+                  <View
+                    style={[
+                      styles.itemRow,
+                      !isLast && styles.itemRowBorder,
+                    ]}
+                  >
+                    <View style={styles.bulletPoint}>
+                      <Ionicons name="ellipse" size={8} color={cfg.color} />
+                    </View>
+
+                    <View style={styles.itemTextContainer}>
+                      <Text style={styles.itemName}>{item.name}</Text>
+                    </View>
+
+                    {/* Bouton supprimer */}
+                    <TouchableOpacity
+                      style={styles.deleteItemBtn}
+                      onPress={() => handleDeleteItem(item.id)}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      accessibilityLabel="Supprimer de mes étagères"
+                    >
+                      <Ionicons name="close" size={18} color={colors.textMuted} />
+                    </TouchableOpacity>
+                  </View>
+                </SwipeableStockItemRow>
+              );
+            }}
         />
       )}
 
@@ -984,9 +1150,15 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
         >
           <View style={styles.snackbarContent}>
             <View style={styles.snackbarLeft}>
-              <Ionicons name="trash-outline" size={17} color="#FFFFFF" />
+              <Ionicons
+                name={deletedSnackbar.action === 'transfer' ? 'cart-outline' : 'trash-outline'}
+                size={17}
+                color="#FFFFFF"
+              />
               <Text style={styles.snackbarText} numberOfLines={1}>
-                « {deletedSnackbar.item.name} » supprimé
+                {deletedSnackbar.action === 'transfer'
+                  ? `« ${deletedSnackbar.item.name} » basculé dans les courses`
+                  : `« ${deletedSnackbar.item.name} » supprimé`}
               </Text>
             </View>
 
@@ -1371,6 +1543,43 @@ const styles = createDynamicStyles((colors, shadows) => ({
   modalSafeArea: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  swipeRowContainer: {
+    backgroundColor: colors.cardBackground,
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: 'hidden',
+    position: 'relative',
+    ...shadows.card,
+  },
+  swipeHiddenActionWrap: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    right: 0,
+    width: 110,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#16A34A',
+    borderTopRightRadius: 14,
+    borderBottomRightRadius: 14,
+  },
+  swipeEmptyBtn: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexDirection: 'column',
+    gap: 3,
+  },
+  swipeEmptyBtnText: {
+    color: '#FFFFFF',
+    fontSize: 11.5,
+    fontWeight: '700',
+  },
+  swipeForeground: {
+    backgroundColor: colors.cardBackground,
+    width: '100%',
   },
   modalContent: {
     flex: 1,

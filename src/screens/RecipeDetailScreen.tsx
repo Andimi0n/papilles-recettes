@@ -954,7 +954,16 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
             accessibilityLabel="Ajouter aux courses"
           >
             <Ionicons name="cart" size={18} color={colors.primary} />
-            <Text style={styles.floatingCartBtnText}>Ajouter aux courses</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.floatingPimpBtn}
+            onPress={handlePimpRecipe}
+            activeOpacity={0.85}
+            disabled={isPimping}
+          >
+            <Ionicons name="sparkles" size={18} color={colors.primary} />
+            <Text style={styles.floatingPimpBtnText}>Pimper</Text>
           </TouchableOpacity>
 
           <TouchableOpacity

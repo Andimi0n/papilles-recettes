@@ -266,6 +266,10 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
     }
   }, []);
 
+  const handleFridgeCountChange = useCallback((count: number) => {
+    setFridgeCount(count);
+  }, []);
+
   useEffect(() => {
     void (async () => {
       await loadShoppingList();
@@ -527,39 +531,22 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
     }
   };
 
-  // Nettoyage des articles cochés avec proposition intelligente de les ranger dans les étagères
-  const handleClearCompleted = () => {
+  // Nettoyage des articles cochés avec auto-rangement dans les étagères
+  const handleClearCompleted = async () => {
     if (completedCount === 0) return;
-    Alert.alert(
-      'Articles achetés',
-      `Que souhaitez-vous faire des ${completedCount} article(s) coché(s) ?`,
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Ranger dans mes étagères 🥫',
-          style: 'default',
-          onPress: async () => {
-            const completedNames = completedItems.map((i) => i.name);
-            await StorageService.addMultipleFridgeItems(completedNames);
-            const updated = await StorageService.clearCompletedShoppingItems();
-            setItems(updated);
-            setFridgeCount((prev) => prev + completedNames.length);
-            Alert.alert(
-              'Étagères approvisionnées !',
-              `${completedNames.length} aliment(s) ajouté(s) à vos étagères.`
-            );
-          },
-        },
-        {
-          text: 'Supprimer uniquement',
-          style: 'destructive',
-          onPress: async () => {
-            const updated = await StorageService.clearCompletedShoppingItems();
-            setItems(updated);
-          },
-        },
-      ]
-    );
+    try {
+      const completedNames = completedItems.map((i) => i.name);
+      await StorageService.addMultipleFridgeItems(completedNames);
+      const updated = await StorageService.clearCompletedShoppingItems();
+      setItems(updated);
+      setFridgeCount((prev) => prev + completedNames.length);
+      Alert.alert(
+        'Rangement terminé !',
+        `${completedNames.length} aliment(s) rangé(s) dans vos étagères.`
+      );
+    } catch (e) {
+      Alert.alert('Erreur', "Impossible de ranger les articles dans vos étagères.");
+    }
   };
 
   const handleClearAll = () => {
@@ -757,7 +744,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
           onItemCopiedToShopping={() => {
             loadShoppingList();
           }}
-          onFridgeCountChange={(count) => setFridgeCount(count)}
+          onFridgeCountChange={handleFridgeCountChange}
           onNavigateToDoableRecipes={() => {
             if (onNavigateToRecipes) {
               onNavigateToRecipes({ onlyDoable: true });
