@@ -95,25 +95,34 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
 
   const stepIntervalRef = useRef<any>(null);
 
-  // Synchronisation lors de l'ouverture
+  // Synchronisation lors de l'ouverture pendant le render
+  const [prevVisible, setPrevVisible] = useState(visible);
+  if (visible && !prevVisible) {
+    setPrevVisible(true);
+    setSelectedStockNames(stockItems.map((item) => item.name));
+    setMealType('Plat');
+    setAiFlowStep('config');
+    setIdeas([]);
+    setSelectedIdea(null);
+  } else if (!visible && prevVisible) {
+    setPrevVisible(false);
+  }
+
+  // Charger les portions par défaut depuis le storage si configuré
   useEffect(() => {
-    if (visible) {
-      setSelectedStockNames(stockItems.map((item) => item.name));
-      setMealType('Plat');
-      setAiFlowStep('config');
-      setIdeas([]);
-      setSelectedIdea(null);
-      // Charger les portions par défaut depuis le storage si configuré
-      StorageService.getDefaultServings().then((val) => {
-        if (val && val >= 1) setServings(val);
-      });
-    }
-  }, [visible, stockItems]);
+    if (!visible) return;
+    let isMounted = true;
+    StorageService.getDefaultServings().then((val) => {
+      if (isMounted && val && val >= 1) setServings(val);
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, [visible]);
 
   // Animation des étapes IA lors de la génération complète
   useEffect(() => {
     if (aiFlowStep === 'generating_recipe') {
-      setAiStepIndex(0);
       stepIntervalRef.current = setInterval(() => {
         setAiStepIndex((prev) => (prev + 1) % AI_STEPS.length);
       }, 2300);
@@ -294,6 +303,7 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
 
   const executeGenerateRecipeFromIdea = async (idea: RecipeIdea, key?: string) => {
     setActiveModelInfo({ model: GEMINI_MODELS_CASCADE[0], isFallback: false });
+    setAiStepIndex(0);
     setAiFlowStep('generating_recipe');
 
     try {
@@ -488,7 +498,7 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
                 </View>
                 <Text style={styles.aiLoadingTitle}>Inspiration en cours...</Text>
                 <Text style={styles.aiLoadingStepText}>
-                  Le Chef imagine 3 idées gourmandes de type "{mealType}"...
+                  Le Chef imagine 3 idées gourmandes de type &laquo; {mealType} &raquo;...
                 </Text>
                 <ActivityIndicator
                   size="large"
@@ -652,8 +662,8 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
                   </View>
                   <Text style={styles.emptyStockTitle}>Vos étagères sont vides</Text>
                   <Text style={styles.emptyStockSubtitle}>
-                    Renseignez vos ingrédients du placard ou du frigo dans l'onglet "Étagères &
-                    Courses" pour voir instantanément quelles recettes cuisiner ou inspirer le Chef
+                    Renseignez vos ingrédients du placard ou du frigo dans l&apos;onglet &laquo; Étagères &amp;
+                    Courses &raquo; pour voir instantanément quelles recettes cuisiner ou inspirer le Chef
                     IA.
                   </Text>
                   {onNavigateToStock && (
@@ -979,7 +989,7 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
                         ) : (
                           <Text style={styles.carnetStatDescText}>
                             Aucune recette ne correspond à 100% à votre stock actuel. Le Chef IA
-                            ci-dessus vous permet d'inventer des recettes sur-mesure !
+                            ci-dessus vous permet d&apos;inventer des recettes sur-mesure !
                           </Text>
                         )}
                       </View>
@@ -1038,7 +1048,7 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
                   <Text style={styles.apiKeyTitle}>Clé API Gemini Requise</Text>
                 </View>
                 <Text style={styles.apiKeyText}>
-                  Pour inventer des recettes avec vos restes, l'application utilise l'intelligence
+                  Pour inventer des recettes avec vos restes, l&apos;application utilise l&apos;intelligence
                   artificielle gratuite Google Gemini (modèle BYOK).
                 </Text>
                 <TextInput

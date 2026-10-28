@@ -63,10 +63,23 @@ export const VocabularyManagerModal: React.FC<VocabularyManagerModalProps> = ({
   }, []);
 
   useEffect(() => {
-    if (visible) {
-      loadData();
-    }
-  }, [visible, loadData]);
+    if (!visible) return;
+    let isMounted = true;
+    const fetchVocab = async () => {
+      try {
+        const all = await VocabularyService.getAll();
+        if (isMounted) {
+          setItems(all);
+        }
+      } catch (e) {
+        console.error('Erreur chargement lexique:', e);
+      }
+    };
+    fetchVocab();
+    return () => {
+      isMounted = false;
+    };
+  }, [visible]);
 
   // Filtrage des ingrédients
   const filteredItems = useMemo(() => {
@@ -566,7 +579,7 @@ export const VocabularyManagerModal: React.FC<VocabularyManagerModalProps> = ({
                   activeOpacity={0.7}
                 >
                   <Ionicons name="refresh-outline" size={16} color={colors.danger} />
-                  <Text style={styles.resetBtnText}>Réinitialiser le lexique aux valeurs d'usine</Text>
+                  <Text style={styles.resetBtnText}>Réinitialiser le lexique aux valeurs d&apos;usine</Text>
                 </TouchableOpacity>
               </View>
             }
@@ -629,7 +642,7 @@ export const VocabularyManagerModal: React.FC<VocabularyManagerModalProps> = ({
                 />
 
                 {/* Sélecteur Famille d'allergène majeur */}
-                <Text style={styles.fieldLabel}>Famille d'allergène (Règlement INCO) :</Text>
+                <Text style={styles.fieldLabel}>Famille d&apos;allergène (Règlement INCO) :</Text>
                 <TouchableOpacity
                   style={[
                     styles.dialogInput,
@@ -684,7 +697,7 @@ export const VocabularyManagerModal: React.FC<VocabularyManagerModalProps> = ({
                   <View style={styles.dialogToggleLeft}>
                     <Text style={styles.dialogToggleTitle}>📦 Ingrédient de placard / Assaisonnement</Text>
                     <Text style={styles.dialogToggleSubtitle}>
-                      Considéré présent par défaut en cuisine (sel, poivre, huiles, épices). Placé dans la section "Assaisonnements & condiments" des recettes.
+                      Considéré présent par défaut en cuisine (sel, poivre, huiles, épices). Placé dans la section &laquo; Assaisonnements &amp; condiments &raquo; des recettes.
                     </Text>
                   </View>
                   <View style={[styles.switchCircle, formIsPantryStaple && styles.switchCircleActive]}>
@@ -718,7 +731,7 @@ export const VocabularyManagerModal: React.FC<VocabularyManagerModalProps> = ({
               <View style={styles.editDialogCard}>
                 <Text style={styles.dialogTitle}>Fusionner un ingrédient</Text>
                 <Text style={styles.dialogSubtitle}>
-                  Fusionner "{mergeSource?.canonicalName}" dans un autre ingrédient cible.
+                  Fusionner &laquo; {mergeSource?.canonicalName} &raquo; dans un autre ingrédient cible.
                 </Text>
 
                 <TextInput

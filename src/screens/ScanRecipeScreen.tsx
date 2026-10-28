@@ -335,8 +335,8 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
               <Text style={styles.guideTitle}>Tous formats de photo acceptés</Text>
             </View>
             <Text style={styles.guideText}>
-              Prenez en photo votre recette depuis n'importe quel support : livre de cuisine, fiche repas, carnet manuscrit, magazine ou capture d'écran.
-              {'\n'}Par défaut <Text style={styles.guideBold}>1 photo</Text> suffit, mais vous pouvez en ajouter d'autres si la recette s'étale sur plusieurs pages.
+              Prenez en photo votre recette depuis n&apos;importe quel support : livre de cuisine, fiche repas, carnet manuscrit, magazine ou capture d&apos;écran.
+              {'\n'}Par défaut <Text style={styles.guideBold}>1 photo</Text> suffit, mais vous pouvez en ajouter d&apos;autres si la recette s&apos;étale sur plusieurs pages.
             </Text>
           </View>
 
@@ -474,7 +474,7 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
             <View style={styles.modalBox}>
               <Text style={styles.modalTitle}>Clé API Google Gemini</Text>
               <Text style={styles.modalSubtitle}>
-                L'analyse multimodale utilise Gemini 3.8 Flash. Vous pouvez utiliser votre propre clé Google AI Studio.
+                L&apos;analyse multimodale utilise Gemini 3.8 Flash. Vous pouvez utiliser votre propre clé Google AI Studio.
               </Text>
 
               <View style={styles.keyInputContainer}>

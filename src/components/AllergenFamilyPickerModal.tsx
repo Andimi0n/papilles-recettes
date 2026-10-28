@@ -211,7 +211,7 @@ export const AllergenFamilyPickerModal: React.FC<AllergenFamilyPickerModalProps>
 
             <View style={styles.sectionDivider}>
               <Text style={[styles.sectionDividerText, { color: colors.textMuted }]}>
-                OU L'UNE DES 14 FAMILLES MAJEURES (RÈGLEMENT INCO)
+                OU L&apos;UNE DES 14 FAMILLES MAJEURES (RÈGLEMENT INCO)
               </Text>
             </View>
 

@@ -49,16 +49,18 @@ export const MealSlotPickerModal: React.FC<MealSlotPickerModalProps> = ({
   const [customTitle, setCustomTitle] = useState('');
   const [servings, setServings] = useState<number>(currentMeal?.servings || 4);
 
-  // Synchronise les portions si un repas est déjà présent
-  React.useEffect(() => {
-    if (visible) {
-      setServings(currentMeal?.servings || 4);
-      setCustomTitle(currentMeal?.customNote || '');
-      setSearchQuery('');
-      setSelectedCategory('Tous');
-      setActiveTab('recipes');
-    }
-  }, [visible, currentMeal]);
+  // Synchronise les portions et le formulaire dès l'ouverture du modal pendant le render
+  const [prevVisible, setPrevVisible] = useState(visible);
+  if (visible && !prevVisible) {
+    setPrevVisible(true);
+    setServings(currentMeal?.servings || 4);
+    setCustomTitle(currentMeal?.customNote || '');
+    setSearchQuery('');
+    setSelectedCategory('Tous');
+    setActiveTab('recipes');
+  } else if (!visible && prevVisible) {
+    setPrevVisible(false);
+  }
 
   const filteredRecipes = useMemo(() => {
     const query = normalizeString(searchQuery);

@@ -75,7 +75,7 @@ export const RecipeLinkPickerModal: React.FC<RecipeLinkPickerModalProps> = ({
             <View style={styles.headerTitleCol}>
               <Text style={styles.headerTitle}>Lier une recette</Text>
               <Text style={styles.headerSubtitle} numberOfLines={1}>
-                Pour l'ingrédient « {ingredientName || 'sélectionné'} »
+                Pour l&apos;ingrédient « {ingredientName || 'sélectionné'} »
               </Text>
             </View>
             <TouchableOpacity
