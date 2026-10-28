@@ -33,9 +33,18 @@ async function resolveImageForHtml(imageUrl: string | undefined): Promise<string
   if (!imageUrl || !imageUrl.trim()) return null;
   const trimmed = imageUrl.trim();
 
-  // Si c'est déjà un data URI ou une URL web sécurisée
-  if (trimmed.startsWith('data:') || trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+  // Si c'est déjà un data URI d'image ou une URL web sécurisée (SEC-03)
+  if (
+    trimmed.startsWith('data:image/') ||
+    trimmed.startsWith('http://') ||
+    trimmed.startsWith('https://')
+  ) {
     return trimmed;
+  }
+
+  // Rejeter tout format qui n'est pas explicitement un fichier local
+  if (!trimmed.startsWith('file://')) {
+    return null;
   }
 
   // Si c'est un fichier local (ex: file://...), convertir en base64 via expo-image-manipulator
@@ -51,7 +60,7 @@ async function resolveImageForHtml(imageUrl: string | undefined): Promise<string
     return result.uri;
   } catch (e) {
     console.warn('[RecipePdfService] Impossible de convertir l\'image locale en base64:', e);
-    return trimmed;
+    return null;
   }
 }
 
@@ -502,7 +511,7 @@ export const RecipePdfService = {
 
     ${resolvedImageSrc ? `
     <div class="hero-photo-wrap">
-      <img src="${resolvedImageSrc}" alt="${escapeHtml(recipe.title)}" class="hero-photo" />
+      <img src="${escapeHtml(resolvedImageSrc)}" alt="${escapeHtml(recipe.title)}" class="hero-photo" />
     </div>` : ''}
   </div>
 
@@ -552,7 +561,7 @@ export const RecipePdfService = {
     </div>
     ${qrCodeBmp ? `
     <div class="footer-qr-group">
-      <img src="${qrCodeBmp}" alt="QR Code Recette Papilles" class="footer-qr-img" />
+      <img src="${escapeHtml(qrCodeBmp)}" alt="QR Code Recette Papilles" class="footer-qr-img" />
       <div class="footer-qr-caption">
         Scannez avec <strong>Papilles</strong> pour importer cette recette sur votre téléphone
       </div>
