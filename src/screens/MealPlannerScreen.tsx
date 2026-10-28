@@ -26,6 +26,7 @@ import { styles } from './MealPlannerScreen.styles';
 import { useTheme } from '../theme/ThemeContext';
 import { MealSlotPickerModal } from '../components/MealSlotPickerModal';
 import { QuickMealLogModal } from '../components/QuickMealLogModal';
+import { MealCalendarModal } from '../components/MealCalendarModal';
 import {
   generateUniqueId,
   getLocalDateString,
@@ -81,6 +82,9 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
   const [mealLogs, setMealLogs] = useState<MealLogMap>({});
   const [recentDays, setRecentDays] = useState<DayMealLogSummary[]>([]);
   const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
+  const [isCalendarModalVisible, setIsCalendarModalVisible] = useState(false);
+  const ribbonScrollRef = useRef<React.ElementRef<typeof ScrollView>>(null);
+  const hasInitialScrolledRibbon = useRef(false);
   const [quickLogModal, setQuickLogModal] = useState<{
     visible: boolean;
     date: string;
@@ -212,7 +216,7 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
       setMealLogs(nextLogs);
       const history = await StorageService.getRecentDaysMealLogs(14);
       setRecentDays(history);
-    } catch (e) {
+    } catch {
       Alert.alert('Erreur', "Impossible d'enregistrer le repas.");
     }
   };
@@ -224,7 +228,7 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
       setMealLogs(nextLogs);
       const history = await StorageService.getRecentDaysMealLogs(14);
       setRecentDays(history);
-    } catch (e) {
+    } catch {
       Alert.alert('Erreur', 'Impossible de supprimer ce repas.');
     }
   };
@@ -241,9 +245,9 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
   const plannedLunchForDay = weeklyPlan[`${selectedDate}_lunch`] || weeklyPlan[`${currentDayOfWeek}_lunch`];
   const plannedDinnerForDay = weeklyPlan[`${selectedDate}_dinner`] || weeklyPlan[`${currentDayOfWeek}_dinner`];
 
-  // Ruban chronologique des jours récents (du plus ancien au plus récent)
+  // Ruban chronologique d'une semaine (7 jours, du plus ancien au jour actuel)
   const ribbonDays = useMemo(() => {
-    return [...recentDays].reverse();
+    return recentDays.slice(0, 7).reverse();
   }, [recentDays]);
 
   // Validation directe 1-tap d'un plat planifié vers le journal
@@ -261,7 +265,7 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
       setMealLogs(nextLogs);
       const history = await StorageService.getRecentDaysMealLogs(14);
       setRecentDays(history);
-    } catch (e) {
+    } catch {
       Alert.alert('Erreur', "Impossible d'enregistrer le repas.");
     }
   };
@@ -302,7 +306,7 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
     try {
       const nextPlan = await StorageService.setWeeklyMeal(slotKey, mealTime, meal);
       setWeeklyPlan(nextPlan);
-    } catch (e) {
+    } catch {
       Alert.alert('Erreur', 'Impossible de planifier cette recette.');
     } finally {
       setActiveSlot(null);
@@ -325,7 +329,7 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
     try {
       const nextPlan = await StorageService.setWeeklyMeal(slotKey, mealTime, meal);
       setWeeklyPlan(nextPlan);
-    } catch (e) {
+    } catch {
       Alert.alert('Erreur', 'Impossible de planifier ce repas.');
     } finally {
       setActiveSlot(null);
@@ -336,7 +340,7 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
     try {
       const nextPlan = await StorageService.setWeeklyMeal(slotKey, mealTime, null);
       setWeeklyPlan(nextPlan);
-    } catch (e) {
+    } catch {
       Alert.alert('Erreur', 'Impossible de supprimer ce repas.');
     }
   };
@@ -413,22 +417,22 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
           },
         ]
       );
-    } catch (e) {
+    } catch {
       Alert.alert('Erreur', 'Impossible de générer la liste de courses.');
     }
   };
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      {/* En-tête principal avec Switcher d'onglets (Aujourd’hui vs Semaine) */}
+      {/* En-tête principal avec Switcher d'onglets (Suivi des repas vs Planning menus) */}
       <View style={styles.header}>
         <View style={styles.headerTitleCol}>
           <Text style={styles.headerTitle}>Repas</Text>
           <Text style={styles.headerSubtitle}>
             {activeMainTab === 'journal'
-              ? 'Suivez vos repas midi & soir'
+              ? 'Suivi des repas midi & soir'
               : plannedCount === 0
-              ? 'Aucun repas programmé'
+              ? 'Planification des menus'
               : `${plannedCount} sur 14 repas prévus`}
           </Text>
         </View>
@@ -436,13 +440,12 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
         {activeMainTab === 'planner' && plannedCount > 0 && (
           <View style={styles.headerActionsRow}>
             <TouchableOpacity
-              style={styles.headerCartBtn}
+              style={styles.headerCartIconBtn}
               onPress={handleGenerateShoppingList}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               accessibilityLabel="Générer la liste de courses"
             >
-              <Ionicons name="cart" size={16} color="#FFFFFF" />
-              <Text style={styles.headerCartBtnText}>Courses</Text>
+              <Ionicons name="cart" size={18} color="#FFFFFF" />
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -478,8 +481,9 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
                 styles.tabSwitcherText,
                 activeMainTab === 'journal' && styles.tabSwitcherTextActive,
               ]}
+              numberOfLines={1}
             >
-              Aujourd’hui
+              Suivi des repas
             </Text>
           </TouchableOpacity>
 
@@ -501,8 +505,9 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
                 styles.tabSwitcherText,
                 activeMainTab === 'planner' && styles.tabSwitcherTextActive,
               ]}
+              numberOfLines={1}
             >
-              Semaine
+              Planning menus
             </Text>
           </TouchableOpacity>
         </View>
@@ -515,7 +520,7 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
           contentContainerStyle={styles.journalContent}
           showsVerticalScrollIndicator={false}
         >
-          {/* En-tête date sélectionnée avec bouton retour Aujourd'hui */}
+          {/* En-tête date sélectionnée avec bouton retour Aujourd'hui et bouton Calendrier */}
           <View style={styles.selectedDateHeader}>
             <View style={styles.selectedDateCol}>
               <Text style={styles.selectedDateTitle}>
@@ -526,25 +531,47 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
               </Text>
             </View>
 
-            {selectedDate !== todayStr && (
+            <View style={styles.selectedDateActions}>
+              {selectedDate !== todayStr && (
+                <TouchableOpacity
+                  style={styles.returnTodayBtn}
+                  onPress={() => {
+                    setSelectedDate(todayStr);
+                    ribbonScrollRef.current?.scrollToEnd({ animated: true });
+                  }}
+                  activeOpacity={0.7}
+                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                >
+                  <Ionicons name="today" size={13} color={colors.primary} />
+                  <Text style={styles.returnTodayText}>Aujourd’hui</Text>
+                </TouchableOpacity>
+              )}
+
               <TouchableOpacity
-                style={styles.returnTodayBtn}
-                onPress={() => setSelectedDate(todayStr)}
-                activeOpacity={0.7}
+                style={styles.calendarModalBtn}
+                onPress={() => setIsCalendarModalVisible(true)}
+                activeOpacity={0.75}
                 hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                accessibilityLabel="Ouvrir le calendrier des repas"
               >
-                <Ionicons name="today" size={13} color={colors.primary} />
-                <Text style={styles.returnTodayText}>Aujourd’hui</Text>
+                <Ionicons name="calendar-outline" size={18} color={colors.primary} />
               </TouchableOpacity>
-            )}
+            </View>
           </View>
 
-          {/* Ruban horizontal compact des 14 jours récents */}
+          {/* Ruban horizontal compact d'une semaine (7 jours, calé sur Aujourd'hui à droite) */}
           <ScrollView
+            ref={ribbonScrollRef}
             horizontal
             showsHorizontalScrollIndicator={false}
             style={styles.ribbonScroll}
             contentContainerStyle={styles.ribbonContainer}
+            onContentSizeChange={() => {
+              if (!hasInitialScrolledRibbon.current) {
+                ribbonScrollRef.current?.scrollToEnd({ animated: false });
+                hasInitialScrolledRibbon.current = true;
+              }
+            }}
           >
             {ribbonDays.map((item) => {
               const isSelected = item.date === selectedDate;
@@ -915,13 +942,7 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
                 color={colors.primary}
               />
               <Text style={styles.modeIndicatorText}>
-                {plannerSettings.mode === 'dynamic'
-                  ? 'Planning Dynamique (dès aujourd’hui)'
-                  : `Planning Fixe (${plannerSettings.startDay} à ${
-                      ORDERED_DAYS_OF_WEEK[
-                        (ORDERED_DAYS_OF_WEEK.indexOf(plannerSettings.startDay) + 6) % 7
-                      ]
-                    })`}
+                {plannerSettings.mode === 'dynamic' ? 'Dynamique' : 'Fixe'}
               </Text>
             </View>
             <TouchableOpacity
@@ -1300,26 +1321,6 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
                 </View>
               );
             })}
-
-            {/* Bouton phare en bas de page : Générer la liste de courses de la semaine */}
-            <TouchableOpacity
-              style={styles.generateBtn}
-              onPress={handleGenerateShoppingList}
-              activeOpacity={0.88}
-            >
-              <View style={styles.generateIconCircle}>
-                <Ionicons name="cart" size={20} color="#FFFFFF" />
-              </View>
-              <View style={styles.generateTextCol}>
-                <Text style={styles.generateBtnTitle}>Générer la liste de courses</Text>
-                <Text style={styles.generateBtnSubtitle}>
-                  {plannedCount > 0
-                    ? `Fusionne les ingrédients de vos ${plannedCount} repas prévus`
-                    : 'Fusionne tous les ingrédients de vos repas planifiés'}
-                </Text>
-              </View>
-              <Ionicons name="arrow-forward-circle" size={24} color="#FFFFFF" />
-            </TouchableOpacity>
           </ScrollView>
       )}
 
@@ -1501,6 +1502,21 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
         onClose={() =>
           setQuickLogModal((prev) => ({ ...prev, visible: false, entry: null }))
         }
+      />
+
+      {/* Modal du calendrier mensuel des repas (historique sans limite) */}
+      <MealCalendarModal
+        visible={isCalendarModalVisible}
+        selectedDate={selectedDate}
+        mealLogs={mealLogs}
+        weeklyPlan={weeklyPlan}
+        onSelectDate={(date) => {
+          setSelectedDate(date);
+          if (date === todayStr) {
+            ribbonScrollRef.current?.scrollToEnd({ animated: true });
+          }
+        }}
+        onClose={() => setIsCalendarModalVisible(false)}
       />
     </SafeAreaView>
   );

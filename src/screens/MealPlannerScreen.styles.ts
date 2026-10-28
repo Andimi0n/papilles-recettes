@@ -42,20 +42,14 @@ export const styles = createDynamicStyles((colors, shadows) => ({
     alignItems: 'center',
     gap: 8,
   },
-  headerCartBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  headerCartIconBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: colors.primary,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 18,
-    gap: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
     ...shadows.card,
-  },
-  headerCartBtnText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '700',
   },
   tabSwitcherWrapper: {
     paddingHorizontal: 16,
@@ -107,6 +101,22 @@ export const styles = createDynamicStyles((colors, shadows) => ({
   },
   selectedDateCol: {
     flex: 1,
+  },
+  selectedDateActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  calendarModalBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.cardBackground,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    ...shadows.card,
   },
   selectedDateTitle: {
     fontSize: 18,
