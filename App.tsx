@@ -203,12 +203,15 @@ function AppContent() {
     setCurrentScreen('form');
   };
 
+  const [scanInitialMode, setScanInitialMode] = useState<'text' | 'photo' | 'url'>('photo');
+
   const navigateToAddRecipe = () => {
     setEditingRecipe(null);
     setCurrentScreen('form');
   };
 
-  const navigateToScan = () => {
+  const navigateToScan = (initialMode: 'text' | 'photo' | 'url' = 'photo') => {
+    setScanInitialMode(initialMode);
     setCurrentScreen('scan');
   };
 
@@ -364,9 +367,12 @@ function AppContent() {
           {/* Écrans Secondaires (pleine page) */}
           {currentScreen === 'scan' && (
             <ScanRecipeScreen
+              key={scanInitialMode}
+              initialMode={scanInitialMode}
               onBack={() => navigateToHome()}
               onRecipeExtracted={handleRecipeExtracted}
               onRecipeReceived={handleRecipeReceivedFromScan}
+              onManualCreate={navigateToAddRecipe}
             />
           )}
 

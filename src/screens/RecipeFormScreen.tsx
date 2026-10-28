@@ -123,9 +123,7 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
     initialRecipe &&
       (initialRecipe.title || (initialRecipe.ingredients && initialRecipe.ingredients.length > 0))
   );
-  const [creationMode, setCreationMode] = useState<'text' | 'manual'>(
-    hasPreloadedData ? 'manual' : 'text'
-  );
+  const [creationMode, setCreationMode] = useState<'text' | 'manual'>('manual');
 
   const [rawTextInput, setRawTextInput] = useState('');
   const [isAnalyzingText, setIsAnalyzingText] = useState(false);

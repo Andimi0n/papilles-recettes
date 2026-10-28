@@ -29,7 +29,6 @@ import { CategoryPills } from '../components/CategoryPills';
 import { EmptyState } from '../components/EmptyState';
 import { StockCookModal } from '../components/StockCookModal';
 import { AdvancedFiltersModal } from '../components/AdvancedFiltersModal';
-import { ImportMarmitonModal } from '../components/ImportMarmitonModal';
 import { ChefAiWidget } from '../components/ChefAiWidget';
 import { QuickMealLogModal } from '../components/QuickMealLogModal';
 import { normalizeString, getLocalDateString } from '../utils/helpers';
@@ -60,7 +59,7 @@ interface HomeScreenProps {
   recipes: Recipe[];
   onSelectRecipe: (recipe: Recipe) => void;
   onAddNewRecipe: () => void;
-  onScanRecipe: (initialMode?: 'photo' | 'text') => void;
+  onScanRecipe: (initialMode?: 'text' | 'photo' | 'url') => void;
   onImportRecipe?: (recipe: Recipe) => void;
   onToggleFavorite?: (id: string) => void;
   onQuickRate: (id: string, rating: number) => void;
@@ -135,7 +134,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const [stockItems, setStockItems] = useState<FridgeItem[]>([]);
   const [isStockModalVisible, setIsStockModalVisible] = useState(false);
   const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
-  const [isMarmitonModalVisible, setIsMarmitonModalVisible] = useState(false);
   const [isAddMenuVisible, setIsAddMenuVisible] = useState(false);
 
   // Double bandeau de filtres rétractable au défilement (haute performance, 60fps via useNativeDriver)
@@ -1245,17 +1243,17 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 style={styles.addMenuOption}
                 onPress={() => {
                   setIsAddMenuVisible(false);
-                  onAddNewRecipe();
+                  onScanRecipe('text');
                 }}
                 activeOpacity={0.7}
               >
                 <View style={[styles.addMenuIconBox, { backgroundColor: colors.primaryLight }]}>
-                  <Ionicons name="create-outline" size={22} color={colors.primary} />
+                  <Ionicons name="document-text-outline" size={22} color={colors.primary} />
                 </View>
                 <View style={styles.addMenuTextCol}>
                   <Text style={styles.addMenuOptionTitle}>Texte brut</Text>
                   <Text style={styles.addMenuOptionSubtitle}>
-                    Saisie manuelle ou IA
+                    Coller des notes ou du texte
                   </Text>
                 </View>
                 <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
@@ -1287,12 +1285,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 style={styles.addMenuOption}
                 onPress={() => {
                   setIsAddMenuVisible(false);
-                  setIsMarmitonModalVisible(true);
+                  onScanRecipe('url');
                 }}
                 activeOpacity={0.7}
               >
                 <View style={[styles.addMenuIconBox, { backgroundColor: colors.surfaceAlt }]}>
-                  <Ionicons name="globe-outline" size={22} color={colors.textPrimary} />
+                  <Ionicons name="globe-outline" size={22} color={colors.primary} />
                 </View>
                 <View style={styles.addMenuTextCol}>
                   <Text style={styles.addMenuOptionTitle}>Coller un lien web</Text>
@@ -1447,17 +1445,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           onClose={() => setIsStockModalVisible(false)}
         />
 
-        {/* Modal Bot Import Marmiton */}
-        <ImportMarmitonModal
-          visible={isMarmitonModalVisible}
-          onClose={() => setIsMarmitonModalVisible(false)}
-          onRecipeImported={(importedRecipe) => {
-            setIsMarmitonModalVisible(false);
-            if (onImportRecipe) {
-              onImportRecipe(importedRecipe);
-            }
-          }}
-        />
+
 
         {/* Modal Saisie Rapide Libre pour le suivi des repas du jour */}
         <QuickMealLogModal
