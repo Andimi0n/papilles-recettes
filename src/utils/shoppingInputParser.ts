@@ -86,7 +86,15 @@ export function parseShoppingInput(
   rawInput: string,
   preferredAisle?: ShoppingAisle | null
 ): ParsedShoppingItem {
-  const trimmed = rawInput.trim();
+  if (!rawInput || typeof rawInput !== 'string') {
+    return {
+      name: '',
+      aisle: preferredAisle || 'Autre',
+    };
+  }
+
+  // Plafonnement défensif de la taille de saisie pour prévenir tout ReDoS (SEC-08)
+  const trimmed = rawInput.trim().slice(0, 300);
   if (!trimmed) {
     return {
       name: '',
