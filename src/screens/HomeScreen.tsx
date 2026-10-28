@@ -449,15 +449,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     }
   };
 
-  // Category counts
-  const recipeCountByCategory = useMemo(() => {
-    const counts: Record<string, number> = { Tous: recipes.length };
-    recipes.forEach((r) => {
-      counts[r.category] = (counts[r.category] || 0) + 1;
-    });
-    return counts;
-  }, [recipes]);
-
   // Handler pour la sélection multi-catégorie (Entrée + Plat, etc.)
   const handleToggleCategory = (cat: Category) => {
     setCurrentPage(1);
@@ -475,12 +466,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     });
   };
 
-  // Filtering & Sorting avec moteur de recherche intelligent (multi-ingrédients, fuzzy & synonymes)
-  const { filteredRecipes, matchedIngredientsMap } = useMemo(() => {
+  // 1. Filtrage par tous les critères actifs hors catégorie (moteur de recherche, stock, allergènes, etc.)
+  const { baseFilteredResults, matchedIngredientsMap, isSearching } = useMemo(() => {
     let searchResults: RecipeSearchResult[] = [];
-    const isSearching = searchQuery.trim().length > 0;
+    const searching = searchQuery.trim().length > 0;
 
-    if (isSearching) {
+    if (searching) {
       searchResults = searchRecipes(recipes, searchQuery);
     } else {
       searchResults = recipes.map((r) => ({
@@ -507,11 +498,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     // Filtrer pour n'avoir que les recettes faisables avec ce que j'ai en stock (Besoin 1)
     if (onlyDoableWithStock) {
       result = result.filter((r) => doableRecipesMap.get(r.recipe.id)?.isDoable);
-    }
-
-    // Catégories multiples (ex: Entrée + Plat)
-    if (selectedCategories.length > 0 && !selectedCategories.includes('Tous')) {
-      result = result.filter((r) => selectedCategories.includes(r.recipe.category));
     }
 
     // Note minimum (3+, 3.5+, 4+, 4.5+)
@@ -548,8 +534,51 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       result = result.filter((r) => !recipeContainsAllergens(r.recipe, preparedAllergens));
     }
 
-    // Tri
-    result.sort((a, b) => {
+    return {
+      baseFilteredResults: result,
+      matchedIngredientsMap: ingMap,
+      isSearching: searching,
+    };
+  }, [
+    recipes,
+    searchQuery,
+    selectedIngredients,
+    ingredientMatchMode,
+    selectedTags,
+    tagMatchMode,
+    targetTotalTime,
+    timeFilterMode,
+    selectedDifficulties,
+    minRatingFilter,
+    onlyVegetarian,
+    onlyDoableWithStock,
+    isAllergenFilterEnabled,
+    userAllergens.length,
+    preparedAllergens,
+    doableRecipesMap,
+  ]);
+
+  // Category counts synchronisés avec les filtres actifs (stock, recherche, diététique, etc.)
+  const recipeCountByCategory = useMemo(() => {
+    const counts: Record<string, number> = { Tous: baseFilteredResults.length };
+    baseFilteredResults.forEach((r) => {
+      counts[r.recipe.category] = (counts[r.recipe.category] || 0) + 1;
+    });
+    return counts;
+  }, [baseFilteredResults]);
+
+  // 2. Application du filtre de catégorie sélectionnée et tri final
+  const filteredRecipes = useMemo(() => {
+    let result = baseFilteredResults;
+
+    // Catégories multiples (ex: Entrée + Plat)
+    if (selectedCategories.length > 0 && !selectedCategories.includes('Tous')) {
+      result = result.filter((r) => selectedCategories.includes(r.recipe.category));
+    }
+
+    // Tri (copie superficielle pour ne pas altérer baseFilteredResults)
+    const sorted = [...result];
+    sorted.sort((a, b) => {
       // En cours de recherche textuelle, les résultats les plus pertinents (score élevé) sont mis en avant
       if (isSearching) {
         if (sortBy === 'rating_desc') {
@@ -579,30 +608,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       }
     });
 
-    return {
-      filteredRecipes: result.map((r) => r.recipe),
-      matchedIngredientsMap: ingMap,
-    };
-  }, [
-    recipes,
-    searchQuery,
-    selectedCategories,
-    selectedIngredients,
-    ingredientMatchMode,
-    selectedTags,
-    tagMatchMode,
-    targetTotalTime,
-    timeFilterMode,
-    selectedDifficulties,
-    minRatingFilter,
-    onlyVegetarian,
-    onlyDoableWithStock,
-    isAllergenFilterEnabled,
-    userAllergens.length,
-    preparedAllergens,
-    doableRecipesMap,
-    sortBy,
-  ]);
+    return sorted.map((r) => r.recipe);
+  }, [baseFilteredResults, selectedCategories, isSearching, sortBy]);
 
   // Pagination (20 recettes par page pour une fluidité maximale)
   const totalPages = Math.max(1, Math.ceil(filteredRecipes.length / RECIPES_PER_PAGE));
