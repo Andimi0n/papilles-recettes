@@ -2,7 +2,6 @@ import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   Modal,
   TouchableOpacity,
   TextInput,
@@ -13,7 +12,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Recipe, Category } from '../types/recipe';
 import { DayOfWeek, MealTime, PlannedMeal } from '../types/planner';
-import { Colors, Shadows, createDynamicStyles } from '../theme/colors';
+import { createDynamicStyles } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
 import { normalizeString } from '../utils/helpers';
 
 interface MealSlotPickerModalProps {
@@ -43,6 +43,7 @@ export const MealSlotPickerModal: React.FC<MealSlotPickerModalProps> = ({
   onRemoveMeal,
   onClose,
 }) => {
+  const { colors } = useTheme();
   const [activeTab, setActiveTab] = useState<'recipes' | 'custom'>('recipes');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<Category>('Tous');
@@ -109,8 +110,8 @@ export const MealSlotPickerModal: React.FC<MealSlotPickerModalProps> = ({
                 : 'Choisir un plat'}
             </Text>
           </View>
-          <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
-            <Ionicons name="close" size={22} color={Colors.textPrimary} />
+          <TouchableOpacity style={styles.closeBtn} onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Ionicons name="close" size={22} color={colors.textPrimary} />
           </TouchableOpacity>
         </View>
 
@@ -123,10 +124,10 @@ export const MealSlotPickerModal: React.FC<MealSlotPickerModalProps> = ({
               onPress={() => setServings((prev) => Math.max(1, prev - 1))}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <Ionicons name="remove" size={16} color={Colors.primary} />
+              <Ionicons name="remove" size={16} color={colors.primary} />
             </TouchableOpacity>
             <View style={styles.stepValueBox}>
-              <Ionicons name="people" size={14} color={Colors.primary} />
+              <Ionicons name="people" size={14} color={colors.primary} />
               <Text style={styles.stepValueText}>{servings} pers.</Text>
             </View>
             <TouchableOpacity
@@ -134,7 +135,7 @@ export const MealSlotPickerModal: React.FC<MealSlotPickerModalProps> = ({
               onPress={() => setServings((prev) => prev + 1)}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <Ionicons name="add" size={16} color={Colors.primary} />
+              <Ionicons name="add" size={16} color={colors.primary} />
             </TouchableOpacity>
           </View>
         </View>
@@ -148,7 +149,7 @@ export const MealSlotPickerModal: React.FC<MealSlotPickerModalProps> = ({
             <Ionicons
               name="book-outline"
               size={16}
-              color={activeTab === 'recipes' ? Colors.primary : Colors.textSecondary}
+              color={activeTab === 'recipes' ? colors.primary : colors.textSecondary}
             />
             <Text
               style={[
@@ -162,12 +163,17 @@ export const MealSlotPickerModal: React.FC<MealSlotPickerModalProps> = ({
 
           <TouchableOpacity
             style={[styles.tabBtn, activeTab === 'custom' && styles.tabBtnActive]}
-            onPress={() => setActiveTab('custom')}
+            onPress={() => {
+              setActiveTab('custom');
+              if (!customTitle.trim() && searchQuery.trim()) {
+                setCustomTitle(searchQuery.trim());
+              }
+            }}
           >
             <Ionicons
               name="create-outline"
               size={16}
-              color={activeTab === 'custom' ? Colors.primary : Colors.textSecondary}
+              color={activeTab === 'custom' ? colors.primary : colors.textSecondary}
             />
             <Text
               style={[
@@ -184,18 +190,21 @@ export const MealSlotPickerModal: React.FC<MealSlotPickerModalProps> = ({
           <View style={{ flex: 1 }}>
             {/* Barre de recherche */}
             <View style={styles.searchBox}>
-              <Ionicons name="search" size={18} color={Colors.textMuted} />
+              <Ionicons name="search" size={18} color={colors.textMuted} />
               <TextInput
                 style={styles.searchInput}
                 placeholder="Rechercher une recette ou un ingrédient..."
-                placeholderTextColor={Colors.textMuted}
+                placeholderTextColor={colors.textMuted}
                 value={searchQuery}
                 onChangeText={setSearchQuery}
                 returnKeyType="search"
               />
               {searchQuery.length > 0 && (
-                <TouchableOpacity onPress={() => setSearchQuery('')}>
-                  <Ionicons name="close-circle" size={18} color={Colors.textMuted} />
+                <TouchableOpacity
+                  onPress={() => setSearchQuery('')}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons name="close-circle" size={18} color={colors.textMuted} />
                 </TouchableOpacity>
               )}
             </View>
@@ -239,7 +248,7 @@ export const MealSlotPickerModal: React.FC<MealSlotPickerModalProps> = ({
                     <Image source={{ uri: item.imageUrl }} style={styles.recipeThumb} />
                   ) : (
                     <View style={styles.recipeThumbPlaceholder}>
-                      <Ionicons name="restaurant-outline" size={20} color={Colors.primary} />
+                      <Ionicons name="restaurant-outline" size={20} color={colors.primary} />
                     </View>
                   )}
                   <View style={styles.recipeItemInfo}>
@@ -256,15 +265,51 @@ export const MealSlotPickerModal: React.FC<MealSlotPickerModalProps> = ({
                       </Text>
                     </View>
                   </View>
-                  <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
+                  <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
                 </TouchableOpacity>
               )}
               ListEmptyComponent={
                 <View style={styles.emptySearch}>
+                  <Ionicons name="restaurant-outline" size={32} color={colors.textMuted} />
                   <Text style={styles.emptySearchText}>
-                    Aucune recette ne correspond à votre recherche.
+                    {searchQuery.trim()
+                      ? `Aucune recette trouvée pour « ${searchQuery.trim()} »`
+                      : 'Aucune recette dans cette catégorie.'}
                   </Text>
+                  {searchQuery.trim().length > 0 && (
+                    <TouchableOpacity
+                      style={styles.emptyAddCustomBtn}
+                      onPress={() => {
+                        onSelectCustomMeal(searchQuery.trim(), servings);
+                        onClose();
+                      }}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name="create-outline" size={18} color="#FFFFFF" />
+                      <Text style={styles.emptyAddCustomBtnText}>
+                        Planifier « {searchQuery.trim()} » comme repas libre
+                      </Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
+              }
+              ListFooterComponent={
+                searchQuery.trim().length > 0 && filteredRecipes.length > 0 ? (
+                  <TouchableOpacity
+                    style={styles.footerCustomPromptBtn}
+                    onPress={() => {
+                      onSelectCustomMeal(searchQuery.trim(), servings);
+                      onClose();
+                    }}
+                    activeOpacity={0.75}
+                  >
+                    <Ionicons name="create-outline" size={16} color={colors.primary} />
+                    <Text style={styles.footerCustomPromptText}>
+                      Planifier « {searchQuery.trim()} » comme repas libre
+                    </Text>
+                    <Ionicons name="chevron-forward" size={16} color={colors.primary} />
+                  </TouchableOpacity>
+                ) : undefined
               }
             />
           </View>
@@ -275,7 +320,7 @@ export const MealSlotPickerModal: React.FC<MealSlotPickerModalProps> = ({
             <TextInput
               style={styles.customInput}
               placeholder="Ex: Restes de la veille, Restaurant italien, Pizza..."
-              placeholderTextColor={Colors.textMuted}
+              placeholderTextColor={colors.textMuted}
               value={customTitle}
               onChangeText={setCustomTitle}
               autoFocus
@@ -321,8 +366,9 @@ export const MealSlotPickerModal: React.FC<MealSlotPickerModalProps> = ({
                 onRemoveMeal();
                 onClose();
               }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <Ionicons name="trash-outline" size={18} color={Colors.danger} />
+              <Ionicons name="trash-outline" size={18} color={colors.danger} />
               <Text style={styles.removeMealBtnText}>Retirer ce repas du planning</Text>
             </TouchableOpacity>
           </View>
@@ -335,7 +381,7 @@ export const MealSlotPickerModal: React.FC<MealSlotPickerModalProps> = ({
 const styles = createDynamicStyles((colors, shadows) => ({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -345,24 +391,24 @@ const styles = createDynamicStyles((colors, shadows) => ({
     paddingTop: 18,
     paddingBottom: 14,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
-    backgroundColor: Colors.cardBackground,
+    borderBottomColor: colors.borderLight,
+    backgroundColor: colors.cardBackground,
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: '800',
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
   },
   headerSubtitle: {
     fontSize: 13,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     marginTop: 2,
   },
   closeBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: Colors.surfaceAlt,
+    backgroundColor: colors.backgroundSecondary,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -370,21 +416,21 @@ const styles = createDynamicStyles((colors, shadows) => ({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: Colors.cardBackground,
+    backgroundColor: colors.cardBackground,
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
+    borderBottomColor: colors.borderLight,
   },
   servingsBarLabel: {
     fontSize: 13,
     fontWeight: '600',
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
   },
   stepper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.primaryLight,
+    backgroundColor: colors.primaryLight,
     borderRadius: 20,
     padding: 3,
   },
@@ -396,8 +442,8 @@ const styles = createDynamicStyles((colors, shadows) => ({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: colors.border,
-    ...shadows.small,
+    borderColor: colors.borderMedium,
+    ...shadows.card,
   },
   stepValueBox: {
     flexDirection: 'row',
@@ -408,11 +454,11 @@ const styles = createDynamicStyles((colors, shadows) => ({
   stepValueText: {
     fontSize: 13,
     fontWeight: '700',
-    color: Colors.primary,
+    color: colors.primary,
   },
   tabBar: {
     flexDirection: 'row',
-    backgroundColor: Colors.cardBackground,
+    backgroundColor: colors.cardBackground,
     paddingHorizontal: 16,
     paddingTop: 8,
     paddingBottom: 4,
@@ -426,37 +472,37 @@ const styles = createDynamicStyles((colors, shadows) => ({
     gap: 6,
     paddingVertical: 10,
     borderRadius: 10,
-    backgroundColor: Colors.surfaceAlt,
+    backgroundColor: colors.backgroundSecondary,
   },
   tabBtnActive: {
-    backgroundColor: Colors.primaryLight,
+    backgroundColor: colors.primaryLight,
   },
   tabBtnText: {
     fontSize: 13,
     fontWeight: '600',
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
   },
   tabBtnTextActive: {
-    color: Colors.primary,
+    color: colors.primary,
     fontWeight: '700',
   },
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.cardBackground,
+    backgroundColor: colors.cardBackground,
     marginHorizontal: 16,
     marginTop: 12,
     paddingHorizontal: 12,
     height: 42,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: colors.borderLight,
     gap: 8,
   },
   searchInput: {
     flex: 1,
     fontSize: 14,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
   },
   categoryScroll: {
     paddingHorizontal: 16,
@@ -466,19 +512,19 @@ const styles = createDynamicStyles((colors, shadows) => ({
     paddingHorizontal: 14,
     paddingVertical: 6,
     borderRadius: 16,
-    backgroundColor: Colors.cardBackground,
+    backgroundColor: colors.cardBackground,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: colors.borderLight,
     marginRight: 8,
   },
   catPillActive: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   catPillText: {
     fontSize: 12,
     fontWeight: '600',
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
   },
   catPillTextActive: {
     color: '#FFFFFF',
@@ -490,25 +536,25 @@ const styles = createDynamicStyles((colors, shadows) => ({
   recipeItemCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.cardBackground,
+    backgroundColor: colors.cardBackground,
     borderRadius: 12,
     padding: 10,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: Colors.borderLight,
-    ...Shadows.small,
+    borderColor: colors.borderLight,
+    ...shadows.card,
   },
   recipeThumb: {
     width: 48,
     height: 48,
     borderRadius: 8,
-    backgroundColor: Colors.surfaceAlt,
+    backgroundColor: colors.borderLight,
   },
   recipeThumbPlaceholder: {
     width: 48,
     height: 48,
     borderRadius: 8,
-    backgroundColor: Colors.primaryLight,
+    backgroundColor: colors.primaryLight,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -519,7 +565,7 @@ const styles = createDynamicStyles((colors, shadows) => ({
   recipeItemTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     marginBottom: 2,
   },
   recipeItemMeta: {
@@ -529,24 +575,63 @@ const styles = createDynamicStyles((colors, shadows) => ({
   },
   recipeItemCategory: {
     fontSize: 12,
-    color: Colors.primary,
+    color: colors.primary,
     fontWeight: '600',
   },
   recipeItemTime: {
     fontSize: 12,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
   },
   recipeItemIngCount: {
     fontSize: 12,
-    color: Colors.textMuted,
+    color: colors.textMuted,
   },
   emptySearch: {
     alignItems: 'center',
-    paddingVertical: 40,
+    paddingVertical: 36,
+    paddingHorizontal: 20,
+    gap: 8,
   },
   emptySearchText: {
     fontSize: 14,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
+  emptyAddCustomBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: colors.primary,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    marginTop: 12,
+    ...shadows.card,
+  },
+  emptyAddCustomBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  footerCustomPromptBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.cardBackground,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    marginTop: 8,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    gap: 8,
+  },
+  footerCustomPromptText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.primary,
   },
   customContainer: {
     padding: 20,
@@ -554,18 +639,18 @@ const styles = createDynamicStyles((colors, shadows) => ({
   customLabel: {
     fontSize: 14,
     fontWeight: '700',
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     marginBottom: 8,
   },
   customInput: {
-    backgroundColor: Colors.cardBackground,
+    backgroundColor: colors.cardBackground,
     borderRadius: 12,
     paddingHorizontal: 14,
     height: 48,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: colors.borderLight,
     fontSize: 15,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     marginBottom: 16,
   },
   quickIdeas: {
@@ -574,7 +659,7 @@ const styles = createDynamicStyles((colors, shadows) => ({
   quickIdeasLabel: {
     fontSize: 12,
     fontWeight: '600',
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     marginBottom: 8,
   },
   ideasWrap: {
@@ -583,16 +668,16 @@ const styles = createDynamicStyles((colors, shadows) => ({
     gap: 8,
   },
   ideaPill: {
-    backgroundColor: Colors.cardBackground,
+    backgroundColor: colors.cardBackground,
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: colors.borderLight,
   },
   ideaPillText: {
     fontSize: 12,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     fontWeight: '500',
   },
   customSubmitBtn: {
@@ -600,10 +685,10 @@ const styles = createDynamicStyles((colors, shadows) => ({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.primary,
     paddingVertical: 14,
     borderRadius: 12,
-    ...Shadows.small,
+    ...shadows.card,
   },
   customSubmitBtnDisabled: {
     opacity: 0.5,
@@ -616,8 +701,8 @@ const styles = createDynamicStyles((colors, shadows) => ({
   footerRemove: {
     padding: 16,
     borderTopWidth: 1,
-    borderTopColor: Colors.borderLight,
-    backgroundColor: Colors.cardBackground,
+    borderTopColor: colors.borderLight,
+    backgroundColor: colors.cardBackground,
   },
   removeMealBtn: {
     flexDirection: 'row',
@@ -629,6 +714,6 @@ const styles = createDynamicStyles((colors, shadows) => ({
   removeMealBtnText: {
     fontSize: 13,
     fontWeight: '600',
-    color: Colors.danger,
+    color: colors.danger,
   },
 }));

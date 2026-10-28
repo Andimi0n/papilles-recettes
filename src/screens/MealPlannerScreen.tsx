@@ -29,7 +29,6 @@ import { QuickMealLogModal } from '../components/QuickMealLogModal';
 import {
   generateUniqueId,
   getLocalDateString,
-  addDaysToDateString,
   formatMealLogDateFrench,
   formatShortDateFrench,
   getDayOfWeekFromDateString,
@@ -54,7 +53,7 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
   initialTab = 'journal',
   isActive = true,
 }) => {
-  const { isDark, colors } = useTheme();
+  const { colors } = useTheme();
   const [activeMainTab, setActiveMainTab] = useState<'journal' | 'planner'>(initialTab);
   const [prevInitialTab, setPrevInitialTab] = useState(initialTab);
   if (initialTab && prevInitialTab !== initialTab) {
@@ -81,6 +80,7 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
   const [selectedDate, setSelectedDate] = useState<string>(todayStr);
   const [mealLogs, setMealLogs] = useState<MealLogMap>({});
   const [recentDays, setRecentDays] = useState<DayMealLogSummary[]>([]);
+  const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
   const [quickLogModal, setQuickLogModal] = useState<{
     visible: boolean;
     date: string;
@@ -241,6 +241,31 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
   const plannedLunchForDay = weeklyPlan[`${selectedDate}_lunch`] || weeklyPlan[`${currentDayOfWeek}_lunch`];
   const plannedDinnerForDay = weeklyPlan[`${selectedDate}_dinner`] || weeklyPlan[`${currentDayOfWeek}_dinner`];
 
+  // Ruban chronologique des jours récents (du plus ancien au plus récent)
+  const ribbonDays = useMemo(() => {
+    return [...recentDays].reverse();
+  }, [recentDays]);
+
+  // Validation directe 1-tap d'un plat planifié vers le journal
+  const handleQuickConfirmPlanned = async (
+    mealTime: MealTime,
+    plannedMeal: PlannedMeal
+  ) => {
+    try {
+      const nextLogs = await StorageService.setMealLog(selectedDate, mealTime, {
+        title: plannedMeal.recipeTitle,
+        recipeId: plannedMeal.recipeId,
+        recipeImageUrl: plannedMeal.recipeImageUrl,
+        note: plannedMeal.customNote || undefined,
+      });
+      setMealLogs(nextLogs);
+      const history = await StorageService.getRecentDaysMealLogs(14);
+      setRecentDays(history);
+    } catch (e) {
+      Alert.alert('Erreur', "Impossible d'enregistrer le repas.");
+    }
+  };
+
   // --- GESTION DU PLANNING HEBDOMADAIRE ---
   const handleOpenPicker = (
     slotKey: string,
@@ -398,12 +423,10 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
       {/* En-tête principal avec Switcher d'onglets (Aujourd’hui vs Semaine) */}
       <View style={styles.header}>
         <View style={styles.headerTitleCol}>
-          <Text style={styles.headerTitle}>
-            {activeMainTab === 'journal' ? 'Aujourd’hui' : 'Semaine'}
-          </Text>
+          <Text style={styles.headerTitle}>Repas</Text>
           <Text style={styles.headerSubtitle}>
             {activeMainTab === 'journal'
-              ? 'Ce que vous avez mangé midi & soir'
+              ? 'Suivez vos repas midi & soir'
               : plannedCount === 0
               ? 'Aucun repas programmé'
               : `${plannedCount} sur 14 repas prévus`}
@@ -411,13 +434,26 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
         </View>
 
         {activeMainTab === 'planner' && plannedCount > 0 && (
-          <TouchableOpacity
-            style={styles.clearBtn}
-            onPress={handleClearWeek}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Ionicons name="trash-outline" size={18} color={colors.danger} />
-          </TouchableOpacity>
+          <View style={styles.headerActionsRow}>
+            <TouchableOpacity
+              style={styles.headerCartBtn}
+              onPress={handleGenerateShoppingList}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityLabel="Générer la liste de courses"
+            >
+              <Ionicons name="cart" size={16} color="#FFFFFF" />
+              <Text style={styles.headerCartBtnText}>Courses</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.clearBtn}
+              onPress={handleClearWeek}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityLabel="Effacer les repas de la semaine"
+            >
+              <Ionicons name="trash-outline" size={18} color={colors.danger} />
+            </TouchableOpacity>
+          </View>
         )}
       </View>
 
@@ -479,48 +515,107 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
           contentContainerStyle={styles.journalContent}
           showsVerticalScrollIndicator={false}
         >
-          {/* Barre de navigation de date (Jour précédent / Date / Jour suivant) */}
-          <View style={styles.dateNavCard}>
-            <TouchableOpacity
-              style={styles.dateNavArrow}
-              onPress={() => setSelectedDate((prev) => addDaysToDateString(prev, -1))}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Ionicons name="chevron-back" size={20} color={colors.textPrimary} />
-            </TouchableOpacity>
-
-            <View style={styles.dateNavCenter}>
-              <View style={styles.dateNavLabelRow}>
-                <Ionicons name="calendar-outline" size={15} color={colors.primary} />
-                <Text style={styles.dateNavTitle}>
-                  {formatMealLogDateFrench(selectedDate)}
-                </Text>
-              </View>
-              <Text style={styles.dateNavSubtitle}>
+          {/* En-tête date sélectionnée avec bouton retour Aujourd'hui */}
+          <View style={styles.selectedDateHeader}>
+            <View style={styles.selectedDateCol}>
+              <Text style={styles.selectedDateTitle}>
+                {formatMealLogDateFrench(selectedDate)}
+              </Text>
+              <Text style={styles.selectedDateSubtitle}>
                 {currentDayOfWeek} {selectedDate === todayStr ? '• Aujourd’hui' : ''}
               </Text>
             </View>
 
-            <TouchableOpacity
-              style={styles.dateNavArrow}
-              onPress={() => setSelectedDate((prev) => addDaysToDateString(prev, 1))}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Ionicons name="chevron-forward" size={20} color={colors.textPrimary} />
-            </TouchableOpacity>
+            {selectedDate !== todayStr && (
+              <TouchableOpacity
+                style={styles.returnTodayBtn}
+                onPress={() => setSelectedDate(todayStr)}
+                activeOpacity={0.7}
+                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              >
+                <Ionicons name="today" size={13} color={colors.primary} />
+                <Text style={styles.returnTodayText}>Aujourd’hui</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
-          {/* Bouton pour revenir à Aujourd'hui si on consulte une autre date */}
-          {selectedDate !== todayStr && (
-            <TouchableOpacity
-              style={styles.returnTodayBtn}
-              onPress={() => setSelectedDate(todayStr)}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="today-outline" size={14} color={colors.primary} />
-              <Text style={styles.returnTodayText}>Revenir à Aujourd’hui</Text>
-            </TouchableOpacity>
-          )}
+          {/* Ruban horizontal compact des 14 jours récents */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.ribbonScroll}
+            contentContainerStyle={styles.ribbonContainer}
+          >
+            {ribbonDays.map((item) => {
+              const isSelected = item.date === selectedDate;
+              const isToday = item.date === todayStr;
+              const hasLunch = Boolean(item.lunch || mealLogs[`${item.date}_lunch`]);
+              const hasDinner = Boolean(item.dinner || mealLogs[`${item.date}_dinner`]);
+              const dayNum = parseInt(item.date.split('-')[2], 10);
+              const shortDay = item.dayOfWeek.slice(0, 3);
+
+              return (
+                <TouchableOpacity
+                  key={item.date}
+                  style={[
+                    styles.ribbonChip,
+                    isSelected && styles.ribbonChipSelected,
+                    isToday && !isSelected && styles.ribbonChipToday,
+                  ]}
+                  onPress={() => setSelectedDate(item.date)}
+                  activeOpacity={0.75}
+                >
+                  <Text
+                    style={[
+                      styles.ribbonDayName,
+                      isSelected && styles.ribbonDayNameSelected,
+                    ]}
+                  >
+                    {shortDay}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.ribbonDayNum,
+                      isSelected && styles.ribbonDayNumSelected,
+                    ]}
+                  >
+                    {dayNum}
+                  </Text>
+                  <View style={styles.ribbonDotsRow}>
+                    <View
+                      style={[
+                        styles.ribbonDot,
+                        hasLunch && (isSelected ? styles.ribbonDotFilledLight : styles.ribbonDotFilled),
+                      ]}
+                    />
+                    <View
+                      style={[
+                        styles.ribbonDot,
+                        hasDinner && (isSelected ? styles.ribbonDotFilledLight : styles.ribbonDotFilled),
+                      ]}
+                    />
+                  </View>
+                  {isToday && (
+                    <View
+                      style={[
+                        styles.ribbonTodayBadge,
+                        isSelected && styles.ribbonTodayBadgeSelected,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.ribbonTodayText,
+                          isSelected && styles.ribbonTodayTextSelected,
+                        ]}
+                      >
+                        Auj.
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
 
           {/* Section : Ce que j'ai mangé sur cette journée */}
           <View style={styles.journalDayCardsSection}>
@@ -531,17 +626,6 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
                   <Text style={styles.journalMealEmoji}>☀️</Text>
                   <Text style={styles.journalMealTimeLabel}>Déjeuner (Midi)</Text>
                 </View>
-                {selectedLunch && (
-                  <View style={styles.journalActionsRow}>
-                    <TouchableOpacity
-                      style={styles.journalActionIconBtn}
-                      onPress={() => handleOpenQuickLog(selectedDate, 'lunch')}
-                      hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                    >
-                      <Ionicons name="pencil" size={16} color={colors.primary} />
-                    </TouchableOpacity>
-                  </View>
-                )}
               </View>
 
               {selectedLunch ? (
@@ -569,7 +653,56 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
                       <Text style={styles.journalLinkedBadge}>Recette du carnet</Text>
                     )}
                   </View>
+                  <Ionicons name="pencil" size={16} color={colors.textSecondary} />
                 </TouchableOpacity>
+              ) : plannedLunchForDay?.recipeTitle ? (
+                <View style={styles.journalPlannedBox}>
+                  <View style={styles.journalPlannedHeader}>
+                    <Ionicons name="calendar" size={14} color={colors.primary} />
+                    <Text style={styles.journalPlannedTag}>Prévu au menu :</Text>
+                  </View>
+                  <View style={styles.journalPlannedBody}>
+                    {plannedLunchForDay.recipeImageUrl ? (
+                      <Image
+                        source={{ uri: plannedLunchForDay.recipeImageUrl }}
+                        style={styles.journalPlannedThumb}
+                      />
+                    ) : (
+                      <View style={styles.journalPlannedPlaceholder}>
+                        <Ionicons name="restaurant-outline" size={18} color={colors.primary} />
+                      </View>
+                    )}
+                    <View style={styles.journalPlannedTitleCol}>
+                      <Text style={styles.journalPlannedTitle} numberOfLines={1}>
+                        {plannedLunchForDay.recipeTitle}
+                      </Text>
+                      {plannedLunchForDay.servings ? (
+                        <Text style={styles.journalPlannedServings}>
+                          Prévu pour {plannedLunchForDay.servings} pers.
+                        </Text>
+                      ) : null}
+                    </View>
+                  </View>
+                  <View style={styles.journalPlannedActions}>
+                    <TouchableOpacity
+                      style={styles.journalPlannedConfirmBtn}
+                      onPress={() => handleQuickConfirmPlanned('lunch', plannedLunchForDay)}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name="checkmark-circle" size={16} color="#FFFFFF" />
+                      <Text style={styles.journalPlannedConfirmBtnText}>
+                        J’ai mangé ce plat
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.journalPlannedOtherBtn}
+                      onPress={() => handleOpenQuickLog(selectedDate, 'lunch')}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.journalPlannedOtherBtnText}>Autre plat</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
               ) : (
                 <TouchableOpacity
                   style={styles.journalEmptyBox}
@@ -580,9 +713,7 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
                   <View style={styles.journalEmptyTextCol}>
                     <Text style={styles.journalEmptyTitle}>Qu’avez-vous mangé ce midi ?</Text>
                     <Text style={styles.journalEmptySubtitle}>
-                      {plannedLunchForDay?.recipeTitle
-                        ? `Prévu : ${plannedLunchForDay.recipeTitle} (Toucher pour valider)`
-                        : 'Saisie libre, resto, restes, ou plat cuisiné'}
+                      Saisie libre, resto, restes, ou plat cuisiné
                     </Text>
                   </View>
                 </TouchableOpacity>
@@ -596,17 +727,6 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
                   <Text style={styles.journalMealEmoji}>🌙</Text>
                   <Text style={styles.journalMealTimeLabel}>Dîner (Soir)</Text>
                 </View>
-                {selectedDinner && (
-                  <View style={styles.journalActionsRow}>
-                    <TouchableOpacity
-                      style={styles.journalActionIconBtn}
-                      onPress={() => handleOpenQuickLog(selectedDate, 'dinner')}
-                      hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                    >
-                      <Ionicons name="pencil" size={16} color={colors.primary} />
-                    </TouchableOpacity>
-                  </View>
-                )}
               </View>
 
               {selectedDinner ? (
@@ -634,7 +754,56 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
                       <Text style={styles.journalLinkedBadge}>Recette du carnet</Text>
                     )}
                   </View>
+                  <Ionicons name="pencil" size={16} color={colors.textSecondary} />
                 </TouchableOpacity>
+              ) : plannedDinnerForDay?.recipeTitle ? (
+                <View style={styles.journalPlannedBox}>
+                  <View style={styles.journalPlannedHeader}>
+                    <Ionicons name="calendar" size={14} color={colors.primary} />
+                    <Text style={styles.journalPlannedTag}>Prévu au menu :</Text>
+                  </View>
+                  <View style={styles.journalPlannedBody}>
+                    {plannedDinnerForDay.recipeImageUrl ? (
+                      <Image
+                        source={{ uri: plannedDinnerForDay.recipeImageUrl }}
+                        style={styles.journalPlannedThumb}
+                      />
+                    ) : (
+                      <View style={styles.journalPlannedPlaceholder}>
+                        <Ionicons name="restaurant-outline" size={18} color={colors.primary} />
+                      </View>
+                    )}
+                    <View style={styles.journalPlannedTitleCol}>
+                      <Text style={styles.journalPlannedTitle} numberOfLines={1}>
+                        {plannedDinnerForDay.recipeTitle}
+                      </Text>
+                      {plannedDinnerForDay.servings ? (
+                        <Text style={styles.journalPlannedServings}>
+                          Prévu pour {plannedDinnerForDay.servings} pers.
+                        </Text>
+                      ) : null}
+                    </View>
+                  </View>
+                  <View style={styles.journalPlannedActions}>
+                    <TouchableOpacity
+                      style={styles.journalPlannedConfirmBtn}
+                      onPress={() => handleQuickConfirmPlanned('dinner', plannedDinnerForDay)}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name="checkmark-circle" size={16} color="#FFFFFF" />
+                      <Text style={styles.journalPlannedConfirmBtnText}>
+                        J’ai mangé ce plat
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.journalPlannedOtherBtn}
+                      onPress={() => handleOpenQuickLog(selectedDate, 'dinner')}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.journalPlannedOtherBtnText}>Autre plat</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
               ) : (
                 <TouchableOpacity
                   style={styles.journalEmptyBox}
@@ -645,9 +814,7 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
                   <View style={styles.journalEmptyTextCol}>
                     <Text style={styles.journalEmptyTitle}>Qu’avez-vous mangé ce soir ?</Text>
                     <Text style={styles.journalEmptySubtitle}>
-                      {plannedDinnerForDay?.recipeTitle
-                        ? `Prévu : ${plannedDinnerForDay.recipeTitle} (Toucher pour valider)`
-                        : 'Saisie libre, resto, restes, ou plat cuisiné'}
+                      Saisie libre, resto, restes, ou plat cuisiné
                     </Text>
                   </View>
                 </TouchableOpacity>
@@ -657,14 +824,24 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
 
           {/* HISTORIQUE RÉCENT (LES 14 DERNIERS JOURS) */}
           <View style={styles.historySection}>
-            <View style={styles.historyHeaderRow}>
-              <Ionicons name="time-outline" size={16} color={colors.textSecondary} />
-              <Text style={styles.historyHeaderTitle}>Historique des derniers jours</Text>
-            </View>
+            <TouchableOpacity
+              style={styles.historyHeaderRow}
+              onPress={() => setIsHistoryExpanded((prev) => !prev)}
+              activeOpacity={0.7}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Ionicons name="time-outline" size={16} color={colors.textSecondary} />
+                <Text style={styles.historyHeaderTitle}>Historique des derniers jours</Text>
+              </View>
+              <Ionicons
+                name={isHistoryExpanded ? 'chevron-up' : 'chevron-down'}
+                size={16}
+                color={colors.textSecondary}
+              />
+            </TouchableOpacity>
 
-            {recentDays.map((dayItem) => {
+            {(isHistoryExpanded ? recentDays : recentDays.slice(0, 3)).map((dayItem) => {
               const isSelected = dayItem.date === selectedDate;
-              const hasEntries = Boolean(dayItem.lunch || dayItem.dinner);
 
               return (
                 <TouchableOpacity
@@ -756,24 +933,6 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
               <Text style={styles.modeSwitchBtnText}>Options</Text>
             </TouchableOpacity>
           </View>
-
-          {/* Bouton phare : Générer la liste de courses de la semaine (scrollable) */}
-          <TouchableOpacity
-            style={styles.generateBtn}
-            onPress={handleGenerateShoppingList}
-            activeOpacity={0.88}
-          >
-            <View style={styles.generateIconCircle}>
-              <Ionicons name="cart" size={20} color="#FFFFFF" />
-            </View>
-            <View style={styles.generateTextCol}>
-              <Text style={styles.generateBtnTitle}>Générer la liste de courses</Text>
-              <Text style={styles.generateBtnSubtitle}>
-                Fusionne tous les ingrédients de vos repas planifiés
-              </Text>
-            </View>
-            <Ionicons name="arrow-forward-circle" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
 
           {/* Calendrier complet défilant des 7 jours */}
           {daySlots.map((slot) => {
@@ -930,13 +1089,15 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
                               )
                             }
                             hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                            accessibilityLabel="Changer ce plat"
                           >
-                            <Ionicons name="swap-horizontal" size={18} color={colors.textSecondary} />
+                            <Ionicons name="swap-horizontal" size={17} color={colors.textSecondary} />
                           </TouchableOpacity>
                           <TouchableOpacity
-                            style={styles.slotIconBtn}
+                            style={styles.slotDeleteBtn}
                             onPress={() => handleRemoveMealFromSlot(slot.lunchKey, 'lunch')}
                             hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                            accessibilityLabel="Retirer ce plat"
                           >
                             <Ionicons name="trash-outline" size={16} color={colors.danger} />
                           </TouchableOpacity>
@@ -1085,13 +1246,15 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
                               )
                             }
                             hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                            accessibilityLabel="Changer ce plat"
                           >
-                            <Ionicons name="swap-horizontal" size={18} color={colors.textSecondary} />
+                            <Ionicons name="swap-horizontal" size={17} color={colors.textSecondary} />
                           </TouchableOpacity>
                           <TouchableOpacity
-                            style={styles.slotIconBtn}
+                            style={styles.slotDeleteBtn}
                             onPress={() => handleRemoveMealFromSlot(slot.dinnerKey, 'dinner')}
                             hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                            accessibilityLabel="Retirer ce plat"
                           >
                             <Ionicons name="trash-outline" size={16} color={colors.danger} />
                           </TouchableOpacity>
@@ -1137,6 +1300,26 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
                 </View>
               );
             })}
+
+            {/* Bouton phare en bas de page : Générer la liste de courses de la semaine */}
+            <TouchableOpacity
+              style={styles.generateBtn}
+              onPress={handleGenerateShoppingList}
+              activeOpacity={0.88}
+            >
+              <View style={styles.generateIconCircle}>
+                <Ionicons name="cart" size={20} color="#FFFFFF" />
+              </View>
+              <View style={styles.generateTextCol}>
+                <Text style={styles.generateBtnTitle}>Générer la liste de courses</Text>
+                <Text style={styles.generateBtnSubtitle}>
+                  {plannedCount > 0
+                    ? `Fusionne les ingrédients de vos ${plannedCount} repas prévus`
+                    : 'Fusionne tous les ingrédients de vos repas planifiés'}
+                </Text>
+              </View>
+              <Ionicons name="arrow-forward-circle" size={24} color="#FFFFFF" />
+            </TouchableOpacity>
           </ScrollView>
       )}
 
