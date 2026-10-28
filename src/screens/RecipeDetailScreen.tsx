@@ -97,7 +97,6 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
   const [isAddingToShoppingList, setIsAddingToShoppingList] = useState(false);
   const [isShoppingModalVisible, setIsShoppingModalVisible] = useState(false);
   const [shoppingSelection, setShoppingSelection] = useState<Record<string, boolean>>({});
-  const [isContextMenuVisible, setIsContextMenuVisible] = useState(false);
 
   // Synchronise lorsque la recette change
   React.useEffect(() => {
@@ -582,11 +581,32 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
           </TouchableOpacity>
           <View style={styles.navRight}>
             <TouchableOpacity
-              onPress={() => setIsContextMenuVisible(true)}
+              onPress={() => onEdit(recipe)}
               style={styles.navBtn}
-              accessibilityLabel="Options de la recette"
+              accessibilityLabel="Modifier la recette"
             >
-              <Ionicons name="ellipsis-horizontal" size={19} color={colors.textPrimary} />
+              <Ionicons name="create-outline" size={18} color={colors.textPrimary} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setIsQrModalVisible(true)}
+              style={styles.navBtn}
+              accessibilityLabel="Partager la fiche recette"
+            >
+              <Ionicons name="share-social-outline" size={18} color={colors.textPrimary} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setIsPrintModalVisible(true)}
+              style={styles.navBtn}
+              accessibilityLabel="Imprimer la fiche recette"
+            >
+              <Ionicons name="print-outline" size={18} color={colors.textPrimary} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleDeleteConfirm}
+              style={[styles.navBtn, styles.navBtnDanger]}
+              accessibilityLabel="Supprimer la recette"
+            >
+              <Ionicons name="trash-outline" size={18} color={colors.danger} />
             </TouchableOpacity>
           </View>
         </View>
@@ -817,33 +837,6 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
             onAddMinuteToInlineTimer={handleAddMinuteToInlineTimer}
             onStopInlineTimer={handleStopInlineTimer}
           />
-
-          {/* Bannière Fiche Recette Imprimable (A4) */}
-          <View style={styles.printSectionCard}>
-            <View style={styles.printSectionHeaderRow}>
-              <View style={styles.printSectionIconWrap}>
-                <Ionicons name="print-outline" size={22} color={colors.primary} />
-              </View>
-              <View style={styles.printSectionTextCol}>
-                <Text style={styles.printSectionTitle}>Fiche recette imprimable (A4)</Text>
-                <Text style={styles.printSectionSubtitle}>
-                  Photo, ingrédients sur 2 colonnes & notes familiales
-                </Text>
-              </View>
-            </View>
-            <Text style={styles.printSectionDesc}>
-              Générez une fiche propre à glisser dans votre classeur familial ou à aimanter sur le réfrigérateur.
-            </Text>
-            <TouchableOpacity
-              style={styles.printSectionBtn}
-              onPress={() => setIsPrintModalVisible(true)}
-              activeOpacity={0.88}
-              accessibilityLabel="Imprimer ou exporter la fiche recette en PDF"
-            >
-              <Ionicons name="print" size={17} color="#FFFFFF" style={{ marginRight: 6 }} />
-              <Text style={styles.printSectionBtnText}>Imprimer / Exporter le PDF</Text>
-            </TouchableOpacity>
-          </View>
         </ScrollView>
 
         {/* Bandeau d’actions flottant en bas : Courses & Cuisiner */}
@@ -1218,74 +1211,6 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
           initialServings={currentServings}
           onClose={() => setIsPrintModalVisible(false)}
         />
-
-        {/* Modal Menu Contextuel 3 points (Partager, Imprimer, Modifier, Supprimer) */}
-        <Modal
-          visible={isContextMenuVisible}
-          transparent={true}
-          animationType="fade"
-          onRequestClose={() => setIsContextMenuVisible(false)}
-        >
-          <TouchableOpacity
-            style={styles.contextModalOverlay}
-            activeOpacity={1}
-            onPress={() => setIsContextMenuVisible(false)}
-          >
-            <View style={styles.contextMenuCard}>
-              <TouchableOpacity
-                style={styles.contextMenuItem}
-                onPress={() => {
-                  setIsContextMenuVisible(false);
-                  onEdit(recipe);
-                }}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="create-outline" size={19} color={colors.textPrimary} />
-                <Text style={styles.contextMenuItemText}>Modifier la recette</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.contextMenuItem}
-                onPress={() => {
-                  setIsContextMenuVisible(false);
-                  setIsQrModalVisible(true);
-                }}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="share-social-outline" size={19} color={colors.textPrimary} />
-                <Text style={styles.contextMenuItemText}>Partager la fiche</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.contextMenuItem}
-                onPress={() => {
-                  setIsContextMenuVisible(false);
-                  setIsPrintModalVisible(true);
-                }}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="print-outline" size={19} color={colors.textPrimary} />
-                <Text style={styles.contextMenuItemText}>Imprimer la fiche</Text>
-              </TouchableOpacity>
-
-              <View style={styles.contextMenuDivider} />
-
-              <TouchableOpacity
-                style={styles.contextMenuItem}
-                onPress={() => {
-                  setIsContextMenuVisible(false);
-                  handleDeleteConfirm();
-                }}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="trash-outline" size={19} color={colors.danger} />
-                <Text style={[styles.contextMenuItemText, { color: colors.danger }]}>
-                  Supprimer la recette
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </TouchableOpacity>
-        </Modal>
 
         {/* Bandeau flottant des minuteurs en cours si au moins un minuteur est actif */}
         {Object.values(inlineTimers).length > 0 && (

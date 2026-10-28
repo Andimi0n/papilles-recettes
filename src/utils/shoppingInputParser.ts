@@ -11,6 +11,8 @@ export interface ParsedShoppingItem {
   unit?: string;
   canonicalId?: string;
   aisle: ShoppingAisle;
+  isPantryStaple?: boolean;
+  isOptional?: boolean;
 }
 
 /**
@@ -126,25 +128,27 @@ export function parseShoppingInput(
       const words = restPart.split(/\s+/);
       const firstWord = words[0];
       const remainderAfterFirst = words.slice(1).join(' ').trim();
+      const twoWords = words.slice(0, 2).join(' ');
+      const threeWords = words.slice(0, 3).join(' ');
 
-      // Tester si firstWord est une unité standard (ex: "kg", "g", "ml", "cl", "l", "paquet", "bouteille", "boite")
-      if (firstWord && isStandardUnit(firstWord)) {
+      // Tester dans l'ordre : 3 mots (ex: "cuillere a soupe"), 2 mots (ex: "c a cafe"), 1 mot (ex: "kg", "g")
+      if (words.length >= 3 && isStandardUnit(threeWords)) {
+        extractedQuantity = numPart;
+        extractedUnit = normalizeUnit(threeWords);
+        rawName = stripLeadingPrepositions(words.slice(3).join(' ').trim());
+      } else if (words.length >= 2 && isStandardUnit(twoWords)) {
+        extractedQuantity = numPart;
+        extractedUnit = normalizeUnit(twoWords);
+        rawName = stripLeadingPrepositions(words.slice(2).join(' ').trim());
+      } else if (firstWord && isStandardUnit(firstWord)) {
         extractedQuantity = numPart;
         extractedUnit = normalizeUnit(firstWord);
         rawName = stripLeadingPrepositions(remainderAfterFirst);
       } else {
-        // Tester les unités en deux mots (ex: "c. a soupe", "c a cafe")
-        const twoWords = words.slice(0, 2).join(' ');
-        if (words.length >= 2 && isStandardUnit(twoWords)) {
-          extractedQuantity = numPart;
-          extractedUnit = normalizeUnit(twoWords);
-          rawName = stripLeadingPrepositions(words.slice(2).join(' ').trim());
-        } else {
-          // Ce n'est pas une unité, donc numPart est une quantité pure dénombrable (ex: "6 oeufs", "2 carottes")
-          extractedQuantity = numPart;
-          extractedUnit = undefined;
-          rawName = stripLeadingPrepositions(restPart);
-        }
+        // Ce n'est pas une unité, donc numPart est une quantité pure dénombrable (ex: "6 oeufs", "2 carottes")
+        extractedQuantity = numPart;
+        extractedUnit = undefined;
+        rawName = stripLeadingPrepositions(restPart);
       }
     }
   }
@@ -166,6 +170,8 @@ export function parseShoppingInput(
       quantity: extractedQuantity || norm.quantity,
       unit: extractedUnit || (norm.unit ? normalizeUnit(norm.unit) : undefined),
       aisle: finalAisle,
+      isPantryStaple: norm.isPantryStaple,
+      isOptional: norm.isOptional,
     };
   }
 
@@ -179,6 +185,33 @@ export function parseShoppingInput(
     quantity: extractedQuantity,
     unit: extractedUnit ? normalizeUnit(extractedUnit) : undefined,
     aisle: autoAisle,
+    isPantryStaple: norm.isPantryStaple,
+    isOptional: norm.isOptional,
+  };
+}
+
+export interface ParsedIngredientInput {
+  name: string;
+  quantity?: string;
+  unit?: string;
+  canonicalId?: string;
+  isPantryStaple?: boolean;
+  isOptional?: boolean;
+}
+
+/**
+ * Analyse une saisie libre d'ingrédient de recette (ex: "250g farine", "3 oeufs", "sel")
+ * et en extrait après coup la quantité, l'unité et le nom canonique/propre.
+ */
+export function parseRecipeIngredientInput(rawInput: string): ParsedIngredientInput {
+  const parsed = parseShoppingInput(rawInput);
+  return {
+    name: parsed.name,
+    quantity: parsed.quantity,
+    unit: parsed.unit,
+    canonicalId: parsed.canonicalId,
+    isPantryStaple: parsed.isPantryStaple,
+    isOptional: parsed.isOptional,
   };
 }
 

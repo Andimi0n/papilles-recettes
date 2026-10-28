@@ -424,6 +424,76 @@ export const styles = createDynamicStyles((colors, shadows) => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  quickAddCard: {
+    backgroundColor: colors.cardBackground,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    borderRadius: 12,
+    padding: 8,
+    marginBottom: 10,
+    ...shadows.card,
+  },
+  quickAddMainRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  quickAddInput: {
+    flex: 1,
+    marginBottom: 0,
+  },
+  quickAddBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 10,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quickAddBtnDisabled: {
+    opacity: 0.45,
+  },
+  quickAddOptionsRow: {
+    marginTop: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  freeformIngRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  freeformInputWrap: {
+    flex: 1,
+  },
+  freeformInput: {
+    marginBottom: 0,
+    width: '100%',
+  },
+  detectedQtyBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3.5,
+    borderRadius: 8,
+    backgroundColor: colors.primaryLight + '25',
+    borderWidth: 1,
+    borderColor: colors.primary + '35',
+  },
+  detectedQtyBadgeText: {
+    fontSize: 11,
+    color: colors.primary,
+    fontWeight: '700',
+  },
+  detectedQtyBadgeEmpty: {
+    backgroundColor: colors.cardBackground,
+    borderColor: colors.border,
+  },
+  detectedQtyBadgeEmptyText: {
+    color: colors.textMuted,
+    fontWeight: '500',
+  },
   stepEditRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',

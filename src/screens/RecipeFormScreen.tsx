@@ -411,11 +411,23 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
   };
 
   // Ingredients handlers
-  const handleAddIngredient = () => {
-    setIngredients([
-      ...ingredients,
-      { id: generateUniqueId('ing'), name: '', quantity: '', unit: '' },
-    ]);
+  const handleAddIngredient = (newIng?: Ingredient) => {
+    if (newIng) {
+      setIngredients((prev) => [...prev, newIng]);
+    } else {
+      setIngredients((prev) => [
+        ...prev,
+        { id: generateUniqueId('ing'), name: '', quantity: '', unit: '' },
+      ]);
+    }
+  };
+
+  const handleUpdateFullIngredient = (index: number, newIng: Ingredient) => {
+    setIngredients((prev) => {
+      const updated = [...prev];
+      updated[index] = newIng;
+      return updated;
+    });
   };
 
   const handleUpdateIngredient = (index: number, field: keyof Ingredient, value: any) => {
@@ -1294,6 +1306,7 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
             ingredients={ingredients}
             onAddIngredient={handleAddIngredient}
             onUpdateIngredient={handleUpdateIngredient}
+            onUpdateFullIngredient={handleUpdateFullIngredient}
             onSelectCanonicalIngredient={handleSelectCanonicalIngredient}
             onRemoveIngredient={handleRemoveIngredient}
             onToggleIngredientStaple={handleToggleIngredientStaple}
