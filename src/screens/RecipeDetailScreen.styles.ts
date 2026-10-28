@@ -483,6 +483,22 @@ export const styles = createDynamicStyles((colors, shadows) => ({
     fontWeight: '700',
     textTransform: 'uppercase',
   },
+  sosInlineBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.danger,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    marginLeft: 6,
+    gap: 3,
+  },
+  sosInlineBtnText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    textTransform: 'uppercase',
+  },
   linkedRecipeInlineBtn: {
     flexDirection: 'row',
     alignItems: 'center',

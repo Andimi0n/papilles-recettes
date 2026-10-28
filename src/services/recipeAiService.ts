@@ -654,6 +654,37 @@ const RECIPE_PIMP_SCHEMA = {
   required: ['suggestions', 'chefNote'],
 };
 
+export interface SosSubstituteSuggestion {
+  substituteName: string;
+  reason: string;
+  howToUse: string;
+}
+
+export interface SosRecipeResponse {
+  suggestions: SosSubstituteSuggestion[];
+  chefNote: string;
+}
+
+const RECIPE_SOS_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    suggestions: {
+      type: 'ARRAY',
+      items: {
+        type: 'OBJECT',
+        properties: {
+          substituteName: { type: 'STRING' },
+          reason: { type: 'STRING' },
+          howToUse: { type: 'STRING' },
+        },
+        required: ['substituteName', 'reason', 'howToUse'],
+      },
+    },
+    chefNote: { type: 'STRING' },
+  },
+  required: ['suggestions', 'chefNote'],
+};
+
 export interface ExtractedRecipeData {
   title: string;
   description: string;
@@ -1571,6 +1602,77 @@ Propose des améliorations à partir de ce stock.`;
     return {
       suggestions: Array.isArray(parsed?.suggestions) ? parsed.suggestions : [],
       chefNote: parsed?.chefNote || "Bon appétit !",
+    };
+  },
+
+  /**
+   * Demande à l'IA des suggestions de remplacement pour un ingrédient manquant, en se basant sur le stock (SOS Remplacement).
+   */
+  async suggestSubstituteWithStock(
+    missingIngredient: string,
+    stockItems: string[],
+    providedKey?: string,
+    onModelAttempt?: (modelName: string, isFallback: boolean) => void
+  ): Promise<SosRecipeResponse> {
+    const apiKey = providedKey || (await this.getApiKey());
+    if (!apiKey) {
+      throw new Error(
+        'Clé API Gemini non configurée. Veuillez renseigner votre clé API dans les paramètres.'
+      );
+    }
+
+    if (!stockItems || stockItems.length === 0) {
+      throw new Error('Votre frigo est vide. Ajoutez des ingrédients pour que l\'IA puisse vous aider !');
+    }
+
+    const systemPrompt = `Tu es un chef cuisinier expert en improvisation et anti-gaspillage.
+L'utilisateur n'a pas l'ingrédient "${escapeUntrustedDelimiters(missingIngredient, 'untrusted_ingredient')}" pour sa recette.
+Analyse son stock disponible et propose jusqu'à 3 suggestions d'ingrédients pertinents de substitution pour le remplacer.
+Tu dois renvoyer un JSON strict respectant la structure demandée. "substituteName" doit être le nom canonique simple de l'ingrédient issu du stock.
+Si aucun ingrédient ne convient parfaitement, propose l'alternative la moins mauvaise ou une idée d'adaptation.`;
+
+    const sanitizedStock = stockItems.slice(0, 50).map((i) =>
+      escapeUntrustedDelimiters(i, 'untrusted_stock')
+    );
+
+    const userPayload = `Ingrédient manquant : ${escapeUntrustedDelimiters(missingIngredient, 'untrusted_ingredient')}
+
+Stock disponible :
+<untrusted_stock>
+${sanitizedStock.join(', ')}
+</untrusted_stock>
+
+Propose des solutions de remplacement avec ce stock.`;
+
+    const payload = {
+      system_instruction: {
+        parts: [{ text: systemPrompt }],
+      },
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: userPayload }],
+        },
+      ],
+      generationConfig: {
+        response_mime_type: 'application/json',
+        response_schema: RECIPE_SOS_SCHEMA,
+        temperature: 0.5,
+        max_output_tokens: 1500,
+      },
+    };
+
+    const { parsed } = await fetchGeminiJsonWithFallbackAndRetry(
+      apiKey,
+      payload,
+      FAST_GEMINI_MODELS_CASCADE,
+      onModelAttempt,
+      30000
+    );
+
+    return {
+      suggestions: Array.isArray(parsed?.suggestions) ? parsed.suggestions : [],
+      chefNote: parsed?.chefNote || "Bon courage !",
     };
   },
 };

@@ -44,7 +44,7 @@ import { findLinkedRecipeForIngredient, getLinkedRecipesForRecipe } from '../uti
 import { VocabularyService } from '../services/vocabularyService';
 import { FridgeItem } from '../types/fridge';
 import { prepareStockItems, evaluateRecipeStock } from '../utils/stockMatcher';
-import { RecipeAiService, PimpSuggestion } from '../services/recipeAiService';
+import { RecipeAiService, PimpSuggestion, SosSubstituteSuggestion } from '../services/recipeAiService';
 import {
   ConversionMode,
   convertIngredientQuantity,
@@ -104,6 +104,13 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
   const [isPimpModalVisible, setIsPimpModalVisible] = useState(false);
   const [pimpSuggestions, setPimpSuggestions] = useState<PimpSuggestion[]>([]);
   const [pimpChefNote, setPimpChefNote] = useState<string>('');
+
+  // SOS Replacement feature state
+  const [isSosLoading, setIsSosLoading] = useState(false);
+  const [isSosModalVisible, setIsSosModalVisible] = useState(false);
+  const [sosTargetIngredient, setSosTargetIngredient] = useState('');
+  const [sosSuggestions, setSosSuggestions] = useState<SosSubstituteSuggestion[]>([]);
+  const [sosChefNote, setSosChefNote] = useState('');
 
   // Synchronise lorsque la recette change
   React.useEffect(() => {
@@ -493,6 +500,37 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
     setIsNoteModalVisible(false);
   };
 
+  const handleSosReplacement = async (ingredientName: string) => {
+    if (isSosLoading) return;
+    setIsSosLoading(true);
+    setSosTargetIngredient(ingredientName);
+
+    try {
+      const stockItems = await StorageService.getFridgeItems();
+      const stockNames = stockItems.map(item => item.name);
+
+      if (stockNames.length === 0) {
+        Alert.alert('Frigo vide', 'Ajoutez des ingrédients dans votre stock pour que l\'IA puisse vous proposer des remplacements !');
+        setIsSosLoading(false);
+        return;
+      }
+
+      const result = await RecipeAiService.suggestSubstituteWithStock(ingredientName, stockNames);
+
+      if (result && result.suggestions && result.suggestions.length > 0) {
+        setSosSuggestions(result.suggestions);
+        setSosChefNote(result.chefNote);
+        setIsSosModalVisible(true);
+      } else {
+        Alert.alert('Aucune suggestion', 'Le Chef n\'a pas trouvé de remplacement avec votre stock actuel.');
+      }
+    } catch (error: any) {
+      Alert.alert('Erreur', error.message || 'Impossible de contacter le Chef IA.');
+    } finally {
+      setIsSosLoading(false);
+    }
+  };
+
   const handlePimpRecipe = async () => {
     if (isPimping) return;
     setIsPimping(true);
@@ -863,6 +901,7 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
             linkedPreparations={linkedPreparations}
             linkedRecipesMap={linkedRecipesMap}
             onOpenLinkedRecipe={onOpenLinkedRecipe}
+            onSosRequest={handleSosReplacement}
           />
 
           {/* Steps Section */}
@@ -1277,6 +1316,43 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
             </Text>
           </View>
         )}
+
+        {/* Modal SOS Remplacement */}
+        <Modal
+          visible={isSosModalVisible}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setIsSosModalVisible(false)}
+        >
+          <View style={styles.modalBackdrop}>
+            <View style={styles.pimpModalCard}>
+              <View style={styles.pimpModalHeader}>
+                <Text style={styles.pimpModalTitle}>SOS : {sosTargetIngredient}</Text>
+              </View>
+
+              <ScrollView showsVerticalScrollIndicator={false}>
+                {sosChefNote ? (
+                  <Text style={styles.pimpChefNote}>{sosChefNote}</Text>
+                ) : null}
+
+                {sosSuggestions.map((suggestion, index) => (
+                  <View key={index} style={styles.pimpSuggestionCard}>
+                    <Text style={styles.pimpSuggestionTitle}>{suggestion.substituteName}</Text>
+                    <Text style={styles.pimpSuggestionReason}>{suggestion.reason}</Text>
+                    <Text style={styles.pimpSuggestionUsage}>{suggestion.howToUse}</Text>
+                  </View>
+                ))}
+              </ScrollView>
+
+              <TouchableOpacity
+                style={styles.pimpModalCloseBtn}
+                onPress={() => setIsSosModalVisible(false)}
+              >
+                <Text style={styles.pimpModalCloseBtnText}>C'est noté, merci Chef !</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
 
         {/* Modal Pimper ma recette */}
         <Modal
