@@ -137,6 +137,21 @@ async function main() {
   assert.strictEqual(shared, true);
   console.log('  ✅ 7. shareRecipeViaSystem déclenche le partage natif sans erreur');
 
+  // 8. Test SEC-04: Rejet des URIs locales système file:// dans les recettes décodées
+  const payloadWithLocalFile = JSON.stringify({
+    title: 'Recette piégée',
+    imageUrl: 'file:///etc/passwd',
+    availableImages: ['file:///data/user/0/com.app/db', 'https://example.com/ok.jpg'],
+    ingredients: [],
+    steps: [],
+  });
+  const decodedMalicious = RecipeShareService.decodeRecipe(`papilles://import?r=${encodeURIComponent(payloadWithLocalFile)}`);
+  assert(decodedMalicious !== null);
+  assert.strictEqual(decodedMalicious.imageUrl, '', 'imageUrl file:// doit être vidé');
+  assert.strictEqual(decodedMalicious.availableImages.length, 1);
+  assert.strictEqual(decodedMalicious.availableImages[0], 'https://example.com/ok.jpg');
+  console.log('  ✅ 8. SEC-04 : Neutralisation stricte des URIs file:// locales dans les imports');
+
   // Nettoyage dossier temporaire
   try {
     fs.rmSync(tmpDir, { recursive: true, force: true });

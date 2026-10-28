@@ -301,6 +301,16 @@ export const RecipeShareService = {
         };
       }
 
+      // Neutralisation des URIs locales système (file://) sur les recettes reçues de l'extérieur (SEC-04)
+      if (typeof partialRecipe.imageUrl === 'string' && partialRecipe.imageUrl.trim().toLowerCase().startsWith('file://')) {
+        partialRecipe.imageUrl = '';
+      }
+      if (Array.isArray(partialRecipe.availableImages)) {
+        partialRecipe.availableImages = partialRecipe.availableImages.filter(
+          (img) => typeof img === 'string' && !img.trim().toLowerCase().startsWith('file://')
+        );
+      }
+
       // Toujours générer un nouvel ID unique pour ne jamais écraser une recette locale existante
       partialRecipe.id = generateUniqueId('rec_shared');
 
