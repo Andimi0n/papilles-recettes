@@ -81,12 +81,16 @@ function AppContent() {
     loadInitialData();
   }, [refreshShoppingBadge]);
 
-  // Actualise le badge à chaque fois qu'on revient sur un écran principal
+  // Abonnement réactif aux mutations de la liste de courses pour le badge
   useEffect(() => {
-    if (['home', 'planner', 'shopping'].includes(currentScreen)) {
-      refreshShoppingBadge();
-    }
-  }, [currentScreen, refreshShoppingBadge]);
+    const unsubscribe = StorageService.onShoppingListChange((items) => {
+      const uncompleted = items.filter((i) => !i.isChecked).length;
+      setShoppingBadgeCount(uncompleted);
+    });
+    return () => {
+      unsubscribe();
+    };
+  }, []);
 
   // Écoute et décodage des liens profonds de partage (papilles://import?r=...)
   const handleIncomingUrl = useCallback((url: string | null | undefined) => {
@@ -311,9 +315,9 @@ function AppContent() {
     <SafeAreaProvider>
       <StatusBar style={isDark ? 'light' : 'dark'} />
       <View style={styles.container}>
-        {/* Écrans Principaux */}
+        {/* Écrans Principaux avec Keep-Alive (onglets persistants en mémoire) */}
         <View style={styles.mainContent}>
-          {currentScreen === 'home' && (
+          <View style={[styles.tabContainer, currentScreen !== 'home' && styles.tabHidden]}>
             <HomeScreen
               recipes={recipes}
               onSelectRecipe={(r) => navigateToDetail(r, 'home')}
@@ -325,34 +329,37 @@ function AppContent() {
               onNavigateToJournal={navigateToJournal}
               onNavigateToStock={() => navigateToShopping('fridge')}
               initialOnlyDoable={initialHomeDoableFilter}
+              isActive={currentScreen === 'home'}
             />
-          )}
+          </View>
 
-          {currentScreen === 'planner' && (
+          <View style={[styles.tabContainer, currentScreen !== 'planner' && styles.tabHidden]}>
             <MealPlannerScreen
               recipes={recipes}
               onSelectRecipe={(r) => navigateToDetail(r, 'planner')}
               onNavigateToShoppingList={() => navigateToShopping('shopping')}
               initialTab={plannerInitialTab}
+              isActive={currentScreen === 'planner'}
             />
-          )}
+          </View>
 
-          {currentScreen === 'shopping' && (
+          <View style={[styles.tabContainer, currentScreen !== 'shopping' && styles.tabHidden]}>
             <ShoppingListScreen
               onNavigateToRecipes={navigateToHome}
               onNavigateToPlanner={navigateToPlanner}
               initialTab={shoppingInitialTab}
               recipes={recipes}
               onSelectRecipe={(r) => navigateToDetail(r, 'shopping')}
+              isActive={currentScreen === 'shopping'}
             />
-          )}
+          </View>
 
-          {currentScreen === 'settings' && (
+          <View style={[styles.tabContainer, currentScreen !== 'settings' && styles.tabHidden]}>
             <SettingsScreen
               recipes={recipes}
               onRecipesReloadNeeded={reloadRecipes}
             />
-          )}
+          </View>
 
           {/* Écrans Secondaires (pleine page) */}
           {currentScreen === 'scan' && (
@@ -523,6 +530,12 @@ const styles = createDynamicStyles((colors, shadows) => ({
   },
   mainContent: {
     flex: 1,
+  },
+  tabContainer: {
+    flex: 1,
+  },
+  tabHidden: {
+    display: 'none',
   },
   loadingContainer: {
     flex: 1,
