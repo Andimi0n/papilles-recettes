@@ -162,33 +162,24 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
     return Array.from(set).sort((a, b) => a.localeCompare(b, 'fr'));
   }, [recipes]);
 
-  // Synchronise les brouillons dès l'ouverture du modal
-  useEffect(() => {
-    if (visible) {
-      const activeTime = targetTotalTime !== undefined ? targetTotalTime : (maxTotalTime !== undefined ? maxTotalTime : null);
-      setDraftTargetTotalTime(activeTime);
-      setDraftTimeFilterMode(timeFilterMode || 'max');
-      setTimeInputString(activeTime !== null ? String(activeTime) : '');
-      setDraftMinRating(minRating);
-      setDraftDifficulties(difficulties);
-      setDraftIngredients(selectedIngredients);
-      setDraftIngredientMatchMode(ingredientMatchMode);
-      setDraftTags(selectedTags);
-      setDraftTagMatchMode(tagMatchMode || 'any');
-      setIngredientInputText('');
-    }
-  }, [
-    visible,
-    targetTotalTime,
-    timeFilterMode,
-    maxTotalTime,
-    minRating,
-    difficulties,
-    selectedIngredients,
-    ingredientMatchMode,
-    selectedTags,
-    tagMatchMode,
-  ]);
+  // Synchronise les brouillons dès l'ouverture du modal pendant le render (pattern officiel React 19)
+  const [prevVisible, setPrevVisible] = useState(visible);
+  if (visible && !prevVisible) {
+    setPrevVisible(true);
+    const activeTime = targetTotalTime !== undefined ? targetTotalTime : (maxTotalTime !== undefined ? maxTotalTime : null);
+    setDraftTargetTotalTime(activeTime);
+    setDraftTimeFilterMode(timeFilterMode || 'max');
+    setTimeInputString(activeTime !== null ? String(activeTime) : '');
+    setDraftMinRating(minRating);
+    setDraftDifficulties(difficulties);
+    setDraftIngredients(selectedIngredients);
+    setDraftIngredientMatchMode(ingredientMatchMode);
+    setDraftTags(selectedTags);
+    setDraftTagMatchMode(tagMatchMode || 'any');
+    setIngredientInputText('');
+  } else if (!visible && prevVisible) {
+    setPrevVisible(false);
+  }
 
   const handleAddIngredient = (name: string) => {
     const trimmed = name.trim();
@@ -864,7 +855,7 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
                       style={{ marginRight: 8 }}
                     />
                     <Text style={styles.emptyTagsNoticeText}>
-                      Aucun tag n'est encore associé à vos recettes. Ajoutez des tags lors de la création ou l'édition d'une recette pour filtrer ici.
+                      Aucun tag n&apos;est encore associé à vos recettes. Ajoutez des tags lors de la création ou l&apos;édition d&apos;une recette pour filtrer ici.
                     </Text>
                   </View>
                 ) : (

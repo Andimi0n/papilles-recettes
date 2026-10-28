@@ -45,13 +45,6 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [themeMode, setThemeModeState] = useState<ThemeMode>('system');
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Synchronise dès que le hook Expo/RN useColorScheme change
-  useEffect(() => {
-    if (deviceColorScheme) {
-      setSystemColorScheme(deviceColorScheme === 'dark' ? 'dark' : 'light');
-    }
-  }, [deviceColorScheme]);
-
   // Écoute dynamique les changements d'apparence système via Appearance (quand l'utilisateur bascule son OS)
   useEffect(() => {
     const subscription = Appearance.addChangeListener(({ colorScheme }) => {

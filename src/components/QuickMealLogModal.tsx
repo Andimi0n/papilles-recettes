@@ -65,27 +65,30 @@ export const QuickMealLogModal: React.FC<QuickMealLogModalProps> = ({
   const [showRecipePicker, setShowRecipePicker] = useState(false);
   const [recipeSearch, setRecipeSearch] = useState('');
 
-  // Initialisation à l'ouverture du modal
-  useEffect(() => {
-    if (visible) {
-      if (currentEntry) {
-        setTitle(currentEntry.title || '');
-        setNote(currentEntry.note || '');
-        if (currentEntry.recipeId) {
-          const matched = recipes.find((r) => r.id === currentEntry.recipeId);
-          setSelectedRecipe(matched || null);
-        } else {
-          setSelectedRecipe(null);
-        }
+  // Initialisation à l'ouverture du modal pendant le render
+  const [lastInitKey, setLastInitKey] = useState<string>('');
+  const currentInitKey = visible ? `${currentEntry?.title || ''}_${currentEntry?.recipeId || ''}_${date}_${mealTime}` : '';
+  if (currentInitKey && currentInitKey !== lastInitKey) {
+    setLastInitKey(currentInitKey);
+    if (currentEntry) {
+      setTitle(currentEntry.title || '');
+      setNote(currentEntry.note || '');
+      if (currentEntry.recipeId) {
+        const matched = recipes.find((r) => r.id === currentEntry.recipeId);
+        setSelectedRecipe(matched || null);
       } else {
-        setTitle('');
-        setNote('');
         setSelectedRecipe(null);
       }
-      setShowRecipePicker(false);
-      setRecipeSearch('');
+    } else {
+      setTitle('');
+      setNote('');
+      setSelectedRecipe(null);
     }
-  }, [visible, currentEntry, recipes]);
+    setShowRecipePicker(false);
+    setRecipeSearch('');
+  } else if (!visible && lastInitKey) {
+    setLastInitKey('');
+  }
 
   const filteredRecipes = useMemo(() => {
     if (!recipeSearch.trim()) return recipes.slice(0, 15);

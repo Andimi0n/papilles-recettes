@@ -217,10 +217,25 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
 
   // Chargement et synchronisation du stock et du vocabulaire canonique
   useEffect(() => {
-    loadStock();
-    VocabularyService.getAll().then((vocab) => {
-      setCanonicalVocabulary(vocab);
-    });
+    let isMounted = true;
+    const initData = async () => {
+      try {
+        const [loadedStock, vocab] = await Promise.all([
+          StorageService.getFridgeItems(),
+          VocabularyService.getAll(),
+        ]);
+        if (isMounted) {
+          setItems(loadedStock);
+          setCanonicalVocabulary(vocab);
+          if (onFridgeCountChange) {
+            onFridgeCountChange(loadedStock.length);
+          }
+        }
+      } catch (e) {
+        console.error('Erreur chargement stock FridgeStockView:', e);
+      }
+    };
+    initData();
 
     const unsubFridge = StorageService.onFridgeChange((updatedStock) => {
       setItems(updatedStock);
@@ -236,6 +251,7 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
     });
 
     return () => {
+      isMounted = false;
       unsubFridge();
       unsubVocab();
     };
@@ -574,7 +590,7 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
               <Text style={styles.emptyTitle}>Vos étagères sont vides</Text>
               <Text style={styles.emptySubtitle}>
                 Ajoutez ce que vous avez sous la main (placards, frigo, épices...) ci-dessus pour
-                savoir toujours ce qu'il vous reste et trouver des idées de recettes sans gaspiller.
+                savoir toujours ce qu&apos;il vous reste et trouver des idées de recettes sans gaspiller.
               </Text>
             </View>
           </ScrollView>
@@ -611,7 +627,7 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
                 </View>
                 <Text style={styles.emptyTitle}>Aliment introuvable</Text>
                 <Text style={styles.emptySubtitle}>
-                  « {searchQuery.trim()} » n'est pas présent dans vos étagères.
+                  « {searchQuery.trim()} » n&apos;est pas présent dans vos étagères.
                 </Text>
 
                 <TouchableOpacity

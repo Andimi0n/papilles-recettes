@@ -86,25 +86,27 @@ export const QualifyIngredientModal: React.FC<QualifyIngredientModalProps> = ({
     return VocabularyService.search(parentSearchQuery.trim(), 4);
   }, [parentSearchQuery]);
 
-  // Initialisation dès que le modal s'ouvre avec un nouveau nom
-  useEffect(() => {
-    if (visible && rawName) {
-      const clean = rawName.trim();
-      const formatted = clean.charAt(0).toUpperCase() + clean.slice(1);
-      setCanonicalNameInput(formatted);
+  // Initialisation lors de l'ouverture du modal pendant le render
+  const [lastInitKey, setLastInitKey] = useState<string>('');
+  const currentInitKey = visible && rawName ? `${rawName}_${queueProgress?.current || 0}` : '';
+  if (currentInitKey && currentInitKey !== lastInitKey) {
+    setLastInitKey(currentInitKey);
+    const clean = rawName.trim();
+    const formatted = clean.charAt(0).toUpperCase() + clean.slice(1);
+    setCanonicalNameInput(formatted);
 
-      const defaults = UnifiedIngredientService.getSuggestedDefaults(clean);
-      setSelectedAisle(defaults.suggestedAisle);
-      setSelectedAllergen(defaults.suggestedAllergen);
-      setIsPantryStaple(defaults.suggestedIsPantryStaple);
-      setExtraAliasesInput('');
-      setErrorMessage(null);
-      setIsSubmitting(false);
-      setParentSearchQuery('');
-      setIsParentSearchOpen(false);
-      scrollViewRef.current?.scrollTo({ y: 0, animated: false });
-    }
-  }, [visible, rawName, queueProgress?.current]);
+    const defaults = UnifiedIngredientService.getSuggestedDefaults(clean);
+    setSelectedAisle(defaults.suggestedAisle);
+    setSelectedAllergen(defaults.suggestedAllergen);
+    setIsPantryStaple(defaults.suggestedIsPantryStaple);
+    setExtraAliasesInput('');
+    setErrorMessage(null);
+    setIsSubmitting(false);
+    setParentSearchQuery('');
+    setIsParentSearchOpen(false);
+  } else if (!visible && lastInitKey) {
+    setLastInitKey('');
+  }
 
   // Action : Sélectionner un ingrédient proche (ajoute en synonyme si possible, sinon remplace)
   const handleSelectTargetIngredient = async (targetIngredient: CanonicalIngredient) => {
@@ -233,7 +235,7 @@ export const QualifyIngredientModal: React.FC<QualifyIngredientModalProps> = ({
               </View>
               <View style={styles.headerTextGroup}>
                 <View style={styles.headerTitleRow}>
-                  <Text style={styles.headerTitle}>Qualifier l'ingrédient</Text>
+                  <Text style={styles.headerTitle}>Qualifier l&apos;ingrédient</Text>
                   {queueProgress && queueProgress.total > 1 && (
                     <View style={styles.queueBadge}>
                       <Text style={styles.queueBadgeText}>
@@ -243,7 +245,7 @@ export const QualifyIngredientModal: React.FC<QualifyIngredientModalProps> = ({
                   )}
                 </View>
                 <Text style={styles.headerSubtitle} numberOfLines={1}>
-                  « {rawName} » n'est pas encore au lexique
+                  « {rawName} » n&apos;est pas encore au lexique
                 </Text>
               </View>
             </View>
@@ -299,7 +301,7 @@ export const QualifyIngredientModal: React.FC<QualifyIngredientModalProps> = ({
               {closestMatches.length > 0 && (
                 <>
                   <Text style={styles.sectionExplanation}>
-                    Suggestions d'aliments trouvées dans le lexique :
+                    Suggestions d&apos;aliments trouvées dans le lexique :
                   </Text>
                   <View style={styles.matchesList}>
                     {closestMatches.map((match) => {
@@ -477,7 +479,7 @@ export const QualifyIngredientModal: React.FC<QualifyIngredientModalProps> = ({
               {/* 3. Déclaration d'allergène obligatoire (Sécurité Sanitaire) */}
               <View style={styles.formGroup}>
                 <View style={styles.allergenHeaderRow}>
-                  <Text style={styles.fieldLabel}>Déclaration d'allergène (obligatoire) :</Text>
+                  <Text style={styles.fieldLabel}>Déclaration d&apos;allergène (obligatoire) :</Text>
                   {detectedAllergen && (
                     <View style={styles.hintBadge}>
                       <Ionicons name="sparkles" size={11} color={colors.primary} />
@@ -511,7 +513,7 @@ export const QualifyIngredientModal: React.FC<QualifyIngredientModalProps> = ({
                 </TouchableOpacity>
 
                 {/* Choix 2 : Les 14 familles d'allergènes INCO */}
-                <Text style={styles.subFieldLabel}>Ou sélectionner la famille d'allergène concernée :</Text>
+                <Text style={styles.subFieldLabel}>Ou sélectionner la famille d&apos;allergène concernée :</Text>
                 <View style={styles.allergenWrap}>
                   {ALLERGEN_FAMILIES.map((family) => {
                     const isSelected = selectedAllergen === family.id;

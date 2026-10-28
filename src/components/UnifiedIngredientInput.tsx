@@ -76,7 +76,7 @@ export const UnifiedIngredientInput: React.FC<UnifiedIngredientInputProps> = ({
   const { width: windowWidth } = useWindowDimensions();
 
   const [isFocused, setIsFocused] = useState(false);
-  const [suggestions, setSuggestions] = useState<DropdownSuggestionItem[]>([]);
+  const [isDismissed, setIsDismissed] = useState(false);
   const [isQualifyModalVisible, setIsQualifyModalVisible] = useState(false);
   const [pendingUnrecognizedName, setPendingUnrecognizedName] = useState('');
 
@@ -107,18 +107,16 @@ export const UnifiedIngredientInput: React.FC<UnifiedIngredientInputProps> = ({
     return undefined;
   }, [value]);
 
-  // Mise à jour instantanée des suggestions qualitatives (directes + phonétiques + orthographe)
-  useEffect(() => {
-    if (!isFocused || !value || value.trim().length < 2) {
-      setSuggestions([]);
-      return;
+  // Suggestions qualitatives instantanées dérivées sans cascade de render
+  const suggestions = useMemo(() => {
+    if (isDismissed || !isFocused || !value || value.trim().length < 2) {
+      return [];
     }
 
     const trimmed = value.trim();
     const cleanSearch = extractedDetails?.cleanName || trimmed;
-    const matches = UnifiedIngredientService.getQualitativeDropdownSuggestions(cleanSearch, 25);
-    setSuggestions(matches);
-  }, [value, isFocused, extractedDetails]);
+    return UnifiedIngredientService.getQualitativeDropdownSuggestions(cleanSearch, 25);
+  }, [value, isFocused, isDismissed, extractedDetails]);
 
   // Sélection d'un ingrédient répertorié depuis la liste
   const handleSelectCanonical = (item: CanonicalIngredient) => {
@@ -135,7 +133,7 @@ export const UnifiedIngredientInput: React.FC<UnifiedIngredientInputProps> = ({
     }
 
     VocabularyService.incrementUsage(item.id).catch(() => {});
-    setSuggestions([]);
+    setIsDismissed(true);
 
     const details = extractedDetails
       ? { quantity: extractedDetails.quantity, unit: extractedDetails.unit }
@@ -171,7 +169,7 @@ export const UnifiedIngredientInput: React.FC<UnifiedIngredientInputProps> = ({
       clearTimeout(blurTimeoutRef.current);
       blurTimeoutRef.current = null;
     }
-    setSuggestions([]);
+    setIsDismissed(true);
     if (onRequestQualify) {
       onRequestQualify(nameToQualify);
       setTimeout(() => {
@@ -227,7 +225,7 @@ export const UnifiedIngredientInput: React.FC<UnifiedIngredientInputProps> = ({
         return;
       }
       setIsFocused(false);
-      setSuggestions([]);
+      setIsDismissed(true);
       onBlur?.();
 
       // Notification des détails de quantité/unité extraits discrètement
@@ -250,7 +248,10 @@ export const UnifiedIngredientInput: React.FC<UnifiedIngredientInputProps> = ({
           ref={inputRef}
           style={[styles.input, showSearchIcon && { paddingLeft: 38 }, style]}
           value={value}
-          onChangeText={onChangeText}
+          onChangeText={(text) => {
+            setIsDismissed(false);
+            onChangeText(text);
+          }}
           placeholder={placeholder}
           placeholderTextColor={placeholderTextColor || colors.textMuted}
           onFocus={handleFocus}
@@ -356,7 +357,7 @@ export const UnifiedIngredientInput: React.FC<UnifiedIngredientInputProps> = ({
               <TouchableOpacity
                 style={styles.qualifyActionRow}
                 onPress={() => {
-                  setSuggestions([]);
+                  setIsDismissed(true);
                   onSubmitEditing?.();
                 }}
                 activeOpacity={0.7}

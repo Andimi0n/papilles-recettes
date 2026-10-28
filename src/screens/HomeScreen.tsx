@@ -2,7 +2,6 @@ import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import {
   View,
   Text,
-  FlatList,
   TouchableOpacity,
   Modal,
   ScrollView,
@@ -12,6 +11,7 @@ import {
   NativeScrollEvent,
   Alert,
 } from 'react-native';
+import { FlashList, FlashListRef } from '@shopify/flash-list';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Recipe, Category, SortOption, Difficulty, TimeFilterMode, RecipeViewMode } from '../types/recipe';
@@ -20,7 +20,8 @@ import { MealTime } from '../types/planner';
 import { FridgeItem } from '../types/fridge';
 import { UserAllergenItem } from '../types/vocabulary';
 import { StorageService } from '../services/storageService';
-import { Colors, Shadows, createDynamicStyles } from '../theme/colors';
+import { Colors } from '../theme/colors';
+import { styles } from './HomeScreen.styles';
 import { useTheme } from '../theme/ThemeContext';
 import { RecipeCard } from '../components/RecipeCard';
 import { SearchBar } from '../components/SearchBar';
@@ -67,6 +68,7 @@ interface HomeScreenProps {
   onNavigateToJournal?: () => void;
   onNavigateToStock?: () => void;
   initialOnlyDoable?: boolean;
+  isActive?: boolean;
 }
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({
@@ -80,11 +82,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   onNavigateToJournal,
   onNavigateToStock,
   initialOnlyDoable = false,
+  isActive = true,
 }) => {
   const { isDark, colors, themeId } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const flatListRef = useRef<FlatList<Recipe>>(null);
+  const flashListRef = useRef<FlashListRef<Recipe>>(null);
   const [selectedCategories, setSelectedCategories] = useState<Category[]>([]);
   const [selectedIngredients, setSelectedIngredients] = useState<string[]>([]);
   const [targetTotalTime, setTargetTotalTime] = useState<number | null>(null);
@@ -120,11 +123,14 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     return count;
   }, [targetTotalTime, selectedDifficulties.length, selectedIngredients.length, selectedTags.length]);
 
-  useEffect(() => {
+  const [prevInitialOnlyDoable, setPrevInitialOnlyDoable] = useState(initialOnlyDoable);
+  if (prevInitialOnlyDoable !== initialOnlyDoable) {
+    setPrevInitialOnlyDoable(initialOnlyDoable);
     if (initialOnlyDoable) {
       setOnlyDoableWithStock(true);
+      setCurrentPage(1);
     }
-  }, [initialOnlyDoable]);
+  }
   const [stockItems, setStockItems] = useState<FridgeItem[]>([]);
   const [isStockModalVisible, setIsStockModalVisible] = useState(false);
   const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
@@ -293,10 +299,51 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   }, []);
 
   useEffect(() => {
-    loadTodayMeals();
-    loadStockItems();
-    loadAllergenSettings();
-  }, [loadTodayMeals, loadStockItems, loadAllergenSettings]);
+    let isMounted = true;
+    const fetchInitialHomeScreenData = async () => {
+      try {
+        const [meals, items, allergens, filterEnabled] = await Promise.all([
+          StorageService.getTodayMeals(),
+          StorageService.getFridgeItems(),
+          StorageService.getUserAllergens(),
+          StorageService.getAllergenFilterEnabled(),
+        ]);
+        if (isMounted) {
+          setTodayMeals(meals);
+          setStockItems(items);
+          setUserAllergens(allergens);
+          setIsAllergenFilterEnabled(filterEnabled);
+        }
+      } catch (e) {
+        console.error('Erreur chargement initial HomeScreen:', e);
+      }
+    };
+    fetchInitialHomeScreenData();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Rafraîchissement réactif lorsque l'écran redevient actif (Keep-Alive onglets persistants)
+  useEffect(() => {
+    if (isActive) {
+      void (async () => {
+        await loadTodayMeals();
+        await loadAllergenSettings();
+        await loadStockItems();
+      })();
+    }
+  }, [isActive, loadTodayMeals, loadAllergenSettings, loadStockItems]);
+
+  // Synchronisation en direct avec les modifications de stock (étagères/frigo)
+  useEffect(() => {
+    const unsubFridge = StorageService.onFridgeChange((updatedFridge) => {
+      setStockItems(updatedFridge);
+    });
+    return () => {
+      unsubFridge();
+    };
+  }, []);
 
   // Indexation optimisée des allergènes pour filtrage O(1)
   const preparedAllergens = useMemo(
@@ -325,6 +372,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   }, [recipes, stockItems]);
 
   const handleToggleDoableFilter = () => {
+    setCurrentPage(1);
     if (onlyDoableWithStock) {
       setOnlyDoableWithStock(false);
       return;
@@ -411,6 +459,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
   // Handler pour la sélection multi-catégorie (Entrée + Plat, etc.)
   const handleToggleCategory = (cat: Category) => {
+    setCurrentPage(1);
     if (cat === 'Tous') {
       setSelectedCategories([]);
       return;
@@ -554,27 +603,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     sortBy,
   ]);
 
-  // Réinitialiser la page courante à 1 dès qu'un critère de recherche ou filtre change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [
-    searchQuery,
-    selectedCategories,
-    selectedIngredients,
-    ingredientMatchMode,
-    selectedTags,
-    tagMatchMode,
-    targetTotalTime,
-    timeFilterMode,
-    selectedDifficulties,
-    sortBy,
-    minRatingFilter,
-    onlyVegetarian,
-    onlyDoableWithStock,
-    isAllergenFilterEnabled,
-    userAllergens.length,
-  ]);
-
   // Pagination (20 recettes par page pour une fluidité maximale)
   const totalPages = Math.max(1, Math.ceil(filteredRecipes.length / RECIPES_PER_PAGE));
   const safeCurrentPage = Math.min(currentPage, totalPages);
@@ -588,7 +616,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     if (safeCurrentPage < totalPages) {
       setCurrentPage((prev) => prev + 1);
       forceShowFilterBar();
-      flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+      flashListRef.current?.scrollToOffset({ offset: 0, animated: true });
     }
   };
 
@@ -596,7 +624,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     if (safeCurrentPage > 1) {
       setCurrentPage((prev) => prev - 1);
       forceShowFilterBar();
-      flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+      flashListRef.current?.scrollToOffset({ offset: 0, animated: true });
     }
   };
 
@@ -1038,17 +1066,16 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           />
         </View>
 
-        {/* Zone de contenu principale (FlatList + Double bandeau rétractable en superposition native) */}
+        {/* Zone de contenu principale (FlashList + Double bandeau rétractable en superposition native) */}
         <View style={styles.contentArea}>
-          {/* Liste des recettes avec virtualisation haute performance et layout dynamique (détaillé / compact / grille) */}
-          <FlatList
+          {/* Liste des recettes avec virtualisation FlashList haute performance et layout dynamique */}
+          <FlashList
             key={viewMode === 'grid' ? 'recipes-grid-2' : `recipes-${viewMode}-1`}
-            ref={flatListRef}
+            ref={flashListRef}
             data={paginatedRecipes}
             extraData={`${themeId}_${viewMode}`}
             keyExtractor={(item) => item.id}
             numColumns={viewMode === 'grid' ? 2 : 1}
-            columnWrapperStyle={viewMode === 'grid' ? styles.gridColumnWrapper : undefined}
             ListHeaderComponent={listHeaderElement}
             ListFooterComponent={listFooterElement}
             contentContainerStyle={[
@@ -1058,10 +1085,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             ]}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
-            initialNumToRender={6}
-            maxToRenderPerBatch={5}
-            windowSize={5}
-            removeClippedSubviews={false}
             renderItem={renderRecipeItem}
             onScroll={handleScroll}
             scrollEventThrottle={16}
@@ -1357,6 +1380,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             tagMatchMode: newTagMatchMode,
             minRating: newMinRating,
           }) => {
+            setCurrentPage(1);
             setTargetTotalTime(newTargetTime);
             setTimeFilterMode(newTimeMode);
             setSelectedDifficulties(newDifficulties);
@@ -1367,6 +1391,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             if (newMinRating !== undefined) setMinRatingFilter(newMinRating);
           }}
           onReset={() => {
+            setCurrentPage(1);
             setTargetTotalTime(null);
             setTimeFilterMode('max');
             setSelectedDifficulties([]);
@@ -1440,599 +1465,3 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   );
 };
 
-const styles = createDynamicStyles((colors, shadows) => ({
-  safeArea: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  container: {
-    flex: 1,
-  },
-  contentArea: {
-    flex: 1,
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  fixedTopHeader: {
-    backgroundColor: colors.background,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.borderLight,
-    paddingBottom: 4,
-    zIndex: 10,
-    elevation: 4,
-  },
-  collapsibleFilterContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 88,
-    backgroundColor: colors.background,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.borderLight,
-    zIndex: 5,
-    elevation: 3,
-    overflow: 'hidden',
-  },
-  listContent: {
-    paddingBottom: 70,
-  },
-  listHeaderContainer: {
-    paddingTop: 4,
-    paddingBottom: 4,
-  },
-  topBrandRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 6,
-  },
-  brandContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    marginRight: 10,
-  },
-  brandLogo: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-    marginRight: 10,
-  },
-  brandTitleCol: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  brandTitle: {
-    fontSize: 22,
-    fontWeight: '900',
-    color: colors.primary,
-    letterSpacing: -0.4,
-  },
-  prominentAddBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    ...shadows.medium,
-  },
-  addMenuBox: {
-    width: '90%',
-    maxWidth: 420,
-    backgroundColor: colors.cardBackground,
-    borderRadius: 20,
-    padding: 18,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-    ...shadows.large,
-  },
-  addMenuTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  addMenuOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    borderRadius: 14,
-    backgroundColor: colors.surfaceAlt,
-    marginTop: 10,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-  },
-  addMenuIconBox: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  addMenuTextCol: {
-    flex: 1,
-  },
-  addMenuOptionTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  addMenuOptionSubtitle: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  stockActiveBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: colors.primaryLight,
-    marginHorizontal: 16,
-    marginTop: 4,
-    marginBottom: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.primary + '33',
-  },
-  stockActiveLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    marginRight: 8,
-    gap: 6,
-  },
-  stockActiveText: {
-    fontSize: 12,
-    color: colors.primary,
-    fontWeight: '700',
-    flex: 1,
-  },
-  advancedFiltersActiveBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: colors.primaryLight,
-    marginHorizontal: 16,
-    marginTop: 4,
-    marginBottom: 8,
-    paddingVertical: 7,
-    paddingHorizontal: 10,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.primary + '33',
-  },
-  advancedFiltersActiveLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    marginRight: 8,
-  },
-  activePillsScroll: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  activePillChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.cardBackground,
-    paddingHorizontal: 8,
-    paddingVertical: 3.5,
-    borderRadius: 10,
-    gap: 5,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  activePillChipText: {
-    fontSize: 11.5,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  clearAdvancedText: {
-    fontSize: 11.5,
-    fontWeight: '700',
-    color: colors.primary,
-    paddingHorizontal: 4,
-  },
-  fridgeActiveBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: Colors.secondaryLight,
-    marginHorizontal: 16,
-    marginTop: 4,
-    marginBottom: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.secondary + '40',
-  },
-  fridgeActiveLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    marginRight: 8,
-  },
-  fridgeActiveText: {
-    fontSize: 12,
-    color: Colors.secondary,
-    fontWeight: '600',
-    marginLeft: 6,
-  },
-  filterToolbarScroll: {
-    paddingHorizontal: 16,
-    paddingVertical: 5,
-    gap: 8,
-    alignItems: 'center',
-  },
-  toolPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.cardBackground,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-    height: 30,
-    gap: 5,
-  },
-  toolPillActive: {
-    backgroundColor: colors.primaryLight,
-    borderColor: colors.primary,
-  },
-  vegeToolPillActive: {
-    backgroundColor: colors.isDark ? '#143823' : '#DCFCE7',
-    borderColor: colors.isDark ? '#2E7D52' : '#86EFAC',
-  },
-  stockToolPillActive: {
-    backgroundColor: colors.primaryLight,
-    borderColor: colors.primary,
-  },
-  toolPillText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  toolPillTextActive: {
-    color: colors.primary,
-  },
-  vegeToolPillTextActive: {
-    color: colors.isDark ? '#4ADE80' : '#15803D',
-    fontWeight: '700',
-  },
-  stockToolPillTextActive: {
-    color: colors.primary,
-    fontWeight: '700',
-  },
-  sortToolPill: {
-    marginLeft: 'auto',
-  },
-  resetFilterPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surfaceAlt,
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-    height: 32,
-    gap: 4,
-  },
-  resetFilterPillText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  resultsCountRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 4,
-    gap: 8,
-  },
-  resultsCountLeft: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    flexWrap: 'wrap',
-  },
-  resultsCountText: {
-    fontSize: 12,
-    color: colors.textMuted,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  smartBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.primaryLight,
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 8,
-    gap: 4,
-  },
-  viewModeSwitcher: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: 10,
-    padding: 2,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-    gap: 2,
-  },
-  viewModeBtn: {
-    paddingHorizontal: 7,
-    paddingVertical: 4,
-    borderRadius: 7,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  viewModeBtnActive: {
-    backgroundColor: colors.cardBackground,
-    ...shadows.small,
-  },
-  gridColumnWrapper: {
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    gap: 12,
-  },
-  listContentGrid: {
-    paddingBottom: 24,
-  },
-  smartBadgeText: {
-    fontSize: 11,
-    color: Colors.primary,
-    fontWeight: '600',
-  },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'center',
-    padding: 24,
-  },
-  sortModalBox: {
-    backgroundColor: colors.cardBackground,
-    borderRadius: 20,
-    padding: 20,
-    ...shadows.large,
-  },
-  modalHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  modalTitleWithIcon: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  sortModalTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  sortOptionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-    marginBottom: 4,
-  },
-  sortOptionLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  sortOptionSelected: {
-    backgroundColor: colors.primaryLight,
-  },
-  sortOptionText: {
-    fontSize: 14,
-    color: colors.textPrimary,
-    fontWeight: '500',
-  },
-  sortOptionTextActive: {
-    color: colors.primary,
-    fontWeight: '700',
-  },
-  closeSortModalBtn: {
-    alignItems: 'center',
-    marginTop: 12,
-    paddingVertical: 10,
-  },
-  closeSortModalText: {
-    color: colors.textSecondary,
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  aiModalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    padding: 20,
-  },
-  aiModalBox: {
-    backgroundColor: Colors.cardBackground,
-    borderRadius: 22,
-    padding: 20,
-    ...Shadows.large,
-  },
-  aiModalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  aiModalTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  aiModalTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: Colors.textPrimary,
-  },
-  aiModalSubtitle: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-    marginBottom: 16,
-    lineHeight: 18,
-  },
-  aiOptionCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.surfaceAlt,
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  aiOptionIconCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  aiOptionContent: {
-    flex: 1,
-    marginRight: 6,
-  },
-  aiOptionTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 3,
-  },
-  aiOptionTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: Colors.textPrimary,
-  },
-  aiOptionTag: {
-    backgroundColor: Colors.primaryLight,
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  aiOptionTagText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: Colors.primary,
-  },
-  aiOptionDescription: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-    lineHeight: 16,
-  },
-  aiModalCloseBtn: {
-    alignItems: 'center',
-    paddingVertical: 10,
-    marginTop: 4,
-  },
-  aiModalCloseBtnText: {
-    color: Colors.textSecondary,
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  // Styles Pagination
-  paginationContainer: {
-    paddingVertical: 18,
-    paddingHorizontal: 4,
-    marginBottom: 40,
-  },
-  paginationInfoBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  paginationCountText: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-    fontWeight: '500',
-  },
-  pagePill: {
-    backgroundColor: Colors.surfaceAlt,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  pagePillText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: Colors.primary,
-  },
-  paginationNavRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  pageBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 16,
-    gap: 8,
-    ...Shadows.small,
-  },
-  pageBtnPrev: {
-    backgroundColor: Colors.cardBackground,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  pageBtnNext: {
-    backgroundColor: Colors.primary,
-  },
-  pageBtnNextFull: {
-    flex: 1,
-  },
-  pageBtnTextPrev: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: Colors.textPrimary,
-  },
-  pageBtnTextNext: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  paginationEndContainer: {
-    alignItems: 'center',
-    paddingVertical: 24,
-    marginBottom: 40,
-  },
-  paginationEndText: {
-    fontSize: 13,
-    color: Colors.textMuted,
-    fontWeight: '500',
-  },
-}));
