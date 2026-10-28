@@ -221,21 +221,18 @@ export function formatAiModelName(modelId: string): string {
 }
 
 /**
- * Construit l'URL de génération avec le paramètre de clé en repli sécurisé.
- * Supporte simultanément le query param ?key= et l'en-tête x-goog-api-key pour
- * résister aux proxys mobiles (4G/5G / ngrok) qui filtrent les en-têtes personnalisés.
+ * Construit l'URL de génération de contenu sans exposer la clé API en paramètre d'URL (SEC-05).
+ * L'authentification est déléguée aux en-têtes HTTP sécurisés x-goog-api-key.
  */
-const getGeminiGenerateUrl = (apiKey: string, modelName = GEMINI_MODEL): string => {
-  const cleanKey = apiKey.trim();
-  return `${GEMINI_BASE_URL}/models/${modelName}:generateContent?key=${encodeURIComponent(cleanKey)}`;
+const getGeminiGenerateUrl = (_apiKey?: string, modelName = GEMINI_MODEL): string => {
+  return `${GEMINI_BASE_URL}/models/${modelName}:generateContent`;
 };
 
 /**
  * URL de vérification de statut ultralégère (GET sur le modèle, <200ms, 0 quota consommé).
  */
-const getGeminiModelCheckUrl = (apiKey: string): string => {
-  const cleanKey = apiKey.trim();
-  return `${GEMINI_BASE_URL}/models/${GEMINI_MODEL}?key=${encodeURIComponent(cleanKey)}`;
+const getGeminiModelCheckUrl = (_apiKey?: string): string => {
+  return `${GEMINI_BASE_URL}/models/${GEMINI_MODEL}`;
 };
 
 /**
@@ -532,21 +529,23 @@ async function fetchGeminiJsonWithFallbackAndRetry(
     const modelPayload = adaptPayloadForModel(payload, model);
     const hasNextFallback = i < candidateModels.length - 1;
 
-    // Journalisation visible du prompt envoyé à l'IA
-    console.log(`\n=================== [PROMPT ENVOYÉ À L'IA (${model})] ===================`);
-    if (modelPayload.system_instruction?.parts?.[0]?.text) {
-      console.log(`📋 [Prompt Système] :\n${modelPayload.system_instruction.parts[0].text}\n`);
+    // Journalisation du prompt uniquement en environnement de développement local (SEC-06)
+    if (__DEV__) {
+      console.log(`\n=================== [PROMPT ENVOYÉ À L'IA (${model})] ===================`);
+      if (modelPayload.system_instruction?.parts?.[0]?.text) {
+        console.log(`📋 [Prompt Système] :\n${modelPayload.system_instruction.parts[0].text}\n`);
+      }
+      if (Array.isArray(modelPayload.contents)) {
+        modelPayload.contents.forEach((c: any, idx: number) => {
+          const textParts = (c.parts || []).map((p: any) => p.text).filter(Boolean).join('\n');
+          if (textParts) {
+            console.log(`💬 [Prompt Utilisateur #${idx + 1}] :\n${textParts}\n`);
+          }
+        });
+      }
+      console.log(`⚙️ [Config] : max_output_tokens=${modelPayload.generationConfig?.max_output_tokens}, thinkingLevel=${modelPayload.generationConfig?.thinkingConfig?.thinkingLevel || 'none'}, timeout=${timeoutMs}ms`);
+      console.log(`=========================================================================\n`);
     }
-    if (Array.isArray(modelPayload.contents)) {
-      modelPayload.contents.forEach((c: any, idx: number) => {
-        const textParts = (c.parts || []).map((p: any) => p.text).filter(Boolean).join('\n');
-        if (textParts) {
-          console.log(`💬 [Prompt Utilisateur #${idx + 1}] :\n${textParts}\n`);
-        }
-      });
-    }
-    console.log(`⚙️ [Config] : max_output_tokens=${modelPayload.generationConfig?.max_output_tokens}, thinkingLevel=${modelPayload.generationConfig?.thinkingConfig?.thinkingLevel || 'none'}, timeout=${timeoutMs}ms`);
-    console.log(`=========================================================================\n`);
 
     const startTime = Date.now();
     try {
@@ -562,7 +561,9 @@ async function fetchGeminiJsonWithFallbackAndRetry(
         timeoutMs
       );
 
-      console.log(`⏱️ [Réponse reçue en ${Date.now() - startTime}ms pour ${model} (HTTP ${response.status})]`);
+      if (__DEV__) {
+        console.log(`⏱️ [Réponse reçue en ${Date.now() - startTime}ms pour ${model} (HTTP ${response.status})]`);
+      }
 
       if (response.status === 401 || response.status === 403) {
         await handleGeminiResponseText(response);
@@ -1034,7 +1035,7 @@ export const RecipeAiService = {
         // Tentative de diagnostic : vérifier si la clé fonctionne sur l'endpoint générique /models
         try {
           const fallbackResp = await fetch(
-            `${GEMINI_BASE_URL}/models?key=${encodeURIComponent(apiKey)}`,
+            `${GEMINI_BASE_URL}/models`,
             {
               method: 'GET',
               headers: getGeminiHeaders(apiKey),
