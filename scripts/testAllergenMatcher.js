@@ -29,6 +29,12 @@ async function main() {
     evaluateRecipeAllergens,
   } = require(path.join(tmpDir, 'utils/allergenMatcher.js'));
 
+  const {
+    CANONICAL_VOCAB_INDEX,
+    findCanonicalIngredient,
+    stripCulinaryStopWords,
+  } = require(path.join(tmpDir, 'data/canonicalVocabulary.js'));
+
   console.log('🧪 Lancement des tests d\'allergenMatcher (Arbitrage 5)...');
 
   // Configuration utilisateur : Allergie Lait & Lactose, Sulfites, et Fruits à coque
@@ -125,6 +131,101 @@ async function main() {
   assert.strictEqual(evalRecipe.unrecognizedIngredients.length, 1);
   assert.strictEqual(evalRecipe.unrecognizedIngredients[0].name, 'Pâte de yuzu bio');
   console.log('✓ Indicateur de précaution visuel correctement activé pour les ingrédients hors lexique');
+
+  // =========================================================================
+  // TEST SECTION 4 : Multi-allergènes
+  // =========================================================================
+  console.log('\n--- Test 4 : Ingrédients multi-allergènes ---');
+
+  const preparedMustard = prepareUserAllergens([
+    { id: 'm1', name: 'Moutarde', allergenFamily: 'moutarde', addedAt: '' },
+  ]);
+  const mayoCheck = isIngredientAllergen('Mayonnaise', preparedMustard);
+  assert.strictEqual(mayoCheck.isAllergen, true, 'Mayonnaise doit déclencher l\'allergie moutarde (secondaire)');
+  assert.strictEqual(mayoCheck.allergenFamily, 'moutarde');
+  console.log('✓ Mayonnaise détectée avec allergène secondaire moutarde');
+
+  const preparedNuts = prepareUserAllergens([
+    { id: 'n1', name: 'Fruits à coque', allergenFamily: 'fruits_a_coque', addedAt: '' },
+  ]);
+  const pestoCheck = isIngredientAllergen('Pesto', preparedNuts);
+  assert.strictEqual(pestoCheck.isAllergen, true, 'Pesto doit déclencher l\'allergie fruits à coque (secondaire)');
+  assert.strictEqual(pestoCheck.allergenFamily, 'fruits_a_coque');
+  console.log('✓ Pesto détecté avec allergène secondaire fruits à coque');
+
+  const preparedGluten = prepareUserAllergens([
+    { id: 'g1', name: 'Gluten', allergenFamily: 'gluten', addedAt: '' },
+  ]);
+  const soyCheck = isIngredientAllergen('Sauce soja', preparedGluten);
+  assert.strictEqual(soyCheck.isAllergen, true, 'Sauce soja doit déclencher l\'allergie gluten (secondaire)');
+  assert.strictEqual(soyCheck.allergenFamily, 'gluten');
+  console.log('✓ Sauce soja détectée avec allergène secondaire gluten');
+
+  const preparedEggs = prepareUserAllergens([
+    { id: 'e1', name: 'Oeufs', allergenFamily: 'oeufs', addedAt: '' },
+  ]);
+  const briocheCheck = isIngredientAllergen('Brioche', preparedEggs);
+  assert.strictEqual(briocheCheck.isAllergen, true, 'Brioche doit déclencher l\'allergie oeufs (secondaire)');
+  assert.strictEqual(briocheCheck.allergenFamily, 'oeufs');
+  console.log('✓ Brioche détectée avec allergène secondaire oeufs');
+
+  // =========================================================================
+  // TEST SECTION 5 : Indexation O(1) et Stop-Words culinaires
+  // =========================================================================
+  console.log('\n--- Test 5 : CANONICAL_VOCAB_INDEX & findCanonicalIngredient ---');
+
+  assert.ok(CANONICAL_VOCAB_INDEX instanceof Map, 'CANONICAL_VOCAB_INDEX doit être une Map');
+  assert.ok(CANONICAL_VOCAB_INDEX.size > 200, 'CANONICAL_VOCAB_INDEX doit contenir les ingrédients et leurs alias');
+  assert.ok(CANONICAL_VOCAB_INDEX.has('basilic cisele'), 'Alias basilic cisele présent');
+  assert.ok(CANONICAL_VOCAB_INDEX.has('sake doux'), 'Alias sake doux présent');
+  assert.ok(CANONICAL_VOCAB_INDEX.has('huile d olive vierge'), 'Alias huile d olive vierge présent');
+
+  // Séparation Frais / Épicerie / Surgelés
+  const petitsPoisConserve = findCanonicalIngredient('boite de petits pois');
+  assert.ok(petitsPoisConserve, 'boite de petits pois doit être trouvée');
+  assert.strictEqual(petitsPoisConserve.canonicalName, 'Petits pois en conserve');
+  assert.strictEqual(petitsPoisConserve.defaultAisle, 'Épicerie & Condiments');
+
+  const petitsPoisSurgeles = findCanonicalIngredient('petits pois surgeles');
+  assert.ok(petitsPoisSurgeles, 'petits pois surgeles doit être trouvé');
+  assert.strictEqual(petitsPoisSurgeles.canonicalName, 'Petits pois surgelés');
+  assert.strictEqual(petitsPoisSurgeles.defaultAisle, 'Surgelés');
+
+  const haricotsConserve = findCanonicalIngredient('boite de haricots verts');
+  assert.ok(haricotsConserve, 'boite de haricots verts doit être trouvée');
+  assert.strictEqual(haricotsConserve.canonicalName, 'Haricots verts en conserve');
+  assert.strictEqual(haricotsConserve.defaultAisle, 'Épicerie & Condiments');
+
+  const sardinesBoite = findCanonicalIngredient('boite de sardines');
+  assert.ok(sardinesBoite, 'boite de sardines doit être trouvée');
+  assert.strictEqual(sardinesBoite.defaultAisle, 'Épicerie & Condiments');
+
+  const maquereauBoite = findCanonicalIngredient('boite de maquereaux');
+  assert.ok(maquereauBoite, 'boite de maquereaux doit être trouvée');
+  assert.strictEqual(maquereauBoite.defaultAisle, 'Épicerie & Condiments');
+
+  const gingembreFrais = findCanonicalIngredient('gingembre frais');
+  assert.ok(gingembreFrais, 'gingembre frais doit être trouvé');
+  assert.strictEqual(gingembreFrais.canonicalName, 'Gingembre');
+  assert.strictEqual(gingembreFrais.defaultAisle, 'Fruits & Légumes');
+
+  const gingembrePoudre = findCanonicalIngredient('gingembre moulu');
+  assert.ok(gingembrePoudre, 'gingembre moulu doit être trouvé');
+  assert.strictEqual(gingembrePoudre.canonicalName, 'Gingembre en poudre');
+  assert.strictEqual(gingembrePoudre.defaultAisle, 'Épicerie & Condiments');
+
+  // Fallback stop-words culinaires
+  const courgetteRapee = findCanonicalIngredient('courgette rapee');
+  assert.ok(courgetteRapee, 'courgette rapee doit être trouvée via fallback stop-words');
+  assert.strictEqual(courgetteRapee.canonicalName, 'Courgette');
+
+  // Test fallback stop-words avec allergène utilisateur
+  const preparedCourgette = prepareUserAllergens([
+    { id: 'c1', name: 'Courgette', addedAt: '' },
+  ]);
+  const courgetteAllergenCheck = isIngredientAllergen('courgette rapee', preparedCourgette);
+  assert.strictEqual(courgetteAllergenCheck.isAllergen, true, '"courgette rapee" doit matcher avec allergène Courgette');
+  console.log('✓ Index O(1) et fallback stop-words validés');
 
   console.log('\n🎉 TOUS LES TESTS D\'ALLERGEN MATCHER ONT RÉUSSI (0 ERREUR) !');
 

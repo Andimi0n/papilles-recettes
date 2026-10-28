@@ -1,6 +1,6 @@
 import { NormalizationResult, CanonicalIngredient } from '../types/vocabulary';
 import { VocabularyService } from '../services/vocabularyService';
-import { isKnownDefaultPantryStaple } from '../data/canonicalVocabulary';
+import { isKnownDefaultPantryStaple, stripCulinaryStopWords } from '../data/canonicalVocabulary';
 import { normalizeString, convertUnicodeFractions, stemWord, levenshteinDistance } from './helpers';
 
 // Expressions indiquant un ingrédient facultatif ou décoratif (sur chaîne normalisée ou brute)
@@ -387,6 +387,25 @@ export function normalizeIngredient(raw: {
       isPantryStaple: resolveStaple(cleanedMatch),
       isOptional: resolvedOptional,
     });
+  }
+
+  // 3.1 Repli sur élagage des stop-words culinaires
+  const strippedCulinary = stripCulinaryStopWords(strippedNorm);
+  if (strippedCulinary && strippedCulinary !== cleanedNorm && strippedCulinary !== strippedNorm) {
+    const culinaryMatch = lookupIndex.exactMap.get(strippedCulinary);
+    if (culinaryMatch) {
+      return saveCache({
+        name: culinaryMatch.canonicalName,
+        quantity: finalQuantity,
+        unit: finalUnit,
+        originalName,
+        wasNormalized: culinaryMatch.canonicalName !== originalName.trim(),
+        canonicalId: culinaryMatch.id,
+        matchedAlias: strippedCulinary,
+        isPantryStaple: resolveStaple(culinaryMatch),
+        isOptional: resolvedOptional,
+      });
+    }
   }
 
   // =========================================================================

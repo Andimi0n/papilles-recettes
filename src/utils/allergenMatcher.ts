@@ -3,7 +3,7 @@ import { UserAllergenItem, AllergenFamily, CanonicalIngredient } from '../types/
 import { normalizeIngredient } from './ingredientNormalizer';
 import { normalizeString } from './helpers';
 import { stemWord } from './searchEngine';
-import { getInitialCanonicalVocabulary } from '../data/canonicalVocabulary';
+import { getInitialCanonicalVocabulary, stripCulinaryStopWords, findCanonicalIngredient } from '../data/canonicalVocabulary';
 
 export interface PreparedAllergens {
   /** Liste brute des allergènes enregistrés par l'utilisateur */
@@ -22,6 +22,8 @@ export interface PreparedAllergens {
   familyByNameMap: Map<string, AllergenFamily | null>;
   /** Dictionnaire canonique ID -> famille */
   familyByIdMap: Map<string, AllergenFamily>;
+  /** Dictionnaire canonique ID -> toutes familles associées (majeure + secondaires) */
+  allFamiliesByIdMap?: Map<string, AllergenFamily[]>;
   /** Rétrocompatibilité */
   tokensSet: Set<string>;
 }
@@ -121,6 +123,7 @@ export function prepareUserAllergens(
   const activeFamilies = new Set<AllergenFamily>();
   const familyByNameMap = new Map<string, AllergenFamily | null>();
   const familyByIdMap = new Map<string, AllergenFamily>();
+  const allFamiliesByIdMap = new Map<string, AllergenFamily[]>();
 
   // Map rapide sur le vocabulaire canonique (custom ou seed)
   const vocabList: CanonicalIngredient[] =
@@ -136,8 +139,18 @@ export function prepareUserAllergens(
     if (ing.normalizedName) {
       vocabByNormName.set(normalizeString(ing.normalizedName), ing);
     }
+    const ingAllergens: AllergenFamily[] = [];
     if (ing.allergen) {
       familyByIdMap.set(ing.id, ing.allergen);
+      ingAllergens.push(ing.allergen);
+    }
+    if (ing.secondaryAllergens) {
+      for (const sa of ing.secondaryAllergens) {
+        if (!ingAllergens.includes(sa)) ingAllergens.push(sa);
+      }
+    }
+    if (ingAllergens.length > 0) {
+      allFamiliesByIdMap.set(ing.id, ingAllergens);
     }
     (ing.aliases || []).forEach((alias) => {
       vocabByAlias.set(normalizeString(alias), ing);
@@ -161,13 +174,22 @@ export function prepareUserAllergens(
       familyByNameMap.set(normName, null);
     }
 
-    // Résolution canonique via ID ou lexique
+    // Résolution canonique via ID ou lexique avec repli sur élagage des stop-words culinaires
     let canonIng: CanonicalIngredient | undefined;
     if (item.canonicalId) {
       canonIng = vocabById.get(item.canonicalId);
     }
     if (!canonIng) {
       canonIng = vocabByNormName.get(normName) || vocabByAlias.get(normName);
+    }
+    if (!canonIng) {
+      const stripped = stripCulinaryStopWords(normName);
+      if (stripped && stripped !== normName) {
+        canonIng = vocabByNormName.get(stripped) || vocabByAlias.get(stripped);
+      }
+    }
+    if (!canonIng) {
+      canonIng = findCanonicalIngredient(rawName);
     }
 
     if (canonIng) {
@@ -180,6 +202,11 @@ export function prepareUserAllergens(
         activeFamilies.add(canonIng.allergen);
         familyByNameMap.set(normName, canonIng.allergen);
         familyByNameMap.set(cNorm, canonIng.allergen);
+      }
+      if (canonIng.secondaryAllergens) {
+        for (const sa of canonIng.secondaryAllergens) {
+          activeFamilies.add(sa);
+        }
       }
     } else {
       // Ingrédient personnalisé hors lexique
@@ -197,6 +224,7 @@ export function prepareUserAllergens(
     activeFamilies,
     familyByNameMap,
     familyByIdMap,
+    allFamiliesByIdMap,
     tokensSet: normalizedNamesSet,
   };
 }
@@ -239,13 +267,16 @@ export function isIngredientAllergen(
 
   // 3. Correspondance par Famille d'allergène INCO active (O(1))
   if (norm.canonicalId) {
-    const canonFamily = prepared.familyByIdMap.get(norm.canonicalId);
-    if (canonFamily && prepared.activeFamilies.has(canonFamily)) {
-      return {
-        isAllergen: true,
-        matchedAllergenName: canonicalName,
-        allergenFamily: canonFamily,
-      };
+    const families = prepared.allFamiliesByIdMap?.get(norm.canonicalId) ||
+      (prepared.familyByIdMap.get(norm.canonicalId) ? [prepared.familyByIdMap.get(norm.canonicalId)!] : []);
+    for (const canonFamily of families) {
+      if (prepared.activeFamilies.has(canonFamily)) {
+        return {
+          isAllergen: true,
+          matchedAllergenName: canonicalName,
+          allergenFamily: canonFamily,
+        };
+      }
     }
   }
 
@@ -263,14 +294,22 @@ export function isIngredientAllergen(
   if (!norm.canonicalId) {
     const rawNormStr = normalizeString(rawName);
     const rawStemmed = stemWord(rawNormStr);
+    const strippedStr = stripCulinaryStopWords(rawNormStr);
+    const strippedStemmed = strippedStr ? stemWord(strippedStr) : '';
 
     // 5.1 Correspondance textuelle directe sur allergène personnalisé
     if (
       prepared.normalizedNamesSet.has(rawNormStr) ||
       prepared.stemmedNamesSet.has(rawStemmed) ||
-      (prepared.customNamesSet && (prepared.customNamesSet.has(rawNormStr) || prepared.customNamesSet.has(rawStemmed)))
+      (strippedStr && (prepared.normalizedNamesSet.has(strippedStr) || prepared.stemmedNamesSet.has(strippedStemmed))) ||
+      (prepared.customNamesSet && (
+        prepared.customNamesSet.has(rawNormStr) ||
+        prepared.customNamesSet.has(rawStemmed) ||
+        (strippedStr && (prepared.customNamesSet.has(strippedStr) || prepared.customNamesSet.has(strippedStemmed)))
+      ))
     ) {
-      const family = prepared.familyByNameMap.get(rawNormStr) || null;
+      const matchedKey = (strippedStr && prepared.familyByNameMap.has(strippedStr)) ? strippedStr : rawNormStr;
+      const family = prepared.familyByNameMap.get(matchedKey) || null;
       return {
         isAllergen: true,
         matchedAllergenName: rawName,

@@ -7,6 +7,7 @@ interface SeedIngredientDef {
   aliases: string[];
   isPantryStaple?: boolean;
   allergen?: AllergenFamily;
+  secondaryAllergens?: AllergenFamily[];
   density?: number; // Densité en g/ml (ex: 1.0 pour eau/lait, 0.57 pour farine, 0.85 pour sucre, 0.92 pour huile...)
 }
 
@@ -17,7 +18,12 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
   {
     name: 'Petits pois',
     aisle: 'Fruits & Légumes',
-    aliases: ['petit pois', 'pois', 'boite de petits pois', 'boite de petit pois', 'petits pois surgeles', 'petits pois frais'],
+    aliases: ['petit pois', 'pois', 'petits pois frais'],
+  },
+  {
+    name: 'Gingembre',
+    aisle: 'Fruits & Légumes',
+    aliases: ['gingembre frais', 'racine de gingembre', 'gingembre rape'],
   },
   {
     name: 'Carotte',
@@ -144,7 +150,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
   {
     name: 'Haricot vert',
     aisle: 'Fruits & Légumes',
-    aliases: ['haricots verts', 'haricots verts frais', 'boite de haricots verts', 'haricots plats'],
+    aliases: ['haricots verts', 'haricots verts frais', 'haricots plats'],
   },
   {
     name: 'Radis',
@@ -314,7 +320,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
   {
     name: 'Basilic',
     aisle: 'Fruits & Légumes',
-    aliases: ['feuilles de basilic', 'feuille de basilic', 'basilic frais', 'basilic ciselet'],
+    aliases: ['feuilles de basilic', 'feuille de basilic', 'basilic frais', 'basilic cisele'],
   },
   {
     name: 'Persil',
@@ -324,7 +330,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
   {
     name: 'Coriandre',
     aisle: 'Fruits & Légumes',
-    aliases: ['coriandre fraiche', 'feuilles de coriandre', 'coriandre moulue'],
+    aliases: ['coriandre fraiche', 'feuilles de coriandre'],
   },
   {
     name: 'Ciboulette',
@@ -678,13 +684,13 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
   {
     name: 'Sardine',
     aisle: 'Boucherie & Poissonnerie',
-    aliases: ['sardines', 'sardines fraiches', 'boite de sardines', 'sardines a l huile'],
+    aliases: ['sardines', 'sardines fraiches'],
     allergen: 'poissons',
   },
   {
     name: 'Maquereau',
     aisle: 'Boucherie & Poissonnerie',
-    aliases: ['maquereaux', 'filets de maquereau', 'filet de maquereau', 'boite de maquereaux'],
+    aliases: ['maquereaux', 'filets de maquereau', 'filet de maquereau'],
     allergen: 'poissons',
   },
   {
@@ -751,7 +757,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
   {
     name: 'Huile d\'olive',
     aisle: 'Épicerie & Condiments',
-    aliases: ['huile d olive', 'huile olive', 'huile d\'olive vierge', 'filet d huile d olive'],
+    aliases: ['huile d olive', 'huile olive', 'huile d olive vierge', 'filet d huile d olive'],
     isPantryStaple: true,
     density: 0.92,
   },
@@ -793,12 +799,14 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
     aisle: 'Épicerie & Condiments',
     aliases: ['mayo', 'sauce mayonnaise', 'pot de mayonnaise'],
     allergen: 'oeufs',
+    secondaryAllergens: ['moutarde'],
   },
   {
     name: 'Pesto',
     aisle: 'Épicerie & Condiments',
     aliases: ['pesto alla genovese', 'sauce pesto', 'pesto vert'],
     allergen: 'lait',
+    secondaryAllergens: ['fruits_a_coque'],
   },
   {
     name: 'Harissa',
@@ -958,6 +966,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
     aisle: 'Épicerie & Condiments',
     aliases: ['sauce soja salee', 'tamari'],
     allergen: 'soja',
+    secondaryAllergens: ['gluten'],
     density: 1.15,
   },
   {
@@ -965,6 +974,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
     aisle: 'Épicerie & Condiments',
     aliases: ['sauce soja sucree', 'sauce teriyaki'],
     allergen: 'soja',
+    secondaryAllergens: ['gluten'],
     density: 1.20,
   },
   {
@@ -1094,9 +1104,15 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
     isPantryStaple: true,
   },
   {
-    name: 'Gingembre',
+    name: 'Coriandre moulue',
     aisle: 'Épicerie & Condiments',
-    aliases: ['gingembre frais', 'gingembre rape', 'gingembre moulu', 'racine de gingembre'],
+    aliases: ['coriandre en poudre', 'graines de coriandre'],
+    isPantryStaple: true,
+  },
+  {
+    name: 'Gingembre en poudre',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['gingembre moulu', 'gingembre seche'],
     isPantryStaple: true,
   },
   {
@@ -1169,6 +1185,28 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
     allergen: 'poissons',
   },
   {
+    name: 'Sardines en boîte',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['boite de sardines', 'sardines a l huile', 'sardines en boite', 'sardines en conserve'],
+    allergen: 'poissons',
+  },
+  {
+    name: 'Maquereau en boîte',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['boite de maquereaux', 'maquereaux en boite', 'maquereau en boite', 'filets de maquereaux en boite', 'maquereaux en conserve'],
+    allergen: 'poissons',
+  },
+  {
+    name: 'Petits pois en conserve',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['boite de petits pois', 'boite de petit pois', 'petits pois en boite'],
+  },
+  {
+    name: 'Haricots verts en conserve',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['boite de haricots verts', 'haricots verts en boite', 'haricot vert en boite'],
+  },
+  {
     name: 'Maïs',
     aisle: 'Épicerie & Condiments',
     aliases: ['mais', 'boite de mais', 'grains de mais', 'mais doux'],
@@ -1212,6 +1250,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
     aisle: 'Épicerie & Condiments',
     aliases: ['pate a tartiner', 'nutella'],
     allergen: 'fruits_a_coque',
+    secondaryAllergens: ['lait', 'soja'],
   },
   {
     name: 'Compote de pomme',
@@ -1244,6 +1283,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
     aisle: 'Boulangerie & Pâtisserie',
     aliases: ['biscuits a la cuillere', 'biscuit a la cuillere', 'boudoir', 'boudoirs'],
     allergen: 'gluten',
+    secondaryAllergens: ['oeufs', 'lait'],
   },
   {
     name: 'Pâte feuilletée',
@@ -1305,6 +1345,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
     aisle: 'Boulangerie & Pâtisserie',
     aliases: ['brioches', 'tranches de brioche', 'brioche tranchee'],
     allergen: 'gluten',
+    secondaryAllergens: ['oeufs', 'lait'],
   },
 
   // =========================================================================
@@ -1380,6 +1421,11 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
     aisle: 'Surgelés',
     aliases: ['poelee de legumes', 'poelee surgelee', 'legumes woks'],
   },
+  {
+    name: 'Petits pois surgelés',
+    aisle: 'Surgelés',
+    aliases: ['petits pois surgeles', 'petit pois surgele'],
+  },
 
   // =========================================================================
   // 8. AUTRES CUISINES DU MONDE (JAPON, MEXIQUE, ETC.)
@@ -1415,7 +1461,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
   {
     name: 'Mirin',
     aisle: 'Épicerie & Condiments',
-    aliases: ['mirin', 'saké doux'],
+    aliases: ['mirin', 'sake doux'],
   },
   {
     name: 'Saké de cuisine',
@@ -1493,6 +1539,10 @@ function normalizeForVocabIndex(str: string): string {
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
+    // Remplace les apostrophes (droites ou typographiques) et tirets par des espaces
+    .replace(/['’\-]/g, ' ')
+    // Nettoie les espaces multiples
+    .replace(/\s+/g, ' ')
     .trim();
 }
 
@@ -1518,7 +1568,7 @@ export function getInitialCanonicalVocabulary(): CanonicalIngredient[] {
     const aliasSet = new Set<string>();
     item.aliases.forEach((a) => aliasSet.add(normalizeForVocabIndex(a)));
     aliasSet.add(normalizedName);
-    if (!normalizedName.endsWith('s')) {
+    if (!/[sxz]$/.test(normalizedName) && !normalizedName.includes(' ')) {
       aliasSet.add(`${normalizedName}s`);
     }
 
@@ -1531,6 +1581,7 @@ export function getInitialCanonicalVocabulary(): CanonicalIngredient[] {
       isCustom: false,
       isPantryStaple: Boolean(item.isPantryStaple),
       allergen: item.allergen,
+      secondaryAllergens: item.secondaryAllergens,
       density: item.density,
       usageCount: 0,
       createdAt: now,
@@ -1539,13 +1590,95 @@ export function getInitialCanonicalVocabulary(): CanonicalIngredient[] {
   });
 }
 
+/**
+ * Nettoie une chaîne en retirant les mots de découpe, de préparation ou de contenant
+ * (ex: boite de, barquette de, pot de, sachet de, tranches de, filet de, pincee de, epluche, emince, rape, hache, coupe, en des, frais, fraiche, mure)
+ * lorsqu'ils accompagnent un nom d'ingrédient.
+ */
+export function stripCulinaryStopWords(input: string): string {
+  if (!input || !input.trim()) return '';
+
+  let s = normalizeForVocabIndex(input);
+
+  // Préfixes numériques ou fractions en tête
+  s = s.replace(/^(?:[0-9]+(?:\/[0-9]+)?(?:\.[0-9]+)?|[½⅓⅔¼¾⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞])\s+/, '');
+
+  // Préfixes de contenants et portions (avec de ou d)
+  const prefixPatterns = [
+    /^(?:boite|boites|barquette|barquettes|pot|pots|sachet|sachets|bocal|bocaux|brique|briques|conserve|conserves)\s+(?:de|d)\s+/i,
+    /^(?:tranche|tranches|filet|filets|pincee|pincees|poignee|poignees|gousse|gousses|branche|branches|feuille|feuilles|brin|brins|morceau|morceaux|zeste|zestes|jus)\s+(?:de|d)\s+/i,
+    /^(?:cuillere|cuilleres|cuillere a cafe|cuillere a soupe|c a cafe|c a soupe)\s+(?:de|d)\s+/i,
+  ];
+
+  for (const pat of prefixPatterns) {
+    const stripped = s.replace(pat, '').trim();
+    if (stripped.length > 0) {
+      s = stripped;
+    }
+  }
+
+  // Locutions de découpe composées
+  s = s.replace(/\s+en\s+(?:des|morceaux|rondelles|lamelles|julienne|batonnets)(?=\s|$)/gi, ' ');
+  s = s.replace(/^(?:en\s+(?:des|morceaux|rondelles|lamelles|julienne|batonnets)\s+de\s+)/gi, '');
+
+  // Mots de découpe, préparation, cuisson et état
+  // Note : préserve frais/fraiche s'ils font partie de "creme fraiche" ou "fromage frais"
+  const stopWordsRegex = /\b(?:epluche|epluchee|epluches|epluchees|emince|emincee|eminces|emincees|rape|rapee|rapes|rapees|hache|hachee|haches|hachees|coupe|coupee|coupes|coupees|cisele|ciselee|ciseles|ciselees|concasse|concassee|concasses|concassees|moulu|moulue|moulus|moulues|ecrase|ecrasee|ecrases|ecrasees|pele|pelee|peles|pelees|(?<!\b(?:creme|fromage)\s+)(?:frais|fraiche|fraiches)|mur|mure|murs|mures|sec|seche|secs|seches|cuit|cuite|cuits|cuites|grille|grillee|grilles|grillees|roti|rotie|rotis|roties)\b/gi;
+
+  const candidate = s.replace(stopWordsRegex, ' ').replace(/\s+/g, ' ').trim();
+  if (candidate.length > 0) {
+    s = candidate;
+  }
+
+  return s;
+}
+
+/**
+ * Index Map O(1) pré-compilé reliant chaque nom normalisé ou alias à son CanonicalIngredient
+ */
+export const CANONICAL_VOCAB_INDEX = new Map<string, CanonicalIngredient>();
+
+const initialVocab = getInitialCanonicalVocabulary();
+initialVocab.forEach((item) => {
+  CANONICAL_VOCAB_INDEX.set(item.normalizedName, item);
+  (item.aliases || []).forEach((alias) => {
+    const normAlias = normalizeForVocabIndex(alias);
+    if (normAlias) {
+      CANONICAL_VOCAB_INDEX.set(normAlias, item);
+    }
+  });
+});
+
+/**
+ * Recherche un ingrédient canonique dans l'index en O(1) avec repli sur le stripping des stop-words culinaires.
+ */
+export function findCanonicalIngredient(rawName: string): CanonicalIngredient | undefined {
+  if (!rawName || !rawName.trim()) return undefined;
+
+  const norm = normalizeForVocabIndex(rawName);
+  if (!norm) return undefined;
+
+  // 1. Cherche la chaîne normalisée directement dans CANONICAL_VOCAB_INDEX
+  const directMatch = CANONICAL_VOCAB_INDEX.get(norm);
+  if (directMatch) return directMatch;
+
+  // 2. Si non trouvée, applique stripCulinaryStopWords() et cherche à nouveau dans CANONICAL_VOCAB_INDEX
+  const stripped = stripCulinaryStopWords(norm);
+  if (stripped && stripped !== norm) {
+    const strippedMatch = CANONICAL_VOCAB_INDEX.get(stripped);
+    if (strippedMatch) return strippedMatch;
+  }
+
+  return undefined;
+}
+
 // Map pré-compilée des allergènes par défaut indexée par nom normalisé
 const DEFAULT_ALLERGENS_MAP = new Map<string, AllergenFamily>();
 RAW_SEED_INGREDIENTS.forEach((item) => {
   if (item.allergen) {
     const norm = normalizeForVocabIndex(item.name);
     DEFAULT_ALLERGENS_MAP.set(norm, item.allergen);
-    if (!norm.endsWith('s')) {
+    if (!/[sxz]$/.test(norm) && !norm.includes(' ')) {
       DEFAULT_ALLERGENS_MAP.set(`${norm}s`, item.allergen);
     }
     item.aliases.forEach((a) => {
@@ -1563,6 +1696,23 @@ export function getDefaultAllergen(name: string): AllergenFamily | undefined {
   return DEFAULT_ALLERGENS_MAP.get(clean);
 }
 
+/**
+ * Retourne la liste complète des familles d'allergènes (majeure + secondaires) d'un ingrédient
+ */
+export function getDefaultAllergens(name: string): AllergenFamily[] {
+  if (!name) return [];
+  const ing = findCanonicalIngredient(name);
+  if (!ing) return [];
+  const list: AllergenFamily[] = [];
+  if (ing.allergen) list.push(ing.allergen);
+  if (ing.secondaryAllergens) {
+    for (const fam of ing.secondaryAllergens) {
+      if (!list.includes(fam)) list.push(fam);
+    }
+  }
+  return list;
+}
+
 // Termes génériques ou qualificatifs isolés formellement interdits comme alias uniques
 export const FORBIDDEN_ISOLATED_ALIASES = new Set<string>([
   'blanc', 'blanche', 'rouge', 'jaune', 'vert', 'verte', 'noir', 'noire',
@@ -1572,50 +1722,15 @@ export const FORBIDDEN_ISOLATED_ALIASES = new Set<string>([
 ]);
 
 // Ensemble pré-compilé des termes normalisés considérés par défaut comme fonds de placard
-const DEFAULT_PANTRY_STAPLES_SET = new Set<string>([
-  'sel',
-  'sels',
-  'sel fin',
-  'gros sel',
-  'fleur de sel',
-  'poivre',
-  'poivres',
-  'poivre noir',
-  'poivre blanc',
-  'poivre moulu',
-  'huile d olive',
-  'huile dolive',
-  'huile de tournesol',
-  'huile neutre',
-  'huile de colza',
-  'huile de friture',
-  'huile vegetale',
-  'huile d arachide',
-  'huile de sesame',
-  'vinaigre',
-  'vinaigre de vin',
-  'vinaigre blanc',
-  'vinaigre de cidre',
-  'vinaigre balsamique',
-  'muscade',
-  'noix de muscade',
-  'curry',
-  'cumin',
-  'paprika',
-  'cannelle',
-  'curcuma',
-  'thym',
-  'laurier',
-  'herbes de provence',
-  'origan',
-  'romarin',
-  'gingembre',
-  'clou de girofle',
-  'piment',
-  'piment d espelette',
-  'piment doux',
-  'eau',
-]);
+const DEFAULT_PANTRY_STAPLES_SET = new Set<string>();
+
+RAW_SEED_INGREDIENTS.forEach((item) => {
+  if (item.isPantryStaple) {
+    const norm = normalizeForVocabIndex(item.name);
+    DEFAULT_PANTRY_STAPLES_SET.add(norm);
+    item.aliases.forEach((a) => DEFAULT_PANTRY_STAPLES_SET.add(normalizeForVocabIndex(a)));
+  }
+});
 
 /**
  * Détermine si un nom d'ingrédient correspond à un fond de placard usuel par défaut
@@ -1625,7 +1740,7 @@ export function isKnownDefaultPantryStaple(name: string): boolean {
   const clean = normalizeForVocabIndex(name);
   if (DEFAULT_PANTRY_STAPLES_SET.has(clean)) return true;
   for (const staple of DEFAULT_PANTRY_STAPLES_SET) {
-    if (clean === staple || clean.startsWith(`${staple} `) || clean.endsWith(` ${staple}`)) {
+    if (clean === staple || clean.startsWith(`${staple} `)) {
       return true;
     }
   }

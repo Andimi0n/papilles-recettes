@@ -63,6 +63,7 @@ export interface CanonicalIngredient {
   isCustom?: boolean;       // Vrai si créé manuellement par l'utilisateur ou auto-appris
   isPantryStaple?: boolean; // Vrai si ingrédient de base / fond de placard (sel, poivre, huile, épices...)
   allergen?: AllergenFamily; // Famille d'allergène majeure verrouillée (optionnel, 1 des 14 familles INCO)
+  secondaryAllergens?: AllergenFamily[]; // Familles d'allergènes secondaires pour ingrédients multi-allergènes
   density?: number;         // Densité culinaire en g/ml (ex: 1.0 pour eau/lait, 0.57 pour farine, 0.85 pour sucre, 0.92 pour huile...)
   usageCount: number;       // Compteur d'utilisation pour ordonner les suggestions d'autocomplétion
   createdAt: string;

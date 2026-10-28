@@ -119,6 +119,15 @@ export const VocabularyService = {
                 }
               }
 
+              let secondaryAllergens = item.secondaryAllergens;
+              if (secondaryAllergens === undefined && !item.isCustom) {
+                const seed = initialSeedMap.get(item.normalizedName);
+                if (seed?.secondaryAllergens !== undefined) {
+                  secondaryAllergens = seed.secondaryAllergens;
+                  itemUpdated = true;
+                }
+              }
+
               let density = item.density;
               if (density === undefined && !item.isCustom) {
                 const seed = initialSeedMap.get(item.normalizedName);
@@ -191,6 +200,7 @@ export const VocabularyService = {
                   id,
                   isPantryStaple,
                   allergen,
+                  secondaryAllergens,
                   density,
                   aliases: cleanedAliases,
                   updatedAt: new Date().toISOString(),
@@ -213,6 +223,7 @@ export const VocabularyService = {
                 uniqueMap.set(key, {
                   ...existing,
                   allergen: existing.allergen || item.allergen,
+                  secondaryAllergens: existing.secondaryAllergens || item.secondaryAllergens,
                   usageCount: Math.max(existing.usageCount || 0, item.usageCount || 0),
                   aliases: mergedAliases,
                   updatedAt: new Date().toISOString(),
