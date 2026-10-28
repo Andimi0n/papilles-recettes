@@ -4,8 +4,8 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Image,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { Recipe, RecipeViewMode } from '../types/recipe';
 import { Colors, createDynamicStyles } from '../theme/colors';
@@ -57,7 +57,9 @@ const RecipeCardComponent: React.FC<RecipeCardProps> = ({
             <Image
               source={{ uri: recipe.imageUrl }}
               style={styles.compactImage}
-              resizeMode="cover"
+              contentFit="cover"
+              cachePolicy="disk"
+              transition={200}
             />
           ) : (
             <View style={styles.compactPlaceholder}>
@@ -170,7 +172,9 @@ const RecipeCardComponent: React.FC<RecipeCardProps> = ({
               <Image
                 source={{ uri: recipe.imageUrl }}
                 style={styles.image}
-                resizeMode="cover"
+                contentFit="cover"
+                cachePolicy="disk"
+                transition={200}
               />
               <View style={styles.imageOverlay} />
             </>
@@ -275,7 +279,9 @@ const RecipeCardComponent: React.FC<RecipeCardProps> = ({
             <Image
               source={{ uri: recipe.imageUrl }}
               style={styles.image}
-              resizeMode="cover"
+              contentFit="cover"
+              cachePolicy="disk"
+              transition={200}
             />
             <View style={styles.imageOverlay} />
           </>
@@ -637,7 +643,7 @@ const styles = createDynamicStyles((colors, shadows) => ({
   // Styles Mode Grille
   gridCard: {
     flex: 1,
-    maxWidth: '48%',
+    marginHorizontal: 6,
     backgroundColor: colors.cardBackground,
     borderRadius: 16,
     marginBottom: 12,
@@ -738,7 +744,10 @@ export const RecipeCard = React.memo(RecipeCardComponent, (prevProps, nextProps)
     prevProps.recipe.rating === nextProps.recipe.rating &&
     prevProps.recipe.title === nextProps.recipe.title &&
     prevProps.recipe.imageUrl === nextProps.recipe.imageUrl &&
-    (prevProps.highlightedIngredients?.length || 0) === (nextProps.highlightedIngredients?.length || 0) &&
+    prevProps.recipe.isVegetarian === nextProps.recipe.isVegetarian &&
+    prevProps.recipe.prepTimeMinutes === nextProps.recipe.prepTimeMinutes &&
+    prevProps.recipe.cookTimeMinutes === nextProps.recipe.cookTimeMinutes &&
+    (prevProps.highlightedIngredients || []).join(',') === (nextProps.highlightedIngredients || []).join(',') &&
     prevProps.hasAllergen === nextProps.hasAllergen &&
     prevProps.stockProgress?.matchedCount === nextProps.stockProgress?.matchedCount &&
     prevProps.stockProgress?.totalCount === nextProps.stockProgress?.totalCount &&
