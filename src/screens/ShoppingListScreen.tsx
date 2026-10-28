@@ -266,6 +266,10 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
     }
   }, []);
 
+  const handleFridgeCountChange = useCallback((count: number) => {
+    setFridgeCount(count);
+  }, []);
+
   useEffect(() => {
     void (async () => {
       await loadShoppingList();
@@ -527,24 +531,18 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
     }
   };
 
-  // Nettoyage des articles cochés avec auto-rangement intelligent dans les étagères
+  // Nettoyage des articles cochés avec auto-rangement dans les étagères
   const handleClearCompleted = async () => {
     if (completedCount === 0) return;
     try {
-      // On range uniquement les denrées alimentaires (on exclut les articles non-alimentaires du rayon 'Autre')
-      const foodItems = completedItems.filter((i) => i.aisle !== 'Autre');
-      const foodNames = foodItems.map((i) => i.name);
-      if (foodNames.length > 0) {
-        await StorageService.addMultipleFridgeItems(foodNames);
-        setFridgeCount((prev) => prev + foodNames.length);
-      }
+      const completedNames = completedItems.map((i) => i.name);
+      await StorageService.addMultipleFridgeItems(completedNames);
       const updated = await StorageService.clearCompletedShoppingItems();
       setItems(updated);
+      setFridgeCount((prev) => prev + completedNames.length);
       Alert.alert(
         'Rangement terminé !',
-        foodNames.length > 0
-          ? `${foodNames.length} aliment${foodNames.length > 1 ? 's' : ''} rangé${foodNames.length > 1 ? 's' : ''} dans vos étagères.`
-          : 'Articles cochés retirés de la liste.'
+        `${completedNames.length} aliment(s) rangé(s) dans vos étagères.`
       );
     } catch (e) {
       Alert.alert('Erreur', "Impossible de ranger les articles dans vos étagères.");
@@ -746,7 +744,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
           onItemCopiedToShopping={() => {
             loadShoppingList();
           }}
-          onFridgeCountChange={(count) => setFridgeCount(count)}
+          onFridgeCountChange={handleFridgeCountChange}
           onNavigateToDoableRecipes={() => {
             if (onNavigateToRecipes) {
               onNavigateToRecipes({ onlyDoable: true });

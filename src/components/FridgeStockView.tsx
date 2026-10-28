@@ -217,13 +217,22 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
     VocabularyService.getSyncList()
   );
 
-  // Snackbar d'annulation de suppression temporaire (4 secondes)
-  const [deletedSnackbar, setDeletedSnackbar] = useState<{
+  const onFridgeCountChangeRef = useRef(onFridgeCountChange);
+  useEffect(() => {
+    onFridgeCountChangeRef.current = onFridgeCountChange;
+  }, [onFridgeCountChange]);
+
+  // Snackbar d'annulation de suppression ou basculement temporaire (4 secondes)
+  interface DeletedSnackbarInfo {
     item: FridgeItem;
     index: number;
-  } | null>(null);
+    action?: 'delete' | 'transfer';
+    previousShoppingList?: ShoppingItem[];
+  }
+
+  const [deletedSnackbar, setDeletedSnackbar] = useState<DeletedSnackbarInfo | null>(null);
   const snackbarTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pendingDeletedItemRef = useRef<{ item: FridgeItem; index: number } | null>(null);
+  const pendingDeletedItemRef = useRef<DeletedSnackbarInfo | null>(null);
   const [snackbarAnim] = useState(() => new Animated.Value(1));
   const [snackbarFadeAnim] = useState(() => new Animated.Value(0));
 
@@ -351,15 +360,13 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
     try {
       const data = await StorageService.getFridgeItems();
       setItems(data);
-      if (onFridgeCountChange) {
-        onFridgeCountChange(data.length);
-      }
+      onFridgeCountChangeRef.current?.(data.length);
     } catch (e) {
       console.error('Erreur chargement étagères:', e);
     } finally {
       setIsLoading(false);
     }
-  }, [onFridgeCountChange]);
+  }, []);
 
   // Chargement et synchronisation du stock et du vocabulaire canonique
   useEffect(() => {
@@ -373,9 +380,7 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
         if (isMounted) {
           setItems(loadedStock);
           setCanonicalVocabulary(vocab);
-          if (onFridgeCountChange) {
-            onFridgeCountChange(loadedStock.length);
-          }
+          onFridgeCountChangeRef.current?.(loadedStock.length);
         }
       } catch (e) {
         console.error('Erreur chargement stock FridgeStockView:', e);
@@ -385,9 +390,7 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
 
     const unsubFridge = StorageService.onFridgeChange((updatedStock) => {
       setItems(updatedStock);
-      if (onFridgeCountChange) {
-        onFridgeCountChange(updatedStock.length);
-      }
+      onFridgeCountChangeRef.current?.(updatedStock.length);
     });
 
     const unsubVocab = VocabularyService.onVocabularyCascade(async () => {
@@ -401,7 +404,7 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
       unsubFridge();
       unsubVocab();
     };
-  }, [loadStock, onFridgeCountChange]);
+  }, [loadStock]);
 
   // Aliments filtrés selon la recherche
   const filteredItems = useMemo(() => {
@@ -422,7 +425,10 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
   // Groupement des aliments par rayon (sur les éléments filtrés, triés par ordre alphabétique)
   const groupedByAisle = useMemo(() => {
     const map = new Map<ShoppingAisle, FridgeItem[]>();
+    const seenIds = new Set<string>();
     filteredItems.forEach((item) => {
+      if (!item || !item.id || seenIds.has(item.id)) return;
+      seenIds.add(item.id);
       const aisle = item.aisle || 'Autre';
       const existing = map.get(aisle) || [];
       existing.push(item);
@@ -533,9 +539,7 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
       const updated = await StorageService.addFridgeItem(name, resolvedAisle, resolvedCanonicalId);
       setItems(updated);
       VocabularyService.incrementUsage(resolvedCanonicalId || name).catch(() => {});
-      if (onFridgeCountChange) {
-        onFridgeCountChange(updated.length);
-      }
+      onFridgeCountChangeRef.current?.(updated.length);
       setNewItemName('');
       setSelectedAisle(null);
     } catch (e) {
@@ -543,7 +547,11 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
     }
   };
 
-  const handleDeleteItem = async (id: string) => {
+  const handleDeleteItem = async (
+    id: string,
+    action: 'delete' | 'transfer' = 'delete',
+    previousShoppingList?: ShoppingItem[]
+  ) => {
     const itemToDelete = items.find((it) => it.id === id);
     if (!itemToDelete) return;
     const itemIndex = items.findIndex((it) => it.id === id);
@@ -560,11 +568,15 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
     // Retrait optimiste de la liste affichée
     const updated = items.filter((it) => it.id !== id);
     setItems(updated);
-    if (onFridgeCountChange) {
-      onFridgeCountChange(updated.length);
-    }
-    pendingDeletedItemRef.current = { item: itemToDelete, index: itemIndex };
-    setDeletedSnackbar({ item: itemToDelete, index: itemIndex });
+    onFridgeCountChangeRef.current?.(updated.length);
+    const snackbarInfo: DeletedSnackbarInfo = {
+      item: itemToDelete,
+      index: itemIndex,
+      action,
+      previousShoppingList,
+    };
+    pendingDeletedItemRef.current = snackbarInfo;
+    setDeletedSnackbar(snackbarInfo);
 
     // Animation de la jauge sur 4 secondes (4000ms) et entrée fluide
     snackbarAnim.setValue(1);
@@ -602,19 +614,37 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
     const info = pendingDeletedItemRef.current || deletedSnackbar;
     if (!info) return;
 
-    setItems((prev) => {
-      const updated = [...prev];
-      const insertIdx = Math.min(Math.max(0, info.index), updated.length);
-      updated.splice(insertIdx, 0, info.item);
-      StorageService.saveFridgeItems(updated).catch(() => {});
-      if (onFridgeCountChange) {
-        onFridgeCountChange(updated.length);
-      }
-      return updated;
-    });
-
     setDeletedSnackbar(null);
     pendingDeletedItemRef.current = null;
+
+    // 1. Si l'action était un basculement vers les courses, rétablir la liste de courses antérieure
+    if (info.action === 'transfer' && info.previousShoppingList) {
+      try {
+        await StorageService.saveShoppingList(info.previousShoppingList);
+        onItemCopiedToShopping?.(info.item.name);
+      } catch (e) {
+        console.error('Erreur annulation transfert courses:', e);
+      }
+    }
+
+    // 2. Restaurer l'aliment dans les étagères
+    try {
+      const current = await StorageService.getFridgeItems();
+      let updated: FridgeItem[];
+      if (!current.some((it) => it.id === info.item.id)) {
+        updated = [...current];
+        const insertIdx = Math.min(Math.max(0, info.index), updated.length);
+        updated.splice(insertIdx, 0, info.item);
+        const saved = await StorageService.saveFridgeItems(updated);
+        updated = saved;
+      } else {
+        updated = current;
+      }
+      setItems(updated);
+      onFridgeCountChangeRef.current?.(updated.length);
+    } catch (e) {
+      console.error('Erreur restauration fridge item:', e);
+    }
   };
 
   const handleDismissSnackbar = async () => {
@@ -644,9 +674,7 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
           onPress: async () => {
             const updated = await StorageService.clearFridge();
             setItems(updated);
-            if (onFridgeCountChange) {
-              onFridgeCountChange(0);
-            }
+            onFridgeCountChangeRef.current?.(0);
           },
         },
       ]
@@ -668,8 +696,9 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
 
   const handleEmptyItem = async (item: FridgeItem) => {
     try {
+      const prevShoppingList = await StorageService.getShoppingList();
       await handleCopyToShopping(item);
-      await handleDeleteItem(item.id);
+      await handleDeleteItem(item.id, 'transfer', prevShoppingList);
     } catch (e) {
       Alert.alert('Erreur', "Impossible de basculer l'aliment dans la liste de courses.");
     }
@@ -759,7 +788,7 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
             showsVerticalScrollIndicator={false}
             stickySectionHeadersEnabled={false}
             sections={groupedByAisle.map((g) => ({ title: g.aisle, data: g.items }))}
-            keyExtractor={(item) => item.id}
+            keyExtractor={(item, index) => `${item.id}_${index}`}
             initialNumToRender={15}
             maxToRenderPerBatch={15}
             windowSize={5}
@@ -1121,9 +1150,15 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
         >
           <View style={styles.snackbarContent}>
             <View style={styles.snackbarLeft}>
-              <Ionicons name="trash-outline" size={17} color="#FFFFFF" />
+              <Ionicons
+                name={deletedSnackbar.action === 'transfer' ? 'cart-outline' : 'trash-outline'}
+                size={17}
+                color="#FFFFFF"
+              />
               <Text style={styles.snackbarText} numberOfLines={1}>
-                « {deletedSnackbar.item.name} » supprimé
+                {deletedSnackbar.action === 'transfer'
+                  ? `« ${deletedSnackbar.item.name} » basculé dans les courses`
+                  : `« ${deletedSnackbar.item.name} » supprimé`}
               </Text>
             </View>
 

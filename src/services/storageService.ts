@@ -1007,12 +1007,19 @@ export const StorageService = {
    */
   async saveShoppingList(items: ShoppingItem[]): Promise<ShoppingItem[]> {
     try {
-      memoryCache.shoppingList = items;
-      await AsyncStorage.setItem(SHOPPING_LIST_KEY, JSON.stringify(items));
+      const seenIds = new Set<string>();
+      const deduplicated: ShoppingItem[] = [];
+      for (const item of items) {
+        if (!item || !item.id || seenIds.has(item.id)) continue;
+        seenIds.add(item.id);
+        deduplicated.push(item);
+      }
+      memoryCache.shoppingList = deduplicated;
+      await AsyncStorage.setItem(SHOPPING_LIST_KEY, JSON.stringify(deduplicated));
       shoppingListeners.forEach((l) => {
-        try { l(items); } catch (err) { console.error('Erreur listener shopping:', err); }
+        try { l(deduplicated); } catch (err) { console.error('Erreur listener shopping:', err); }
       });
-      return items;
+      return deduplicated;
     } catch (e) {
       console.error('Erreur sauvegarde liste de courses:', e);
       throw e;
@@ -1243,10 +1250,16 @@ export const StorageService = {
       // Auto-guérison et déduplication stricte par canonicalId ou nom normalisé
       const seenCanonical = new Set<string>();
       const seenNames = new Set<string>();
+      const seenIds = new Set<string>();
       const deduplicated: FridgeItem[] = [];
       let hadDuplicates = false;
 
       for (const item of sanitized) {
+        if (!item || !item.id) continue;
+        if (seenIds.has(item.id)) {
+          hadDuplicates = true;
+          continue;
+        }
         const cId = item.canonicalId;
         const nName = normalizeString(item.name);
         if (cId && seenCanonical.has(cId)) {
@@ -1257,6 +1270,7 @@ export const StorageService = {
           hadDuplicates = true;
           continue;
         }
+        seenIds.add(item.id);
         if (cId) seenCanonical.add(cId);
         seenNames.add(nName);
         deduplicated.push(item);
@@ -1280,12 +1294,19 @@ export const StorageService = {
   async saveFridgeItems(items: FridgeItem[]): Promise<FridgeItem[]> {
     try {
       const sanitized = items.map(sanitizeFridgeItem).filter((i): i is FridgeItem => i !== null);
-      memoryCache.fridgeItems = sanitized;
-      await AsyncStorage.setItem(FRIDGE_ITEMS_KEY, JSON.stringify(sanitized));
+      const seenIds = new Set<string>();
+      const deduplicated: FridgeItem[] = [];
+      for (const item of sanitized) {
+        if (!item || !item.id || seenIds.has(item.id)) continue;
+        seenIds.add(item.id);
+        deduplicated.push(item);
+      }
+      memoryCache.fridgeItems = deduplicated;
+      await AsyncStorage.setItem(FRIDGE_ITEMS_KEY, JSON.stringify(deduplicated));
       fridgeListeners.forEach((l) => {
-        try { l(sanitized); } catch (err) { console.error('Erreur listener fridge:', err); }
+        try { l(deduplicated); } catch (err) { console.error('Erreur listener fridge:', err); }
       });
-      return sanitized;
+      return deduplicated;
     } catch (e) {
       console.error('Erreur sauvegarde aliments frigo:', e);
       throw e;
