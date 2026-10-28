@@ -52,6 +52,8 @@ export interface Recipe {
 
 export type SortOption = 'rating_desc' | 'rating_asc' | 'prep_time' | 'title' | 'recent';
 
+export type RecipeViewMode = 'detailed' | 'compact' | 'grid';
+
 export type TimeFilterMode = 'max' | 'min';
 
 export interface AdvancedFilterOptions {

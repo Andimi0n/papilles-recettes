@@ -201,6 +201,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
   const snackbarTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingDeletedItemRef = useRef<{ item: ShoppingItem; index: number } | null>(null);
   const [snackbarAnim] = useState(() => new Animated.Value(1));
+  const [snackbarFadeAnim] = useState(() => new Animated.Value(0));
 
   // Nettoyage au démontage pour persister toute suppression en attente
   useEffect(() => {
@@ -365,8 +366,15 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
     pendingDeletedItemRef.current = { item: itemToDelete, index: itemIndex };
     setDeletedSnackbar({ item: itemToDelete, index: itemIndex });
 
-    // Animation de la jauge sur 4 secondes (4000ms)
+    // Animation de la jauge sur 4 secondes (4000ms) et entrée fluide
     snackbarAnim.setValue(1);
+    snackbarFadeAnim.setValue(0);
+    Animated.timing(snackbarFadeAnim, {
+      toValue: 1,
+      duration: 180,
+      useNativeDriver: true,
+    }).start();
+
     Animated.timing(snackbarAnim, {
       toValue: 0,
       duration: 4000,
@@ -1460,7 +1468,22 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
 
       {/* Barre Snackbar temporaire (4 secondes) pour annuler une suppression dans Courses */}
       {deletedSnackbar && (
-        <View style={styles.snackbarContainer}>
+        <Animated.View
+          style={[
+            styles.snackbarContainer,
+            {
+              opacity: snackbarFadeAnim,
+              transform: [
+                {
+                  translateY: snackbarFadeAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [16, 0],
+                  }),
+                },
+              ],
+            },
+          ]}
+        >
           <View style={styles.snackbarContent}>
             <View style={styles.snackbarLeft}>
               <Ionicons name="trash-outline" size={17} color="#FFFFFF" />
@@ -1506,7 +1529,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
               ]}
             />
           </View>
-        </View>
+        </Animated.View>
       )}
     </SafeAreaView>
   );
@@ -2196,6 +2219,7 @@ const styles = createDynamicStyles((colors, shadows) => ({
     overflow: 'hidden',
     zIndex: 9999,
     ...shadows.medium,
+    elevation: 10,
     borderWidth: 1,
     borderColor: colors.isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.15)',
   },

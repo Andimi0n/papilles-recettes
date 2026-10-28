@@ -71,6 +71,28 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
     VocabularyService.getSyncList()
   );
 
+  // Snackbar d'annulation de suppression temporaire (4 secondes)
+  const [deletedSnackbar, setDeletedSnackbar] = useState<{
+    item: FridgeItem;
+    index: number;
+  } | null>(null);
+  const snackbarTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingDeletedItemRef = useRef<{ item: FridgeItem; index: number } | null>(null);
+  const [snackbarAnim] = useState(() => new Animated.Value(1));
+  const [snackbarFadeAnim] = useState(() => new Animated.Value(0));
+
+  // Nettoyage au démontage pour persister toute suppression en attente
+  useEffect(() => {
+    return () => {
+      if (snackbarTimerRef.current) {
+        clearTimeout(snackbarTimerRef.current);
+      }
+      if (pendingDeletedItemRef.current) {
+        StorageService.removeFridgeItem(pendingDeletedItemRef.current.item.id).catch(() => {});
+      }
+    };
+  }, []);
+
   // Ajouts rapides rétractables au défilement (haute performance, 60fps via useNativeDriver)
   const [quickAddHeight, setQuickAddHeight] = useState(140);
   const [quickAddAnim] = useState(() => new Animated.Value(1));
@@ -360,15 +382,91 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
   };
 
   const handleDeleteItem = async (id: string) => {
-    try {
-      const updated = await StorageService.removeFridgeItem(id);
-      setItems(updated);
+    const itemToDelete = items.find((it) => it.id === id);
+    if (!itemToDelete) return;
+    const itemIndex = items.findIndex((it) => it.id === id);
+
+    // Si une suppression était déjà en attente dans le snackbar, on la persiste tout de suite
+    if (snackbarTimerRef.current) {
+      clearTimeout(snackbarTimerRef.current);
+      snackbarTimerRef.current = null;
+    }
+    if (pendingDeletedItemRef.current) {
+      StorageService.removeFridgeItem(pendingDeletedItemRef.current.item.id).catch(() => {});
+    }
+
+    // Retrait optimiste de la liste affichée
+    const updated = items.filter((it) => it.id !== id);
+    setItems(updated);
+    if (onFridgeCountChange) {
+      onFridgeCountChange(updated.length);
+    }
+    pendingDeletedItemRef.current = { item: itemToDelete, index: itemIndex };
+    setDeletedSnackbar({ item: itemToDelete, index: itemIndex });
+
+    // Animation de la jauge sur 4 secondes (4000ms) et entrée fluide
+    snackbarAnim.setValue(1);
+    snackbarFadeAnim.setValue(0);
+    Animated.timing(snackbarFadeAnim, {
+      toValue: 1,
+      duration: 180,
+      useNativeDriver: true,
+    }).start();
+
+    Animated.timing(snackbarAnim, {
+      toValue: 0,
+      duration: 4000,
+      useNativeDriver: false,
+    }).start();
+
+    // Délai de 4 secondes avant confirmation définitive
+    snackbarTimerRef.current = setTimeout(async () => {
+      try {
+        await StorageService.removeFridgeItem(id);
+      } catch (e) {
+        console.error('Erreur suppression persistée fridgeItem:', e);
+      }
+      setDeletedSnackbar(null);
+      pendingDeletedItemRef.current = null;
+      snackbarTimerRef.current = null;
+    }, 4000);
+  };
+
+  const handleUndoDelete = async () => {
+    if (snackbarTimerRef.current) {
+      clearTimeout(snackbarTimerRef.current);
+      snackbarTimerRef.current = null;
+    }
+    const info = pendingDeletedItemRef.current || deletedSnackbar;
+    if (!info) return;
+
+    setItems((prev) => {
+      const updated = [...prev];
+      const insertIdx = Math.min(Math.max(0, info.index), updated.length);
+      updated.splice(insertIdx, 0, info.item);
+      StorageService.saveFridgeItems(updated).catch(() => {});
       if (onFridgeCountChange) {
         onFridgeCountChange(updated.length);
       }
-    } catch (e) {
-      Alert.alert('Erreur', "Impossible de supprimer l'aliment.");
+      return updated;
+    });
+
+    setDeletedSnackbar(null);
+    pendingDeletedItemRef.current = null;
+  };
+
+  const handleDismissSnackbar = async () => {
+    if (snackbarTimerRef.current) {
+      clearTimeout(snackbarTimerRef.current);
+      snackbarTimerRef.current = null;
     }
+    if (pendingDeletedItemRef.current) {
+      try {
+        await StorageService.removeFridgeItem(pendingDeletedItemRef.current.item.id);
+      } catch (e) {}
+      pendingDeletedItemRef.current = null;
+    }
+    setDeletedSnackbar(null);
   };
 
   const handleClearStock = () => {
@@ -849,6 +947,72 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
           setNewItemName('');
         }}
       />
+
+      {/* Barre Snackbar temporaire (4 secondes) pour annuler une suppression dans Étagères */}
+      {deletedSnackbar && (
+        <Animated.View
+          style={[
+            styles.snackbarContainer,
+            {
+              opacity: snackbarFadeAnim,
+              transform: [
+                {
+                  translateY: snackbarFadeAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [16, 0],
+                  }),
+                },
+              ],
+            },
+          ]}
+        >
+          <View style={styles.snackbarContent}>
+            <View style={styles.snackbarLeft}>
+              <Ionicons name="trash-outline" size={17} color="#FFFFFF" />
+              <Text style={styles.snackbarText} numberOfLines={1}>
+                « {deletedSnackbar.item.name} » supprimé
+              </Text>
+            </View>
+
+            <View style={styles.snackbarActions}>
+              <TouchableOpacity
+                style={styles.snackbarUndoBtn}
+                onPress={handleUndoDelete}
+                activeOpacity={0.8}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityLabel="Annuler la suppression"
+              >
+                <Ionicons name="arrow-undo" size={15} color="#FFFFFF" />
+                <Text style={styles.snackbarUndoText}>Annuler</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.snackbarCloseBtn}
+                onPress={handleDismissSnackbar}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityLabel="Fermer la notification"
+              >
+                <Ionicons name="close" size={16} color="rgba(255,255,255,0.7)" />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Jauge de progression temporelle de 4 secondes */}
+          <View style={styles.snackbarTrack}>
+            <Animated.View
+              style={[
+                styles.snackbarBar,
+                {
+                  width: snackbarAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: ['0%', '100%'],
+                  }),
+                },
+              ]}
+            />
+          </View>
+        </Animated.View>
+      )}
     </View>
   );
 };
@@ -1377,5 +1541,70 @@ const styles = createDynamicStyles((colors, shadows) => ({
     fontSize: 14,
     fontWeight: '700',
     color: colors.textPrimary,
+  },
+  snackbarContainer: {
+    position: 'absolute',
+    bottom: 24,
+    left: 16,
+    right: 16,
+    backgroundColor: colors.isDark ? '#26332C' : '#1C2621',
+    borderRadius: 14,
+    overflow: 'hidden',
+    zIndex: 9999,
+    ...shadows.medium,
+    elevation: 10,
+    borderWidth: 1,
+    borderColor: colors.isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.15)',
+  },
+  snackbarContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  snackbarLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  snackbarText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    flex: 1,
+  },
+  snackbarActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  snackbarUndoBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: colors.primary,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
+  snackbarUndoText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  snackbarCloseBtn: {
+    padding: 3,
+  },
+  snackbarTrack: {
+    height: 3,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    width: '100%',
+  },
+  snackbarBar: {
+    height: '100%',
+    backgroundColor: colors.primary,
   },
 }));

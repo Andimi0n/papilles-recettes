@@ -7,7 +7,7 @@ import {
   Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Recipe } from '../types/recipe';
+import { Recipe, RecipeViewMode } from '../types/recipe';
 import { Colors, createDynamicStyles } from '../theme/colors';
 import { useTheme } from '../theme/ThemeContext';
 import { formatDuration } from '../utils/helpers';
@@ -26,6 +26,7 @@ export interface RecipeCardProps {
   highlightedIngredients?: string[]; // ingredients matched by search
   hasAllergen?: boolean;
   stockProgress?: RecipeStockProgress;
+  viewMode?: RecipeViewMode;
 }
 
 const RecipeCardComponent: React.FC<RecipeCardProps> = ({
@@ -35,10 +36,232 @@ const RecipeCardComponent: React.FC<RecipeCardProps> = ({
   highlightedIngredients = [],
   hasAllergen = false,
   stockProgress,
+  viewMode = 'detailed',
 }) => {
   const { isDark, colors } = useTheme();
   const totalTime = recipe.prepTimeMinutes + recipe.cookTimeMinutes;
 
+  // 1. Mode Compact (liste horizontale épurée & rapide à parcourir)
+  if (viewMode === 'compact') {
+    return (
+      <TouchableOpacity
+        activeOpacity={0.88}
+        onPress={onPress}
+        style={styles.compactCard}
+        accessibilityRole="button"
+        accessibilityLabel={`Recette ${recipe.title}`}
+      >
+        {/* Vignette carrée gauche avec micro-indicateurs */}
+        <View style={styles.compactThumbnailContainer}>
+          {recipe.imageUrl && recipe.imageUrl.trim().length > 0 ? (
+            <Image
+              source={{ uri: recipe.imageUrl }}
+              style={styles.compactImage}
+              resizeMode="cover"
+            />
+          ) : (
+            <View style={styles.compactPlaceholder}>
+              <Ionicons name="restaurant-outline" size={24} color={Colors.primary + '55'} />
+            </View>
+          )}
+
+          {/* Micro-pastille d'alerte en coin si végé ou allergène */}
+          {hasAllergen ? (
+            <View style={[styles.compactCornerBadge, { backgroundColor: colors.danger }]}>
+              <Ionicons name="warning" size={9} color="#FFFFFF" />
+            </View>
+          ) : recipe.isVegetarian ? (
+            <View style={[styles.compactCornerBadge, { backgroundColor: '#16A34A' }]}>
+              <Ionicons name="leaf" size={9} color="#FFFFFF" />
+            </View>
+          ) : null}
+        </View>
+
+        {/* Contenu central condensé */}
+        <View style={styles.compactContent}>
+          {/* Titre de la recette */}
+          <Text style={styles.compactTitle} numberOfLines={1}>
+            {recipe.title}
+          </Text>
+
+          {/* Ligne métadonnées : Catégorie • Temps • Étoiles */}
+          <View style={styles.compactMetaRow}>
+            <Text style={styles.compactCategoryText} numberOfLines={1}>
+              {recipe.category}
+            </Text>
+            <Text style={styles.compactDot}>•</Text>
+            <View style={styles.compactTimeRow}>
+              <Ionicons name="time-outline" size={12} color={colors.textSecondary} />
+              <Text style={styles.compactTimeText}>{formatDuration(totalTime)}</Text>
+            </View>
+
+            {(recipe.rating || 0) > 0 && (
+              <>
+                <Text style={styles.compactDot}>•</Text>
+                <View style={styles.compactRatingRow}>
+                  <Ionicons name="star" size={11} color={Colors.amber} />
+                  <Text style={styles.compactRatingText}>
+                    {recipe.rating % 1 === 0 ? recipe.rating : recipe.rating.toFixed(1)}
+                  </Text>
+                </View>
+              </>
+            )}
+          </View>
+
+          {/* Micro-badge Frigo en ligne */}
+          {stockProgress && stockProgress.totalCount > 0 && (
+            <View style={styles.compactStockRow}>
+              <View
+                style={[
+                  styles.stockMicroBadge,
+                  styles.stockMicroBadgeCompact,
+                  stockProgress.percentage === 100
+                    ? styles.stockMicroBadgeReady
+                    : styles.stockMicroBadgeMissing,
+                ]}
+              >
+                <Ionicons
+                  name={stockProgress.percentage === 100 ? 'checkmark-circle' : 'alert-circle-outline'}
+                  size={11}
+                  color={
+                    stockProgress.percentage === 100
+                      ? isDark ? '#4ADE80' : '#15803D'
+                      : isDark ? '#FBBF24' : '#B45309'
+                  }
+                />
+                <Text
+                  style={[
+                    styles.stockMicroBadgeText,
+                    styles.stockMicroBadgeTextCompact,
+                    stockProgress.percentage === 100
+                      ? styles.stockMicroBadgeTextReady
+                      : styles.stockMicroBadgeTextMissing,
+                  ]}
+                >
+                  {stockProgress.percentage === 100
+                    ? '✓ Frigo prêt'
+                    : `${stockProgress.totalCount - stockProgress.matchedCount} manquant${stockProgress.totalCount - stockProgress.matchedCount > 1 ? 's' : ''}`}
+                </Text>
+              </View>
+            </View>
+          )}
+        </View>
+
+        {/* Flèche de navigation à droite */}
+        <Ionicons name="chevron-forward" size={16} color={colors.textMuted} style={styles.compactChevron} />
+      </TouchableOpacity>
+    );
+  }
+
+  // 2. Mode Grille (2 colonnes visuelles & équilibrées)
+  if (viewMode === 'grid') {
+    return (
+      <TouchableOpacity
+        activeOpacity={0.9}
+        onPress={onPress}
+        style={styles.gridCard}
+        accessibilityRole="button"
+        accessibilityLabel={`Recette ${recipe.title}`}
+      >
+        {/* Image panoramique réduite avec badges */}
+        <View style={styles.gridImageContainer}>
+          {recipe.imageUrl && recipe.imageUrl.trim().length > 0 ? (
+            <>
+              <Image
+                source={{ uri: recipe.imageUrl }}
+                style={styles.image}
+                resizeMode="cover"
+              />
+              <View style={styles.imageOverlay} />
+            </>
+          ) : (
+            <View style={styles.noImagePlaceholder}>
+              <Ionicons name="restaurant-outline" size={28} color={Colors.primary + '55'} />
+            </View>
+          )}
+
+          {/* Badges d'alerte en superposition */}
+          <View style={styles.gridTopBadgesRow}>
+            {recipe.isVegetarian && (
+              <View style={styles.gridMiniBadgeVege}>
+                <Ionicons name="leaf" size={9} color="#FFFFFF" />
+              </View>
+            )}
+            {hasAllergen && (
+              <View style={[styles.gridMiniBadgeAllergen, { backgroundColor: colors.danger }]}>
+                <Ionicons name="warning" size={9} color="#FFFFFF" />
+              </View>
+            )}
+          </View>
+
+          {/* Note compacte */}
+          {(recipe.rating || 0) > 0 && (
+            <View style={styles.gridRatingBadge}>
+              <Ionicons name="star" size={10} color={Colors.amber} />
+              <Text style={styles.gridRatingText}>
+                {recipe.rating % 1 === 0 ? recipe.rating : recipe.rating.toFixed(1)}
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {/* Corps en grille : Catégorie, Titre 2 lignes, Temps & Micro-badge Frigo */}
+        <View style={styles.gridBody}>
+          <Text style={styles.gridCategoryText} numberOfLines={1}>
+            {recipe.category}
+          </Text>
+          <Text style={styles.gridTitle} numberOfLines={2}>
+            {recipe.title}
+          </Text>
+
+          <View style={styles.gridMetaRow}>
+            <View style={styles.metaItem}>
+              <Ionicons name="time-outline" size={12} color={colors.textSecondary} />
+              <Text style={styles.gridMetaText}>{formatDuration(totalTime)}</Text>
+            </View>
+          </View>
+
+          {stockProgress && stockProgress.totalCount > 0 && (
+            <View
+              style={[
+                styles.stockMicroBadge,
+                styles.gridStockMicroBadge,
+                stockProgress.percentage === 100
+                  ? styles.stockMicroBadgeReady
+                  : styles.stockMicroBadgeMissing,
+              ]}
+            >
+              <Ionicons
+                name={stockProgress.percentage === 100 ? 'checkmark-circle' : 'alert-circle-outline'}
+                size={10}
+                color={
+                  stockProgress.percentage === 100
+                    ? isDark ? '#4ADE80' : '#15803D'
+                    : isDark ? '#FBBF24' : '#B45309'
+                }
+              />
+              <Text
+                style={[
+                  styles.stockMicroBadgeText,
+                  styles.gridStockMicroBadgeText,
+                  stockProgress.percentage === 100
+                    ? styles.stockMicroBadgeTextReady
+                    : styles.stockMicroBadgeTextMissing,
+                ]}
+                numberOfLines={1}
+              >
+                {stockProgress.percentage === 100
+                  ? '✓ Prêt'
+                  : `${stockProgress.totalCount - stockProgress.matchedCount} manq.`}
+              </Text>
+            </View>
+          )}
+        </View>
+      </TouchableOpacity>
+    );
+  }
+
+  // 3. Mode Détaillé (grandes cartes d'inspiration, par défaut)
   return (
     <TouchableOpacity
       activeOpacity={0.92}
@@ -303,11 +526,215 @@ const styles = createDynamicStyles((colors, shadows) => ({
   stockMicroBadgeTextMissing: {
     color: colors.isDark ? '#FBBF24' : '#B45309',
   },
+
+  // Styles Mode Compact
+  compactCard: {
+    backgroundColor: colors.cardBackground,
+    borderRadius: 16,
+    marginHorizontal: 16,
+    marginBottom: 10,
+    padding: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    ...shadows.small,
+  },
+  compactThumbnailContainer: {
+    width: 68,
+    height: 68,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: colors.surfaceAlt,
+    position: 'relative',
+  },
+  compactImage: {
+    width: '100%',
+    height: '100%',
+  },
+  compactPlaceholder: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.primaryLight,
+  },
+  compactCornerBadge: {
+    position: 'absolute',
+    top: 4,
+    left: 4,
+    borderRadius: 6,
+    width: 16,
+    height: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  compactContent: {
+    flex: 1,
+    marginLeft: 12,
+    justifyContent: 'center',
+  },
+  compactTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: 4,
+  },
+  compactMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 4,
+    marginBottom: 5,
+  },
+  compactCategoryText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.isDark ? colors.primary : colors.primaryDark,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  compactDot: {
+    fontSize: 11,
+    color: colors.textMuted,
+  },
+  compactTimeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  compactTimeText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  compactRatingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  compactRatingText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.amber,
+  },
+  compactStockRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  stockMicroBadgeCompact: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  stockMicroBadgeTextCompact: {
+    fontSize: 10,
+  },
+  compactChevron: {
+    marginLeft: 8,
+  },
+
+  // Styles Mode Grille
+  gridCard: {
+    flex: 1,
+    maxWidth: '48%',
+    backgroundColor: colors.cardBackground,
+    borderRadius: 16,
+    marginBottom: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    ...shadows.small,
+  },
+  gridImageContainer: {
+    height: 115,
+    width: '100%',
+    position: 'relative',
+    backgroundColor: colors.surfaceAlt,
+  },
+  gridTopBadgesRow: {
+    position: 'absolute',
+    top: 6,
+    left: 6,
+    flexDirection: 'row',
+    gap: 4,
+  },
+  gridMiniBadgeVege: {
+    backgroundColor: '#16A34A',
+    borderRadius: 6,
+    width: 16,
+    height: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  gridMiniBadgeAllergen: {
+    borderRadius: 6,
+    width: 16,
+    height: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  gridRatingBadge: {
+    position: 'absolute',
+    bottom: 6,
+    left: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 6,
+    gap: 2,
+  },
+  gridRatingText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: Colors.amber,
+  },
+  gridBody: {
+    padding: 10,
+  },
+  gridCategoryText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.isDark ? colors.primary : colors.primaryDark,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+  gridTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    lineHeight: 17,
+    marginBottom: 6,
+  },
+  gridMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  gridMetaText: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  gridStockMicroBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    alignSelf: 'flex-start',
+  },
+  gridStockMicroBadgeText: {
+    fontSize: 10,
+  },
 }));
 
 export const RecipeCard = React.memo(RecipeCardComponent, (prevProps, nextProps) => {
   return (
     prevProps.recipe.id === nextProps.recipe.id &&
+    prevProps.viewMode === nextProps.viewMode &&
     prevProps.recipe.rating === nextProps.recipe.rating &&
     prevProps.recipe.title === nextProps.recipe.title &&
     prevProps.recipe.imageUrl === nextProps.recipe.imageUrl &&

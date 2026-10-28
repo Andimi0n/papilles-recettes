@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { Recipe, Category, SortOption, Difficulty, TimeFilterMode } from '../types/recipe';
+import { Recipe, Category, SortOption, Difficulty, TimeFilterMode, RecipeViewMode } from '../types/recipe';
 import { MealLogEntry } from '../types/mealLog';
 import { MealTime } from '../types/planner';
 import { FridgeItem } from '../types/fridge';
@@ -98,6 +98,18 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const [minRatingFilter, setMinRatingFilter] = useState<number>(0);
   const [onlyVegetarian, setOnlyVegetarian] = useState(false);
   const [onlyDoableWithStock, setOnlyDoableWithStock] = useState(initialOnlyDoable);
+  const [viewMode, setViewMode] = useState<RecipeViewMode>('detailed');
+
+  useEffect(() => {
+    StorageService.getRecipeViewMode().then((saved) => {
+      if (saved) setViewMode(saved);
+    });
+  }, []);
+
+  const handleChangeViewMode = useCallback((mode: RecipeViewMode) => {
+    setViewMode(mode);
+    StorageService.saveRecipeViewMode(mode);
+  }, []);
 
   const activeAdvancedFiltersCount = useMemo(() => {
     let count = 0;
@@ -780,20 +792,76 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
         {/* Résumé des résultats & indicateur recherche intelligente */}
         <View style={styles.resultsCountRow}>
-          <Text style={styles.resultsCountText}>
-            {filteredRecipes.length} recette{filteredRecipes.length > 1 ? 's' : ''} trouvée{filteredRecipes.length > 1 ? 's' : ''}
-            {isAllergenFilterEnabled && hiddenByAllergensCount > 0
-              ? ` • 🛡️ ${hiddenByAllergensCount} masquée${hiddenByAllergensCount > 1 ? 's' : ''}`
-              : ''}
-            {filteredRecipes.length > RECIPES_PER_PAGE && ` • Page ${safeCurrentPage}/${totalPages}`}
-          </Text>
+          <View style={styles.resultsCountLeft}>
+            <Text style={styles.resultsCountText}>
+              {filteredRecipes.length} recette{filteredRecipes.length > 1 ? 's' : ''} trouvée{filteredRecipes.length > 1 ? 's' : ''}
+              {isAllergenFilterEnabled && hiddenByAllergensCount > 0
+                ? ` • 🛡️ ${hiddenByAllergensCount} masquée${hiddenByAllergensCount > 1 ? 's' : ''}`
+                : ''}
+              {filteredRecipes.length > RECIPES_PER_PAGE && ` • Page ${safeCurrentPage}/${totalPages}`}
+            </Text>
 
-          {searchQuery.trim().length > 0 && (
-            <View style={styles.smartBadge}>
-              <Ionicons name="sparkles" size={12} color={colors.primary} />
-              <Text style={styles.smartBadgeText}>Recherche intelligente</Text>
-            </View>
-          )}
+            {searchQuery.trim().length > 0 && (
+              <View style={styles.smartBadge}>
+                <Ionicons name="sparkles" size={11} color={colors.primary} />
+                <Text style={styles.smartBadgeText}>Recherche intelligente</Text>
+              </View>
+            )}
+          </View>
+
+          {/* Switcher de mode d'affichage des recettes : Détaillé, Compact, Grille */}
+          <View style={styles.viewModeSwitcher}>
+            <TouchableOpacity
+              style={[
+                styles.viewModeBtn,
+                viewMode === 'detailed' && styles.viewModeBtnActive,
+              ]}
+              onPress={() => handleChangeViewMode('detailed')}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              accessibilityRole="button"
+              accessibilityLabel="Affichage grandes cartes détaillées"
+            >
+              <Ionicons
+                name={viewMode === 'detailed' ? 'albums' : 'albums-outline'}
+                size={16}
+                color={viewMode === 'detailed' ? colors.primary : colors.textMuted}
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.viewModeBtn,
+                viewMode === 'compact' && styles.viewModeBtnActive,
+              ]}
+              onPress={() => handleChangeViewMode('compact')}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              accessibilityRole="button"
+              accessibilityLabel="Affichage liste compacte"
+            >
+              <Ionicons
+                name={viewMode === 'compact' ? 'list' : 'list-outline'}
+                size={17}
+                color={viewMode === 'compact' ? colors.primary : colors.textMuted}
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.viewModeBtn,
+                viewMode === 'grid' && styles.viewModeBtnActive,
+              ]}
+              onPress={() => handleChangeViewMode('grid')}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              accessibilityRole="button"
+              accessibilityLabel="Affichage en grille 2 colonnes"
+            >
+              <Ionicons
+                name={viewMode === 'grid' ? 'grid' : 'grid-outline'}
+                size={15}
+                color={viewMode === 'grid' ? colors.primary : colors.textMuted}
+              />
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     ),
@@ -816,6 +884,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       totalPages,
       searchQuery,
       colors,
+      viewMode,
+      handleChangeViewMode,
       onNavigateToJournal,
     ]
   );
@@ -898,6 +968,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       return (
         <RecipeCard
           recipe={item}
+          viewMode={viewMode}
           onPress={() => onSelectRecipe(item)}
           onQuickRate={(rating) => onQuickRate(item.id, rating)}
           highlightedIngredients={getMatchedIngredientsForRecipe(item)}
@@ -915,6 +986,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       doableRecipesMap,
       preparedAllergens,
       stockItems.length,
+      viewMode,
     ]
   );
 
@@ -968,15 +1040,22 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
         {/* Zone de contenu principale (FlatList + Double bandeau rétractable en superposition native) */}
         <View style={styles.contentArea}>
-          {/* Liste des recettes avec virtualisation haute performance et layout stable */}
+          {/* Liste des recettes avec virtualisation haute performance et layout dynamique (détaillé / compact / grille) */}
           <FlatList
+            key={viewMode === 'grid' ? 'recipes-grid-2' : `recipes-${viewMode}-1`}
             ref={flatListRef}
             data={paginatedRecipes}
-            extraData={themeId}
+            extraData={`${themeId}_${viewMode}`}
             keyExtractor={(item) => item.id}
+            numColumns={viewMode === 'grid' ? 2 : 1}
+            columnWrapperStyle={viewMode === 'grid' ? styles.gridColumnWrapper : undefined}
             ListHeaderComponent={listHeaderElement}
             ListFooterComponent={listFooterElement}
-            contentContainerStyle={[styles.listContent, { paddingTop: FILTER_BAR_HEIGHT + 6 }]}
+            contentContainerStyle={[
+              styles.listContent,
+              viewMode === 'grid' ? styles.listContentGrid : undefined,
+              { paddingTop: FILTER_BAR_HEIGHT + 6 },
+            ]}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
             initialNumToRender={6}
@@ -1663,10 +1742,18 @@ const styles = createDynamicStyles((colors, shadows) => ({
     paddingHorizontal: 16,
     paddingTop: 8,
     paddingBottom: 4,
+    gap: 8,
+  },
+  resultsCountLeft: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
   },
   resultsCountText: {
     fontSize: 12,
-    color: Colors.textMuted,
+    color: colors.textMuted,
     fontWeight: '600',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -1674,11 +1761,40 @@ const styles = createDynamicStyles((colors, shadows) => ({
   smartBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.primaryLight,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
+    backgroundColor: colors.primaryLight,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 8,
     gap: 4,
+  },
+  viewModeSwitcher: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: 10,
+    padding: 2,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    gap: 2,
+  },
+  viewModeBtn: {
+    paddingHorizontal: 7,
+    paddingVertical: 4,
+    borderRadius: 7,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  viewModeBtnActive: {
+    backgroundColor: colors.cardBackground,
+    ...shadows.small,
+  },
+  gridColumnWrapper: {
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  listContentGrid: {
+    paddingBottom: 24,
   },
   smartBadgeText: {
     fontSize: 11,

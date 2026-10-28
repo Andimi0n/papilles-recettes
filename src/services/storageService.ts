@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Recipe } from '../types/recipe';
+import { Recipe, RecipeViewMode } from '../types/recipe';
 import { ShoppingItem, ShoppingAisle } from '../types/shopping';
 import { FridgeItem } from '../types/fridge';
 import {
@@ -42,6 +42,7 @@ const USER_ALLERGENS_KEY = '@papilles_user_allergens_v1';
 const ALLERGEN_FILTER_RECIPES_KEY = '@papilles_filter_allergens_recipes_v1';
 const ALLERGEN_EXCLUDE_AI_KEY = '@papilles_exclude_allergens_ai_v1';
 const PLANNER_SETTINGS_KEY = '@papilles_planner_settings_v1';
+const RECIPE_VIEW_MODE_KEY = '@papilles_recipe_view_mode_v1';
 
 // File d'attente séquentielle (mutex async) pour sérialiser les cascades de vocabulaire et éviter tout conflit AsyncStorage
 let cascadeMutexQueue: Promise<any> = Promise.resolve();
@@ -1788,6 +1789,32 @@ export const StorageService = {
       await AsyncStorage.setItem(THEME_MODE_KEY, mode);
     } catch (e) {
       console.error('Erreur sauvegarde thème:', e);
+    }
+  },
+
+  /**
+   * Récupère le mode d'affichage des recettes sauvegardé ('detailed' | 'compact' | 'grid')
+   */
+  async getRecipeViewMode(): Promise<RecipeViewMode> {
+    try {
+      const mode = await AsyncStorage.getItem(RECIPE_VIEW_MODE_KEY);
+      if (mode === 'compact' || mode === 'detailed' || mode === 'grid') {
+        return mode as RecipeViewMode;
+      }
+      return 'detailed';
+    } catch {
+      return 'detailed';
+    }
+  },
+
+  /**
+   * Sauvegarde le mode d'affichage des recettes
+   */
+  async saveRecipeViewMode(mode: RecipeViewMode): Promise<void> {
+    try {
+      await AsyncStorage.setItem(RECIPE_VIEW_MODE_KEY, mode);
+    } catch (e) {
+      console.error('Erreur sauvegarde mode de vue recettes:', e);
     }
   },
 
