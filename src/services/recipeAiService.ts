@@ -634,7 +634,7 @@ export interface PimpRecipeResponse {
   chefNote: string;
 }
 
-const RECIPE_PIMP_SCHEMA = {
+export const RECIPE_PIMP_SCHEMA = {
   type: 'OBJECT',
   properties: {
     suggestions: {
@@ -665,7 +665,7 @@ export interface SosRecipeResponse {
   chefNote: string;
 }
 
-const RECIPE_SOS_SCHEMA = {
+export const RECIPE_SOS_SCHEMA = {
   type: 'OBJECT',
   properties: {
     suggestions: {
@@ -1458,6 +1458,7 @@ ${sanitizedIngredients.join(', ')}
       servings?: number;
       onlyVegetarian?: boolean;
       excludedAllergens?: string[];
+      additionalPreferences?: string;
       onModelAttempt?: (modelName: string, isFallback: boolean) => void;
     },
     providedKey?: string
@@ -1487,10 +1488,15 @@ ${sanitizedIngredients.join(', ')}
         ? `ALLERGÈNES STRICTEMENT INTERDITS :\n${options.excludedAllergens.map((a) => `- ${escapeUntrustedDelimiters(a, 'untrusted_allergen')}`).join('\n')}\n`
         : '';
 
+    const additionalPreferencesSection =
+      options?.additionalPreferences && options.additionalPreferences.trim().length > 0
+        ? `INSTRUCTIONS LIBRES DE L'UTILISATEUR :\n- ${escapeUntrustedDelimiters(options.additionalPreferences.trim().slice(0, 150), 'untrusted_preferences')}\n`
+        : '';
+
     const systemPrompt = `Tu es un chef cuisinier pédagogue et concis.
 Rédige la fiche recette pour "${escapeUntrustedDelimiters(idea.title, 'idea')}" (${targetType}, ${servings} personnes).
 Concept : "${escapeUntrustedDelimiters(idea.description, 'idea')}"
-${isVege ? '- 100% végétarien obligatoire (sans viande ni poisson).\n' : ''}${allergenExclusionSection}Règles :
+${isVege ? '- 100% végétarien obligatoire (sans viande ni poisson).\n' : ''}${allergenExclusionSection}${additionalPreferencesSection}Règles :
 - Étapes : étapes directes, claires et numérotées (1 à 2 phrases par étape, droit au but). Adapte librement le nombre d'étapes à la recette (ex: 4 à 10 étapes selon le besoin, sans limite arbitraire).
 - Ingrédients : forme canonique brute au singulier pour 'name' (ex: 'Carotte', 'Poulet'). Contenants dans 'unit' et découpe dans 'steps'. Précise le type d'huile (ex: 'Huile d\'olive', 'Huile de tournesol') plutôt que 'Huile' générique.
 - 'isPantryStaple': true pour sel, poivre, huiles courantes, eau, vinaigre, épices basiques. False pour ingrédients frais.
@@ -1552,9 +1558,10 @@ ${sanitizedIngredients.join(', ')}
       throw new Error('Votre frigo est vide. Ajoutez des ingrédients pour pimper vos recettes !');
     }
 
-    const systemPrompt = `Tu es un chef cuisinier créatif. L'utilisateur veut "pimper" (améliorer) une recette existante en utilisant uniquement les ingrédients qu'il a actuellement dans son stock.
+    const systemPrompt = `Tu es un chef cuisinier créatif et sobre. L'utilisateur veut "pimper" (améliorer) une recette existante en utilisant uniquement les ingrédients qu'il a actuellement dans son stock.
 Analyse la recette et le stock, et propose jusqu'à 3 suggestions d'ingrédients pertinents à ajouter ou substituer pour rendre le plat plus savoureux, original ou équilibré.
-Tu dois renvoyer un JSON strict respectant la structure demandée. "ingredientName" doit être le nom canonique simple de l'ingrédient issu du stock.`;
+Tu dois renvoyer un JSON strict respectant la structure demandée. "ingredientName" doit être le nom canonique simple de l'ingrédient issu du stock.
+Reste concis, sobre et factuel (pas d'adjectifs pompeux).`;
 
     const sanitizedStock = stockItems.slice(0, 50).map((i) =>
       escapeUntrustedDelimiters(i, 'untrusted_stock')
@@ -1629,7 +1636,8 @@ Propose des améliorations à partir de ce stock.`;
 L'utilisateur n'a pas l'ingrédient "${escapeUntrustedDelimiters(missingIngredient, 'untrusted_ingredient')}" pour sa recette.
 Analyse son stock disponible et propose jusqu'à 3 suggestions d'ingrédients pertinents de substitution pour le remplacer.
 Tu dois renvoyer un JSON strict respectant la structure demandée. "substituteName" doit être le nom canonique simple de l'ingrédient issu du stock.
-Si aucun ingrédient ne convient parfaitement, propose l'alternative la moins mauvaise ou une idée d'adaptation.`;
+Si aucun ingrédient ne convient parfaitement, propose l'alternative la moins mauvaise ou une idée d'adaptation.
+Reste concis, sobre et factuel.`;
 
     const sanitizedStock = stockItems.slice(0, 50).map((i) =>
       escapeUntrustedDelimiters(i, 'untrusted_stock')

@@ -13,6 +13,7 @@ import {
   Platform,
   Vibration,
   KeyboardAvoidingView,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -902,6 +903,7 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
             linkedRecipesMap={linkedRecipesMap}
             onOpenLinkedRecipe={onOpenLinkedRecipe}
             onSosRequest={handleSosReplacement}
+            sosLoadingIngredient={isSosLoading ? sosTargetIngredient : null}
           />
 
           {/* Steps Section */}
@@ -929,8 +931,10 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
             onPress={handleOpenShoppingModal}
             activeOpacity={0.85}
             disabled={isAddingToShoppingList}
+            accessibilityLabel="Ajouter aux courses"
           >
             <Ionicons name="cart" size={18} color={colors.primary} />
+            <Text style={styles.floatingCartBtnText}>Courses</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -938,9 +942,16 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
             onPress={handlePimpRecipe}
             activeOpacity={0.85}
             disabled={isPimping}
+            accessibilityLabel="Pimper la recette avec mon stock"
           >
-            <Ionicons name="sparkles" size={18} color={colors.primary} />
-            <Text style={styles.floatingPimpBtnText}>Pimper</Text>
+            {isPimping ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : (
+              <>
+                <Ionicons name="sparkles" size={18} color={colors.primary} />
+                <Text style={styles.floatingPimpBtnText}>Pimper</Text>
+              </>
+            )}
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -1328,6 +1339,13 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
             <View style={styles.pimpModalCard}>
               <View style={styles.pimpModalHeader}>
                 <Text style={styles.pimpModalTitle}>SOS : {sosTargetIngredient}</Text>
+                <TouchableOpacity
+                  onPress={() => setIsSosModalVisible(false)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  accessibilityLabel="Fermer la fenêtre SOS"
+                >
+                  <Ionicons name="close" size={22} color={colors.textSecondary} />
+                </TouchableOpacity>
               </View>
 
               <ScrollView showsVerticalScrollIndicator={false}>
@@ -1348,7 +1366,7 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
                 style={styles.pimpModalCloseBtn}
                 onPress={() => setIsSosModalVisible(false)}
               >
-                <Text style={styles.pimpModalCloseBtnText}>C'est noté, merci Chef !</Text>
+                <Text style={styles.pimpModalCloseBtnText}>C&apos;est noté, merci Chef !</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -1365,6 +1383,13 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
             <View style={styles.pimpModalCard}>
               <View style={styles.pimpModalHeader}>
                 <Text style={styles.pimpModalTitle}>Pimper ma recette 🌶️</Text>
+                <TouchableOpacity
+                  onPress={() => setIsPimpModalVisible(false)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  accessibilityLabel="Fermer la fenêtre Pimper"
+                >
+                  <Ionicons name="close" size={22} color={colors.textSecondary} />
+                </TouchableOpacity>
               </View>
 
               <ScrollView showsVerticalScrollIndicator={false}>
@@ -1385,7 +1410,7 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
                 style={styles.pimpModalCloseBtn}
                 onPress={() => setIsPimpModalVisible(false)}
               >
-                <Text style={styles.pimpModalCloseBtnText}>C'est noté, merci Chef !</Text>
+                <Text style={styles.pimpModalCloseBtnText}>C&apos;est noté, merci Chef !</Text>
               </TouchableOpacity>
             </View>
           </View>

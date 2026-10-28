@@ -326,6 +326,7 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
           servings,
           onlyVegetarian: isVegetarian,
           excludedAllergens,
+          additionalPreferences: additionalPreferences.trim(),
           onModelAttempt: (model, isFallback) => {
             setActiveModelInfo({ model, isFallback });
           },

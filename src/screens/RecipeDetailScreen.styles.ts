@@ -956,7 +956,7 @@ export const styles = createDynamicStyles((colors, shadows) => ({
     ...shadows.card,
   },
   floatingCartBtn: {
-    flex: 1.25,
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1369,7 +1369,7 @@ export const styles = createDynamicStyles((colors, shadows) => ({
 
   // Modal Pimper ma recette
   pimpModalCard: {
-    width: '90%',
+    width: '100%',
     maxHeight: '80%',
     backgroundColor: colors.cardBackground,
     borderRadius: 20,

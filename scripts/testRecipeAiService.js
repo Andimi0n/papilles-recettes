@@ -52,6 +52,9 @@ async function main() {
     isModelDegraded,
     prioritizeHealthyModels,
     CHEF_MOODS,
+    RECIPE_PIMP_SCHEMA,
+    RECIPE_SOS_SCHEMA,
+    RecipeAiService,
   } = require(path.join(tmpDir, 'services/recipeAiService.js'));
 
   console.log('🧪 Lancement des tests de recipeAiService...');
@@ -241,6 +244,53 @@ async function main() {
   assert.ok(CHEF_MOODS.some((m) => m.id === 'asiatique'), 'Doit inclure le mood asiatique');
   assert.ok(CHEF_MOODS.some((m) => m.id === 'francais'), 'Doit inclure le mood francais');
   console.log('✓ Catalogue des styles & moods du Chef validé');
+
+  // =========================================================================
+  // TEST SECTION 8 : Pimp & SOS Features Integrity
+  // =========================================================================
+  console.log('\n--- Test 8 : Pimp & SOS Features ---');
+  assert.strictEqual(RECIPE_PIMP_SCHEMA.type, 'OBJECT');
+  assert.ok(RECIPE_PIMP_SCHEMA.required.includes('suggestions'));
+  assert.ok(RECIPE_PIMP_SCHEMA.required.includes('chefNote'));
+  assert.strictEqual(RECIPE_SOS_SCHEMA.type, 'OBJECT');
+  assert.ok(RECIPE_SOS_SCHEMA.required.includes('suggestions'));
+  assert.ok(RECIPE_SOS_SCHEMA.required.includes('chefNote'));
+  console.log('✓ Schémas JSON RECIPE_PIMP_SCHEMA et RECIPE_SOS_SCHEMA conformes');
+
+  // Validation rejets stock vide
+  await assert.rejects(
+    async () => {
+      await RecipeAiService.pimpRecipeWithStock({ title: 'Test', ingredients: [] }, [], 'fake-key');
+    },
+    /Votre frigo est vide/,
+    'pimpRecipeWithStock doit rejeter si stock vide'
+  );
+
+  await assert.rejects(
+    async () => {
+      await RecipeAiService.suggestSubstituteWithStock('Poivre', [], 'fake-key');
+    },
+    /Votre frigo est vide/,
+    'suggestSubstituteWithStock doit rejeter si stock vide'
+  );
+
+  // Validation rejets clé API manquante
+  await assert.rejects(
+    async () => {
+      await RecipeAiService.pimpRecipeWithStock({ title: 'Test', ingredients: [] }, ['Carotte'], '');
+    },
+    /Clé API Gemini non configurée/,
+    'pimpRecipeWithStock doit rejeter si clé API absente'
+  );
+
+  await assert.rejects(
+    async () => {
+      await RecipeAiService.suggestSubstituteWithStock('Poivre', ['Carotte'], '');
+    },
+    /Clé API Gemini non configurée/,
+    'suggestSubstituteWithStock doit rejeter si clé API absente'
+  );
+  console.log('✓ Validation défensive et gestion des erreurs pimpRecipeWithStock & suggestSubstituteWithStock validées');
 
   console.log('\n🎉 TOUS LES TESTS DE RECIPE AI SERVICE ONT RÉUSSI (0 ERREUR) !');
 

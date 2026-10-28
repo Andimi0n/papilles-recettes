@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { Recipe, Ingredient } from '../../types/recipe';
@@ -39,10 +39,11 @@ export interface RecipeIngredientsListProps {
   ingredientModes: Record<string, ConversionMode>;
   onCycleIngredientUnit: (ing: Ingredient) => void;
   allergenIngredientIdsSet: Set<string>;
-  linkedPreparations: Array<{ ingredient: Ingredient; linkedRecipe: Recipe }>;
+  linkedPreparations: { ingredient: Ingredient; linkedRecipe: Recipe }[];
   linkedRecipesMap: Map<string, Recipe>;
   onOpenLinkedRecipe?: (recipeId: string) => void;
   onSosRequest?: (ingredientName: string) => void;
+  sosLoadingIngredient?: string | null;
 }
 
 export const RecipeIngredientsList: React.FC<RecipeIngredientsListProps> = ({
@@ -63,6 +64,7 @@ export const RecipeIngredientsList: React.FC<RecipeIngredientsListProps> = ({
   linkedRecipesMap,
   onOpenLinkedRecipe,
   onSosRequest,
+  sosLoadingIngredient,
 }) => {
   const { colors } = useTheme();
 
@@ -211,10 +213,18 @@ export const RecipeIngredientsList: React.FC<RecipeIngredientsListProps> = ({
                           onSosRequest(ing.name);
                         }}
                         activeOpacity={0.7}
+                        disabled={!!sosLoadingIngredient}
                         hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                        accessibilityLabel={`Demander un remplacement SOS pour ${ing.name}`}
                       >
-                        <Ionicons name="help-buoy" size={12} color="#FFF" />
-                        <Text style={styles.sosInlineBtnText}>SOS</Text>
+                        {sosLoadingIngredient === ing.name ? (
+                          <ActivityIndicator size="small" color="#FFF" style={{ transform: [{ scale: 0.65 }], marginHorizontal: -2 }} />
+                        ) : (
+                          <>
+                            <Ionicons name="help-buoy" size={12} color="#FFF" />
+                            <Text style={styles.sosInlineBtnText}>SOS</Text>
+                          </>
+                        )}
                       </TouchableOpacity>
                     )}
                   </View>
