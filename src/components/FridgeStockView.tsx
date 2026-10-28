@@ -16,7 +16,6 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { FridgeItem } from '../types/fridge';
 import { ShoppingAisle, ShoppingItem } from '../types/shopping';
-import { Recipe } from '../types/recipe';
 import { CanonicalIngredient } from '../types/vocabulary';
 import { StorageService } from '../services/storageService';
 import { createDynamicStyles } from '../theme/colors';
@@ -33,12 +32,9 @@ import {
 import { QualifyIngredientModal } from './QualifyIngredientModal';
 
 interface FridgeStockViewProps {
-  recipes: Recipe[];
-  onSelectRecipe?: (recipe: Recipe) => void;
   onNavigateToShopping?: () => void;
   onItemCopiedToShopping?: (name: string) => void;
   onFridgeCountChange?: (count: number) => void;
-  onNavigateToDoableRecipes?: () => void;
   searchQuery?: string;
   isSearchOpen?: boolean;
   onToggleSearch?: (open: boolean) => void;
@@ -192,12 +188,9 @@ const SwipeableStockItemRow: React.FC<SwipeableStockItemRowProps> = ({
 };
 
 export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
-  recipes,
-  onSelectRecipe,
   onNavigateToShopping,
   onItemCopiedToShopping,
   onFridgeCountChange,
-  onNavigateToDoableRecipes,
   searchQuery = '',
   isSearchOpen = false,
   onToggleSearch,
@@ -754,7 +747,7 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
         </View>
       </View>
 
-      {/* Contenu défilant : Bannière recettes + Liste des aliments */}
+      {/* Contenu défilant : Liste des aliments */}
       <View style={styles.bodyWrapper}>
         {totalCount === 0 ? (
           <ScrollView
@@ -1580,136 +1573,6 @@ const styles = createDynamicStyles((colors, shadows) => ({
   swipeForeground: {
     backgroundColor: colors.cardBackground,
     width: '100%',
-  },
-  modalContent: {
-    flex: 1,
-    backgroundColor: colors.background,
-    paddingTop: 16,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.borderLight,
-  },
-  modalTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: colors.textPrimary,
-  },
-  modalSubtitle: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  modalCloseIconBtn: {
-    padding: 4,
-  },
-  emptyDoableContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 50,
-    paddingHorizontal: 24,
-  },
-  emptyDoableTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    marginTop: 12,
-    marginBottom: 6,
-    textAlign: 'center',
-  },
-  emptyDoableSubtitle: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 18,
-  },
-  matchingListScroll: {
-    flex: 1,
-    paddingHorizontal: 16,
-    paddingTop: 12,
-  },
-  matchingRecipeCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.cardBackground,
-    borderRadius: 14,
-    padding: 10,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-    ...shadows.small,
-  },
-  matchingRecipeImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 10,
-    backgroundColor: colors.surfaceAlt,
-  },
-  matchingRecipePlaceholder: {
-    width: 60,
-    height: 60,
-    borderRadius: 10,
-    backgroundColor: colors.primaryLight,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  matchingRecipeInfo: {
-    flex: 1,
-    marginLeft: 12,
-    marginRight: 8,
-  },
-  matchingRecipeTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    marginBottom: 2,
-  },
-  matchingMetaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginBottom: 4,
-  },
-  matchingMetaText: {
-    fontSize: 11,
-    color: colors.textSecondary,
-  },
-  matchedChipsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    flexWrap: 'wrap',
-  },
-  matchedChipsLabel: {
-    fontSize: 10,
-    color: colors.secondary,
-    fontWeight: '700',
-  },
-  matchedChip: {
-    backgroundColor: colors.secondary + '20',
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    borderRadius: 6,
-  },
-  matchedChipText: {
-    fontSize: 10,
-    color: colors.secondary,
-    fontWeight: '600',
-  },
-  matchedExtraCount: {
-    fontSize: 10,
-    color: colors.textSecondary,
-    fontWeight: '600',
   },
   modalOverlay: {
     flex: 1,

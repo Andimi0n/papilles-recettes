@@ -351,8 +351,6 @@ function AppContent() {
               onNavigateToRecipes={navigateToHome}
               onNavigateToPlanner={navigateToPlanner}
               initialTab={shoppingInitialTab}
-              recipes={recipes}
-              onSelectRecipe={(r) => navigateToDetail(r, 'shopping')}
               isActive={currentScreen === 'shopping'}
             />
           </View>

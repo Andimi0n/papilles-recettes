@@ -20,7 +20,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { ShoppingItem, ShoppingAisle } from '../types/shopping';
 import { FridgeItem } from '../types/fridge';
 import { CanonicalIngredient } from '../types/vocabulary';
-import { Recipe } from '../types/recipe';
 import { StorageService } from '../services/storageService';
 import { VocabularyService } from '../services/vocabularyService';
 import {
@@ -44,8 +43,6 @@ interface ShoppingListScreenProps {
   onNavigateToRecipes?: (options?: { onlyDoable?: boolean }) => void;
   onNavigateToPlanner?: () => void;
   initialTab?: 'shopping' | 'fridge';
-  recipes?: Recipe[];
-  onSelectRecipe?: (recipe: Recipe) => void;
   isActive?: boolean;
 }
 
@@ -53,8 +50,6 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
   onNavigateToRecipes,
   onNavigateToPlanner,
   initialTab = 'shopping',
-  recipes = [],
-  onSelectRecipe,
   isActive = true,
 }) => {
   const { isDark, colors } = useTheme();
@@ -738,18 +733,11 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
       {/* VUE 1 : DANS MON FRIGO */}
       {activeTab === 'fridge' ? (
         <FridgeStockView
-          recipes={recipes}
-          onSelectRecipe={onSelectRecipe}
           onNavigateToShopping={() => setActiveTab('shopping')}
           onItemCopiedToShopping={() => {
             loadShoppingList();
           }}
           onFridgeCountChange={handleFridgeCountChange}
-          onNavigateToDoableRecipes={() => {
-            if (onNavigateToRecipes) {
-              onNavigateToRecipes({ onlyDoable: true });
-            }
-          }}
           searchQuery={searchQuery}
           isSearchOpen={isSearchActive}
           onToggleSearch={(open) => setIsSearchActive(open)}
