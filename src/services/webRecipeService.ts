@@ -70,6 +70,7 @@ export async function fetchWebPage(url: string, timeoutMs = 15000): Promise<stri
 
   try {
     const res = await fetch(validUrl.toString(), {
+      redirect: 'error', // Interdit le suivi automatique de redirections vers des tiers ou des hôtes internes (anti-SSRF - SEC-02)
       headers: {
         'User-Agent':
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
