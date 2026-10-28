@@ -12,7 +12,16 @@ import {
 } from '../types/planner';
 import { MealLogEntry, MealLogMap, DayMealLogSummary } from '../types/mealLog';
 import { UserAllergenItem, AllergenFamily } from '../types/vocabulary';
-import { INITIAL_RECIPES } from '../data/initialRecipes';
+
+/**
+ * Chargement dynamique et paresseux (lazy) des recettes par défaut.
+ * Évite d'embarquer et parser les 400 Ko de INITIAL_RECIPES au démarrage
+ * lorsque l'utilisateur a déjà des recettes dans son stockage local.
+ */
+async function getInitialRecipes(): Promise<Recipe[]> {
+  const { INITIAL_RECIPES } = await import('../data/initialRecipes');
+  return INITIAL_RECIPES;
+}
 import {
   generateUniqueId,
   getLocalDateString,
@@ -199,23 +208,25 @@ export const StorageService = {
     try {
       const data = await AsyncStorage.getItem(RECIPES_STORAGE_KEY);
       if (!data) {
-        // Premier lancement absolu de l'application : initialisation avec les recettes cultes
-        await AsyncStorage.setItem(RECIPES_STORAGE_KEY, JSON.stringify(INITIAL_RECIPES));
+        // Premier lancement absolu de l'application : initialisation avec les recettes cultes (chargement lazy)
+        const initial = await getInitialRecipes();
+        await AsyncStorage.setItem(RECIPES_STORAGE_KEY, JSON.stringify(initial));
         await AsyncStorage.setItem(SCHEMA_VERSION_KEY, CURRENT_SCHEMA_VERSION);
-        memoryCache.recipes = INITIAL_RECIPES;
-        return INITIAL_RECIPES;
+        memoryCache.recipes = initial;
+        return initial;
       }
 
       let parsed: any[];
       try {
         parsed = JSON.parse(data);
         if (!Array.isArray(parsed)) {
-          parsed = INITIAL_RECIPES;
+          parsed = await getInitialRecipes();
         }
       } catch {
         console.error('Données locales corrompues, retour aux recettes initiales');
-        memoryCache.recipes = INITIAL_RECIPES;
-        return INITIAL_RECIPES;
+        const initial = await getInitialRecipes();
+        memoryCache.recipes = initial;
+        return initial;
       }
 
       // Vérification de la version du schéma pour migration sûre en place
@@ -235,7 +246,8 @@ export const StorageService = {
       return result;
     } catch (error) {
       console.error('Erreur lors du chargement des recettes:', error);
-      return INITIAL_RECIPES;
+      const initial = await getInitialRecipes().catch(() => []);
+      return initial;
     }
   },
 
@@ -412,13 +424,15 @@ export const StorageService = {
    */
   async resetToDemoRecipes(): Promise<Recipe[]> {
     try {
-      memoryCache.recipes = INITIAL_RECIPES;
-      await AsyncStorage.setItem(RECIPES_STORAGE_KEY, JSON.stringify(INITIAL_RECIPES));
+      const initial = await getInitialRecipes();
+      memoryCache.recipes = initial;
+      await AsyncStorage.setItem(RECIPES_STORAGE_KEY, JSON.stringify(initial));
       await AsyncStorage.setItem(SCHEMA_VERSION_KEY, CURRENT_SCHEMA_VERSION);
-      return INITIAL_RECIPES;
+      return initial;
     } catch (error) {
       console.error('Erreur réinitialisation recettes:', error);
-      return INITIAL_RECIPES;
+      const initial = await getInitialRecipes().catch(() => []);
+      return initial;
     }
   },
 
