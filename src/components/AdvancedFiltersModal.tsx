@@ -20,7 +20,7 @@ import {
   searchRecipes,
 } from '../utils/searchEngine';
 import { useTheme } from '../theme/ThemeContext';
-import { createDynamicStyles, ThemeColors } from '../theme/colors';
+import { createDynamicStyles } from '../theme/colors';
 import { StarRating } from './StarRating';
 import { UnifiedIngredientInput } from './UnifiedIngredientInput';
 
@@ -68,9 +68,6 @@ const formatMinutes = (minutes: number): string => {
   return `${h} h ${m.toString().padStart(2, '0')}`;
 };
 
-type TimeColorKey = 'express' | 'daily' | 'comfort' | 'slow';
-type DifficultyColorKey = 'easy' | 'medium' | 'hard';
-
 interface TimePreset {
   id: string;
   label: string;
@@ -78,7 +75,6 @@ interface TimePreset {
   icon: keyof typeof Ionicons.glyphMap;
   targetMinutes: number;
   mode: TimeFilterMode;
-  colorKey: TimeColorKey;
 }
 
 const TIME_PRESETS: TimePreset[] = [
@@ -86,37 +82,33 @@ const TIME_PRESETS: TimePreset[] = [
     id: 'express',
     label: 'Express',
     badge: '≤ 20 min',
-    icon: 'flash',
+    icon: 'flash-outline',
     targetMinutes: 20,
     mode: 'max',
-    colorKey: 'express',
   },
   {
     id: 'daily',
     label: 'Quotidien',
     badge: '≤ 40 min',
-    icon: 'time',
+    icon: 'time-outline',
     targetMinutes: 40,
     mode: 'max',
-    colorKey: 'daily',
   },
   {
     id: 'comfort',
     label: 'Confort',
     badge: '≤ 1 h',
-    icon: 'restaurant',
+    icon: 'restaurant-outline',
     targetMinutes: 60,
     mode: 'max',
-    colorKey: 'comfort',
   },
   {
     id: 'slow',
     label: 'Mijoté',
     badge: '≥ 1 h',
-    icon: 'flame',
+    icon: 'flame-outline',
     targetMinutes: 60,
     mode: 'min',
-    colorKey: 'slow',
   },
 ];
 
@@ -131,11 +123,10 @@ const DIFFICULTY_CONFIG: {
   level: Difficulty;
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
-  colorKey: DifficultyColorKey;
 }[] = [
-  { level: 'Facile', label: 'Facile', icon: 'leaf', colorKey: 'easy' },
-  { level: 'Moyen', label: 'Moyen', icon: 'flame', colorKey: 'medium' },
-  { level: 'Difficile', label: 'Difficile', icon: 'trophy', colorKey: 'hard' },
+  { level: 'Facile', label: 'Facile', icon: 'leaf-outline' },
+  { level: 'Moyen', label: 'Moyen', icon: 'flame-outline' },
+  { level: 'Difficile', label: 'Difficile', icon: 'trophy-outline' },
 ];
 
 const POPULAR_INGREDIENT_SUGGESTIONS = [
@@ -152,82 +143,6 @@ const POPULAR_INGREDIENT_SUGGESTIONS = [
   'Oignon',
   'Champignon',
 ];
-
-const getFilterSemanticColors = (isDark: boolean, colors: ThemeColors) => ({
-  stock: {
-    bg: isDark ? '#142C1D' : '#F0FDF4',
-    border: isDark ? '#235338' : '#86EFAC',
-    text: isDark ? '#4ADE80' : '#15803D',
-    icon: isDark ? '#4ADE80' : '#16A34A',
-    activeBg: colors.primary,
-    activeBorder: colors.primary,
-  },
-  vege: {
-    bg: isDark ? '#10291F' : '#ECFDF5',
-    border: isDark ? '#194E38' : '#A7F3D0',
-    text: isDark ? '#34D399' : '#059669',
-    icon: isDark ? '#34D399' : '#10B981',
-    activeBg: isDark ? '#059669' : '#16A34A',
-    activeBorder: isDark ? '#059669' : '#16A34A',
-  },
-  time: {
-    express: {
-      bg: isDark ? '#2E1B10' : '#FFF7ED',
-      border: isDark ? '#5C3119' : '#FED7AA',
-      text: isDark ? '#FB923C' : '#EA580C',
-      badgeBg: isDark ? '#432313' : '#FFEDD5',
-      activeBg: '#EA580C',
-    },
-    daily: {
-      bg: isDark ? '#10281F' : '#ECFDF5',
-      border: isDark ? '#1B4F3B' : '#A7F3D0',
-      text: isDark ? '#34D399' : '#059669',
-      badgeBg: isDark ? '#143D2D' : '#D1FAE5',
-      activeBg: '#059669',
-    },
-    comfort: {
-      bg: isDark ? '#102330' : '#F0F9FF',
-      border: isDark ? '#1E4260' : '#BAE6FD',
-      text: isDark ? '#38BDF8' : '#0284C7',
-      badgeBg: isDark ? '#15334C' : '#E0F2FE',
-      activeBg: '#0284C7',
-    },
-    slow: {
-      bg: isDark ? '#2B1530' : '#FAF5FF',
-      border: isDark ? '#52215A' : '#E9D5FF',
-      text: isDark ? '#C084FC' : '#9333EA',
-      badgeBg: isDark ? '#3F1948' : '#F3E8FF',
-      activeBg: '#9333EA',
-    },
-  },
-  rating: {
-    boxBg: isDark ? '#261F10' : '#FFFBEB',
-    boxBorder: isDark ? '#4A3814' : '#FDE68A',
-    badgeBg: isDark ? '#3E2E10' : '#FEF3C7',
-    starColor: '#F59E0B',
-    activeBg: '#F59E0B',
-  },
-  difficulty: {
-    easy: {
-      bg: isDark ? '#122A1B' : '#F0FDF4',
-      border: isDark ? '#1C4E2F' : '#BBF7D0',
-      text: isDark ? '#4ADE80' : '#16A34A',
-      activeBg: '#16A34A',
-    },
-    medium: {
-      bg: isDark ? '#2A200E' : '#FFFBEB',
-      border: isDark ? '#4A3A16' : '#FDE68A',
-      text: isDark ? '#FBBF24' : '#D97706',
-      activeBg: '#D97706',
-    },
-    hard: {
-      bg: isDark ? '#2C1417' : '#FEF2F2',
-      border: isDark ? '#4D1F24' : '#FECACA',
-      text: isDark ? '#F87171' : '#DC2626',
-      activeBg: '#DC2626',
-    },
-  },
-});
 
 export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
   visible,
@@ -250,8 +165,7 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
   selectedCategories,
   searchQuery,
 }) => {
-  const { isDark, colors } = useTheme();
-  const themeColors = useMemo(() => getFilterSemanticColors(isDark, colors), [isDark, colors]);
+  const { colors } = useTheme();
 
   // Initialisation sécurisée du temps cible avec prise en compte de maxTotalTime en secours
   const initialTime = targetTotalTime !== undefined ? targetTotalTime : (maxTotalTime !== undefined ? maxTotalTime : null);
@@ -499,7 +413,7 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
             <View style={styles.headerRow}>
               <View style={styles.headerTitleWrap}>
                 <View style={styles.headerIconCircle}>
-                  <Ionicons name="options" size={17} color={colors.primary} />
+                  <Ionicons name="options-outline" size={18} color={colors.primary} />
                 </View>
                 <View>
                   <Text style={styles.headerTitle}>Filtres avancés</Text>
@@ -529,8 +443,8 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
               {/* SECTION 1 : EN UN COUP D'ŒIL (FILTRES RAPIDES EN STOCK & VÉGÉ) */}
               <View style={styles.sectionCard}>
                 <View style={styles.sectionHeader}>
-                  <View style={[styles.sectionIconBadge, { backgroundColor: isDark ? '#1F3A2B' : '#DCFCE7' }]}>
-                    <Ionicons name="sparkles" size={13} color={isDark ? '#4ADE80' : '#16A34A'} />
+                  <View style={styles.sectionIconBadge}>
+                    <Ionicons name="sparkles-outline" size={13} color={colors.primary} />
                   </View>
                   <Text style={styles.sectionTitle}>En un coup d’œil</Text>
                 </View>
@@ -540,10 +454,7 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
                   <TouchableOpacity
                     style={[
                       styles.quickFilterCard,
-                      {
-                        backgroundColor: draftOnlyDoableWithStock ? themeColors.stock.activeBg : themeColors.stock.bg,
-                        borderColor: draftOnlyDoableWithStock ? themeColors.stock.activeBorder : themeColors.stock.border,
-                      },
+                      draftOnlyDoableWithStock && styles.quickFilterCardActive,
                     ]}
                     onPress={() => setDraftOnlyDoableWithStock((prev) => !prev)}
                     activeOpacity={0.75}
@@ -554,19 +465,13 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
                     <View
                       style={[
                         styles.quickFilterIconWrap,
-                        {
-                          backgroundColor: draftOnlyDoableWithStock
-                            ? 'rgba(255,255,255,0.2)'
-                            : isDark
-                            ? '#1A3826'
-                            : '#DCFCE7',
-                        },
+                        draftOnlyDoableWithStock && styles.quickFilterIconWrapActive,
                       ]}
                     >
                       <Ionicons
                         name={draftOnlyDoableWithStock ? 'restaurant' : 'restaurant-outline'}
                         size={15}
-                        color={draftOnlyDoableWithStock ? '#FFFFFF' : themeColors.stock.icon}
+                        color={draftOnlyDoableWithStock ? '#FFFFFF' : colors.primary}
                       />
                     </View>
                     <View style={styles.quickFilterTextWrap}>
@@ -582,11 +487,7 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
                       <Text
                         style={[
                           styles.quickFilterSubtitle,
-                          {
-                            color: draftOnlyDoableWithStock
-                              ? 'rgba(255,255,255,0.85)'
-                              : themeColors.stock.text,
-                          },
+                          draftOnlyDoableWithStock && styles.quickFilterSubtitleActive,
                         ]}
                         numberOfLines={1}
                       >
@@ -598,7 +499,7 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
                     <Ionicons
                       name={draftOnlyDoableWithStock ? 'checkmark-circle' : 'ellipse-outline'}
                       size={18}
-                      color={draftOnlyDoableWithStock ? '#FFFFFF' : themeColors.stock.border}
+                      color={draftOnlyDoableWithStock ? '#FFFFFF' : colors.border}
                     />
                   </TouchableOpacity>
 
@@ -606,10 +507,7 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
                   <TouchableOpacity
                     style={[
                       styles.quickFilterCard,
-                      {
-                        backgroundColor: draftOnlyVegetarian ? themeColors.vege.activeBg : themeColors.vege.bg,
-                        borderColor: draftOnlyVegetarian ? themeColors.vege.activeBorder : themeColors.vege.border,
-                      },
+                      draftOnlyVegetarian && styles.quickFilterCardActive,
                     ]}
                     onPress={() => setDraftOnlyVegetarian((prev) => !prev)}
                     activeOpacity={0.75}
@@ -620,19 +518,13 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
                     <View
                       style={[
                         styles.quickFilterIconWrap,
-                        {
-                          backgroundColor: draftOnlyVegetarian
-                            ? 'rgba(255,255,255,0.2)'
-                            : isDark
-                            ? '#16382B'
-                            : '#D1FAE5',
-                        },
+                        draftOnlyVegetarian && styles.quickFilterIconWrapActive,
                       ]}
                     >
                       <Ionicons
                         name={draftOnlyVegetarian ? 'leaf' : 'leaf-outline'}
                         size={15}
-                        color={draftOnlyVegetarian ? '#FFFFFF' : themeColors.vege.icon}
+                        color={draftOnlyVegetarian ? '#FFFFFF' : colors.primary}
                       />
                     </View>
                     <View style={styles.quickFilterTextWrap}>
@@ -648,11 +540,7 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
                       <Text
                         style={[
                           styles.quickFilterSubtitle,
-                          {
-                            color: draftOnlyVegetarian
-                              ? 'rgba(255,255,255,0.85)'
-                              : themeColors.vege.text,
-                          },
+                          draftOnlyVegetarian && styles.quickFilterSubtitleActive,
                         ]}
                         numberOfLines={1}
                       >
@@ -662,7 +550,7 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
                     <Ionicons
                       name={draftOnlyVegetarian ? 'checkmark-circle' : 'ellipse-outline'}
                       size={18}
-                      color={draftOnlyVegetarian ? '#FFFFFF' : themeColors.vege.border}
+                      color={draftOnlyVegetarian ? '#FFFFFF' : colors.border}
                     />
                   </TouchableOpacity>
                 </View>
@@ -671,11 +559,11 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
               {/* SECTION 2 : TEMPS TOTAL (4 PRESETS UNIVERSELS + RACCOURCIS FINS) */}
               <View style={styles.sectionCard}>
                 <View style={styles.sectionHeader}>
-                  <View style={[styles.sectionIconBadge, { backgroundColor: isDark ? '#3A2715' : '#FFEDD5' }]}>
+                  <View style={styles.sectionIconBadge}>
                     <Ionicons
-                      name={draftTimeFilterMode === 'min' ? 'flame' : 'time'}
+                      name={draftTimeFilterMode === 'min' ? 'flame-outline' : 'time-outline'}
                       size={13}
-                      color={isDark ? '#FB923C' : '#EA580C'}
+                      color={colors.primary}
                     />
                   </View>
                   <Text style={styles.sectionTitle}>Temps total</Text>
@@ -683,7 +571,7 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
                     <TouchableOpacity
                       onPress={handleClearTime}
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      style={[styles.countBadge, { backgroundColor: colors.primary }]}
+                      style={styles.countBadge}
                     >
                       <Text style={styles.countBadgeText}>
                         {draftTimeFilterMode === 'min' ? '≥ ' : '≤ '}
@@ -702,17 +590,13 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
                     const isSelected =
                       draftTargetTotalTime === preset.targetMinutes &&
                       draftTimeFilterMode === preset.mode;
-                    const pColor = themeColors.time[preset.colorKey];
 
                     return (
                       <TouchableOpacity
                         key={preset.id}
                         style={[
                           styles.timeCard,
-                          {
-                            backgroundColor: isSelected ? pColor.activeBg : pColor.bg,
-                            borderColor: isSelected ? pColor.activeBg : pColor.border,
-                          },
+                          isSelected && styles.timeCardActive,
                         ]}
                         onPress={() => handleToggleTimePreset(preset.targetMinutes, preset.mode)}
                         activeOpacity={0.75}
@@ -720,12 +604,12 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
                         <Ionicons
                           name={preset.icon}
                           size={15}
-                          color={isSelected ? '#FFFFFF' : pColor.text}
+                          color={isSelected ? '#FFFFFF' : colors.primary}
                         />
                         <Text
                           style={[
                             styles.timeCardTitle,
-                            isSelected ? styles.textWhite : { color: colors.textPrimary },
+                            isSelected && styles.textWhite,
                           ]}
                           numberOfLines={1}
                         >
@@ -734,17 +618,13 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
                         <View
                           style={[
                             styles.timeCardBadge,
-                            {
-                              backgroundColor: isSelected
-                                ? 'rgba(255, 255, 255, 0.25)'
-                                : pColor.badgeBg,
-                            },
+                            isSelected && styles.timeCardBadgeActive,
                           ]}
                         >
                           <Text
                             style={[
                               styles.timeCardBadgeText,
-                              isSelected ? styles.textWhite : { color: pColor.text },
+                              isSelected && styles.textWhite,
                             ]}
                           >
                             {preset.badge}
@@ -767,10 +647,7 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
                         key={fine.label}
                         style={[
                           styles.timeFineChip,
-                          isSelected && {
-                            backgroundColor: colors.primary,
-                            borderColor: colors.primary,
-                          },
+                          isSelected && styles.timeFineChipActive,
                         ]}
                         onPress={() => handleToggleTimePreset(fine.value, fine.mode)}
                         activeOpacity={0.75}
@@ -803,7 +680,7 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
               {/* SECTION 3 : NOTE MINIMALE */}
               <View style={styles.sectionCard}>
                 <View style={styles.sectionHeader}>
-                  <View style={[styles.sectionIconBadge, { backgroundColor: isDark ? '#3D2C10' : '#FEF3C7' }]}>
+                  <View style={[styles.sectionIconBadge, { backgroundColor: colors.amberLight }]}>
                     <Ionicons name="star" size={13} color={colors.amber} />
                   </View>
                   <Text style={styles.sectionTitle}>Note minimale</Text>
@@ -818,15 +695,7 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
                   )}
                 </View>
 
-                <View
-                  style={[
-                    styles.ratingCompactBox,
-                    {
-                      backgroundColor: themeColors.rating.boxBg,
-                      borderColor: themeColors.rating.boxBorder,
-                    },
-                  ]}
-                >
+                <View style={styles.ratingCompactBox}>
                   <View style={styles.ratingStarsRow}>
                     <StarRating
                       rating={draftMinRating}
@@ -836,7 +705,7 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
                       showClear={false}
                       showScore={false}
                     />
-                    <Text style={[styles.ratingScorePill, { color: colors.amber }]}>
+                    <Text style={styles.ratingScorePill}>
                       {draftMinRating > 0
                         ? `≥ ${draftMinRating % 1 === 0 ? draftMinRating : draftMinRating.toFixed(1)} étoiles`
                         : 'Toutes les notes'}
@@ -858,10 +727,7 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
                           key={preset.label}
                           style={[
                             styles.ratingPresetChip,
-                            isSelected && {
-                              backgroundColor: colors.amber,
-                              borderColor: colors.amber,
-                            },
+                            isSelected && styles.ratingPresetChipActive,
                           ]}
                           onPress={() => setDraftMinRating(isSelected && preset.value > 0 ? 0 : preset.value)}
                           activeOpacity={0.75}
@@ -892,12 +758,12 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
               {/* SECTION 4 : NIVEAU DE DIFFICULTÉ */}
               <View style={styles.sectionCard}>
                 <View style={styles.sectionHeader}>
-                  <View style={[styles.sectionIconBadge, { backgroundColor: isDark ? '#2D1F38' : '#F3E8FF' }]}>
-                    <Ionicons name="bar-chart" size={13} color={isDark ? '#C084FC' : '#9333EA'} />
+                  <View style={styles.sectionIconBadge}>
+                    <Ionicons name="bar-chart-outline" size={13} color={colors.primary} />
                   </View>
                   <Text style={styles.sectionTitle}>Niveau de difficulté</Text>
                   {draftDifficulties.length > 0 ? (
-                    <View style={[styles.countBadge, { backgroundColor: colors.primary }]}>
+                    <View style={styles.countBadge}>
                       <Text style={styles.countBadgeText}>{draftDifficulties[0]}</Text>
                     </View>
                   ) : (
@@ -908,16 +774,12 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
                 <View style={styles.difficultyRow}>
                   {DIFFICULTY_CONFIG.map((item) => {
                     const isSelected = draftDifficulties.includes(item.level);
-                    const dColor = themeColors.difficulty[item.colorKey];
                     return (
                       <TouchableOpacity
                         key={item.level}
                         style={[
                           styles.difficultyCard,
-                          {
-                            backgroundColor: isSelected ? dColor.activeBg : dColor.bg,
-                            borderColor: isSelected ? dColor.activeBg : dColor.border,
-                          },
+                          isSelected && styles.difficultyCardActive,
                         ]}
                         onPress={() => handleToggleDifficulty(item.level)}
                         activeOpacity={0.75}
@@ -925,12 +787,12 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
                         <Ionicons
                           name={item.icon}
                           size={15}
-                          color={isSelected ? '#FFFFFF' : dColor.text}
+                          color={isSelected ? '#FFFFFF' : colors.textSecondary}
                         />
                         <Text
                           style={[
                             styles.difficultyCardText,
-                            isSelected ? styles.textWhite : { color: colors.textPrimary },
+                            isSelected && styles.textWhite,
                           ]}
                         >
                           {item.label}
@@ -947,12 +809,12 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
               {/* SECTION 5 : INGRÉDIENTS SOUHAITÉS */}
               <View style={styles.sectionCard}>
                 <View style={styles.sectionHeader}>
-                  <View style={[styles.sectionIconBadge, { backgroundColor: isDark ? '#163327' : '#DCFCE7' }]}>
-                    <Ionicons name="nutrition" size={13} color={colors.secondary} />
+                  <View style={styles.sectionIconBadge}>
+                    <Ionicons name="nutrition-outline" size={13} color={colors.primary} />
                   </View>
                   <Text style={styles.sectionTitle}>Ingrédients souhaités</Text>
                   {draftIngredients.length > 0 && (
-                    <View style={[styles.countBadge, { backgroundColor: colors.secondary }]}>
+                    <View style={styles.countBadge}>
                       <Text style={styles.countBadgeText}>{draftIngredients.length}</Text>
                     </View>
                   )}
@@ -1055,18 +917,12 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
                       {POPULAR_INGREDIENT_SUGGESTIONS.map((item) => (
                         <TouchableOpacity
                           key={item}
-                          style={[
-                            styles.popularChip,
-                            {
-                              backgroundColor: isDark ? '#1C2822' : '#F2F8F4',
-                              borderColor: isDark ? '#2D3E35' : '#D1E6DA',
-                            },
-                          ]}
+                          style={styles.popularChip}
                           onPress={() => handleAddIngredient(item)}
                           activeOpacity={0.7}
                         >
                           <Ionicons name="add" size={13} color={colors.primary} style={{ marginRight: 2 }} />
-                          <Text style={[styles.popularChipText, { color: isDark ? '#A7F3D0' : '#155E3D' }]}>{item}</Text>
+                          <Text style={styles.popularChipText}>{item}</Text>
                         </TouchableOpacity>
                       ))}
                     </View>
@@ -1077,12 +933,12 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
               {/* SECTION 6 : TAGS & ÉTIQUETTES */}
               <View style={styles.sectionCard}>
                 <View style={styles.sectionHeader}>
-                  <View style={[styles.sectionIconBadge, { backgroundColor: isDark ? '#1C3138' : '#E0F2FE' }]}>
-                    <Ionicons name="pricetag" size={13} color={isDark ? '#38BDF8' : '#0284C7'} />
+                  <View style={styles.sectionIconBadge}>
+                    <Ionicons name="pricetag-outline" size={13} color={colors.primary} />
                   </View>
                   <Text style={styles.sectionTitle}>Tags & Étiquettes</Text>
                   {draftTags.length > 0 ? (
-                    <View style={[styles.countBadge, { backgroundColor: colors.primary }]}>
+                    <View style={styles.countBadge}>
                       <Text style={styles.countBadgeText}>{draftTags.length}</Text>
                     </View>
                   ) : (
@@ -1112,10 +968,7 @@ export const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
                             key={tag}
                             style={[
                               styles.tagFilterChip,
-                              isSelected && {
-                                backgroundColor: colors.primary,
-                                borderColor: colors.primary,
-                              },
+                              isSelected && styles.tagFilterChipActive,
                             ]}
                             onPress={() => handleToggleTag(tag)}
                             activeOpacity={0.75}
@@ -1331,6 +1184,7 @@ const styles = createDynamicStyles((colors, shadows) => ({
     width: 24,
     height: 24,
     borderRadius: 7,
+    backgroundColor: colors.primaryLight,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1375,16 +1229,26 @@ const styles = createDynamicStyles((colors, shadows) => ({
     borderRadius: 12,
     paddingVertical: 8,
     paddingHorizontal: 10,
+    backgroundColor: colors.cardBackground,
     borderWidth: 1.5,
+    borderColor: colors.border,
     gap: 8,
     height: 52,
+  },
+  quickFilterCardActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   quickFilterIconWrap: {
     width: 28,
     height: 28,
     borderRadius: 8,
+    backgroundColor: colors.surfaceAlt,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  quickFilterIconWrapActive: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
   },
   quickFilterTextWrap: {
     flex: 1,
@@ -1398,7 +1262,11 @@ const styles = createDynamicStyles((colors, shadows) => ({
   quickFilterSubtitle: {
     fontSize: 10.5,
     fontWeight: '600',
+    color: colors.textSecondary,
     marginTop: 1,
+  },
+  quickFilterSubtitleActive: {
+    color: 'rgba(255, 255, 255, 0.85)',
   },
 
   /* Section 2 : Presets Temps Universels */
@@ -1413,24 +1281,36 @@ const styles = createDynamicStyles((colors, shadows) => ({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    backgroundColor: colors.cardBackground,
     borderRadius: 12,
     paddingHorizontal: 10,
     paddingVertical: 8,
     borderWidth: 1.5,
+    borderColor: colors.border,
     height: 44,
   },
+  timeCardActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
   timeCardBadge: {
+    backgroundColor: colors.surfaceAlt,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,
   },
+  timeCardBadgeActive: {
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+  },
   timeCardBadgeText: {
     fontSize: 10,
     fontWeight: '700',
+    color: colors.textSecondary,
   },
   timeCardTitle: {
     fontSize: 12.5,
     fontWeight: '700',
+    color: colors.textPrimary,
     flex: 1,
     marginLeft: 6,
     marginRight: 4,
@@ -1448,6 +1328,10 @@ const styles = createDynamicStyles((colors, shadows) => ({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: colors.border,
+  },
+  timeFineChipActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   timeFineChipText: {
     fontSize: 11.5,
@@ -1474,9 +1358,11 @@ const styles = createDynamicStyles((colors, shadows) => ({
 
   /* Section 3 : Note minimale */
   ratingCompactBox: {
+    backgroundColor: colors.cardBackground,
     borderRadius: 12,
     padding: 10,
     borderWidth: 1,
+    borderColor: colors.border,
     gap: 8,
   },
   ratingStarsRow: {
@@ -1487,6 +1373,7 @@ const styles = createDynamicStyles((colors, shadows) => ({
   ratingScorePill: {
     fontSize: 12,
     fontWeight: '700',
+    color: colors.amber,
   },
   ratingPresetsRow: {
     flexDirection: 'row',
@@ -1499,14 +1386,18 @@ const styles = createDynamicStyles((colors, shadows) => ({
     paddingVertical: 5,
     paddingHorizontal: 9,
     borderRadius: 8,
-    backgroundColor: colors.cardBackground,
+    backgroundColor: colors.background,
     borderWidth: 1,
     borderColor: colors.border,
+  },
+  ratingPresetChipActive: {
+    backgroundColor: colors.amber,
+    borderColor: colors.amber,
   },
   ratingPresetChipText: {
     fontSize: 11.5,
     fontWeight: '600',
-    color: colors.textPrimary,
+    color: colors.textSecondary,
   },
 
   /* Section 4 : Difficulté */
@@ -1523,10 +1414,17 @@ const styles = createDynamicStyles((colors, shadows) => ({
     height: 40,
     borderRadius: 10,
     borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: colors.cardBackground,
+  },
+  difficultyCardActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   difficultyCardText: {
     fontSize: 12.5,
     fontWeight: '700',
+    color: colors.textPrimary,
   },
 
   /* Section 5 : Ingrédients */
@@ -1585,7 +1483,7 @@ const styles = createDynamicStyles((colors, shadows) => ({
     borderRadius: 8,
   },
   matchModeBtnActive: {
-    backgroundColor: colors.secondary,
+    backgroundColor: colors.primary,
   },
   matchModeBtnText: {
     fontSize: 11.5,
@@ -1616,11 +1514,14 @@ const styles = createDynamicStyles((colors, shadows) => ({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 10,
+    backgroundColor: colors.cardBackground,
     borderWidth: 1,
+    borderColor: colors.border,
   },
   popularChipText: {
     fontSize: 11.5,
     fontWeight: '600',
+    color: colors.textPrimary,
   },
 
   /* Section 6 : Tags */
@@ -1653,6 +1554,10 @@ const styles = createDynamicStyles((colors, shadows) => ({
     backgroundColor: colors.cardBackground,
     borderWidth: 1.5,
     borderColor: colors.border,
+  },
+  tagFilterChipActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   tagFilterChipText: {
     fontSize: 12,
