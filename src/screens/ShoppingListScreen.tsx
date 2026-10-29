@@ -641,12 +641,16 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.deleteItemBtn}
+              style={[
+                styles.deleteItemBtn,
+                item.isChecked && styles.deleteItemBtnChecked,
+              ]}
               onPress={() => handleDeleteItem(item.id)}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              activeOpacity={0.6}
               accessibilityLabel="Supprimer de la liste"
             >
-              <Ionicons name="close" size={18} color={colors.textMuted} />
+              <Ionicons name="close" size={13} color={colors.textMuted} />
             </TouchableOpacity>
           </View>
         </SwipeableShoppingItemRow>

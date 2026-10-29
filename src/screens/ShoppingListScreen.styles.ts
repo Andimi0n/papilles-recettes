@@ -433,6 +433,7 @@ export const styles = createDynamicStyles((colors, shadows) => ({
   },
   itemTextContainer: {
     flex: 1,
+    marginRight: 8,
   },
   itemName: {
     fontSize: 15,
@@ -549,7 +550,16 @@ export const styles = createDynamicStyles((colors, shadows) => ({
     alignItems: 'center',
   },
   deleteItemBtn: {
-    padding: 6,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.035)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    opacity: 0.55,
+  },
+  deleteItemBtnChecked: {
+    opacity: 0.28,
   },
   completedSection: {
     marginTop: 10,

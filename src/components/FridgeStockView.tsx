@@ -530,10 +530,11 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
           <TouchableOpacity
             style={styles.deleteItemBtn}
             onPress={() => handleDeleteItem(item.id)}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            activeOpacity={0.6}
             accessibilityLabel="Supprimer de mes étagères"
           >
-            <Ionicons name="close" size={18} color={colors.textMuted} />
+            <Ionicons name="close" size={13} color={colors.textMuted} />
           </TouchableOpacity>
         </View>
       </SwipeableStockItemRow>
@@ -1154,7 +1155,7 @@ const styles = createDynamicStyles((colors, shadows) => ({
     alignItems: 'center',
     paddingVertical: 10,
     paddingLeft: 18,
-    paddingRight: 12,
+    paddingRight: 14,
   },
   itemRowBorder: {
     borderBottomWidth: 1,
@@ -1167,6 +1168,7 @@ const styles = createDynamicStyles((colors, shadows) => ({
   },
   itemTextContainer: {
     flex: 1,
+    marginRight: 8,
   },
   itemName: {
     fontSize: 15,
@@ -1174,7 +1176,13 @@ const styles = createDynamicStyles((colors, shadows) => ({
     color: colors.textPrimary,
   },
   deleteItemBtn: {
-    padding: 6,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.035)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    opacity: 0.55,
   },
 
   snackbarContainer: {
