@@ -278,6 +278,21 @@ export const styles = createDynamicStyles((colors, shadows) => ({
   allergenSubSection: {
     marginBottom: 16,
   },
+  allergenDisclaimerBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    marginBottom: 14,
+    gap: 8,
+  },
+  allergenDisclaimerText: {
+    flex: 1,
+    fontSize: 11.5,
+    lineHeight: 16,
+  },
   allergenSettingsBox: {
     borderRadius: 14,
     borderWidth: 1,

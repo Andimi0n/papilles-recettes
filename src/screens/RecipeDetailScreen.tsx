@@ -889,6 +889,9 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
                   </View>
                 ))}
               </View>
+              <Text style={[styles.allergenDisclaimerText, { color: colors.textSecondary }]}>
+                Aide indicative : ne remplace pas la vérification des étiquettes des produits réels.
+              </Text>
             </View>
           )}
 

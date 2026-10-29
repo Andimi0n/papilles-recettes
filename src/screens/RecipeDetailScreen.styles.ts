@@ -450,6 +450,12 @@ export const styles = createDynamicStyles((colors, shadows) => ({
     fontWeight: '700',
     color: '#FFFFFF',
   },
+  allergenDisclaimerText: {
+    fontSize: 11,
+    lineHeight: 15,
+    marginTop: 8,
+    fontStyle: 'italic',
+  },
   ingredientRow: {
     flexDirection: 'row',
     alignItems: 'center',

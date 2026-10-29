@@ -850,6 +850,14 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
               Définissez vos allergies alimentaires par ingrédient ou sélectionnez directement les 14 familles majeures (norme INCO).
             </Text>
 
+            {/* Avertissement médico-légal sécurité sanitaire */}
+            <View style={[styles.allergenDisclaimerBox, { backgroundColor: colors.surfaceAlt, borderColor: colors.borderLight }]}>
+              <Ionicons name="medical-outline" size={16} color={colors.textSecondary} style={{ marginRight: 2, marginTop: 1 }} />
+              <Text style={[styles.allergenDisclaimerText, { color: colors.textSecondary }]}>
+                Aide informative : la détection automatique des 14 allergènes majeurs (règlement INCO) est un outil d&apos;assistance au quotidien. Elle ne remplace pas la vigilance médicale ni la vérification de la liste des ingrédients sur l&apos;emballage des produits réels.
+              </Text>
+            </View>
+
             {/* Préférences & Règles de filtrage automatiques */}
             <View style={[styles.allergenSettingsBox, { backgroundColor: colors.surfaceAlt, borderColor: colors.borderLight }]}>
               {/* Option 1 : Filtrer les recettes par défaut */}
