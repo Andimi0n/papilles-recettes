@@ -48,6 +48,108 @@ interface ShoppingListScreenProps {
   isActive?: boolean;
 }
 
+interface ShoppingListItemRowProps {
+  item: ShoppingItem;
+  isFirst: boolean;
+  isLast: boolean;
+  onToggle: (id: string) => void;
+  onDelete: (id: string) => void;
+  onMoveToShelves: (item: ShoppingItem) => void;
+  onLongPress: (item: ShoppingItem) => void;
+  secondaryColor: string;
+  borderColor: string;
+  textMutedColor: string;
+}
+
+const ShoppingListItemRow = React.memo<ShoppingListItemRowProps>(
+  ({
+    item,
+    isFirst,
+    isLast,
+    onToggle,
+    onDelete,
+    onMoveToShelves,
+    onLongPress,
+    secondaryColor,
+    borderColor,
+    textMutedColor,
+  }) => {
+    const handleMove = useCallback(() => onMoveToShelves(item), [onMoveToShelves, item]);
+    const handleEdit = useCallback(() => onLongPress(item), [onLongPress, item]);
+    const handleToggle = useCallback(() => onToggle(item.id), [onToggle, item.id]);
+    const handleDelete = useCallback(() => onDelete(item.id), [onDelete, item.id]);
+
+    return (
+      <SwipeableShoppingItemRow
+        isFirst={isFirst}
+        isLast={isLast}
+        onMoveToShelves={handleMove}
+        onLongPress={handleEdit}
+      >
+        <View style={[styles.itemRow, !isLast && styles.itemRowBorder]}>
+          <TouchableOpacity
+            style={styles.checkboxBtn}
+            onPress={handleToggle}
+            activeOpacity={0.7}
+          >
+            <Ionicons
+              name={item.isChecked ? 'checkmark-circle' : 'ellipse-outline'}
+              size={23}
+              color={item.isChecked ? secondaryColor : borderColor}
+            />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.itemTextContainer}
+            onPress={handleToggle}
+            onLongPress={handleEdit}
+            delayLongPress={350}
+            activeOpacity={0.7}
+          >
+            <Text
+              style={[
+                styles.itemName,
+                item.isChecked && styles.itemNameChecked,
+              ]}
+              numberOfLines={2}
+            >
+              {item.name}
+            </Text>
+
+            {(item.quantity || item.unit) && (
+              <View style={styles.itemMetaRow}>
+                <Text
+                  style={[
+                    styles.itemQuantity,
+                    item.isChecked && styles.itemQuantityChecked,
+                  ]}
+                >
+                  {formatQuantityWithUnit(item.quantity, item.unit)}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.deleteItemBtn,
+              item.isChecked && styles.deleteItemBtnChecked,
+            ]}
+            onPress={handleDelete}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            activeOpacity={0.6}
+            accessibilityLabel="Supprimer de la liste"
+          >
+            <Ionicons name="close" size={13} color={textMutedColor} />
+          </TouchableOpacity>
+        </View>
+      </SwipeableShoppingItemRow>
+    );
+  }
+);
+
+ShoppingListItemRow.displayName = 'ShoppingListItemRow';
+
 export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
   onNavigateToRecipes,
   onNavigateToPlanner,
@@ -64,6 +166,11 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
   );
 
   const [items, setItems] = useState<ShoppingItem[]>(() => StorageService.getSyncShoppingList() || []);
+  const itemsRef = useRef(items);
+  useEffect(() => {
+    itemsRef.current = items;
+  }, [items]);
+
   const [fridgeItems, setFridgeItems] = useState<FridgeItem[]>(() => StorageService.getSyncFridgeItems() || []);
   const [fridgeCount, setFridgeCount] = useState<number>(() => (StorageService.getSyncFridgeItems() || []).length);
 
@@ -366,8 +473,9 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
     previousFridgeItems?: FridgeItem[],
     targetItem?: ShoppingItem
   ) => {
-    const itemIndex = items.findIndex((it) => it.id === id);
-    const itemToDelete = targetItem || (itemIndex !== -1 ? items[itemIndex] : undefined);
+    const currentItems = itemsRef.current;
+    const itemIndex = currentItems.findIndex((it) => it.id === id);
+    const itemToDelete = targetItem || (itemIndex !== -1 ? currentItems[itemIndex] : undefined);
 
     setItems((prev) => prev.filter((it) => it.id !== id));
 
@@ -417,7 +525,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
       pendingDeletedItemRef.current = null;
       snackbarTimerRef.current = null;
     }, 4000);
-  }, [items, snackbarAnim, snackbarFadeAnim]);
+  }, [snackbarAnim, snackbarFadeAnim]);
 
   const handleUndoDelete = async () => {
     if (snackbarTimerRef.current) {
@@ -668,78 +776,21 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
       const isLast = index === section.data.length - 1;
 
       return (
-        <SwipeableShoppingItemRow
+        <ShoppingListItemRow
+          item={item}
           isFirst={isFirst}
           isLast={isLast}
-          onMoveToShelves={() => handleMoveToShelves(item)}
-          onLongPress={() => handleOpenEditModal(item)}
-        >
-          <View
-            style={[
-              styles.itemRow,
-              !isLast && styles.itemRowBorder,
-            ]}
-          >
-            <TouchableOpacity
-              style={styles.checkboxBtn}
-              onPress={() => handleToggleItem(item.id)}
-              activeOpacity={0.7}
-            >
-              <Ionicons
-                name={item.isChecked ? 'checkmark-circle' : 'ellipse-outline'}
-                size={23}
-                color={item.isChecked ? colors.secondary : colors.border}
-              />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.itemTextContainer}
-              onPress={() => handleToggleItem(item.id)}
-              onLongPress={() => handleOpenEditModal(item)}
-              delayLongPress={350}
-              activeOpacity={0.7}
-            >
-              <Text
-                style={[
-                  styles.itemName,
-                  item.isChecked && styles.itemNameChecked,
-                ]}
-                numberOfLines={2}
-              >
-                {item.name}
-              </Text>
-
-              {(item.quantity || item.unit) && (
-                <View style={styles.itemMetaRow}>
-                  <Text
-                    style={[
-                      styles.itemQuantity,
-                      item.isChecked && styles.itemQuantityChecked,
-                    ]}
-                  >
-                    {formatQuantityWithUnit(item.quantity, item.unit)}
-                  </Text>
-                </View>
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.deleteItemBtn,
-                item.isChecked && styles.deleteItemBtnChecked,
-              ]}
-              onPress={() => handleDeleteItem(item.id)}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              activeOpacity={0.6}
-              accessibilityLabel="Supprimer de la liste"
-            >
-              <Ionicons name="close" size={13} color={colors.textMuted} />
-            </TouchableOpacity>
-          </View>
-        </SwipeableShoppingItemRow>
+          onToggle={handleToggleItem}
+          onDelete={handleDeleteItem}
+          onMoveToShelves={handleMoveToShelves}
+          onLongPress={handleOpenEditModal}
+          secondaryColor={colors.secondary}
+          borderColor={colors.border}
+          textMutedColor={colors.textMuted}
+        />
       );
     },
-    [colors, handleMoveToShelves, handleOpenEditModal, handleToggleItem, handleDeleteItem]
+    [handleToggleItem, handleDeleteItem, handleMoveToShelves, handleOpenEditModal, colors.secondary, colors.border, colors.textMuted]
   );
 
   // Swipe tactile fluide et continu (type Pager / Launcher Android)
@@ -1336,14 +1387,16 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
 
 
       {/* Mode Course en magasin (ultra-épuré, zoomé avec checklist & lien étagères) */}
-      <InStoreShoppingModal
-        visible={isInStoreModeVisible}
-        items={items}
-        fridgeItems={fridgeItems}
-        onClose={() => setIsInStoreModeVisible(false)}
-        onItemsChange={(updated) => setItems(updated)}
-        onStockUpdated={(newCount) => setFridgeCount(newCount)}
-      />
+      {isInStoreModeVisible && (
+        <InStoreShoppingModal
+          visible={isInStoreModeVisible}
+          items={items}
+          fridgeItems={fridgeItems}
+          onClose={() => setIsInStoreModeVisible(false)}
+          onItemsChange={(updated) => setItems(updated)}
+          onStockUpdated={(newCount) => setFridgeCount(newCount)}
+        />
+      )}
 
       {/* Modal dédiée de regroupement des formats de partage */}
       <Modal
@@ -1512,15 +1565,17 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
       )}
 
         {/* Modal d'édition d'article (appui long) */}
-        <EditShoppingItemModal
-          visible={isEditModalVisible}
-          item={editingItem}
-          onClose={() => {
-            setIsEditModalVisible(false);
-            setEditingItem(null);
-          }}
-          onSave={handleSaveEditedItem}
-        />
+        {isEditModalVisible && (
+          <EditShoppingItemModal
+            visible={isEditModalVisible}
+            item={editingItem}
+            onClose={() => {
+              setIsEditModalVisible(false);
+              setEditingItem(null);
+            }}
+            onSave={handleSaveEditedItem}
+          />
+        )}
       </View>
     </SafeAreaView>
   );

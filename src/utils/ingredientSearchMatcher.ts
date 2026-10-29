@@ -10,6 +10,35 @@ export interface SearchableIngredientItem {
   notes?: string;
 }
 
+export interface PreparedSearchQuery {
+  trimmed: string;
+  normQuery: string;
+  querySingular: string;
+  tokens: string[];
+}
+
+/**
+ * Pré-normalise et découpe une requête de recherche une seule fois en amont
+ * pour éviter de répéter les opérations de chaînes sur chaque élément de la liste.
+ */
+export function prepareSearchQuery(query: string): PreparedSearchQuery | null {
+  const trimmed = query.trim();
+  if (!trimmed) return null;
+
+  const normQuery = normalizeString(trimmed);
+  if (!normQuery) return null;
+
+  const querySingular = normQuery.endsWith('s') ? normQuery.slice(0, -1) : normQuery;
+  const tokens = normQuery.split(/\s+/).filter((t) => t.length >= 2);
+
+  return {
+    trimmed,
+    normQuery,
+    querySingular,
+    tokens,
+  };
+}
+
 /**
  * Détermine si un ingrédient ou article de courses correspond à une requête de recherche utilisateur.
  * Prend en charge :
@@ -17,34 +46,30 @@ export interface SearchableIngredientItem {
  * - Correspondance par sous-chaîne
  * - Singulier / pluriel automatique (ex: "tomate" matche "tomates")
  * - Multi-mots / tokens découpés (ex: "sauce soja" ou "soja sauce" matche "Sauce soja")
- * - Résolution via le canonicalId et les alias du lexique canonique Papilles
+ * - Résolution O(1) via le canonicalId et les alias du lexique canonique Papilles
  * - Correspondance par nom de rayon officiel (ex: "fruits" ou "épicerie")
  * - Correspondance par titre de recette d'origine (courses)
  */
 export function matchIngredientSearch(
   item: SearchableIngredientItem,
-  query: string
+  query: string | PreparedSearchQuery
 ): boolean {
-  const trimmed = query.trim();
-  if (!trimmed) return true;
+  const prepared = typeof query === 'string' ? prepareSearchQuery(query) : query;
+  if (!prepared) return true;
 
-  const normQuery = normalizeString(trimmed);
-  if (!normQuery) return true;
-
+  const { normQuery, querySingular, tokens } = prepared;
   const normName = normalizeString(item.name);
 
   // 1. Match direct du nom complet
   if (normName.includes(normQuery)) return true;
 
   // 2. Gestion singulier / pluriel sur le terme complet
-  const querySingular = normQuery.endsWith('s') ? normQuery.slice(0, -1) : normQuery;
   const nameSingular = normName.endsWith('s') ? normName.slice(0, -1) : normName;
 
   if (querySingular.length >= 3 && normName.includes(querySingular)) return true;
   if (nameSingular.length >= 3 && nameSingular.includes(normQuery)) return true;
 
   // 3. Multi-tokens (si la requête comporte plusieurs mots, ex: "creme liquide")
-  const tokens = normQuery.split(/\s+/).filter((t) => t.length >= 2);
   if (tokens.length > 1) {
     const allTokensMatch = tokens.every((token) => {
       const tokSingular = token.endsWith('s') ? token.slice(0, -1) : token;
@@ -53,7 +78,7 @@ export function matchIngredientSearch(
     if (allTokensMatch) return true;
   }
 
-  // 4. Résolution par CanonicalId & Alias du lexique canonique
+  // 4. Résolution O(1) par CanonicalId & Alias du lexique canonique (Lookup direct sans boucle linéaire)
   if (item.canonicalId) {
     const normCanonical = normalizeString(item.canonicalId);
     if (
@@ -64,8 +89,8 @@ export function matchIngredientSearch(
     }
 
     try {
-      const syncList = VocabularyService.getSyncList();
-      const canonicalIng = syncList.find((c) => c.id === item.canonicalId);
+      const vocabMapById = VocabularyService.getSyncMapById();
+      const canonicalIng = vocabMapById.get(item.canonicalId);
       if (canonicalIng) {
         const normCanonName = normalizeString(canonicalIng.canonicalName);
         if (normCanonName.includes(normQuery) || (querySingular.length >= 3 && normCanonName.includes(querySingular))) {
@@ -109,23 +134,31 @@ export function matchIngredientSearch(
 }
 
 /**
- * Compte le nombre d'éléments correspondant à une requête de recherche.
+ * Compte le nombre d'éléments correspondant à une requête de recherche avec pré-normalisation unique.
  */
 export function countMatchingItems<T extends SearchableIngredientItem>(
   items: T[],
   query: string
 ): number {
-  if (!query || !query.trim()) return 0;
-  return items.filter((item) => matchIngredientSearch(item, query)).length;
+  const prepared = prepareSearchQuery(query);
+  if (!prepared) return 0;
+  let count = 0;
+  for (let i = 0; i < items.length; i++) {
+    if (matchIngredientSearch(items[i], prepared)) {
+      count++;
+    }
+  }
+  return count;
 }
 
 /**
- * Filtre un tableau d'ingrédients ou articles avec la recherche.
+ * Filtre un tableau d'ingrédients ou articles avec la recherche avec pré-normalisation unique.
  */
 export function filterIngredientItems<T extends SearchableIngredientItem>(
   items: T[],
   query: string
 ): T[] {
-  if (!query || !query.trim()) return items;
-  return items.filter((item) => matchIngredientSearch(item, query));
+  const prepared = prepareSearchQuery(query);
+  if (!prepared) return items;
+  return items.filter((item) => matchIngredientSearch(item, prepared));
 }

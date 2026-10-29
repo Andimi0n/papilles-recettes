@@ -18,7 +18,7 @@ interface SwipeableShoppingItemRowProps {
   onLongPress?: () => void;
 }
 
-export const SwipeableShoppingItemRow: React.FC<SwipeableShoppingItemRowProps> = ({
+export const SwipeableShoppingItemRow: React.FC<SwipeableShoppingItemRowProps> = React.memo(({
   children,
   onMoveToShelves,
   isFirst,
@@ -210,7 +210,9 @@ export const SwipeableShoppingItemRow: React.FC<SwipeableShoppingItemRowProps> =
       </Animated.View>
     </View>
   );
-};
+});
+
+SwipeableShoppingItemRow.displayName = 'SwipeableShoppingItemRow';
 
 const styles = createDynamicStyles((colors, shadows) => ({
   swipeRowContainer: {

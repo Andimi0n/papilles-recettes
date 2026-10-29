@@ -40,6 +40,50 @@ interface FridgeStockViewProps {
   isActiveTab?: boolean;
 }
 
+interface StockListItemRowProps {
+  item: FridgeItem;
+  isFirst: boolean;
+  isLast: boolean;
+  indicatorColor: string;
+  onMoveToShopping: (item: FridgeItem) => void;
+  onDelete: (id: string) => void;
+  textMutedColor: string;
+}
+
+const StockListItemRow = React.memo<StockListItemRowProps>(
+  ({ item, isFirst, isLast, indicatorColor, onMoveToShopping, onDelete, textMutedColor }) => {
+    const handleMove = useCallback(() => onMoveToShopping(item), [onMoveToShopping, item]);
+    const handleDelete = useCallback(() => onDelete(item.id), [onDelete, item.id]);
+
+    return (
+      <SwipeableStockItemRow
+        isFirst={isFirst}
+        isLast={isLast}
+        indicatorColor={indicatorColor}
+        onMoveToShopping={handleMove}
+      >
+        <View style={[styles.itemRow, !isLast && styles.itemRowBorder]}>
+          <View style={styles.itemTextContainer}>
+            <Text style={styles.itemName}>{item.name}</Text>
+          </View>
+
+          <TouchableOpacity
+            style={styles.deleteItemBtn}
+            onPress={handleDelete}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            activeOpacity={0.6}
+            accessibilityLabel="Supprimer de mes étagères"
+          >
+            <Ionicons name="close" size={13} color={textMutedColor} />
+          </TouchableOpacity>
+        </View>
+      </SwipeableStockItemRow>
+    );
+  }
+);
+
+StockListItemRow.displayName = 'StockListItemRow';
+
 export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
   onNavigateToShopping,
   onItemCopiedToShopping,
@@ -66,6 +110,11 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
       setItems(initialItems);
     }
   }
+
+  const itemsRef = useRef(items);
+  useEffect(() => {
+    itemsRef.current = items;
+  }, [items]);
 
   const [newItemName, setNewItemName] = useState('');
   const [isQualifyModalVisible, setIsQualifyModalVisible] = useState(false);
@@ -294,8 +343,9 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
     previousShoppingList?: ShoppingItem[],
     targetItem?: FridgeItem
   ) => {
-    const itemIndex = items.findIndex((it) => it.id === id);
-    const itemToDelete = targetItem || (itemIndex !== -1 ? items[itemIndex] : undefined);
+    const currentItems = itemsRef.current;
+    const itemIndex = currentItems.findIndex((it) => it.id === id);
+    const itemToDelete = targetItem || (itemIndex !== -1 ? currentItems[itemIndex] : undefined);
 
     setItems((prev) => {
       const updated = prev.filter((it) => it.id !== id);
@@ -349,7 +399,7 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
       pendingDeletedItemRef.current = null;
       snackbarTimerRef.current = null;
     }, 4000);
-  }, [items, snackbarAnim, snackbarFadeAnim]);
+  }, [snackbarAnim, snackbarFadeAnim]);
 
   const handleUndoDelete = async () => {
     if (snackbarTimerRef.current) {
@@ -456,68 +506,55 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
 
   const keyExtractor = useCallback((item: FridgeItem) => item.id, []);
 
-  const renderSectionHeader = useCallback(({ section: { title, data } }: { section: { title: string; data: FridgeItem[] } }) => {
-    const aisle = title as ShoppingAisle;
-    const cfg = AISLE_CONFIGS[aisle] || AISLE_CONFIGS['Autre'];
-    const isFirstSection = sections[0]?.title === title;
-    return (
-      <View style={[styles.aisleSection, isFirstSection ? styles.aisleSectionFirst : styles.aisleSectionNext]}>
-        <View style={styles.aisleHeaderRow}>
-          <View
-            style={[
-              styles.aisleIconBox,
-              { backgroundColor: isDark ? cfg.color + '26' : cfg.bgColor },
-            ]}
-          >
-            <Ionicons name={cfg.iconName as any} size={15} color={cfg.color} />
-          </View>
-          <Text style={[styles.aisleTitle, { color: cfg.color }]}>{aisle}</Text>
-          <View style={styles.aisleCountBadge}>
-            <Text style={styles.aisleCountText}>{data.length}</Text>
+  const firstSectionTitle = sections[0]?.title;
+  const renderSectionHeader = useCallback(
+    ({ section: { title, data } }: { section: { title: string; data: FridgeItem[] } }) => {
+      const aisle = title as ShoppingAisle;
+      const cfg = AISLE_CONFIGS[aisle] || AISLE_CONFIGS['Autre'];
+      const isFirstSection = firstSectionTitle === title;
+      return (
+        <View style={[styles.aisleSection, isFirstSection ? styles.aisleSectionFirst : styles.aisleSectionNext]}>
+          <View style={styles.aisleHeaderRow}>
+            <View
+              style={[
+                styles.aisleIconBox,
+                { backgroundColor: isDark ? cfg.color + '26' : cfg.bgColor },
+              ]}
+            >
+              <Ionicons name={cfg.iconName as any} size={15} color={cfg.color} />
+            </View>
+            <Text style={[styles.aisleTitle, { color: cfg.color }]}>{aisle}</Text>
+            <View style={styles.aisleCountBadge}>
+              <Text style={styles.aisleCountText}>{data.length}</Text>
+            </View>
           </View>
         </View>
-      </View>
-    );
-  }, [isDark, sections]);
+      );
+    },
+    [isDark, firstSectionTitle]
+  );
 
-  const renderItem = useCallback(({ item, index, section }: { item: FridgeItem; index: number; section: { title: string; data: FridgeItem[] } }) => {
-    const isFirst = index === 0;
-    const isLast = index === section.data.length - 1;
-    const aisle = section.title as ShoppingAisle;
-    const cfg = AISLE_CONFIGS[aisle] || AISLE_CONFIGS['Autre'];
+  const renderItem = useCallback(
+    ({ item, index, section }: { item: FridgeItem; index: number; section: { title: string; data: FridgeItem[] } }) => {
+      const isFirst = index === 0;
+      const isLast = index === section.data.length - 1;
+      const aisle = section.title as ShoppingAisle;
+      const cfg = AISLE_CONFIGS[aisle] || AISLE_CONFIGS['Autre'];
 
-    return (
-      <SwipeableStockItemRow
-        key={item.id}
-        isFirst={isFirst}
-        isLast={isLast}
-        indicatorColor={cfg.color}
-        onMoveToShopping={() => handleEmptyItem(item)}
-      >
-        <View
-          style={[
-            styles.itemRow,
-            !isLast && styles.itemRowBorder,
-          ]}
-        >
-          <View style={styles.itemTextContainer}>
-            <Text style={styles.itemName}>{item.name}</Text>
-          </View>
-
-          {/* Bouton supprimer */}
-          <TouchableOpacity
-            style={styles.deleteItemBtn}
-            onPress={() => handleDeleteItem(item.id)}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            activeOpacity={0.6}
-            accessibilityLabel="Supprimer de mes étagères"
-          >
-            <Ionicons name="close" size={13} color={colors.textMuted} />
-          </TouchableOpacity>
-        </View>
-      </SwipeableStockItemRow>
-    );
-  }, [handleEmptyItem, handleDeleteItem, colors.textMuted]);
+      return (
+        <StockListItemRow
+          item={item}
+          isFirst={isFirst}
+          isLast={isLast}
+          indicatorColor={cfg.color}
+          onMoveToShopping={handleEmptyItem}
+          onDelete={handleDeleteItem}
+          textMutedColor={colors.textMuted}
+        />
+      );
+    },
+    [handleEmptyItem, handleDeleteItem, colors.textMuted]
+  );
 
   return (
     <View style={styles.container}>
@@ -743,30 +780,32 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
 
 
       {/* Modal de qualification stricte (Passeport Ingrédient) */}
-      <QualifyIngredientModal
-        visible={isQualifyModalVisible}
-        rawName={pendingUnrecognizedName}
-        context="stock"
-        onClose={() => setIsQualifyModalVisible(false)}
-        onSelectCanonical={(canonical) => {
-          handleAddItem(canonical.canonicalName, canonical.defaultAisle, canonical.id);
-          setIsQualifyModalVisible(false);
-          setPendingUnrecognizedName('');
-          setNewItemName('');
-        }}
-        onAttachAsSynonym={(canonical) => {
-          handleAddItem(canonical.canonicalName, canonical.defaultAisle, canonical.id);
-          setIsQualifyModalVisible(false);
-          setPendingUnrecognizedName('');
-          setNewItemName('');
-        }}
-        onCreateCanonical={(created) => {
-          handleAddItem(created.canonicalName, created.defaultAisle, created.id);
-          setIsQualifyModalVisible(false);
-          setPendingUnrecognizedName('');
-          setNewItemName('');
-        }}
-      />
+      {isQualifyModalVisible && (
+        <QualifyIngredientModal
+          visible={isQualifyModalVisible}
+          rawName={pendingUnrecognizedName}
+          context="stock"
+          onClose={() => setIsQualifyModalVisible(false)}
+          onSelectCanonical={(canonical) => {
+            handleAddItem(canonical.canonicalName, canonical.defaultAisle, canonical.id);
+            setIsQualifyModalVisible(false);
+            setPendingUnrecognizedName('');
+            setNewItemName('');
+          }}
+          onAttachAsSynonym={(canonical) => {
+            handleAddItem(canonical.canonicalName, canonical.defaultAisle, canonical.id);
+            setIsQualifyModalVisible(false);
+            setPendingUnrecognizedName('');
+            setNewItemName('');
+          }}
+          onCreateCanonical={(created) => {
+            handleAddItem(created.canonicalName, created.defaultAisle, created.id);
+            setIsQualifyModalVisible(false);
+            setPendingUnrecognizedName('');
+            setNewItemName('');
+          }}
+        />
+      )}
 
       {/* Barre Snackbar temporaire (4 secondes) pour annuler une suppression dans Étagères */}
       {deletedSnackbar && (

@@ -30,7 +30,7 @@ interface InStoreShoppingModalProps {
   onStockUpdated?: (updatedFridgeCount: number) => void;
 }
 
-export const InStoreShoppingModal: React.FC<InStoreShoppingModalProps> = ({
+export const InStoreShoppingModal: React.FC<InStoreShoppingModalProps> = React.memo(({
   visible,
   items,
   fridgeItems,
@@ -44,12 +44,14 @@ export const InStoreShoppingModal: React.FC<InStoreShoppingModalProps> = ({
 
   // Indexation du stock pour détection O(1) de présence dans les étagères
   const stockCanonicalSet = useMemo(() => {
+    if (!visible) return new Set<string>();
     return new Set(fridgeItems.map((f) => f.canonicalId).filter(Boolean));
-  }, [fridgeItems]);
+  }, [visible, fridgeItems]);
 
   const stockNameSet = useMemo(() => {
+    if (!visible) return new Set<string>();
     return new Set(fridgeItems.map((f) => normalizeString(f.name)));
-  }, [fridgeItems]);
+  }, [visible, fridgeItems]);
 
   const isItemInStock = (item: ShoppingItem): boolean => {
     if (item.canonicalId && stockCanonicalSet.has(item.canonicalId)) {
@@ -59,21 +61,26 @@ export const InStoreShoppingModal: React.FC<InStoreShoppingModalProps> = ({
   };
 
   const totalCount = items.length;
-  const completedItems = useMemo(() => items.filter((i) => i.isChecked), [items]);
+  const completedItems = useMemo(() => {
+    if (!visible) return [];
+    return items.filter((i) => i.isChecked);
+  }, [visible, items]);
   const completedCount = completedItems.length;
   const remainingCount = totalCount - completedCount;
   const progressPercent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
   // Filtrage selon la bascule "Masquer les pris"
   const visibleItems = useMemo(() => {
+    if (!visible) return [];
     if (hideChecked) {
       return items.filter((i) => !i.isChecked);
     }
     return items;
-  }, [items, hideChecked]);
+  }, [visible, items, hideChecked]);
 
   // Groupement par rayon, trié alphabétiquement par nom
   const sections = useMemo(() => {
+    if (!visible) return [];
     const grouped: Record<ShoppingAisle, ShoppingItem[]> = {
       'Fruits & Légumes': [],
       'Boucherie & Poissonnerie': [],
@@ -97,7 +104,7 @@ export const InStoreShoppingModal: React.FC<InStoreShoppingModalProps> = ({
       title: a,
       data: grouped[a].sort((x, y) => x.name.localeCompare(y.name, 'fr', { sensitivity: 'base' })),
     }));
-  }, [visibleItems]);
+  }, [visible, visibleItems]);
 
   // Cocher / décocher un article
   const handleToggle = async (id: string) => {
@@ -177,6 +184,8 @@ export const InStoreShoppingModal: React.FC<InStoreShoppingModalProps> = ({
       onClose();
     }
   };
+
+  if (!visible) return null;
 
   return (
     <Modal
@@ -394,7 +403,9 @@ export const InStoreShoppingModal: React.FC<InStoreShoppingModalProps> = ({
       </SafeAreaView>
     </Modal>
   );
-};
+});
+
+InStoreShoppingModal.displayName = 'InStoreShoppingModal';
 
 const styles = createDynamicStyles((colors, shadows) => ({
   safeArea: {

@@ -16,7 +16,7 @@ interface SwipeableStockItemRowProps {
   indicatorColor?: string;
 }
 
-export const SwipeableStockItemRow: React.FC<SwipeableStockItemRowProps> = ({
+export const SwipeableStockItemRow: React.FC<SwipeableStockItemRowProps> = React.memo(({
   children,
   onMoveToShopping,
   isFirst,
@@ -201,7 +201,9 @@ export const SwipeableStockItemRow: React.FC<SwipeableStockItemRowProps> = ({
       </Animated.View>
     </View>
   );
-};
+});
+
+SwipeableStockItemRow.displayName = 'SwipeableStockItemRow';
 
 const styles = createDynamicStyles((colors, shadows) => ({
   swipeRowContainer: {
