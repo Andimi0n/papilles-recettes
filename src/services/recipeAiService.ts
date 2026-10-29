@@ -14,7 +14,7 @@ const GEMINI_API_KEY_STORAGE = 'papilles_gemini_api_key';
 const LEGACY_STORAGE_KEY = '@papilles_gemini_api_key';
 
 // Configuration Google Generative Language API
-const GEMINI_MODEL = 'gemini-3.5-flash-lite';
+const GEMINI_MODEL = 'gemini-2.0-flash';
 const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta';
 
 /**
@@ -95,15 +95,15 @@ const RECIPE_IDEAS_SCHEMA = {
 };
 
 export const GEMINI_MODELS_CASCADE = [
-  'gemini-3.5-flash-lite',
-  'gemini-3.8-flash',
-  'gemini-3.6-flash',
+  'gemini-2.0-flash',
+  'gemini-1.5-flash',
+  'gemini-1.5-flash-8b',
 ];
 
 export const FAST_GEMINI_MODELS_CASCADE = [
-  'gemini-3.5-flash-lite',
-  'gemini-3.8-flash',
-  'gemini-3.6-flash',
+  'gemini-1.5-flash-8b',
+  'gemini-1.5-flash',
+  'gemini-2.0-flash',
 ];
 
 export interface ChefMoodOption {
@@ -209,12 +209,12 @@ export function prioritizeHealthyModels(models: string[]): string[] {
  */
 export function formatAiModelName(modelId: string): string {
   switch (modelId) {
-    case 'gemini-3.8-flash':
-      return 'Gemini 3.8 Flash';
-    case 'gemini-3.5-flash-lite':
-      return 'Gemini 3.5 Flash-Lite';
-    case 'gemini-3.6-flash':
-      return 'Gemini 3.6 Flash';
+    case 'gemini-2.0-flash':
+      return 'Gemini 2.0 Flash';
+    case 'gemini-1.5-flash':
+      return 'Gemini 1.5 Flash';
+    case 'gemini-1.5-flash-8b':
+      return 'Gemini 1.5 Flash-8B';
     default:
       return modelId;
   }
@@ -249,9 +249,6 @@ const getGeminiHeaders = (apiKey: string) => {
 
 /**
  * Adapte dynamiquement la configuration du payload selon la version du modèle Gemini ciblé :
- * - Gemini 3.x (ex: gemini-3.8-flash) : thinkingConfig.thinkingLevel = 'low' (latence minimale ~1-3s au lieu de 60s+)
- *   et suppression des anciens paramètres d'échantillonnage dépréciés (temperature).
- * - Gemini 2.5 (ex: gemini-2.5-flash) : thinkingConfig.thinkingBudget = 0 (désactive le reasoning pour vitesse max).
  * - Gemini 2.0 / 1.5 : suppression de thinkingConfig (non supporté sur ces versions).
  */
 export function adaptPayloadForModel(basePayload: any, modelName: string): any {
@@ -260,18 +257,7 @@ export function adaptPayloadForModel(basePayload: any, modelName: string): any {
     generationConfig: { ...(basePayload?.generationConfig || {}) },
   };
 
-  if (modelName.startsWith('gemini-3')) {
-    payload.generationConfig.thinkingConfig = {
-      thinkingLevel: 'low',
-    };
-    delete payload.generationConfig.temperature;
-  } else if (modelName.startsWith('gemini-2.5')) {
-    payload.generationConfig.thinkingConfig = {
-      thinkingBudget: 0,
-    };
-  } else {
-    delete payload.generationConfig.thinkingConfig;
-  }
+  delete payload.generationConfig.thinkingConfig;
 
   return payload;
 }
