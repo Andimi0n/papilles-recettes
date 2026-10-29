@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -17,8 +17,6 @@ interface SwipeableShoppingItemRowProps {
   onMoveToShelves: () => void;
   isFirst: boolean;
   isLast: boolean;
-  shouldAnimateHint?: boolean;
-  hintTrigger?: number;
   onLongPress?: () => void;
 }
 
@@ -27,14 +25,11 @@ export const SwipeableShoppingItemRow: React.FC<SwipeableShoppingItemRowProps> =
   onMoveToShelves,
   isFirst,
   isLast,
-  shouldAnimateHint = false,
-  hintTrigger = 0,
   onLongPress,
 }) => {
   const { colors } = useTheme();
   const [translateX] = useState(() => new Animated.Value(0));
   const [isTriggered, setIsTriggered] = useState(false);
-  const hasAnimatedRef = useRef(false);
 
   // Micro-retour haptique au franchissement du seuil (-75px)
   const triggerHaptic = useCallback(() => {
@@ -46,31 +41,6 @@ export const SwipeableShoppingItemRow: React.FC<SwipeableShoppingItemRowProps> =
       }
     }
   }, []);
-
-  // Petite animation d'amorce vers la gauche quand on arrive sur l'écran (jouée 1 seule fois par arrivée)
-  useEffect(() => {
-    if (shouldAnimateHint && !hasAnimatedRef.current) {
-      hasAnimatedRef.current = true;
-      const timer = setTimeout(() => {
-        Animated.sequence([
-          Animated.timing(translateX, {
-            toValue: -65,
-            duration: 320,
-            useNativeDriver: true,
-          }),
-          Animated.delay(220),
-          Animated.spring(translateX, {
-            toValue: 0,
-            friction: 7,
-            tension: 40,
-            useNativeDriver: true,
-          }),
-        ]).start();
-      }, 350);
-
-      return () => clearTimeout(timer);
-    }
-  }, [shouldAnimateHint, hintTrigger, translateX]);
 
   // Interpolations dynamiques pour le retour visuel et l'affordance (P5)
   const affordanceOpacity = useMemo(() => {

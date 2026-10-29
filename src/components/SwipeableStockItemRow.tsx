@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -15,8 +15,6 @@ interface SwipeableStockItemRowProps {
   onMoveToShopping: () => void;
   isFirst: boolean;
   isLast: boolean;
-  shouldAnimateHint?: boolean;
-  hintTrigger?: number;
   indicatorColor?: string;
 }
 
@@ -25,13 +23,10 @@ export const SwipeableStockItemRow: React.FC<SwipeableStockItemRowProps> = ({
   onMoveToShopping,
   isFirst,
   isLast,
-  shouldAnimateHint = false,
-  hintTrigger = 0,
   indicatorColor = '#16A34A',
 }) => {
   const [translateX] = useState(() => new Animated.Value(0));
   const [isTriggered, setIsTriggered] = useState(false);
-  const hasAnimatedRef = useRef(false);
 
   // Micro-retour haptique au franchissement du seuil (75px)
   const triggerHaptic = useCallback(() => {
@@ -44,32 +39,7 @@ export const SwipeableStockItemRow: React.FC<SwipeableStockItemRowProps> = ({
     }
   }, []);
 
-  // Petite animation d'amorce vers la droite quand on arrive sur l'écran (jouée 1 seule fois par arrivée)
-  useEffect(() => {
-    if (shouldAnimateHint && !hasAnimatedRef.current) {
-      hasAnimatedRef.current = true;
-      const timer = setTimeout(() => {
-        Animated.sequence([
-          Animated.timing(translateX, {
-            toValue: 65,
-            duration: 320,
-            useNativeDriver: true,
-          }),
-          Animated.delay(220),
-          Animated.spring(translateX, {
-            toValue: 0,
-            friction: 7,
-            tension: 40,
-            useNativeDriver: true,
-          }),
-        ]).start();
-      }, 350);
-
-      return () => clearTimeout(timer);
-    }
-  }, [shouldAnimateHint, hintTrigger, translateX]);
-
-  // Interpolations dynamiques pour le retour visuel et l'affordance (P5)
+  // Interpolations dynamiques pour le retour visuel et l'affordance
   const affordanceOpacity = useMemo(() => {
     return translateX.interpolate({
       inputRange: [0, 8, 25],

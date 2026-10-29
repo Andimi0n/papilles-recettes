@@ -11,6 +11,9 @@ import {
   SectionList,
   Modal,
   Animated,
+  PanResponder,
+  PanResponderGestureState,
+  Vibration,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -221,24 +224,6 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
   // Groupement par rayon de TOUS les articles (les articles cochés restent à leur place dans le rayon)
   const groupedSections = useMemo(() => groupItemsByAisle(filteredItems), [filteredItems]);
 
-  // Animation d'amorce (hint) : ne cibler que le premier article présent à chaque arrivée sur l'onglet courses (Pattern React 19)
-  const isShoppingTab = activeTab === 'shopping';
-  const [shoppingTabSnapshot, setShoppingTabSnapshot] = useState(isShoppingTab);
-  const [hasCapturedShoppingHint, setHasCapturedShoppingHint] = useState(false);
-  const [shoppingHintTargetId, setShoppingHintTargetId] = useState<string | null>(null);
-
-  if (isShoppingTab !== shoppingTabSnapshot) {
-    setShoppingTabSnapshot(isShoppingTab);
-    if (!isShoppingTab) {
-      setHasCapturedShoppingHint(false);
-      setShoppingHintTargetId(null);
-    }
-  }
-
-  if (isShoppingTab && !hasCapturedShoppingHint && groupedSections[0]?.items[0]?.id) {
-    setHasCapturedShoppingHint(true);
-    setShoppingHintTargetId(groupedSections[0].items[0].id);
-  }
   const sections = useMemo(
     () => groupedSections.map((g) => ({ title: g.aisle, data: g.items })),
     [groupedSections]
@@ -581,13 +566,11 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
     ({ item, index, section }: { item: ShoppingItem; index: number; section: { title: string; data: ShoppingItem[] } }) => {
       const isFirst = index === 0;
       const isLast = index === section.data.length - 1;
-      const shouldAnimateHint = shoppingHintTargetId !== null && item.id === shoppingHintTargetId;
 
       return (
         <SwipeableShoppingItemRow
           isFirst={isFirst}
           isLast={isLast}
-          shouldAnimateHint={shouldAnimateHint}
           onMoveToShelves={() => handleMoveToShelves(item)}
           onLongPress={() => handleOpenEditModal(item)}
         >
@@ -656,12 +639,77 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
         </SwipeableShoppingItemRow>
       );
     },
-    [shoppingHintTargetId, colors, handleMoveToShelves, handleOpenEditModal, handleToggleItem, handleDeleteItem]
+    [colors, handleMoveToShelves, handleOpenEditModal, handleToggleItem, handleDeleteItem]
   );
+
+  // Micro-retour haptique lors du changement d'univers par swipe
+  const triggerHaptic = useCallback(() => {
+    if (Platform.OS !== 'web') {
+      try {
+        Vibration.vibrate(10);
+      } catch {
+        // Fallback sans effet si vibration non supportée
+      }
+    }
+  }, []);
+
+  // Swipe plein écran entre "Mes étagères" et "Liste de courses"
+  // - Sur mes étagères : swipe vers la gauche (dx < 0) -> Liste de courses
+  // - Sur liste de courses : swipe vers la droite (dx > 0) -> Mes étagères
+  // Ce geste est opposé au swipe d'ingrédient (droite sur étagères, gauche sur courses),
+  // garantissant 0 conflit et une navigation fluide n'importe où sur l'écran.
+  const screenSwipePanResponder = useMemo(() => {
+    const shouldCapture = (gestureState: PanResponderGestureState) => {
+      if (isInStoreModeVisible || isShareModalVisible || isEditModalVisible) {
+        return false;
+      }
+
+      const isHorizontal =
+        Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.5;
+      if (!isHorizontal) return false;
+
+      // Sur mes étagères : swipe vers la gauche (dx < -20)
+      if (activeTab === 'fridge' && gestureState.dx < -20) {
+        return true;
+      }
+
+      // Sur liste de courses : swipe vers la droite (dx > 20)
+      if (activeTab === 'shopping' && gestureState.dx > 20) {
+        return true;
+      }
+
+      return false;
+    };
+
+    return PanResponder.create({
+      onMoveShouldSetPanResponderCapture: (_, gestureState) => shouldCapture(gestureState),
+      onMoveShouldSetPanResponder: (_, gestureState) => shouldCapture(gestureState),
+      onPanResponderTerminationRequest: () => false,
+      onPanResponderRelease: (_, gestureState) => {
+        if (activeTab === 'fridge') {
+          const isSwipeLeft =
+            gestureState.dx < -50 ||
+            (gestureState.dx < -20 && gestureState.vx < -0.3);
+          if (isSwipeLeft) {
+            triggerHaptic();
+            setActiveTab('shopping');
+          }
+        } else if (activeTab === 'shopping') {
+          const isSwipeRight =
+            gestureState.dx > 50 ||
+            (gestureState.dx > 20 && gestureState.vx > 0.3);
+          if (isSwipeRight) {
+            triggerHaptic();
+            setActiveTab('fridge');
+          }
+        }
+      },
+    });
+  }, [activeTab, isInStoreModeVisible, isShareModalVisible, isEditModalVisible, triggerHaptic]);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <View style={{ flex: 1 }}>
+      <View style={{ flex: 1 }} {...screenSwipePanResponder.panHandlers}>
         {/* Switcher d'onglets au sommet : Mes étagères vs Liste de courses */}
       <View style={styles.tabSwitcherWrapper}>
         <View style={styles.tabSwitcherContainer}>
