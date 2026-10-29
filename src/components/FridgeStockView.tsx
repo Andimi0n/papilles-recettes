@@ -1153,7 +1153,8 @@ const styles = createDynamicStyles((colors, shadows) => ({
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 10,
-    paddingHorizontal: 12,
+    paddingLeft: 18,
+    paddingRight: 12,
   },
   itemRowBorder: {
     borderBottomWidth: 1,

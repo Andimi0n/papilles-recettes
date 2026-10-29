@@ -1,13 +1,16 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   Animated,
   PanResponder,
+  Platform,
+  Vibration,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { createDynamicStyles } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
 
 interface SwipeableShoppingItemRowProps {
   children: React.ReactNode;
@@ -28,9 +31,21 @@ export const SwipeableShoppingItemRow: React.FC<SwipeableShoppingItemRowProps> =
   hintTrigger = 0,
   onLongPress,
 }) => {
+  const { colors } = useTheme();
   const [translateX] = useState(() => new Animated.Value(0));
   const [isTriggered, setIsTriggered] = useState(false);
   const hasAnimatedRef = useRef(false);
+
+  // Micro-retour haptique au franchissement du seuil (-75px)
+  const triggerHaptic = useCallback(() => {
+    if (Platform.OS !== 'web') {
+      try {
+        Vibration.vibrate(12);
+      } catch {
+        // Fallback sans effet si vibration non supportée
+      }
+    }
+  }, []);
 
   // Petite animation d'amorce vers la gauche quand on arrive sur l'écran (jouée 1 seule fois par arrivée)
   useEffect(() => {
@@ -57,6 +72,39 @@ export const SwipeableShoppingItemRow: React.FC<SwipeableShoppingItemRowProps> =
     }
   }, [shouldAnimateHint, hintTrigger, translateX]);
 
+  // Interpolations dynamiques pour le retour visuel et l'affordance (P5)
+  const affordanceOpacity = useMemo(() => {
+    return translateX.interpolate({
+      inputRange: [-25, -8, 0],
+      outputRange: [0, 0.4, 1],
+      extrapolate: 'clamp',
+    });
+  }, [translateX]);
+
+  const actionOpacity = useMemo(() => {
+    return translateX.interpolate({
+      inputRange: [-75, -25, 0],
+      outputRange: [1, 0.6, 0.2],
+      extrapolate: 'clamp',
+    });
+  }, [translateX]);
+
+  const actionScale = useMemo(() => {
+    return translateX.interpolate({
+      inputRange: [-120, -75, -35, 0],
+      outputRange: [1.15, 1.06, 0.95, 0.85],
+      extrapolate: 'clamp',
+    });
+  }, [translateX]);
+
+  const actionTranslateX = useMemo(() => {
+    return translateX.interpolate({
+      inputRange: [-150, -75, 0],
+      outputRange: [-16, 0, 16],
+      extrapolate: 'clamp',
+    });
+  }, [translateX]);
+
   const panResponder = useMemo(() => {
     return PanResponder.create({
       onMoveShouldSetPanResponderCapture: (_, gestureState) => {
@@ -78,6 +126,7 @@ export const SwipeableShoppingItemRow: React.FC<SwipeableShoppingItemRowProps> =
       },
       onPanResponderMove: (_, gestureState) => {
         if (isTriggered) return;
+        const state = gestureState as typeof gestureState & { _hapticFired?: boolean };
         if (gestureState.dx < 0) {
           // Amorti élastique progressif au-delà de -120px
           const offset =
@@ -85,8 +134,18 @@ export const SwipeableShoppingItemRow: React.FC<SwipeableShoppingItemRowProps> =
               ? -120 + (gestureState.dx + 120) * 0.4
               : gestureState.dx;
           translateX.setValue(offset);
+
+          // Détection du passage de seuil (-75px) avec retour haptique
+          const isPastThreshold = gestureState.dx <= -75;
+          if (isPastThreshold && !state._hapticFired) {
+            state._hapticFired = true;
+            triggerHaptic();
+          } else if (!isPastThreshold && state._hapticFired) {
+            state._hapticFired = false;
+          }
         } else {
           translateX.setValue(0);
+          state._hapticFired = false;
         }
       },
       onPanResponderRelease: (_, gestureState) => {
@@ -126,7 +185,7 @@ export const SwipeableShoppingItemRow: React.FC<SwipeableShoppingItemRowProps> =
         }
       },
     });
-  }, [translateX, isTriggered, onMoveToShelves]);
+  }, [translateX, isTriggered, onMoveToShelves, triggerHaptic]);
 
   return (
     <View
@@ -159,10 +218,21 @@ export const SwipeableShoppingItemRow: React.FC<SwipeableShoppingItemRowProps> =
     >
       {/* Fond d'action bleu/primaire révélé par le swipe vers la gauche */}
       <View style={styles.swipeHiddenActionWrap}>
-        <View style={styles.swipeContentBox}>
+        <Animated.View
+          style={[
+            styles.swipeContentBox,
+            {
+              opacity: actionOpacity,
+              transform: [
+                { scale: actionScale },
+                { translateX: actionTranslateX },
+              ],
+            },
+          ]}
+        >
           <Text style={styles.swipeActionText}>Vers mes étagères</Text>
           <Ionicons name="layers-outline" size={20} color="#FFFFFF" />
-        </View>
+        </Animated.View>
       </View>
 
       {/* Rangée de premier plan qui glisse */}
@@ -177,6 +247,20 @@ export const SwipeableShoppingItemRow: React.FC<SwipeableShoppingItemRowProps> =
         >
           {children}
         </TouchableOpacity>
+
+        {/* Micro-signifier d'affordance permanent (swipe vers la gauche) */}
+        <Animated.View
+          style={[styles.affordancePillRight, { opacity: affordanceOpacity }]}
+          pointerEvents="none"
+        >
+          <Ionicons
+            name="chevron-back"
+            size={10}
+            color={colors.primary}
+            style={styles.affordanceChevronRight}
+          />
+          <View style={styles.affordanceBarRight} />
+        </Animated.View>
       </Animated.View>
     </View>
   );
@@ -212,6 +296,27 @@ const styles = createDynamicStyles((colors, shadows) => ({
     fontSize: 12.5,
     fontWeight: '700',
     letterSpacing: 0.2,
+  },
+  affordancePillRight: {
+    position: 'absolute',
+    right: 4,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexDirection: 'row',
+    zIndex: 2,
+  },
+  affordanceBarRight: {
+    width: 2.5,
+    height: 16,
+    borderRadius: 2,
+    backgroundColor: colors.primary,
+    opacity: 0.55,
+  },
+  affordanceChevronRight: {
+    marginRight: 0.5,
+    opacity: 0.55,
   },
   swipeForeground: {
     backgroundColor: colors.cardBackground,

@@ -421,7 +421,8 @@ export const styles = createDynamicStyles((colors, shadows) => ({
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 10,
-    paddingHorizontal: 12,
+    paddingLeft: 12,
+    paddingRight: 18,
   },
   itemRowBorder: {
     borderBottomWidth: 1,
