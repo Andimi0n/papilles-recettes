@@ -204,6 +204,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
   const pendingDeletedItemRef = useRef<DeletedSnackbarInfo | null>(null);
   const [snackbarAnim] = useState(() => new Animated.Value(1));
   const [snackbarFadeAnim] = useState(() => new Animated.Value(0));
+  const [bulkBarAnim] = useState(() => new Animated.Value(0));
 
   // Nettoyage au démontage pour persister toute suppression en attente
   useEffect(() => {
@@ -309,6 +310,17 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
   const totalCount = items.length;
   const completedCount = useMemo(() => items.filter((i) => i.isChecked).length, [items]);
   const activeItems = useMemo(() => items.filter((i) => !i.isChecked), [items]);
+  const hasCompletedItems = completedCount > 0;
+
+  // Animation d'apparition/disparition fluide de la barre flottante de rangement
+  useEffect(() => {
+    Animated.spring(bulkBarAnim, {
+      toValue: hasCompletedItems ? 1 : 0,
+      useNativeDriver: true,
+      tension: 65,
+      friction: 9,
+    }).start();
+  }, [hasCompletedItems, bulkBarAnim]);
 
   const isSearching = Boolean(isSearchActive || (searchQuery && searchQuery.trim().length > 0));
 
@@ -1152,6 +1164,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
                   contentContainerStyle={[
                     styles.scrollContent,
                     hasSuggestions ? { paddingTop: SUGGESTIONS_CONTAINER_HEIGHT + 6 } : undefined,
+                    completedCount > 0 ? { paddingBottom: 104 } : undefined,
                   ]}
                   showsVerticalScrollIndicator={false}
                   stickySectionHeadersEnabled={false}
@@ -1164,32 +1177,13 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
                   onScroll={handleScroll}
                   scrollEventThrottle={16}
                   ListHeaderComponent={
-                    <>
-                      {isSearching && searchQuery?.trim() ? (
-                        <View style={styles.searchSummaryStrip}>
-                          <Text style={styles.searchSummaryText}>
-                            {totalFilteredCount} article{totalFilteredCount > 1 ? 's' : ''} trouvé{totalFilteredCount > 1 ? 's' : ''} pour « {searchQuery.trim()} »
-                          </Text>
-                        </View>
-                      ) : null}
-
-                      {completedCount > 0 && (
-                        <TouchableOpacity
-                          style={styles.bulkTransferBtn}
-                          onPress={handleBulkMoveCompletedToShelves}
-                          activeOpacity={0.85}
-                          accessibilityLabel="Ranger les articles cochés dans mes étagères"
-                        >
-                          <View style={styles.bulkTransferIconBox}>
-                            <Ionicons name="layers" size={16} color="#FFFFFF" />
-                          </View>
-                          <Text style={styles.bulkTransferBtnText}>
-                            Ranger les articles cochés ({completedCount}) dans mes étagères
-                          </Text>
-                          <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
-                        </TouchableOpacity>
-                      )}
-                    </>
+                    isSearching && searchQuery?.trim() ? (
+                      <View style={styles.searchSummaryStrip}>
+                        <Text style={styles.searchSummaryText}>
+                          {totalFilteredCount} article{totalFilteredCount > 1 ? 's' : ''} trouvé{totalFilteredCount > 1 ? 's' : ''} pour « {searchQuery.trim()} »
+                        </Text>
+                      </View>
+                    ) : undefined
                   }
                   ListEmptyComponent={
                     isSearching && searchQuery?.trim() && totalFilteredCount === 0 ? (
@@ -1278,6 +1272,48 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
                   </View>
                 </Animated.View>
               )}
+
+              {/* Barre contextuelle flottante : Ranger les articles cochés dans mes étagères */}
+              <Animated.View
+                style={[
+                  styles.floatingBulkBarContainer,
+                  {
+                    opacity: bulkBarAnim,
+                    transform: [
+                      {
+                        translateY: bulkBarAnim.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [24, 0],
+                        }),
+                      },
+                    ],
+                  },
+                ]}
+                pointerEvents={hasCompletedItems ? 'auto' : 'none'}
+              >
+                <TouchableOpacity
+                  style={styles.floatingBulkBarBtn}
+                  onPress={handleBulkMoveCompletedToShelves}
+                  activeOpacity={0.85}
+                  accessibilityLabel={`Ranger ${completedCount} article${completedCount > 1 ? 's cochés' : ' coché'} dans mes étagères`}
+                  accessibilityRole="button"
+                >
+                  <View style={styles.floatingBulkBarLeft}>
+                    <View style={styles.floatingBulkBarIconBox}>
+                      <Ionicons name="layers" size={17} color="#FFFFFF" />
+                    </View>
+                    <Text style={styles.floatingBulkBarBtnText} numberOfLines={1}>
+                      Ranger dans mes étagères
+                    </Text>
+                    <View style={styles.floatingBulkBarCountBadge}>
+                      <Text style={styles.floatingBulkBarCountText}>{completedCount}</Text>
+                    </View>
+                  </View>
+                  <View style={styles.floatingBulkBarArrowBox}>
+                    <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
+                  </View>
+                </TouchableOpacity>
+              </Animated.View>
             </View>
           </View>
         </View>
@@ -1478,6 +1514,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
         <Animated.View
           style={[
             styles.snackbarContainer,
+            completedCount > 0 && activeTab === 'shopping' ? { bottom: 78 } : undefined,
             {
               opacity: snackbarFadeAnim,
               transform: [
