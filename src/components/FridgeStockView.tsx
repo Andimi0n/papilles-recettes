@@ -657,23 +657,21 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
 
   return (
     <View style={styles.container}>
-      {/* En-tête Étagères avec titre, recherche et bouton vider */}
-      <View style={styles.header}>
-        <View style={styles.headerTitleCol}>
-          <Text style={styles.headerTitle}>Mes Étagères</Text>
-          <Text style={styles.headerSubtitle}>
+      {/* Barre compacte d'actions et de statut Étagères (gain de hauteur P1) */}
+      <View style={styles.compactSubHeader}>
+        <View style={styles.compactStatusRow}>
+          <Text style={styles.compactStatusText} numberOfLines={1}>
             {totalCount === 0
               ? 'Aucun aliment en stock'
               : `${totalCount} aliment${totalCount > 1 ? 's' : ''} en stock`}
           </Text>
         </View>
 
-        <View style={styles.headerActions}>
+        <View style={styles.compactActionsRow}>
           <TouchableOpacity
             style={[
               styles.actionIconBtn,
               isSearchOpen && styles.actionIconBtnActive,
-              totalCount > 0 ? { marginRight: 8 } : null,
             ]}
             onPress={() => {
               if (onToggleSearch) {
@@ -685,7 +683,7 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
           >
             <Ionicons
               name={isSearchOpen ? 'search' : 'search-outline'}
-              size={19}
+              size={17}
               color={isSearchOpen ? colors.primary : colors.textPrimary}
             />
           </TouchableOpacity>
@@ -697,7 +695,7 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               accessibilityLabel="Vider les étagères"
             >
-              <Ionicons name="trash-outline" size={19} color={colors.danger} />
+              <Ionicons name="trash-outline" size={17} color={colors.danger} />
             </TouchableOpacity>
           )}
         </View>
@@ -1098,6 +1096,31 @@ const styles = createDynamicStyles((colors, shadows) => ({
   container: {
     flex: 1,
   },
+  compactSubHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 4,
+    paddingBottom: 6,
+    minHeight: 40,
+  },
+  compactStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 8,
+  },
+  compactStatusText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  compactActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1152,9 +1175,9 @@ const styles = createDynamicStyles((colors, shadows) => ({
     alignItems: 'center',
   },
   actionIconBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: colors.cardBackground,
     justifyContent: 'center',
     alignItems: 'center',

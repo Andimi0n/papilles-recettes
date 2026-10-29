@@ -940,19 +940,27 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
         pointerEvents={activeTab === 'shopping' ? 'auto' : 'none'}
       >
         <View style={styles.shoppingListWrapper}>
-          {/* En-tête de la liste de courses */}
-          <View style={styles.header}>
-            <View style={styles.headerTitleCol}>
-              <Text style={styles.headerTitle}>Liste de Courses</Text>
-              <Text style={styles.headerSubtitle}>
+          {/* Barre compacte d'actions et de statut (gain de hauteur P1) */}
+          <View style={styles.compactSubHeader}>
+            <View style={styles.compactStatusRow}>
+              <Text style={styles.compactStatusText} numberOfLines={1}>
                 {totalCount === 0
                   ? 'Aucun article'
-                  : `${completedCount} sur ${totalCount} article${totalCount > 1 ? 's' : ''} coché${completedCount > 1 ? 's' : ''}`}
+                  : `${completedCount}/${totalCount} coché${completedCount > 1 ? 's' : ''}`}
               </Text>
+
+              {!isSearching && totalCount > 0 && (
+                <View style={styles.compactMiniProgressWrap}>
+                  <View style={styles.compactMiniProgressTrack}>
+                    <View style={[styles.compactMiniProgressFill, { width: `${progressPercent}%` }]} />
+                  </View>
+                  <Text style={styles.compactMiniProgressPercent}>{progressPercent}%</Text>
+                </View>
+              )}
             </View>
 
-            {/* Boutons d'action supérieurs */}
-            <View style={styles.headerActions}>
+            {/* Boutons d'action supérieurs compacts */}
+            <View style={styles.compactActionsRow}>
               <TouchableOpacity
                 style={[
                   styles.actionIconBtn,
@@ -964,7 +972,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
               >
                 <Ionicons
                   name={isSearchActive ? 'search' : 'search-outline'}
-                  size={18}
+                  size={17}
                   color={isSearchActive ? colors.primary : colors.textPrimary}
                 />
               </TouchableOpacity>
@@ -977,7 +985,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   accessibilityLabel="Lancer le mode course en magasin"
                 >
-                  <Ionicons name="cart-outline" size={19} color={colors.secondary} />
+                  <Ionicons name="cart-outline" size={17} color={colors.secondary} />
                   {activeItems.length > 0 && (
                     <View style={styles.inStoreBadgeDot} />
                   )}
@@ -990,7 +998,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 accessibilityLabel="Partager la liste"
               >
-                <Ionicons name="share-social-outline" size={18} color={colors.textPrimary} />
+                <Ionicons name="share-social-outline" size={17} color={colors.textPrimary} />
               </TouchableOpacity>
 
               {totalCount > 0 && (
@@ -1000,21 +1008,11 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   accessibilityLabel="Vider toute la liste"
                 >
-                  <Ionicons name="trash-outline" size={18} color={colors.danger} />
+                  <Ionicons name="trash-outline" size={17} color={colors.danger} />
                 </TouchableOpacity>
               )}
             </View>
           </View>
-
-          {/* Barre de progression si articles présents (masquée pendant la recherche) */}
-          {!isSearching && totalCount > 0 && (
-            <View style={styles.progressContainer}>
-              <View style={styles.progressBarTrack}>
-                <View style={[styles.progressBarFill, { width: `${progressPercent}%` }]} />
-              </View>
-              <Text style={styles.progressText}>{progressPercent}%</Text>
-            </View>
-          )}
 
           <View style={styles.bodyWrapper}>
             {/* Barre d'ajout fixe au sommet (ne disparaît jamais au scroll) */}
