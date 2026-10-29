@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -26,12 +26,11 @@ export const SwipeableStockItemRow: React.FC<SwipeableStockItemRowProps> = ({
   hintTrigger = 0,
 }) => {
   const [translateX] = useState(() => new Animated.Value(0));
-  const isTriggeredRef = useRef(false);
+  const [isTriggered, setIsTriggered] = useState(false);
 
   // Petite animation d'amorce vers la droite quand on arrive sur l'écran
   useEffect(() => {
     if (shouldAnimateHint) {
-      isTriggeredRef.current = false;
       const timer = setTimeout(() => {
         Animated.sequence([
           Animated.timing(translateX, {
@@ -53,15 +52,17 @@ export const SwipeableStockItemRow: React.FC<SwipeableStockItemRowProps> = ({
     }
   }, [shouldAnimateHint, hintTrigger, translateX]);
 
-  const [panResponder] = useState(() => {
+  const panResponder = useMemo(() => {
     return PanResponder.create({
       onMoveShouldSetPanResponderCapture: (_, gestureState) => {
+        if (isTriggered) return false;
         return (
           gestureState.dx > 12 &&
           gestureState.dx > Math.abs(gestureState.dy) * 1.5
         );
       },
       onMoveShouldSetPanResponder: (_, gestureState) => {
+        if (isTriggered) return false;
         return (
           gestureState.dx > 12 &&
           gestureState.dx > Math.abs(gestureState.dy) * 1.5
@@ -71,7 +72,7 @@ export const SwipeableStockItemRow: React.FC<SwipeableStockItemRowProps> = ({
         translateX.stopAnimation();
       },
       onPanResponderMove: (_, gestureState) => {
-        if (isTriggeredRef.current) return;
+        if (isTriggered) return;
         if (gestureState.dx > 0) {
           // Amorti élastique progressif au-delà de 120px
           const offset =
@@ -84,7 +85,7 @@ export const SwipeableStockItemRow: React.FC<SwipeableStockItemRowProps> = ({
         }
       },
       onPanResponderRelease: (_, gestureState) => {
-        if (isTriggeredRef.current) return;
+        if (isTriggered) return;
 
         // Seuil de basculement vers les courses
         const isSwipedEnough =
@@ -92,7 +93,7 @@ export const SwipeableStockItemRow: React.FC<SwipeableStockItemRowProps> = ({
           (gestureState.vx > 0.4 && gestureState.dx > 30);
 
         if (isSwipedEnough) {
-          isTriggeredRef.current = true;
+          setIsTriggered(true);
           Animated.timing(translateX, {
             toValue: 500,
             duration: 180,
@@ -110,7 +111,7 @@ export const SwipeableStockItemRow: React.FC<SwipeableStockItemRowProps> = ({
         }
       },
       onPanResponderTerminate: () => {
-        if (!isTriggeredRef.current) {
+        if (!isTriggered) {
           Animated.spring(translateX, {
             toValue: 0,
             friction: 7,
@@ -120,7 +121,7 @@ export const SwipeableStockItemRow: React.FC<SwipeableStockItemRowProps> = ({
         }
       },
     });
-  });
+  }, [translateX, isTriggered, onMoveToShopping]);
 
   return (
     <View

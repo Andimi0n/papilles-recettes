@@ -511,21 +511,6 @@ export const styles = createDynamicStyles((colors, shadows) => ({
     fontSize: 13,
     fontWeight: '700',
   },
-  moveToFridgeBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: colors.surfaceAlt,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    marginRight: 6,
-  },
-  moveToFridgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.primary,
-  },
   deleteItemBtn: {
     padding: 6,
   },

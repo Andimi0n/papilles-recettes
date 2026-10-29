@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ interface SwipeableShoppingItemRowProps {
   isFirst: boolean;
   isLast: boolean;
   shouldAnimateHint?: boolean;
+  hintTrigger?: number;
   onLongPress?: () => void;
 }
 
@@ -24,18 +25,20 @@ export const SwipeableShoppingItemRow: React.FC<SwipeableShoppingItemRowProps> =
   isFirst,
   isLast,
   shouldAnimateHint = false,
+  hintTrigger = 0,
   onLongPress,
 }) => {
   const [translateX] = useState(() => new Animated.Value(0));
+  const [isTriggered, setIsTriggered] = useState(false);
 
-  // Animation d'amorce (découverte du swipe gauche) au montage
+  // Petite animation d'amorce vers la gauche quand on arrive sur l'écran
   useEffect(() => {
     if (shouldAnimateHint) {
       const timer = setTimeout(() => {
         Animated.sequence([
           Animated.timing(translateX, {
             toValue: -65,
-            duration: 340,
+            duration: 320,
             useNativeDriver: true,
           }),
           Animated.delay(220),
@@ -46,80 +49,82 @@ export const SwipeableShoppingItemRow: React.FC<SwipeableShoppingItemRowProps> =
             useNativeDriver: true,
           }),
         ]).start();
-      }, 400);
+      }, 350);
 
       return () => clearTimeout(timer);
     }
-  }, [shouldAnimateHint, translateX]);
+  }, [shouldAnimateHint, hintTrigger, translateX]);
 
-  const snapClose = useCallback(() => {
-    Animated.spring(translateX, {
-      toValue: 0,
-      useNativeDriver: true,
-      bounciness: 4,
-    }).start();
-  }, [translateX]);
-
-  const [panResponder] = useState(() => {
-    let isOpen = false;
+  const panResponder = useMemo(() => {
     return PanResponder.create({
-      onMoveShouldSetPanResponder: (_, gestureState) => {
+      onMoveShouldSetPanResponderCapture: (_, gestureState) => {
+        if (isTriggered) return false;
         return (
-          Math.abs(gestureState.dx) > 12 &&
+          gestureState.dx < -12 &&
           Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.5
         );
       },
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        if (isTriggered) return false;
+        return (
+          gestureState.dx < -12 &&
+          Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.5
+        );
+      },
+      onPanResponderGrant: () => {
+        translateX.stopAnimation();
+      },
       onPanResponderMove: (_, gestureState) => {
-        if (isOpen) {
-          const nextVal = -110 + gestureState.dx;
-          translateX.setValue(Math.min(0, Math.max(nextVal, -130)));
-        } else if (gestureState.dx < 0) {
-          translateX.setValue(Math.max(gestureState.dx, -130));
+        if (isTriggered) return;
+        if (gestureState.dx < 0) {
+          // Amorti élastique progressif au-delà de -120px
+          const offset =
+            gestureState.dx < -120
+              ? -120 + (gestureState.dx + 120) * 0.4
+              : gestureState.dx;
+          translateX.setValue(offset);
+        } else {
+          translateX.setValue(0);
         }
       },
       onPanResponderRelease: (_, gestureState) => {
-        if (isOpen) {
-          if (gestureState.dx > 40) {
-            isOpen = false;
-            Animated.spring(translateX, {
-              toValue: 0,
-              useNativeDriver: true,
-              bounciness: 4,
-            }).start();
-          } else {
-            Animated.timing(translateX, {
-              toValue: -110,
-              duration: 160,
-              useNativeDriver: true,
-            }).start();
-          }
+        if (isTriggered) return;
+
+        // Seuil de basculement vers les étagères
+        const isSwipedEnough =
+          gestureState.dx < -75 ||
+          (gestureState.vx < -0.4 && gestureState.dx < -30);
+
+        if (isSwipedEnough) {
+          setIsTriggered(true);
+          Animated.timing(translateX, {
+            toValue: -500,
+            duration: 180,
+            useNativeDriver: true,
+          }).start(() => {
+            onMoveToShelves();
+          });
         } else {
-          if (gestureState.dx < -50) {
-            isOpen = true;
-            Animated.timing(translateX, {
-              toValue: -110,
-              duration: 160,
-              useNativeDriver: true,
-            }).start();
-          } else {
-            Animated.spring(translateX, {
-              toValue: 0,
-              useNativeDriver: true,
-              bounciness: 4,
-            }).start();
-          }
+          Animated.spring(translateX, {
+            toValue: 0,
+            friction: 7,
+            tension: 40,
+            useNativeDriver: true,
+          }).start();
         }
       },
       onPanResponderTerminate: () => {
-        isOpen = false;
-        Animated.spring(translateX, {
-          toValue: 0,
-          useNativeDriver: true,
-          bounciness: 4,
-        }).start();
+        if (!isTriggered) {
+          Animated.spring(translateX, {
+            toValue: 0,
+            friction: 7,
+            tension: 40,
+            useNativeDriver: true,
+          }).start();
+        }
       },
     });
-  });
+  }, [translateX, isTriggered, onMoveToShelves]);
 
   return (
     <View
@@ -150,28 +155,17 @@ export const SwipeableShoppingItemRow: React.FC<SwipeableShoppingItemRowProps> =
         },
       ]}
     >
-      {/* Bouton d'action révélé par le swipe gauche pour basculer vers les étagères */}
+      {/* Fond d'action bleu/primaire révélé par le swipe vers la gauche */}
       <View style={styles.swipeHiddenActionWrap}>
-        <TouchableOpacity
-          style={styles.swipeShelvesBtn}
-          onPress={() => {
-            snapClose();
-            onMoveToShelves();
-          }}
-          activeOpacity={0.85}
-          accessibilityLabel="Ranger dans mes étagères"
-        >
+        <View style={styles.swipeContentBox}>
+          <Text style={styles.swipeActionText}>Vers mes étagères</Text>
           <Ionicons name="layers-outline" size={20} color="#FFFFFF" />
-          <Text style={styles.swipeShelvesBtnText}>Étagères</Text>
-        </TouchableOpacity>
+        </View>
       </View>
 
       {/* Rangée de premier plan qui glisse */}
       <Animated.View
-        style={[
-          styles.swipeForeground,
-          { transform: [{ translateX }] },
-        ]}
+        style={[styles.swipeForeground, { transform: [{ translateX }] }]}
         {...panResponder.panHandlers}
       >
         <TouchableOpacity
@@ -199,26 +193,23 @@ const styles = createDynamicStyles((colors, shadows) => ({
     position: 'absolute',
     top: 0,
     bottom: 0,
+    left: 0,
     right: 0,
-    width: 110,
     justifyContent: 'center',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     backgroundColor: colors.primary,
-    borderTopRightRadius: 14,
-    borderBottomRightRadius: 14,
+    paddingRight: 18,
   },
-  swipeShelvesBtn: {
-    width: '100%',
-    height: '100%',
-    justifyContent: 'center',
+  swipeContentBox: {
+    flexDirection: 'row',
     alignItems: 'center',
-    flexDirection: 'column',
-    gap: 3,
+    gap: 8,
   },
-  swipeShelvesBtnText: {
+  swipeActionText: {
     color: '#FFFFFF',
-    fontSize: 12,
+    fontSize: 12.5,
     fontWeight: '700',
+    letterSpacing: 0.2,
   },
   swipeForeground: {
     backgroundColor: colors.cardBackground,
