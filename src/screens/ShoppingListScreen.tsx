@@ -191,18 +191,6 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
   const [editingItem, setEditingItem] = useState<ShoppingItem | null>(null);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
 
-  // Animation d'amorce (hint) pour faire découvrir le geste de swipe vers la gauche à chaque arrivée sur l'onglet courses
-  const [shoppingHintTrigger, setShoppingHintTrigger] = useState(0);
-  const prevIsShoppingActiveRef = useRef(activeTab === 'shopping');
-
-  useEffect(() => {
-    const isShopping = activeTab === 'shopping';
-    if (isShopping && (!prevIsShoppingActiveRef.current || shoppingHintTrigger === 0)) {
-      setShoppingHintTrigger((prev) => prev + 1);
-    }
-    prevIsShoppingActiveRef.current = isShopping;
-  }, [activeTab, shoppingHintTrigger]);
-
   // Snackbar d'annulation de suppression ou basculement temporaire (4 secondes)
   interface DeletedSnackbarInfo {
     item: ShoppingItem;
@@ -334,6 +322,25 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
 
   // Groupement par rayon de TOUS les articles (les articles cochés restent à leur place dans le rayon)
   const groupedSections = useMemo(() => groupItemsByAisle(filteredItems), [filteredItems]);
+
+  // Animation d'amorce (hint) : ne cibler que le premier article présent à chaque arrivée sur l'onglet courses (Pattern React 19)
+  const isShoppingTab = activeTab === 'shopping';
+  const [shoppingTabSnapshot, setShoppingTabSnapshot] = useState(isShoppingTab);
+  const [hasCapturedShoppingHint, setHasCapturedShoppingHint] = useState(false);
+  const [shoppingHintTargetId, setShoppingHintTargetId] = useState<string | null>(null);
+
+  if (isShoppingTab !== shoppingTabSnapshot) {
+    setShoppingTabSnapshot(isShoppingTab);
+    if (!isShoppingTab) {
+      setHasCapturedShoppingHint(false);
+      setShoppingHintTargetId(null);
+    }
+  }
+
+  if (isShoppingTab && !hasCapturedShoppingHint && groupedSections[0]?.items[0]?.id) {
+    setHasCapturedShoppingHint(true);
+    setShoppingHintTargetId(groupedSections[0].items[0].id);
+  }
   const sections = useMemo(
     () => groupedSections.map((g) => ({ title: g.aisle, data: g.items })),
     [groupedSections]
@@ -707,14 +714,13 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
     ({ item, index, section }: { item: ShoppingItem; index: number; section: { title: string; data: ShoppingItem[] } }) => {
       const isFirst = index === 0;
       const isLast = index === section.data.length - 1;
-      const isGlobalFirstItem = groupedSections[0]?.items[0]?.id === item.id;
+      const shouldAnimateHint = shoppingHintTargetId !== null && item.id === shoppingHintTargetId;
 
       return (
         <SwipeableShoppingItemRow
           isFirst={isFirst}
           isLast={isLast}
-          shouldAnimateHint={isGlobalFirstItem}
-          hintTrigger={shoppingHintTrigger}
+          shouldAnimateHint={shouldAnimateHint}
           onMoveToShelves={() => handleMoveToShelves(item)}
           onLongPress={() => handleOpenEditModal(item)}
         >
@@ -779,7 +785,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
         </SwipeableShoppingItemRow>
       );
     },
-    [groupedSections, shoppingHintTrigger, colors, handleMoveToShelves, handleOpenEditModal, handleToggleItem, handleDeleteItem]
+    [shoppingHintTargetId, colors, handleMoveToShelves, handleOpenEditModal, handleToggleItem, handleDeleteItem]
   );
 
   return (

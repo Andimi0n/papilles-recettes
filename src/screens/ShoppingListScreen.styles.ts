@@ -122,7 +122,6 @@ export const styles = createDynamicStyles((colors, shadows) => ({
   fixedQuickAddContainer: {
     backgroundColor: colors.background,
     zIndex: 1000,
-    elevation: 6,
     paddingTop: 4,
     paddingBottom: 2,
     borderBottomWidth: 1,
@@ -217,8 +216,6 @@ export const styles = createDynamicStyles((colors, shadows) => ({
     borderWidth: 1,
     borderColor: colors.borderLight,
     zIndex: 1000,
-    ...shadows.small,
-    elevation: 10,
     overflow: 'visible',
   },
   quickAddMainRow: {

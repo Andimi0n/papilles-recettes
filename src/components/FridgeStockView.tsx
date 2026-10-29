@@ -84,17 +84,6 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
     onFridgeCountChangeRef.current = onFridgeCountChange;
   }, [onFridgeCountChange]);
 
-  // Animation d'amorce (hint) pour faire découvrir le geste de swipe vers la droite à chaque arrivée sur l'écran
-  const [hintTrigger, setHintTrigger] = useState(0);
-  const prevIsActiveTabRef = useRef(isActiveTab);
-
-  useEffect(() => {
-    if (isActiveTab && (!prevIsActiveTabRef.current || hintTrigger === 0)) {
-      setHintTrigger((prev) => prev + 1);
-    }
-    prevIsActiveTabRef.current = isActiveTab;
-  }, [isActiveTab, hintTrigger]);
-
   // Snackbar d'annulation de suppression ou basculement temporaire (4 secondes)
   interface DeletedSnackbarInfo {
     item: FridgeItem;
@@ -323,6 +312,24 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
 
     return result;
   }, [filteredItems]);
+
+  // Animation d'amorce (hint) : ne cibler que le premier aliment présent à chaque arrivée sur l'onglet (Pattern React 19)
+  const [activeTabSnapshot, setActiveTabSnapshot] = useState(isActiveTab);
+  const [hasCapturedHint, setHasCapturedHint] = useState(false);
+  const [hintTargetId, setHintTargetId] = useState<string | null>(null);
+
+  if (isActiveTab !== activeTabSnapshot) {
+    setActiveTabSnapshot(isActiveTab);
+    if (!isActiveTab) {
+      setHasCapturedHint(false);
+      setHintTargetId(null);
+    }
+  }
+
+  if (isActiveTab && !hasCapturedHint && groupedByAisle[0]?.items[0]?.id) {
+    setHasCapturedHint(true);
+    setHintTargetId(groupedByAisle[0].items[0].id);
+  }
 
   // Suggestions rapides d'indispensables non encore ajoutés au stock (100% raccord avec le lexique canonique dynamique)
   const availableSuggestions: CanonicalIngredient[] = useMemo(() => {
@@ -610,15 +617,14 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
     const isLast = index === section.data.length - 1;
     const aisle = section.title as ShoppingAisle;
     const cfg = AISLE_CONFIGS[aisle] || AISLE_CONFIGS['Autre'];
-    const isGlobalFirstItem = groupedByAisle[0]?.items[0]?.id === item.id;
+    const shouldAnimateHint = hintTargetId !== null && item.id === hintTargetId;
 
     return (
       <SwipeableStockItemRow
         key={item.id}
         isFirst={isFirst}
         isLast={isLast}
-        shouldAnimateHint={isGlobalFirstItem}
-        hintTrigger={hintTrigger}
+        shouldAnimateHint={shouldAnimateHint}
         onMoveToShopping={() => handleEmptyItem(item)}
       >
         <View
@@ -647,7 +653,7 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
         </View>
       </SwipeableStockItemRow>
     );
-  }, [groupedByAisle, hintTrigger, handleEmptyItem, handleDeleteItem, colors.textMuted]);
+  }, [hintTargetId, handleEmptyItem, handleDeleteItem, colors.textMuted]);
 
   return (
     <View style={styles.container}>
@@ -1123,7 +1129,6 @@ const styles = createDynamicStyles((colors, shadows) => ({
   fixedQuickAddContainer: {
     backgroundColor: colors.background,
     zIndex: 1000,
-    elevation: 6,
     paddingTop: 4,
     paddingBottom: 2,
     borderBottomWidth: 1,
@@ -1170,8 +1175,6 @@ const styles = createDynamicStyles((colors, shadows) => ({
     borderWidth: 1,
     borderColor: colors.borderLight,
     zIndex: 1000,
-    ...shadows.small,
-    elevation: 10,
     overflow: 'visible',
   },
   quickAddMainRow: {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -27,10 +27,12 @@ export const SwipeableStockItemRow: React.FC<SwipeableStockItemRowProps> = ({
 }) => {
   const [translateX] = useState(() => new Animated.Value(0));
   const [isTriggered, setIsTriggered] = useState(false);
+  const hasAnimatedRef = useRef(false);
 
-  // Petite animation d'amorce vers la droite quand on arrive sur l'écran
+  // Petite animation d'amorce vers la droite quand on arrive sur l'écran (jouée 1 seule fois par arrivée)
   useEffect(() => {
-    if (shouldAnimateHint) {
+    if (shouldAnimateHint && !hasAnimatedRef.current) {
+      hasAnimatedRef.current = true;
       const timer = setTimeout(() => {
         Animated.sequence([
           Animated.timing(translateX, {
