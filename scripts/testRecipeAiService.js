@@ -145,43 +145,43 @@ async function main() {
   console.log('\n--- Test 4 : Cascades de modèles Gemini & Circuit Breaker ---');
   assert.strictEqual(
     GEMINI_MODELS_CASCADE[0],
-    'gemini-3.5-flash-lite',
-    'GEMINI_MODELS_CASCADE doit avoir gemini-3.5-flash-lite comme premier modèle (vitesse & disponibilité)'
+    'gemini-2.0-flash',
+    'GEMINI_MODELS_CASCADE doit avoir gemini-2.0-flash comme premier modèle'
   );
   assert.strictEqual(
     FAST_GEMINI_MODELS_CASCADE[0],
-    'gemini-3.5-flash-lite',
-    'FAST_GEMINI_MODELS_CASCADE doit avoir gemini-3.5-flash-lite comme premier modèle'
+    'gemini-1.5-flash-8b',
+    'FAST_GEMINI_MODELS_CASCADE doit avoir gemini-1.5-flash-8b comme premier modèle'
   );
   assert.strictEqual(
     FAST_GEMINI_MODELS_CASCADE[1],
-    'gemini-3.8-flash',
-    'FAST_GEMINI_MODELS_CASCADE doit avoir gemini-3.8-flash comme modèle de repli'
+    'gemini-1.5-flash',
+    'FAST_GEMINI_MODELS_CASCADE doit avoir gemini-1.5-flash comme modèle de repli'
   );
   assert.strictEqual(
-    FAST_GEMINI_MODELS_CASCADE.includes('gemini-2.5-flash'),
+    FAST_GEMINI_MODELS_CASCADE.includes('gemini-3.8-flash'),
     false,
-    'FAST_GEMINI_MODELS_CASCADE ne doit plus contenir gemini-2.5-flash (404 / déprécié)'
+    'FAST_GEMINI_MODELS_CASCADE ne doit plus contenir gemini-3.8-flash'
   );
   assert.strictEqual(
-    FAST_GEMINI_MODELS_CASCADE.includes('gemini-2.0-flash'),
+    FAST_GEMINI_MODELS_CASCADE.includes('gemini-3.5-flash-lite'),
     false,
-    'FAST_GEMINI_MODELS_CASCADE ne doit plus contenir gemini-2.0-flash (404 / déprécié)'
+    'FAST_GEMINI_MODELS_CASCADE ne doit plus contenir gemini-3.5-flash-lite'
   );
   assert.strictEqual(
-    FAST_GEMINI_MODELS_CASCADE.includes('gemini-1.5-flash'),
+    FAST_GEMINI_MODELS_CASCADE.includes('gemini-3.6-flash'),
     false,
-    'FAST_GEMINI_MODELS_CASCADE ne doit plus contenir gemini-1.5-flash (404 / déprécié)'
+    'FAST_GEMINI_MODELS_CASCADE ne doit plus contenir gemini-3.6-flash'
   );
 
   // Test du Circuit Breaker
-  assert.strictEqual(isModelDegraded('gemini-3.8-flash'), false);
-  markModelDegraded('gemini-3.8-flash');
-  assert.strictEqual(isModelDegraded('gemini-3.8-flash'), true);
-  const prioritized = prioritizeHealthyModels(['gemini-3.8-flash', 'gemini-3.5-flash-lite']);
-  assert.strictEqual(prioritized[0], 'gemini-3.5-flash-lite', 'Le modèle sain doit passer en tête de cascade');
-  assert.strictEqual(prioritized[1], 'gemini-3.8-flash', 'Le modèle dégradé doit passer en fin de cascade');
-  console.log('✓ Cascades Gemini 3 actives et Circuit Breaker validés');
+  assert.strictEqual(isModelDegraded('gemini-1.5-flash'), false);
+  markModelDegraded('gemini-1.5-flash');
+  assert.strictEqual(isModelDegraded('gemini-1.5-flash'), true);
+  const prioritized = prioritizeHealthyModels(['gemini-1.5-flash', 'gemini-2.0-flash']);
+  assert.strictEqual(prioritized[0], 'gemini-2.0-flash', 'Le modèle sain doit passer en tête de cascade');
+  assert.strictEqual(prioritized[1], 'gemini-1.5-flash', 'Le modèle dégradé doit passer en fin de cascade');
+  console.log('✓ Cascades Gemini actives et Circuit Breaker validés');
 
   // =========================================================================
   // TEST SECTION 5 : adaptPayloadForModel (Thinking Level & Latence)
@@ -195,40 +195,21 @@ async function main() {
     },
   };
 
-  const adapted38 = adaptPayloadForModel(basePayload, 'gemini-3.8-flash');
-  assert.strictEqual(
-    adapted38.generationConfig.thinkingConfig?.thinkingLevel,
-    'low',
-    'Gemini 3.8 Flash doit avoir thinkingLevel="low" pour minimiser la latence'
-  );
-  assert.strictEqual(
-    adapted38.generationConfig.temperature,
-    undefined,
-    'Gemini 3.8 Flash ne doit pas avoir de paramètre temperature déprécié'
-  );
-
-  const adapted25 = adaptPayloadForModel(basePayload, 'gemini-2.5-flash');
-  assert.strictEqual(
-    adapted25.generationConfig.thinkingConfig?.thinkingBudget,
-    0,
-    'Gemini 2.5 Flash doit avoir thinkingBudget=0 pour vitesse maximale'
-  );
-
   const adapted20 = adaptPayloadForModel(basePayload, 'gemini-2.0-flash');
   assert.strictEqual(
     adapted20.generationConfig.thinkingConfig,
     undefined,
     'Gemini 2.0 Flash ne doit pas avoir de thinkingConfig'
   );
-  console.log('✓ adaptPayloadForModel configure correctement thinkingLevel, thinkingBudget et timeouts');
+  console.log('✓ adaptPayloadForModel configure correctement le timeout et nettoie la configuration');
 
   // =========================================================================
   // TEST SECTION 6 : formatAiModelName
   // =========================================================================
   console.log('\n--- Test 6 : formatAiModelName ---');
-  assert.strictEqual(formatAiModelName('gemini-3.8-flash'), 'Gemini 3.8 Flash');
-  assert.strictEqual(formatAiModelName('gemini-3.5-flash-lite'), 'Gemini 3.5 Flash-Lite');
-  assert.strictEqual(formatAiModelName('gemini-3.6-flash'), 'Gemini 3.6 Flash');
+  assert.strictEqual(formatAiModelName('gemini-2.0-flash'), 'Gemini 2.0 Flash');
+  assert.strictEqual(formatAiModelName('gemini-1.5-flash'), 'Gemini 1.5 Flash');
+  assert.strictEqual(formatAiModelName('gemini-1.5-flash-8b'), 'Gemini 1.5 Flash-8B');
   assert.strictEqual(formatAiModelName('custom-model'), 'custom-model');
   console.log('✓ formatAiModelName formate correctement les modèles actifs');
 

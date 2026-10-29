@@ -83,8 +83,8 @@ Règles :
 parts.push({ text: systemPrompt });
 
 async function run() {
-  console.log(`\n⏳ Envoi de la requête à l'API Gemini 3.8 Flash...`);
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${encodeURIComponent(apiKey)}`;
+  console.log(`\n⏳ Envoi de la requête à l'API Gemini 2.0 Flash...`);
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${encodeURIComponent(apiKey)}`;
 
   const response = await fetch(url, {
     method: 'POST',

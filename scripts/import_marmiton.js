@@ -180,7 +180,7 @@ Règles impératives :
 ${cleanPayload}
 </untrusted_recipe_payload>`;
 
-  const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${encodeURIComponent(API_KEY)}`;
+  const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${encodeURIComponent(API_KEY)}`;
   const aiResp = await fetch(geminiUrl, {
     method: 'POST',
     headers: {
