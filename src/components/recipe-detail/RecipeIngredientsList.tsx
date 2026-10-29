@@ -160,7 +160,6 @@ export const RecipeIngredientsList: React.FC<RecipeIngredientsListProps> = ({
             const isScaled = currentServings !== recipe.servings && !!ing.quantity;
             const isAllergen = allergenIngredientIdsSet.has(ing.id) || allergenIngredientIdsSet.has(normalizeString(ing.name));
             const linkedRecipe = linkedRecipesMap.get(ing.id);
-            const isMissing = stockEvaluation?.missingIngredients.some((missingIng) => missingIng.id === ing.id) ?? false;
 
             // Calcul de conversion d'unité culinaire
             const effectiveMode = ingredientModes[ing.id] ?? globalConversionMode;
@@ -204,20 +203,6 @@ export const RecipeIngredientsList: React.FC<RecipeIngredientsListProps> = ({
                       <View style={[styles.allergenInlineTag, { backgroundColor: colors.dangerLight, borderColor: colors.danger }]}>
                         <Text style={[styles.allergenInlineTagText, { color: colors.danger }]}>Allergène</Text>
                       </View>
-                    )}
-                    {isMissing && !isChecked && onSosRequest && (
-                      <TouchableOpacity
-                        style={styles.sosInlineBtn}
-                        onPress={(e) => {
-                          e.stopPropagation();
-                          onSosRequest(ing.name);
-                        }}
-                        activeOpacity={0.7}
-                        hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                      >
-                        <Ionicons name="help-buoy" size={12} color="#FFF" />
-                        <Text style={styles.sosInlineBtnText}>SOS</Text>
-                      </TouchableOpacity>
                     )}
                   </View>
                   {linkedRecipe && (
