@@ -52,6 +52,7 @@ const ALLERGEN_FILTER_RECIPES_KEY = '@papilles_filter_allergens_recipes_v1';
 const ALLERGEN_EXCLUDE_AI_KEY = '@papilles_exclude_allergens_ai_v1';
 const PLANNER_SETTINGS_KEY = '@papilles_planner_settings_v1';
 const RECIPE_VIEW_MODE_KEY = '@papilles_recipe_view_mode_v1';
+const ONBOARDING_KEY = '@papilles_onboarded_v1';
 
 // File d'attente séquentielle (mutex async) pour sérialiser les cascades de vocabulaire et éviter tout conflit AsyncStorage
 let cascadeMutexQueue: Promise<any> = Promise.resolve();
@@ -2217,6 +2218,42 @@ export const StorageService = {
       return { success: true, count: addedOrUpdated };
     } catch (err: any) {
       return { success: false, count: 0, error: err?.message || 'Format JSON invalide.' };
+    }
+  },
+
+  // ─── Onboarding ──────────────────────────────────────────────────────────
+
+  /**
+   * Retourne true si l'utilisateur a déjà complété l'onboarding.
+   */
+  async hasCompletedOnboarding(): Promise<boolean> {
+    try {
+      const val = await AsyncStorage.getItem(ONBOARDING_KEY);
+      return val === '1';
+    } catch {
+      return false;
+    }
+  },
+
+  /**
+   * Marque l'onboarding comme complété.
+   */
+  async completeOnboarding(): Promise<void> {
+    try {
+      await AsyncStorage.setItem(ONBOARDING_KEY, '1');
+    } catch (e) {
+      console.error('Erreur sauvegarde onboarding:', e);
+    }
+  },
+
+  /**
+   * Réinitialise l'état d'onboarding (ex: lors d'une remise à zéro usine).
+   */
+  async resetOnboarding(): Promise<void> {
+    try {
+      await AsyncStorage.removeItem(ONBOARDING_KEY);
+    } catch (e) {
+      console.error('Erreur réinitialisation onboarding:', e);
     }
   },
 };

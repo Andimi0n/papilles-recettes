@@ -23,6 +23,7 @@ import { MealPlannerScreen } from './src/screens/MealPlannerScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
 import { ImportRecipeModal } from './src/components/ImportRecipeModal';
 import { RecipeShareService } from './src/services/recipeShareService';
+import { OnboardingScreen } from './src/screens/OnboardingScreen';
 import { createDynamicStyles } from './src/theme/colors';
 import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
 
@@ -37,6 +38,7 @@ function AppContent() {
   const [recipeDetailStack, setRecipeDetailStack] = useState<string[]>([]);
   const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   // Recette reçue en partage (via Deep Link ou scan QR code)
   const [receivedSharedRecipe, setReceivedSharedRecipe] = useState<Recipe | null>(null);
@@ -57,10 +59,14 @@ function AppContent() {
     const loadInitialData = async () => {
       try {
         await StorageService.migrateRecipesToCanonicalV1().catch(() => {});
-        // Préchauffage en tâche de fond du frigo et des courses pour une réactivité instantanée
-        StorageService.getFridgeItems().catch(() => {});
-        const loaded = await StorageService.getRecipes();
-        setRecipes(loaded);
+        // Vérification onboarding en parallèle du chargement des recettes
+        const [loaded, onboarded] = await Promise.all([
+          StorageService.getRecipes().catch(() => [] as Recipe[]),
+          StorageService.hasCompletedOnboarding().catch(() => false),
+          StorageService.getFridgeItems().catch(() => {}), // préchauffage cache
+        ]);
+        setRecipes(loaded as Recipe[]);
+        if (!onboarded) setShowOnboarding(true);
       } catch (e) {
         console.error('Erreur chargement initial:', e);
       } finally {
@@ -100,6 +106,12 @@ function AppContent() {
       subscription.remove();
     };
   }, [handleIncomingUrl]);
+
+  // Fin de l'onboarding — persiste le flag et masque l'écran
+  const handleOnboardingComplete = useCallback(async () => {
+    await StorageService.completeOnboarding();
+    setShowOnboarding(false);
+  }, []);
 
   // Traitement de l'import d'une recette partagée
   const handleConfirmImportSharedRecipe = async (sharedRecipe: Recipe) => {
@@ -283,7 +295,17 @@ function AppContent() {
   if (isLoading || !isThemeLoaded) {
     return (
       <View style={styles.loadingContainer}>
+        <StatusBar style={isDark ? 'light' : 'dark'} />
         <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
+
+  if (showOnboarding) {
+    return (
+      <View style={styles.container}>
+        <StatusBar style={isDark ? 'light' : 'dark'} />
+        <OnboardingScreen onComplete={handleOnboardingComplete} />
       </View>
     );
   }
@@ -291,9 +313,8 @@ function AppContent() {
   const isMainTab = ['home', 'planner', 'shopping', 'settings'].includes(currentScreen);
 
   return (
-    <SafeAreaProvider>
+    <View style={styles.container}>
       <StatusBar style={isDark ? 'light' : 'dark'} />
-      <View style={styles.container}>
         {/* Écrans Principaux avec Keep-Alive (onglets persistants en mémoire) */}
         <View style={styles.mainContent}>
           <View style={[styles.tabContainer, currentScreen !== 'home' && styles.tabHidden]}>
@@ -484,15 +505,16 @@ function AppContent() {
           }}
         />
       </View>
-    </SafeAreaProvider>
   );
 }
 
 export default function App() {
   return (
-    <ThemeProvider>
-      <AppContent />
-    </ThemeProvider>
+    <SafeAreaProvider>
+      <ThemeProvider>
+        <AppContent />
+      </ThemeProvider>
+    </SafeAreaProvider>
   );
 }
 

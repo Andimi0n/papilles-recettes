@@ -548,6 +548,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
               await StorageService.clearAllShoppingItems();
               await StorageService.clearFridge();
               await StorageService.clearWeeklyPlan();
+              await StorageService.resetOnboarding();
 
               if (onRecipesReloadNeeded) {
                 await onRecipesReloadNeeded();
