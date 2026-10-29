@@ -221,6 +221,21 @@ export function formatAiModelName(modelId: string): string {
 }
 
 /**
+ * Nettoie et assainit une clé API Gemini :
+ * - Supprime les caractères invisibles (espaces insécables, BOM, zero-width)
+ * - Supprime les guillemets résiduels de copier-coller ("..." ou '...')
+ * - Supprime tous les espaces internes ou de début/fin accidentels
+ */
+export function cleanApiKey(key: string): string {
+  if (!key || typeof key !== 'string') return '';
+  return key
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
+    .trim()
+    .replace(/^["']|["']$/g, '')
+    .replace(/\s+/g, '');
+}
+
+/**
  * Construit l'URL de génération de contenu sans exposer la clé API en paramètre d'URL (SEC-05).
  * L'authentification est déléguée aux en-têtes HTTP sécurisés x-goog-api-key.
  */
@@ -237,13 +252,14 @@ const getGeminiModelCheckUrl = (_apiKey?: string): string => {
 
 /**
  * En-têtes HTTP sécurisés pour les requêtes Gemini.
+ * Utilise strictement l'en-tête standard 'x-goog-api-key' sans doublon
+ * pour éviter toute concaténation par virgule ("key, key") par les implémentations fetch/Headers conformes RFC 7230.
  */
-const getGeminiHeaders = (apiKey: string) => {
-  const cleanKey = apiKey.trim();
+export const getGeminiHeaders = (apiKey: string) => {
+  const cleanKey = cleanApiKey(apiKey);
   return {
     'Content-Type': 'application/json',
     'x-goog-api-key': cleanKey,
-    'X-Goog-Api-Key': cleanKey,
   };
 };
 
@@ -550,7 +566,7 @@ async function fetchGeminiJsonWithFallbackAndRetry(
     const startTime = Date.now();
     try {
       // 0 retry si un modèle de repli est prêt dans la cascade pour basculer instantanément
-      const response = await fetchGeminiWithRetry(
+      let response = await fetchGeminiWithRetry(
         generateUrl,
         {
           method: 'POST',
@@ -560,6 +576,25 @@ async function fetchGeminiJsonWithFallbackAndRetry(
         hasNextFallback ? 0 : 1,
         timeoutMs
       );
+
+      // Si le réseau ou un reverse-proxy mobile filtre les en-têtes personnalisés (HTTP 403),
+      // basculement automatique et transparent par query param ?key=
+      if (response.status === 403) {
+        const fallbackUrl = `${GEMINI_BASE_URL}/models/${model}:generateContent?key=${encodeURIComponent(cleanApiKey(apiKey))}`;
+        const retryResp = await fetchGeminiWithRetry(
+          fallbackUrl,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(modelPayload),
+          },
+          0,
+          timeoutMs
+        ).catch(() => null);
+        if (retryResp && retryResp.ok) {
+          response = retryResp;
+        }
+      }
 
       if (__DEV__) {
         console.log(`⏱️ [Réponse reçue en ${Date.now() - startTime}ms pour ${model} (HTTP ${response.status})]`);
@@ -903,13 +938,13 @@ export const RecipeAiService = {
       if (Platform.OS !== 'web' && SecureStore && typeof SecureStore.getItemAsync === 'function') {
         const secureStored = await SecureStore.getItemAsync(GEMINI_API_KEY_STORAGE);
         if (secureStored && secureStored.trim().length > 0) {
-          return secureStored.trim();
+          return cleanApiKey(secureStored);
         }
 
         // Migration automatique et transparente si une clé existait dans l'ancien AsyncStorage
         const legacyStored = await AsyncStorage.getItem(LEGACY_STORAGE_KEY);
         if (legacyStored && legacyStored.trim().length > 0) {
-          const cleanKey = legacyStored.trim();
+          const cleanKey = cleanApiKey(legacyStored);
           await SecureStore.setItemAsync(GEMINI_API_KEY_STORAGE, cleanKey);
           await AsyncStorage.removeItem(LEGACY_STORAGE_KEY);
           return cleanKey;
@@ -917,7 +952,7 @@ export const RecipeAiService = {
       } else {
         const stored = await AsyncStorage.getItem(LEGACY_STORAGE_KEY);
         if (stored && stored.trim().length > 0) {
-          return stored.trim();
+          return cleanApiKey(stored);
         }
       }
     } catch (e) {
@@ -931,7 +966,7 @@ export const RecipeAiService = {
    * Sauvegarde une clé API personnalisée dans le coffre-fort sécurisé chiffré (SEC-01).
    */
   async setApiKey(key: string): Promise<void> {
-    const trimmed = key.trim();
+    const trimmed = cleanApiKey(key);
     try {
       if (Platform.OS !== 'web' && SecureStore && typeof SecureStore.setItemAsync === 'function') {
         await SecureStore.setItemAsync(GEMINI_API_KEY_STORAGE, trimmed);
@@ -966,7 +1001,7 @@ export const RecipeAiService = {
    */
   async checkConnection(providedKey?: string): Promise<AiConnectionStatus> {
     const rawKey = providedKey || (await this.getApiKey());
-    const apiKey = (rawKey || '').trim();
+    const apiKey = cleanApiKey(rawKey);
     if (!apiKey) {
       return {
         ok: false,
@@ -992,11 +1027,26 @@ export const RecipeAiService = {
 
       // GET ultraléger sur les métadonnées du modèle Gemini 3.8 Flash
       const checkUrl = getGeminiModelCheckUrl(apiKey);
-      const response = await fetch(checkUrl, {
+      let response = await fetch(checkUrl, {
         method: 'GET',
         headers: getGeminiHeaders(apiKey),
         signal: controller.signal,
       });
+
+      // Repli par query param ?key= si un proxy réseau filtre l'en-tête (HTTP 403)
+      if (response.status === 403) {
+        try {
+          const fallbackUrl = `${GEMINI_BASE_URL}/models/${GEMINI_MODEL}?key=${encodeURIComponent(apiKey)}`;
+          const retryResp = await fetch(fallbackUrl, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+            signal: controller.signal,
+          });
+          if (retryResp.ok) {
+            response = retryResp;
+          }
+        } catch {}
+      }
 
       clearTimeout(timeoutId);
 
@@ -1121,7 +1171,7 @@ export const RecipeAiService = {
     providedKey?: string,
     onModelAttempt?: (modelName: string, isFallback: boolean) => void
   ): Promise<ExtractedRecipeData> {
-    const apiKey = providedKey || (await this.getApiKey());
+    const apiKey = cleanApiKey(providedKey || (await this.getApiKey()));
 
     if (!apiKey) {
       throw new Error(
@@ -1187,7 +1237,7 @@ Règles universelles :
     providedKey?: string,
     onModelAttempt?: (modelName: string, isFallback: boolean) => void
   ): Promise<ExtractedRecipeData> {
-    const apiKey = providedKey || (await this.getApiKey());
+    const apiKey = cleanApiKey(providedKey || (await this.getApiKey()));
 
     if (!apiKey) {
       throw new Error(
@@ -1249,7 +1299,7 @@ ${sanitizedRecipe}
     providedKey?: string,
     onModelAttempt?: (modelName: string, isFallback: boolean) => void
   ): Promise<ExtractedRecipeData> {
-    const apiKey = providedKey || (await this.getApiKey());
+    const apiKey = cleanApiKey(providedKey || (await this.getApiKey()));
 
     if (!apiKey) {
       throw new Error(
@@ -1344,7 +1394,7 @@ ${sanitizedInput}
     },
     providedKey?: string
   ): Promise<RecipeIdea[]> {
-    const apiKey = providedKey || (await this.getApiKey());
+    const apiKey = cleanApiKey(providedKey || (await this.getApiKey()));
     if (!apiKey) {
       throw new Error(
         'Clé API Gemini non configurée. Veuillez renseigner votre clé API dans les paramètres.'
@@ -1464,7 +1514,7 @@ ${sanitizedIngredients.join(', ')}
     },
     providedKey?: string
   ): Promise<ExtractedRecipeData> {
-    const apiKey = providedKey || (await this.getApiKey());
+    const apiKey = cleanApiKey(providedKey || (await this.getApiKey()));
     if (!apiKey) {
       throw new Error(
         'Clé API Gemini non configurée. Veuillez renseigner votre clé API dans les paramètres.'
@@ -1548,7 +1598,7 @@ ${sanitizedIngredients.join(', ')}
     providedKey?: string,
     onModelAttempt?: (modelName: string, isFallback: boolean) => void
   ): Promise<PimpRecipeResponse> {
-    const apiKey = providedKey || (await this.getApiKey());
+    const apiKey = cleanApiKey(providedKey || (await this.getApiKey()));
     if (!apiKey) {
       throw new Error(
         'Clé API Gemini non configurée. Veuillez renseigner votre clé API dans les paramètres.'
@@ -1622,7 +1672,7 @@ Propose des améliorations à partir de ce stock.`;
     providedKey?: string,
     onModelAttempt?: (modelName: string, isFallback: boolean) => void
   ): Promise<SosRecipeResponse> {
-    const apiKey = providedKey || (await this.getApiKey());
+    const apiKey = cleanApiKey(providedKey || (await this.getApiKey()));
     if (!apiKey) {
       throw new Error(
         'Clé API Gemini non configurée. Veuillez renseigner votre clé API dans les paramètres.'

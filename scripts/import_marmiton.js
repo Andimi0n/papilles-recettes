@@ -186,7 +186,6 @@ ${cleanPayload}
     headers: {
       'Content-Type': 'application/json',
       'x-goog-api-key': API_KEY,
-      'X-Goog-Api-Key': API_KEY,
     },
     body: JSON.stringify({
       system_instruction: {

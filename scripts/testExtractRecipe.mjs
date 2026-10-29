@@ -91,7 +91,6 @@ async function run() {
     headers: {
       'Content-Type': 'application/json',
       'x-goog-api-key': apiKey,
-      'X-Goog-Api-Key': apiKey,
     },
     body: JSON.stringify({
       contents: [{ parts }],

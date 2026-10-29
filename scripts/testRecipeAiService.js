@@ -55,6 +55,8 @@ async function main() {
     RECIPE_PIMP_SCHEMA,
     RECIPE_SOS_SCHEMA,
     RecipeAiService,
+    cleanApiKey,
+    getGeminiHeaders,
   } = require(path.join(tmpDir, 'services/recipeAiService.js'));
 
   console.log('🧪 Lancement des tests de recipeAiService...');
@@ -291,6 +293,24 @@ async function main() {
     'suggestSubstituteWithStock doit rejeter si clé API absente'
   );
   console.log('✓ Validation défensive et gestion des erreurs pimpRecipeWithStock & suggestSubstituteWithStock validées');
+
+  // =========================================================================
+  // TEST SECTION 9 : Sécurisation & Assainissement des Clés API (BYOK)
+  // =========================================================================
+  console.log('\n--- Test 9 : cleanApiKey & getGeminiHeaders ---');
+  assert.strictEqual(cleanApiKey('  AIzaSy12345  '), 'AIzaSy12345', 'cleanApiKey doit retirer les espaces de bordure');
+  assert.strictEqual(cleanApiKey('"AIzaSy12345"'), 'AIzaSy12345', 'cleanApiKey doit retirer les guillemets doubles');
+  assert.strictEqual(cleanApiKey("'AIzaSy12345'"), 'AIzaSy12345', 'cleanApiKey doit retirer les guillemets simples');
+  assert.strictEqual(cleanApiKey('\u200BAIzaSy\uFEFF12345\u200C'), 'AIzaSy12345', 'cleanApiKey doit retirer les caractères invisibles / BOM / zero-width');
+  assert.strictEqual(cleanApiKey('AIzaSy 12345\n678'), 'AIzaSy12345678', 'cleanApiKey doit supprimer les espaces ou retours à la ligne internes accidentels');
+  assert.strictEqual(cleanApiKey(''), '', 'cleanApiKey doit retourner une chaîne vide pour une entrée vide');
+
+  const headers = getGeminiHeaders('  "AIzaSyKeyValid"  ');
+  assert.strictEqual(headers['x-goog-api-key'], 'AIzaSyKeyValid', 'getGeminiHeaders doit assainir la clé');
+  assert.strictEqual(headers['X-Goog-Api-Key'], undefined, 'getGeminiHeaders ne doit PAS contenir de clé dupliquée X-Goog-Api-Key');
+  const headersObj = new Headers(headers);
+  assert.strictEqual(headersObj.get('x-goog-api-key'), 'AIzaSyKeyValid', 'Headers ne doit pas concaténer de doublons par virgule');
+  console.log('✓ Nettoyage de clé et unicité des en-têtes HTTP (zéro duplication "key, key") validés');
 
   console.log('\n🎉 TOUS LES TESTS DE RECIPE AI SERVICE ONT RÉUSSI (0 ERREUR) !');
 
