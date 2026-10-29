@@ -71,6 +71,17 @@ export const styles = createDynamicStyles((colors, shadows) => ({
     padding: 4,
     borderWidth: 1,
     borderColor: colors.borderLight,
+    position: 'relative',
+  },
+  tabSwitcherIndicator: {
+    position: 'absolute',
+    top: 4,
+    left: 4,
+    bottom: 4,
+    borderRadius: 10,
+    backgroundColor: colors.primary,
+    ...shadows.card,
+    zIndex: 1,
   },
   tabSwitcherBtn: {
     flex: 1,
@@ -80,10 +91,10 @@ export const styles = createDynamicStyles((colors, shadows) => ({
     paddingVertical: 8,
     borderRadius: 10,
     gap: 6,
+    zIndex: 2,
   },
   tabSwitcherBtnActive: {
-    backgroundColor: colors.primary,
-    ...shadows.card,
+    backgroundColor: 'transparent',
   },
   tabSwitcherText: {
     fontSize: 13,

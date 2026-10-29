@@ -39,6 +39,11 @@ interface FridgeStockViewProps {
   shoppingItems?: ShoppingItem[];
   onNavigateToShoppingWithSearch?: (query: string) => void;
   initialItems?: FridgeItem[];
+  onTransferItemToShopping?: (
+    item: FridgeItem,
+    touchPos: { x: number; y: number },
+    onArrival?: () => void
+  ) => void;
 }
 
 export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
@@ -51,6 +56,7 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
   shoppingItems = [],
   onNavigateToShoppingWithSearch,
   initialItems,
+  onTransferItemToShopping,
 }) => {
   const { isDark, colors } = useTheme();
   const [items, setItems] = useState<FridgeItem[]>(() => {
@@ -562,6 +568,19 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
     }
   }, [handleCopyToShopping, handleDeleteItem]);
 
+  const handleTransferToShopping = useCallback(
+    (item: FridgeItem, touchPos: { x: number; y: number }) => {
+      if (onTransferItemToShopping) {
+        onTransferItemToShopping(item, touchPos, () => {
+          void handleEmptyItem(item);
+        });
+      } else {
+        void handleEmptyItem(item);
+      }
+    },
+    [onTransferItemToShopping, handleEmptyItem]
+  );
+
   const totalCount = items.length;
   const hasSuggestions = availableSuggestions.length > 0 && !isSearching;
 
@@ -644,6 +663,20 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
             <Text style={styles.itemName}>{item.name}</Text>
           </View>
 
+          {/* Action directe : basculer dans la liste de courses avec animation */}
+          <TouchableOpacity
+            style={styles.transferToShoppingBtn}
+            onPress={(e) => {
+              const { pageX, pageY } = e.nativeEvent;
+              handleTransferToShopping(item, { x: pageX, y: pageY });
+            }}
+            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            accessibilityLabel="Ajouter à ma liste de courses"
+          >
+            <Ionicons name="cart-outline" size={15} color={colors.primary} />
+            <Text style={styles.transferToShoppingText}>+ Courses</Text>
+          </TouchableOpacity>
+
           {/* Bouton supprimer */}
           <TouchableOpacity
             style={styles.deleteItemBtn}
@@ -656,7 +689,7 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
         </View>
       </View>
     );
-  }, [colors.textMuted, handleDeleteItem]);
+  }, [colors.primary, colors.textMuted, handleDeleteItem, handleTransferToShopping]);
 
   return (
     <View style={styles.container}>
@@ -1440,6 +1473,21 @@ const styles = createDynamicStyles((colors, shadows) => ({
   },
   copyToShoppingTextSuccess: {
     color: '#FFFFFF',
+  },
+  transferToShoppingBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.surfaceAlt,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    marginRight: 6,
+  },
+  transferToShoppingText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.primary,
   },
   deleteItemBtn: {
     padding: 6,

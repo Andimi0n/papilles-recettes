@@ -11,9 +11,9 @@ import {
   SectionList,
   Modal,
   Animated,
-  Dimensions,
   NativeSyntheticEvent,
   NativeScrollEvent,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -38,6 +38,7 @@ import { UnifiedIngredientInput } from '../components/UnifiedIngredientInput';
 import { UnitQuickPicker } from '../components/UnitQuickPicker';
 import { UnitPickerModal } from '../components/UnitPickerModal';
 import { EditShoppingItemModal } from '../components/EditShoppingItemModal';
+import { FlyingChipOverlay, FlyingChipData } from '../components/FlyingChipOverlay';
 import { formatQuantityWithUnit, isStandardUnit, normalizeUnit } from '../constants/units';
 
 interface ShoppingListScreenProps {
@@ -54,16 +55,124 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
   isActive = true,
 }) => {
   const { isDark, colors } = useTheme();
+  const { width: screenWidth } = useWindowDimensions();
   const [activeTab, setActiveTab] = useState<'shopping' | 'fridge'>(initialTab);
   const [items, setItems] = useState<ShoppingItem[]>(() => StorageService.getSyncShoppingList() || []);
   const [fridgeItems, setFridgeItems] = useState<FridgeItem[]>(() => StorageService.getSyncFridgeItems() || []);
   const [fridgeCount, setFridgeCount] = useState<number>(() => (StorageService.getSyncFridgeItems() || []).length);
 
-  // Recherche ergonomique unifiée Étagères ↔ Courses
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isSearchActive, setIsSearchActive] = useState(false);
-  const [isInStoreModeVisible, setIsInStoreModeVisible] = useState(false);
-  const [isShareModalVisible, setIsShareModalVisible] = useState(false);
+  // Pager horizontal fluide & Indicateur glissant synchronisé
+  const pagerRef = useRef<any>(null);
+  const [pagerScrollX] = useState(() => new Animated.Value(initialTab === 'fridge' ? 0 : screenWidth));
+  const [tabContainerWidth, setTabContainerWidth] = useState(0);
+
+  const tabWidth = tabContainerWidth > 0 ? (tabContainerWidth - 8) / 2 : (screenWidth - 40) / 2;
+
+  const indicatorTranslateX = pagerScrollX.interpolate({
+    inputRange: [0, screenWidth || 1],
+    outputRange: [0, tabWidth],
+    extrapolate: 'clamp',
+  });
+
+  // Animations d'impulsion sur les badges lors d'un transfert
+  const [shelfTabScale] = useState(() => new Animated.Value(1));
+  const [shoppingTabScale] = useState(() => new Animated.Value(1));
+
+  const pulseShelfTab = useCallback(() => {
+    Animated.sequence([
+      Animated.timing(shelfTabScale, {
+        toValue: 1.35,
+        duration: 130,
+        useNativeDriver: true,
+      }),
+      Animated.spring(shelfTabScale, {
+        toValue: 1,
+        friction: 4.5,
+        tension: 100,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [shelfTabScale]);
+
+  const pulseShoppingTab = useCallback(() => {
+    Animated.sequence([
+      Animated.timing(shoppingTabScale, {
+        toValue: 1.35,
+        duration: 130,
+        useNativeDriver: true,
+      }),
+      Animated.spring(shoppingTabScale, {
+        toValue: 1,
+        friction: 4.5,
+        tension: 100,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [shoppingTabScale]);
+
+  // Pastilles volantes (Flying Chips) pour animer le transfert physique d'un univers à l'autre
+  const [flyingChips, setFlyingChips] = useState<FlyingChipData[]>([]);
+
+  const removeFlyingChip = useCallback((id: string) => {
+    setFlyingChips((prev) => prev.filter((c) => c.id !== id));
+  }, []);
+
+  const addFlyingChip = useCallback(
+    (params: {
+      name: string;
+      iconName: 'cart' | 'layers';
+      startX: number;
+      startY: number;
+      targetX: number;
+      targetY: number;
+      color?: string;
+      onArrival?: () => void;
+    }) => {
+      const id = `${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+      setFlyingChips((prev) => [
+        ...prev,
+        {
+          id,
+          name: params.name,
+          iconName: params.iconName,
+          startX: params.startX,
+          startY: params.startY,
+          targetX: params.targetX,
+          targetY: params.targetY,
+          color: params.color,
+          onArrival: params.onArrival,
+        },
+      ]);
+    },
+    []
+  );
+
+  const targetXFridge = 16 + 4 + (tabWidth > 0 ? tabWidth / 2 : screenWidth * 0.25);
+  const targetXShopping = 16 + 4 + (tabWidth > 0 ? tabWidth * 1.5 : screenWidth * 0.75);
+  const targetYTabs = 26;
+
+  const handleSelectTab = useCallback(
+    (tab: 'fridge' | 'shopping') => {
+      setActiveTab(tab);
+      pagerRef.current?.scrollTo({
+        x: tab === 'fridge' ? 0 : screenWidth,
+        animated: true,
+      });
+    },
+    [screenWidth]
+  );
+
+  const handleMomentumScrollEnd = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const offsetX = event.nativeEvent.contentOffset.x;
+      const pageIndex = Math.round(offsetX / (screenWidth || 1));
+      const newTab = pageIndex === 0 ? 'fridge' : 'shopping';
+      if (newTab !== activeTab) {
+        setActiveTab(newTab);
+      }
+    },
+    [screenWidth, activeTab]
+  );
 
   // Synchronise si initialTab change depuis l'extérieur (Pattern React 19)
   const [prevInitialTab, setPrevInitialTab] = useState(initialTab);
@@ -73,6 +182,19 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
       setActiveTab(initialTab);
     }
   }
+
+  useEffect(() => {
+    pagerRef.current?.scrollTo({
+      x: initialTab === 'fridge' ? 0 : screenWidth,
+      animated: true,
+    });
+  }, [initialTab, screenWidth]);
+
+  // Recherche ergonomique unifiée Étagères ↔ Courses
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchActive, setIsSearchActive] = useState(false);
+  const [isInStoreModeVisible, setIsInStoreModeVisible] = useState(false);
+  const [isShareModalVisible, setIsShareModalVisible] = useState(false);
 
   // Formulaire d'ajout rapide courses (saisie libre intelligente)
   const [newItemText, setNewItemText] = useState('');
@@ -528,9 +650,73 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
     }
   }, []);
 
-  // Passer tous les ingrédients cochés/grisés dans mes étagères
+  // Transférer un aliment de mes étagères vers ma liste de courses (avec animation de vol)
+  const handleTransferFridgeItemToShopping = useCallback(
+    (item: FridgeItem, touchPos: { x: number; y: number }, onArrival?: () => void) => {
+      addFlyingChip({
+        name: item.name,
+        iconName: 'cart',
+        startX: touchPos.x,
+        startY: touchPos.y,
+        targetX: targetXShopping,
+        targetY: targetYTabs,
+        color: '#16A34A',
+        onArrival: () => {
+          pulseShoppingTab();
+          onArrival?.();
+        },
+      });
+    },
+    [addFlyingChip, targetXShopping, targetYTabs, pulseShoppingTab]
+  );
+
+  // Transférer un article de courses vers mes étagères (avec animation de vol)
+  const handleTransferShoppingItemToFridge = useCallback(
+    (item: ShoppingItem, touchPos: { x: number; y: number }) => {
+      addFlyingChip({
+        name: item.name,
+        iconName: 'layers',
+        startX: touchPos.x,
+        startY: touchPos.y,
+        targetX: targetXFridge,
+        targetY: targetYTabs,
+        color: colors.primary,
+        onArrival: async () => {
+          pulseShelfTab();
+          await handleMoveToShelves(item);
+        },
+      });
+    },
+    [addFlyingChip, targetXFridge, targetYTabs, colors.primary, pulseShelfTab, handleMoveToShelves]
+  );
+
+  // Passer tous les ingrédients cochés/grisés dans mes étagères avec cascade collective animée
   const handleBulkMoveCompletedToShelves = async () => {
     if (completedCount === 0) return;
+
+    // Déclencher une cascade visuelle de 1 à 3 pastilles volantes vers l'onglet Étagères
+    const checkedItems = items.filter((i) => i.isChecked);
+    const sampleItems = checkedItems.slice(0, 3);
+
+    sampleItems.forEach((it, idx) => {
+      setTimeout(() => {
+        addFlyingChip({
+          name: it.name,
+          iconName: 'layers',
+          startX: screenWidth * 0.65 + idx * 15,
+          startY: 120 + idx * 25,
+          targetX: targetXFridge,
+          targetY: targetYTabs,
+          color: colors.primary,
+          onArrival: () => {
+            if (idx === sampleItems.length - 1) {
+              pulseShelfTab();
+            }
+          },
+        });
+      }, idx * 90);
+    });
+
     try {
       const res = await StorageService.moveCheckedShoppingItemsToFridge();
       setItems(res.shoppingList);
@@ -744,11 +930,14 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
               )}
             </TouchableOpacity>
 
-            {/* Action directe : ranger dans les étagères si coché */}
+            {/* Action directe : ranger dans les étagères si coché avec animation */}
             {item.isChecked && (
               <TouchableOpacity
                 style={styles.moveToFridgeBtn}
-                onPress={() => handleMoveToShelves(item)}
+                onPress={(e) => {
+                  const { pageX, pageY } = e.nativeEvent;
+                  handleTransferShoppingItemToFridge(item, { x: pageX, y: pageY });
+                }}
                 hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                 accessibilityLabel="Ranger dans mes étagères"
               >
@@ -769,160 +958,186 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
         </View>
       );
     },
-    [colors, handleMoveToShelves, handleOpenEditModal, handleToggleItem, handleDeleteItem]
+    [colors, handleTransferShoppingItemToFridge, handleOpenEditModal, handleToggleItem, handleDeleteItem]
   );
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <View style={{ flex: 1 }}>
+        {/* Pastilles volantes animées d'un univers à l'autre */}
+        <FlyingChipOverlay chips={flyingChips} onRemoveChip={removeFlyingChip} />
+
         {/* Switcher d'onglets au sommet : Mes étagères vs Liste de courses */}
-      <View style={styles.tabSwitcherWrapper}>
-        <View style={styles.tabSwitcherContainer}>
-          <TouchableOpacity
-            style={[
-              styles.tabSwitcherBtn,
-              activeTab === 'fridge' && styles.tabSwitcherBtnActive,
-            ]}
-            onPress={() => setActiveTab('fridge')}
-            activeOpacity={0.8}
+        <View style={styles.tabSwitcherWrapper}>
+          <View
+            style={styles.tabSwitcherContainer}
+            onLayout={(e) => setTabContainerWidth(e.nativeEvent.layout.width)}
           >
-            <Ionicons
-              name={activeTab === 'fridge' ? 'layers' : 'layers-outline'}
-              size={15}
-              color={activeTab === 'fridge' ? '#FFFFFF' : colors.textSecondary}
-            />
-            <Text
-              style={[
-                styles.tabSwitcherText,
-                activeTab === 'fridge' && styles.tabSwitcherTextActive,
-              ]}
-            >
-              Mes étagères
-            </Text>
-            {fridgeCount > 0 && (
-              <View
+            {/* Pillule glissante fluide en arrière-plan */}
+            {tabWidth > 0 && (
+              <Animated.View
                 style={[
-                  styles.tabBadge,
-                  activeTab === 'fridge' && styles.tabBadgeActive,
+                  styles.tabSwitcherIndicator,
+                  {
+                    width: tabWidth,
+                    transform: [{ translateX: indicatorTranslateX }],
+                  },
                 ]}
-              >
-                <Text
-                  style={[
-                    styles.tabBadgeText,
-                    activeTab === 'fridge' && styles.tabBadgeTextActive,
-                  ]}
-                >
-                  {fridgeCount}
-                </Text>
-              </View>
+              />
             )}
-          </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[
-              styles.tabSwitcherBtn,
-              activeTab === 'shopping' && styles.tabSwitcherBtnActive,
-            ]}
-            onPress={() => setActiveTab('shopping')}
-            activeOpacity={0.8}
-          >
-            <Ionicons
-              name={activeTab === 'shopping' ? 'cart' : 'cart-outline'}
-              size={15}
-              color={activeTab === 'shopping' ? '#FFFFFF' : colors.textSecondary}
-            />
-            <Text
+            <TouchableOpacity
               style={[
-                styles.tabSwitcherText,
-                activeTab === 'shopping' && styles.tabSwitcherTextActive,
+                styles.tabSwitcherBtn,
+                activeTab === 'fridge' && styles.tabSwitcherBtnActive,
               ]}
+              onPress={() => handleSelectTab('fridge')}
+              activeOpacity={0.8}
             >
-              Liste de courses
-            </Text>
-            {activeItems.length > 0 && (
-              <View
+              <Ionicons
+                name={activeTab === 'fridge' ? 'layers' : 'layers-outline'}
+                size={15}
+                color={activeTab === 'fridge' ? '#FFFFFF' : colors.textSecondary}
+              />
+              <Text
                 style={[
-                  styles.tabBadge,
-                  activeTab === 'shopping' && styles.tabBadgeActive,
+                  styles.tabSwitcherText,
+                  activeTab === 'fridge' && styles.tabSwitcherTextActive,
                 ]}
               >
-                <Text
+                Mes étagères
+              </Text>
+              {fridgeCount > 0 && (
+                <Animated.View
                   style={[
-                    styles.tabBadgeText,
-                    activeTab === 'shopping' && styles.tabBadgeTextActive,
+                    styles.tabBadge,
+                    activeTab === 'fridge' && styles.tabBadgeActive,
+                    { transform: [{ scale: shelfTabScale }] },
                   ]}
                 >
-                  {activeItems.length}
-                </Text>
-              </View>
-            )}
-          </TouchableOpacity>
+                  <Text
+                    style={[
+                      styles.tabBadgeText,
+                      activeTab === 'fridge' && styles.tabBadgeTextActive,
+                    ]}
+                  >
+                    {fridgeCount}
+                  </Text>
+                </Animated.View>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.tabSwitcherBtn,
+                activeTab === 'shopping' && styles.tabSwitcherBtnActive,
+              ]}
+              onPress={() => handleSelectTab('shopping')}
+              activeOpacity={0.8}
+            >
+              <Ionicons
+                name={activeTab === 'shopping' ? 'cart' : 'cart-outline'}
+                size={15}
+                color={activeTab === 'shopping' ? '#FFFFFF' : colors.textSecondary}
+              />
+              <Text
+                style={[
+                  styles.tabSwitcherText,
+                  activeTab === 'shopping' && styles.tabSwitcherTextActive,
+                ]}
+              >
+                Liste de courses
+              </Text>
+              {activeItems.length > 0 && (
+                <Animated.View
+                  style={[
+                    styles.tabBadge,
+                    activeTab === 'shopping' && styles.tabBadgeActive,
+                    { transform: [{ scale: shoppingTabScale }] },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.tabBadgeText,
+                      activeTab === 'shopping' && styles.tabBadgeTextActive,
+                    ]}
+                  >
+                    {activeItems.length}
+                  </Text>
+                </Animated.View>
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
 
-      {/* Barre de recherche ergonomique (commune aux deux univers) */}
-      {isSearchActive && (
-        <IngredientSearchBar
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          onClear={() => setSearchQuery('')}
-          onClose={() => {
-            setIsSearchActive(false);
-            setSearchQuery('');
-          }}
-          currentTab={activeTab}
-          currentMatchCount={
-            activeTab === 'fridge'
-              ? countMatchingItems(fridgeItems, searchQuery)
-              : totalFilteredCount
-          }
-          crossMatchCount={
-            activeTab === 'fridge'
-              ? totalFilteredCount
-              : fridgeCrossCount
-          }
-          onPressCrossUniverse={() => {
-            setActiveTab(activeTab === 'fridge' ? 'shopping' : 'fridge');
-          }}
-        />
-      )}
+        {/* Barre de recherche ergonomique (commune aux deux univers) */}
+        {isSearchActive && (
+          <IngredientSearchBar
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            onClear={() => setSearchQuery('')}
+            onClose={() => {
+              setIsSearchActive(false);
+              setSearchQuery('');
+            }}
+            currentTab={activeTab}
+            currentMatchCount={
+              activeTab === 'fridge'
+                ? countMatchingItems(fridgeItems, searchQuery)
+                : totalFilteredCount
+            }
+            crossMatchCount={
+              activeTab === 'fridge'
+                ? totalFilteredCount
+                : fridgeCrossCount
+            }
+            onPressCrossUniverse={() => {
+              handleSelectTab(activeTab === 'fridge' ? 'shopping' : 'fridge');
+            }}
+          />
+        )}
 
-      {/* VUE 1 : DANS MES ÉTAGÈRES */}
-      <View
-        style={[
-          styles.tabContentContainer,
-          activeTab !== 'fridge' && styles.tabContentHidden,
-        ]}
-        pointerEvents={activeTab === 'fridge' ? 'auto' : 'none'}
-      >
-        <FridgeStockView
-          onNavigateToShopping={() => setActiveTab('shopping')}
-          onItemCopiedToShopping={() => {
-            loadShoppingList();
-          }}
-          onFridgeCountChange={handleFridgeCountChange}
-          searchQuery={searchQuery}
-          isSearchOpen={isSearchActive}
-          onToggleSearch={(open) => setIsSearchActive(open)}
-          shoppingItems={items}
-          onNavigateToShoppingWithSearch={(q) => {
-            setActiveTab('shopping');
-            setIsSearchActive(true);
-            setSearchQuery(q);
-          }}
-          initialItems={fridgeItems}
-        />
-      </View>
+        {/* Pager horizontal fluide : Défilement 60fps entre Mes Étagères et Liste de Courses */}
+        <Animated.ScrollView
+          ref={pagerRef}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          bounces={false}
+          scrollEventThrottle={16}
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { x: pagerScrollX } } }],
+            { useNativeDriver: true }
+          )}
+          onMomentumScrollEnd={handleMomentumScrollEnd}
+          style={{ flex: 1 }}
+          contentContainerStyle={{ width: screenWidth * 2 }}
+        >
+          {/* PAGE 1 : DANS MES ÉTAGÈRES */}
+          <View style={{ width: screenWidth, flex: 1 }}>
+            <FridgeStockView
+              onNavigateToShopping={() => handleSelectTab('shopping')}
+              onItemCopiedToShopping={() => {
+                loadShoppingList();
+              }}
+              onFridgeCountChange={handleFridgeCountChange}
+              searchQuery={searchQuery}
+              isSearchOpen={isSearchActive}
+              onToggleSearch={(open) => setIsSearchActive(open)}
+              shoppingItems={items}
+              onNavigateToShoppingWithSearch={(q) => {
+                handleSelectTab('shopping');
+                setIsSearchActive(true);
+                setSearchQuery(q);
+              }}
+              initialItems={fridgeItems}
+              onTransferItemToShopping={handleTransferFridgeItemToShopping}
+            />
+          </View>
 
-      {/* VUE 2 : LISTE DE COURSES */}
-      <View
-        style={[
-          styles.tabContentContainer,
-          activeTab !== 'shopping' && styles.tabContentHidden,
-        ]}
-        pointerEvents={activeTab === 'shopping' ? 'auto' : 'none'}
-      >
-        <View style={styles.shoppingListWrapper}>
+          {/* PAGE 2 : LISTE DE COURSES */}
+          <View style={{ width: screenWidth, flex: 1 }}>
+            <View style={styles.shoppingListWrapper}>
           {/* En-tête de la liste de courses */}
           <View style={styles.header}>
             <View style={styles.headerTitleCol}>
@@ -1252,6 +1467,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
           </View>
         </View>
       </View>
+    </Animated.ScrollView>
 
       {/* Modal de sélection de rayon supermarché */}
       <Modal
