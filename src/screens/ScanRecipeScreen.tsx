@@ -45,30 +45,6 @@ interface CapturedPhoto {
   base64: string;
 }
 
-const SAMPLE_RECIPE_TEXT = `Risotto aux champignons
-Pour 4 personnes
-Préparation : 15 min - Cuisson : 25 min
-
-Ingrédients :
-- 300g de riz arborio
-- 250g de champignons de Paris émincés
-- 1 échalote émincée
-- 1 gousse d'ail
-- 50g de parmesan râpé
-- 10cl de vin blanc sec
-- 1L de bouillon de légumes chaud
-- 2 c. à soupe d'huile d'olive
-- 20g de beurre
-- Sel et poivre du moulin
-
-Préparation :
-1. Dans une sauteuse, faire chauffer l'huile d'olive et faire suer l'échalote et l'ail sans coloration.
-2. Ajouter le riz et remuer 2 minutes jusqu'à ce qu'il devienne translucide.
-3. Déglacer avec le vin blanc et laisser réduire jusqu'à absorption complète.
-4. Verser une louche de bouillon chaud. Remuer et laisser absorber à feu doux. Répéter l'opération louche après louche pendant environ 18 minutes.
-5. Dans une poêle à part, faire sauter les champignons avec le beurre pendant 5 minutes.
-6. Hors du feu, incorporer les champignons sautés et le parmesan dans le riz. Assaisonner de sel et de poivre, couvrir 2 minutes avant de servir.`;
-
 const POPULAR_PLATFORMS = [
   'Marmiton',
   '750g',
@@ -417,10 +393,6 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
     }
   };
 
-  const handleFillSample = () => {
-    setRawTextInput(SAMPLE_RECIPE_TEXT);
-  };
-
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <KeyboardAvoidingView
@@ -620,23 +592,15 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
                     <Text style={styles.inputCardHeaderTitle}>Votre recette en texte</Text>
                   </View>
                   <View style={styles.inputCardHeaderActions}>
-                    <TouchableOpacity
-                      style={styles.sampleQuickBtn}
-                      onPress={handleFillSample}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons name="dice-outline" size={14} color={colors.secondary} />
-                      <Text style={styles.sampleQuickBtnText}>Exemple</Text>
-                    </TouchableOpacity>
-
                     {rawTextInput.length > 0 && (
                       <TouchableOpacity
                         style={styles.clearQuickBtn}
                         onPress={() => setRawTextInput('')}
                         activeOpacity={0.7}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        accessibilityLabel="Effacer le texte"
                       >
-                        <Ionicons name="trash-outline" size={14} color={colors.danger} />
-                        <Text style={styles.clearQuickBtnText}>Effacer</Text>
+                        <Ionicons name="trash-outline" size={16} color={colors.danger} />
                       </TouchableOpacity>
                     )}
                   </View>
@@ -1297,6 +1261,7 @@ const styles = createDynamicStyles((colors, shadows) => ({
   clearQuickBtn: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: 8,
     paddingVertical: 5,
     backgroundColor: colors.dangerLight,

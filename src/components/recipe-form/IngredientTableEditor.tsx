@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Recipe, Ingredient } from '../../types/recipe';
 import { CanonicalIngredient } from '../../types/vocabulary';
@@ -7,12 +7,10 @@ import { UnifiedIngredientInput } from '../UnifiedIngredientInput';
 import { UnifiedIngredientService } from '../../services/unifiedIngredientService';
 import { findAutoMatchCandidate } from '../../utils/recipeLinkMatcher';
 import { useTheme } from '../../theme/ThemeContext';
-import { Colors } from '../../theme/colors';
 import { styles } from '../../screens/RecipeFormScreen.styles';
 import { parseRecipeIngredientInput } from '../../utils/shoppingInputParser';
 import {
   formatQuantityWithUnit,
-  QUICK_PICK_UNITS,
   normalizeUnit,
   isStandardUnit,
 } from '../../constants/units';
@@ -89,20 +87,6 @@ export const IngredientTableEditor: React.FC<IngredientTableEditorProps> = ({
 
     onAddIngredient(newIng);
     setQuickAddText('');
-  };
-
-  const handleQuickUnitTap = (unitId: string) => {
-    const trimmed = quickAddText.trim();
-    if (!trimmed) {
-      setQuickAddText(`${unitId} `);
-      return;
-    }
-    // Si se termine déjà par un nombre (ex: "250"), colle l'unité
-    if (/[0-9]+[.,]?[0-9]*$/.test(trimmed)) {
-      setQuickAddText(`${trimmed}${unitId} `);
-    } else {
-      setQuickAddText(`${trimmed} ${unitId} `);
-    }
   };
 
   // Validation après coup d'un ingrédient existant (détection des quantités, unités et nom canonique)
@@ -190,87 +174,6 @@ export const IngredientTableEditor: React.FC<IngredientTableEditorProps> = ({
     <View style={styles.section}>
       <View style={styles.sectionHeaderRow}>
         <Text style={styles.sectionLabel}>Ingrédients ({ingredients.length})</Text>
-        <TouchableOpacity onPress={() => onAddIngredient()} style={styles.addItemBtn}>
-          <Ionicons name="add-circle" size={18} color={Colors.primary} />
-          <Text style={styles.addItemBtnText}>Ajouter</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Barre de saisie libre d'ingrédients (identique au système des courses) */}
-      <View
-        style={[
-          styles.quickAddCard,
-          {
-            zIndex: activeIngIndex === -1 ? 9999 : 100,
-            elevation: activeIngIndex === -1 ? 25 : 5,
-          },
-        ]}
-      >
-        <View style={styles.quickAddMainRow}>
-          <UnifiedIngredientInput
-            containerStyle={styles.quickAddInput}
-            style={[styles.textInput, { marginBottom: 0 }]}
-            placeholder="Ex: 250g farine, 3 œufs, sel..."
-            placeholderTextColor={colors.textMuted}
-            value={quickAddText}
-            onChangeText={setQuickAddText}
-            onFocus={() => setActiveIngIndex(-1)}
-            onBlur={() => setActiveIngIndex(null)}
-            context="recipe"
-            returnKeyType="done"
-            onSubmitEditing={handleQuickAdd}
-            onSelectIngredient={(canon) => {
-              const trimmed = quickAddText.trim();
-              const match = trimmed.match(
-                /^([0-9]+(?:[.,][0-9]+)?(?:\/[0-9]+)?(?:\s*(?:-|–|à|a)\s*[0-9]+(?:[.,][0-9]+)?(?:\/[0-9]+)?)?)\s*([a-zA-ZÀ-ÿ\.]*)\s*/
-              );
-              if (match && match[1]) {
-                const qty = match[1];
-                const u = isStandardUnit(match[2]) ? normalizeUnit(match[2]) : '';
-                const prefix = [qty, u].filter(Boolean).join(' ');
-                setQuickAddText(`${prefix} ${canon.canonicalName} `);
-              } else {
-                setQuickAddText(`${canon.canonicalName} `);
-              }
-            }}
-          />
-
-          <TouchableOpacity
-            style={[
-              styles.quickAddBtn,
-              !quickAddText.trim() && styles.quickAddBtnDisabled,
-            ]}
-            onPress={handleQuickAdd}
-            disabled={!quickAddText.trim()}
-            activeOpacity={0.8}
-            accessibilityLabel="Ajouter cet ingrédient"
-          >
-            <Ionicons name="add" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-        </View>
-
-        {/* Puces de suggestion rapide d'unités culinaires 1-tap */}
-        <View style={styles.quickAddOptionsRow}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-          >
-            {QUICK_PICK_UNITS.map((u) => (
-              <TouchableOpacity
-                key={u}
-                style={[
-                  styles.flagChip,
-                  { marginRight: 6, backgroundColor: colors.cardBackground },
-                ]}
-                onPress={() => handleQuickUnitTap(u)}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.flagChipText}>+{u}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
       </View>
 
       {/* Liste des ingrédients en cartes avec champs libre et détection après coup */}
@@ -503,6 +406,66 @@ export const IngredientTableEditor: React.FC<IngredientTableEditorProps> = ({
           </View>
         );
       })}
+
+      {/* Barre de saisie libre d'ingrédients (toujours en bas, les nouveaux ingrédients s'ajoutent au-dessus) */}
+      <View
+        style={[
+          styles.quickAddCard,
+          {
+            zIndex: activeIngIndex === -1 ? 9999 : 1,
+            elevation: activeIngIndex === -1 ? 25 : 1,
+            marginTop: ingredients.length > 0 ? 6 : 0,
+            marginBottom: 4,
+          },
+        ]}
+      >
+        <View style={styles.quickAddMainRow}>
+          <UnifiedIngredientInput
+            containerStyle={styles.quickAddInput}
+            style={[styles.textInput, { marginBottom: 0 }]}
+            placeholder="Ex: 250g farine, 3 œufs, sel..."
+            placeholderTextColor={colors.textMuted}
+            value={quickAddText}
+            onChangeText={setQuickAddText}
+            onFocus={() => setActiveIngIndex(-1)}
+            onBlur={() => setActiveIngIndex(null)}
+            context="recipe"
+            returnKeyType="done"
+            onSubmitEditing={handleQuickAdd}
+            onSelectIngredient={(canon) => {
+              const trimmed = quickAddText.trim();
+              const match = trimmed.match(
+                /^([0-9]+(?:[.,][0-9]+)?(?:\/[0-9]+)?(?:\s*(?:-|–|à|a)\s*[0-9]+(?:[.,][0-9]+)?(?:\/[0-9]+)?)?)\s*([a-zA-ZÀ-ÿ\.]*)\s*/
+              );
+              if (match && match[1]) {
+                const qty = match[1];
+                const u = isStandardUnit(match[2]) ? normalizeUnit(match[2]) : '';
+                const prefix = [qty, u].filter(Boolean).join(' ');
+                setQuickAddText(`${prefix} ${canon.canonicalName} `);
+              } else {
+                setQuickAddText(`${canon.canonicalName} `);
+              }
+            }}
+          />
+
+          <TouchableOpacity
+            style={[
+              styles.quickAddBtn,
+              !quickAddText.trim() && styles.quickAddBtnDisabled,
+            ]}
+            onPress={handleQuickAdd}
+            disabled={!quickAddText.trim()}
+            activeOpacity={0.8}
+            accessibilityLabel="Ajouter cet ingrédient"
+          >
+            <Ionicons
+              name="add"
+              size={24}
+              color={!quickAddText.trim() ? colors.textMuted : '#FFFFFF'}
+            />
+          </TouchableOpacity>
+        </View>
+      </View>
     </View>
   );
 };

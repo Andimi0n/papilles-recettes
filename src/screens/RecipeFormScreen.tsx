@@ -47,48 +47,6 @@ interface RecipeFormScreenProps {
   availableRecipes?: Recipe[];
 }
 
-const SAMPLE_RECIPES = [
-  `Risotto crémeux aux champignons & parmesan
-Pour 4 personnes
-- 300g de riz arborio
-- 250g de champignons de Paris
-- 1 échalote
-- 1 gousse d'ail
-- 15cl de vin blanc sec
-- 1 litre de bouillon de légumes chaud
-- 50g de parmesan râpé
-- 30g de beurre doux
-- 2 c. à soupe d'huile d'olive
-- Sel, poivre du moulin, persil plat ciselé
-
-Préparation :
-Émincer l'échalote et l'ail. Couper les champignons en lamelles.
-Dans une sauteuse, faire dorer les champignons dans un filet d'huile d'olive 5 min puis réserver.
-Faire suer l'échalote avec le reste d'huile, ajouter le riz et le nacrer 2 minutes.
-Déglacer au vin blanc et laisser évaporer complètement.
-Verser le bouillon chaud louche après louche en remuant constamment pendant 18 à 20 minutes.
-Hors du feu, incorporer les champignons, le beurre bien froid et le parmesan.
-Couvrir 2 minutes, rectifier l'assaisonnement et servir immédiatement avec du persil frais.`,
-  `Quiche fondante poireaux & fromage de chèvre
-Ingrédients :
-1 pâte brisée pur beurre
-3 blancs de poireaux
-150g de fromage de chèvre frais (ou bûche)
-3 gros oeufs
-20cl de crème fraîche épaisse
-10cl de lait
-Noix de muscade râpée, sel fin et poivre du moulin
-Un filet d'huile d'olive
-
-Instructions :
-Préchauffer le four à 180°C (th. 6).
-Laver et émincer finement les poireaux. Les faire fondre à feu doux dans une poêle avec un filet d'huile d'olive pendant 15 minutes jusqu'à ce qu'ils soient tendres.
-Dans un saladier, fouetter les oeufs entiers avec la crème fraîche et le lait. Assaisonner avec le sel, le poivre et une pincée de muscade.
-Étaler la pâte brisée dans un moule à tarte, piquer le fond avec une fourchette.
-Répartir la fondue de poireaux, émietter le chèvre par-dessus, puis verser l'appareil aux oeufs.
-Enfourner pour environ 35 à 40 minutes jusqu'à ce que la quiche soit bien dorée et gonflée. Laisser tiédir avant de servir.`,
-];
-
 const CATEGORIES: Category[] = [
   'Plat',
   'Entrée',
@@ -176,11 +134,6 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
     } catch (e) {
       Alert.alert('Erreur', 'Impossible de sauvegarder la clé API.');
     }
-  };
-
-  const handleFillSample = () => {
-    const sample = SAMPLE_RECIPES[Math.floor(Math.random() * SAMPLE_RECIPES.length)];
-    setRawTextInput(sample);
   };
 
   const handleAnalyzeText = async () => {
@@ -898,27 +851,19 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
                 </Text>
               </View>
 
-              <View style={styles.textHelperRow}>
-                <TouchableOpacity
-                  style={styles.sampleQuickBtn}
-                  onPress={handleFillSample}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="dice-outline" size={15} color={colors.primary} />
-                  <Text style={styles.sampleQuickBtnText}>Exemple rapide</Text>
-                </TouchableOpacity>
-
-                {rawTextInput.length > 0 && (
+              {rawTextInput.length > 0 && (
+                <View style={[styles.textHelperRow, { justifyContent: 'flex-end', marginBottom: 8 }]}>
                   <TouchableOpacity
                     style={styles.clearTextBtn}
                     onPress={() => setRawTextInput('')}
                     activeOpacity={0.7}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    accessibilityLabel="Effacer le texte"
                   >
-                    <Ionicons name="trash-outline" size={14} color={colors.textSecondary} />
-                    <Text style={styles.clearTextBtnText}>Effacer</Text>
+                    <Ionicons name="trash-outline" size={16} color={colors.danger} />
                   </TouchableOpacity>
-                )}
-              </View>
+                </View>
+              )}
 
               <TextInput
                 style={styles.rawTextInput}

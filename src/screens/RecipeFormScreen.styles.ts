@@ -964,9 +964,11 @@ export const styles = createDynamicStyles((colors, shadows) => ({
   clearTextBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    justifyContent: 'center',
     paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingVertical: 5,
+    backgroundColor: colors.dangerLight,
+    borderRadius: 8,
   },
   clearTextBtnText: {
     fontSize: 12,
