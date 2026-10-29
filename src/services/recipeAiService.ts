@@ -94,6 +94,10 @@ const RECIPE_IDEAS_SCHEMA = {
   required: ['ideas'],
 };
 
+/**
+ * Cascade statique de secours — utilisée uniquement si la découverte dynamique échoue (offline, clé invalide, etc.).
+ * Ordre : du plus léger au plus puissant pour une latence optimale au quotidien.
+ */
 export const GEMINI_MODELS_CASCADE = [
   'gemini-3.5-flash-lite',
   'gemini-3.8-flash',
@@ -105,6 +109,141 @@ export const FAST_GEMINI_MODELS_CASCADE = [
   'gemini-3.8-flash',
   'gemini-3.6-flash',
 ];
+
+// ─── Dynamic Model Discovery ────────────────────────────────────────────────
+
+/**
+ * Cache mémoire de la liste de modèles découverts dynamiquement.
+ * Durée de vie : 1 heure par session pour limiter les appels réseau.
+ */
+const MODEL_CACHE_TTL_MS = 60 * 60 * 1000; // 1h
+let _cachedDynamicModels: string[] | null = null;
+let _cachedDynamicFastModels: string[] | null = null;
+let _modelCacheTimestamp = 0;
+
+/**
+ * Extrait le numéro de version sémantique d'un identifiant de modèle Gemini.
+ * Ex: "gemini-3.8-flash" → 3.8, "gemini-2.5-flash-lite" → 2.5
+ */
+function extractModelVersion(modelId: string): number {
+  const match = modelId.match(/gemini-(\d+(?:\.\d+)?)/);
+  return match ? parseFloat(match[1]) : 0;
+}
+
+/**
+ * Détermine si un identifiant de modèle est un modèle Flash (rapide) adapté à la génération de recettes.
+ * Exclut les modèles Pro (trop lents/coûteux), les embeddings, TTS et vision-only.
+ */
+function isFlashModel(modelId: string, supportedMethods: string[]): boolean {
+  if (!supportedMethods.includes('generateContent')) return false;
+  const id = modelId.toLowerCase();
+  // On garde Flash et Flash-Lite, on exclut Pro, embedding, tts, imagen
+  if (id.includes('-pro') || id.includes('embedding') || id.includes('tts') || id.includes('imagen')) return false;
+  return id.includes('flash');
+}
+
+/**
+ * Interroge l'API Gemini pour lister les modèles disponibles (endpoint GET /models, 0 quota consommé).
+ * Filtre les modèles Flash qui supportent generateContent, les trie par version décroissante
+ * (meilleur modèle en tête de cascade) et met le résultat en cache mémoire pendant 1h.
+ *
+ * En cas d'échec (réseau indisponible, clé invalide), retourne silencieusement la cascade statique.
+ */
+export async function discoverGeminiModels(
+  apiKey: string
+): Promise<{ all: string[]; fast: string[] }> {
+  // Retour immédiat du cache si encore valide
+  if (
+    _cachedDynamicModels &&
+    _cachedDynamicFastModels &&
+    Date.now() - _modelCacheTimestamp < MODEL_CACHE_TTL_MS
+  ) {
+    return { all: _cachedDynamicModels, fast: _cachedDynamicFastModels };
+  }
+
+  const cleanKey = cleanApiKey(apiKey);
+  if (!cleanKey) {
+    return { all: GEMINI_MODELS_CASCADE, fast: FAST_GEMINI_MODELS_CASCADE };
+  }
+
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000); // 8s max pour la découverte
+
+    const resp = await fetch(`${GEMINI_BASE_URL}/models`, {
+      method: 'GET',
+      headers: getGeminiHeaders(cleanKey),
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+
+    if (!resp.ok) {
+      if (__DEV__) {
+        console.warn(`[discoverGeminiModels] HTTP ${resp.status} — utilisation de la cascade statique.`);
+      }
+      return { all: GEMINI_MODELS_CASCADE, fast: FAST_GEMINI_MODELS_CASCADE };
+    }
+
+    const data = await resp.json();
+    const rawModels: Array<{ name: string; supportedGenerationMethods?: string[] }> =
+      data?.models ?? [];
+
+    // Extraction des identifiants courts (ex: "models/gemini-3.8-flash" → "gemini-3.8-flash")
+    const flashModels = rawModels
+      .filter((m) => {
+        const shortId = m.name.replace(/^models\//, '');
+        return isFlashModel(shortId, m.supportedGenerationMethods ?? []);
+      })
+      .map((m) => m.name.replace(/^models\//, ''))
+      .sort((a, b) => extractModelVersion(b) - extractModelVersion(a)); // du plus récent au plus ancien
+
+    if (flashModels.length === 0) {
+      if (__DEV__) {
+        console.warn('[discoverGeminiModels] Aucun modèle Flash trouvé — utilisation de la cascade statique.');
+      }
+      return { all: GEMINI_MODELS_CASCADE, fast: FAST_GEMINI_MODELS_CASCADE };
+    }
+
+    // Les modèles Lite en tête de la cascade rapide (moins de latence pour les idées courtes)
+    const liteFirst = [
+      ...flashModels.filter((m) => m.includes('-lite')),
+      ...flashModels.filter((m) => !m.includes('-lite')),
+    ];
+
+    // Cascade principale : pour les Flash non-lite, on saute le 1er (index 0)
+    // et on démarre directement au 2e, avec le 3e en fallback.
+    const nonLiteModels = flashModels.filter((m) => !m.includes('-lite'));
+    const liteModels = flashModels.filter((m) => m.includes('-lite'));
+    const allCascade =
+      nonLiteModels.length > 1
+        ? [...nonLiteModels.slice(1), ...liteModels] // skip 1er Flash non-lite
+        : flashModels;
+
+    _cachedDynamicModels = allCascade;
+    _cachedDynamicFastModels = liteFirst;
+    _modelCacheTimestamp = Date.now();
+
+    if (__DEV__) {
+      console.log(`[discoverGeminiModels] ${flashModels.length} modèle(s) Flash découvert(s) :`, flashModels);
+    }
+
+    return { all: allCascade, fast: liteFirst };
+  } catch (err) {
+    if (__DEV__) {
+      console.warn('[discoverGeminiModels] Erreur réseau — utilisation de la cascade statique.', err);
+    }
+    return { all: GEMINI_MODELS_CASCADE, fast: FAST_GEMINI_MODELS_CASCADE };
+  }
+}
+
+/**
+ * Invalide le cache de découverte dynamique (utile lors du changement de clé API dans les paramètres).
+ */
+export function invalidateModelDiscoveryCache(): void {
+  _cachedDynamicModels = null;
+  _cachedDynamicFastModels = null;
+  _modelCacheTimestamp = 0;
+}
 
 export interface ChefMoodOption {
   id: string;
@@ -206,8 +345,10 @@ export function prioritizeHealthyModels(models: string[]): string[] {
 
 /**
  * Formate un identifiant de modèle Gemini en libellé lisible pour l'interface utilisateur.
+ * Gère dynamiquement les nouveaux modèles sans nécessiter de mise à jour du code.
  */
 export function formatAiModelName(modelId: string): string {
+  // Modèles connus avec noms marketing officiels
   switch (modelId) {
     case 'gemini-3.8-flash':
       return 'Gemini 3.8 Flash';
@@ -215,8 +356,18 @@ export function formatAiModelName(modelId: string): string {
       return 'Gemini 3.5 Flash-Lite';
     case 'gemini-3.6-flash':
       return 'Gemini 3.6 Flash';
-    default:
+    default: {
+      // Pour les nouveaux modèles Gemini non encore référencés : transformation automatique du nom
+      // "gemini-4.0-flash-lite" → "Gemini 4.0 Flash Lite"
+      // Les identifiants sans préfixe "gemini-" sont retournés tels quels (cas non-Gemini)
+      if (modelId.startsWith('gemini-')) {
+        return modelId
+          .replace(/^gemini-/, 'Gemini ')
+          .replace(/-/g, ' ')
+          .replace(/\b\w/g, (c) => c.toUpperCase());
+      }
       return modelId;
+    }
   }
 }
 
@@ -974,6 +1125,8 @@ export const RecipeAiService = {
       } else {
         await AsyncStorage.setItem(LEGACY_STORAGE_KEY, trimmed);
       }
+      // Invalide le cache de découverte dynamique : la nouvelle clé peut donner accès à des modèles différents
+      invalidateModelDiscoveryCache();
     } catch (e) {
       console.error('Erreur écriture clé API sécurisée:', e);
       throw new Error("Impossible d'enregistrer la clé de manière sécurisée.");
@@ -989,6 +1142,7 @@ export const RecipeAiService = {
         await SecureStore.deleteItemAsync(GEMINI_API_KEY_STORAGE);
       }
       await AsyncStorage.removeItem(LEGACY_STORAGE_KEY);
+      invalidateModelDiscoveryCache();
     } catch (e) {
       console.error('Erreur suppression clé API sécurisée:', e);
     }
@@ -1221,7 +1375,7 @@ Règles universelles :
     const { parsed } = await fetchGeminiJsonWithFallbackAndRetry(
       apiKey,
       payload,
-      GEMINI_MODELS_CASCADE,
+      (await discoverGeminiModels(apiKey)).all,
       onModelAttempt,
       60000
     );
@@ -1283,7 +1437,7 @@ ${sanitizedRecipe}
     const { parsed } = await fetchGeminiJsonWithFallbackAndRetry(
       apiKey,
       payload,
-      FAST_GEMINI_MODELS_CASCADE,
+      (await discoverGeminiModels(apiKey)).fast,
       onModelAttempt,
       60000
     );
@@ -1351,7 +1505,7 @@ ${sanitizedInput}
     const { parsed } = await fetchGeminiJsonWithFallbackAndRetry(
       apiKey,
       payload,
-      FAST_GEMINI_MODELS_CASCADE,
+      (await discoverGeminiModels(apiKey)).fast,
       onModelAttempt,
       60000
     );
@@ -1474,7 +1628,7 @@ ${sanitizedIngredients.join(', ')}
     const { parsed } = await fetchGeminiJsonWithFallbackAndRetry(
       apiKey,
       payload,
-      FAST_GEMINI_MODELS_CASCADE,
+      (await discoverGeminiModels(apiKey)).fast,
       options?.onModelAttempt,
       60000
     );
@@ -1582,7 +1736,7 @@ ${sanitizedIngredients.join(', ')}
     const { parsed } = await fetchGeminiJsonWithFallbackAndRetry(
       apiKey,
       payload,
-      GEMINI_MODELS_CASCADE,
+      (await discoverGeminiModels(apiKey)).all,
       options?.onModelAttempt,
       60000
     );
@@ -1652,7 +1806,7 @@ Propose des améliorations à partir de ce stock.`;
     const { parsed } = await fetchGeminiJsonWithFallbackAndRetry(
       apiKey,
       payload,
-      FAST_GEMINI_MODELS_CASCADE,
+      (await discoverGeminiModels(apiKey)).fast,
       onModelAttempt,
       30000
     );
@@ -1724,7 +1878,7 @@ Propose des solutions de remplacement avec ce stock.`;
     const { parsed } = await fetchGeminiJsonWithFallbackAndRetry(
       apiKey,
       payload,
-      FAST_GEMINI_MODELS_CASCADE,
+      (await discoverGeminiModels(apiKey)).fast,
       onModelAttempt,
       30000
     );
