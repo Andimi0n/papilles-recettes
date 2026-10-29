@@ -1181,6 +1181,50 @@ export const StorageService = {
   },
 
   /**
+   * Modifie un article existant dans la liste de courses
+   */
+  async updateShoppingItem(updatedItem: ShoppingItem): Promise<ShoppingItem[]> {
+    try {
+      const currentList = await this.getShoppingList();
+      const updatedList = currentList.map((item) =>
+        item.id === updatedItem.id ? updatedItem : item
+      );
+      await this.saveShoppingList(updatedList);
+      return updatedList;
+    } catch (e) {
+      console.error('Erreur modification shopping item:', e);
+      throw e;
+    }
+  },
+
+  /**
+   * Déplace tous les articles cochés de la liste de courses vers les étagères
+   */
+  async moveCheckedShoppingItemsToFridge(): Promise<{ shoppingList: ShoppingItem[]; fridgeItems: FridgeItem[]; movedCount: number }> {
+    try {
+      const currentList = await this.getShoppingList();
+      const checkedItems = currentList.filter((i) => i.isChecked);
+      if (checkedItems.length === 0) {
+        const fridgeItems = await this.getFridgeItems();
+        return { shoppingList: currentList, fridgeItems, movedCount: 0 };
+      }
+
+      let fridgeItems = await this.getFridgeItems();
+      for (const item of checkedItems) {
+        fridgeItems = await this.addFridgeItem(item.name, item.aisle, item.canonicalId);
+      }
+
+      const updatedShopping = currentList.filter((i) => !i.isChecked);
+      await this.saveShoppingList(updatedShopping);
+
+      return { shoppingList: updatedShopping, fridgeItems, movedCount: checkedItems.length };
+    } catch (e) {
+      console.error('Erreur déplacement articles cochés vers frigo:', e);
+      throw e;
+    }
+  },
+
+  /**
    * Supprime un article spécifique de la liste de courses
    */
   async deleteShoppingItem(id: string): Promise<ShoppingItem[]> {
