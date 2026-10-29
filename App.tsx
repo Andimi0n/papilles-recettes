@@ -37,22 +37,10 @@ function AppContent() {
   const [recipeDetailStack, setRecipeDetailStack] = useState<string[]>([]);
   const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [shoppingBadgeCount, setShoppingBadgeCount] = useState(0);
 
   // Recette reçue en partage (via Deep Link ou scan QR code)
   const [receivedSharedRecipe, setReceivedSharedRecipe] = useState<Recipe | null>(null);
   const [isImportModalVisible, setIsImportModalVisible] = useState(false);
-
-  // Met à jour le compteur d'articles de courses restants pour le badge
-  const refreshShoppingBadge = useCallback(async () => {
-    try {
-      const items = await StorageService.getShoppingList();
-      const uncompleted = items.filter((i) => !i.isChecked).length;
-      setShoppingBadgeCount(uncompleted);
-    } catch (e) {
-      console.error('Erreur rafraîchissement badge courses:', e);
-    }
-  }, []);
 
   // Recharge la liste des recettes
   const reloadRecipes = useCallback(async () => {
@@ -64,7 +52,7 @@ function AppContent() {
     }
   }, []);
 
-  // Chargement initial des recettes et du badge courses
+  // Chargement initial des recettes
   useEffect(() => {
     const loadInitialData = async () => {
       try {
@@ -73,7 +61,6 @@ function AppContent() {
         StorageService.getFridgeItems().catch(() => {});
         const loaded = await StorageService.getRecipes();
         setRecipes(loaded);
-        await refreshShoppingBadge();
       } catch (e) {
         console.error('Erreur chargement initial:', e);
       } finally {
@@ -81,17 +68,6 @@ function AppContent() {
       }
     };
     loadInitialData();
-  }, [refreshShoppingBadge]);
-
-  // Abonnement réactif aux mutations de la liste de courses pour le badge
-  useEffect(() => {
-    const unsubscribe = StorageService.onShoppingListChange((items) => {
-      const uncompleted = items.filter((i) => !i.isChecked).length;
-      setShoppingBadgeCount(uncompleted);
-    });
-    return () => {
-      unsubscribe();
-    };
   }, []);
 
   // Écoute et décodage des liens profonds de partage (papilles://import?r=...)
@@ -177,7 +153,6 @@ function AppContent() {
       setRecipeDetailStack([]);
       setSelectedRecipeId(null);
       setCurrentScreen(returnScreenAfterDetail);
-      refreshShoppingBadge();
     }
   };
 
@@ -246,7 +221,6 @@ function AppContent() {
     setSelectedRecipeId(null);
     setRecipeDetailStack([]);
     setEditingRecipe(null);
-    refreshShoppingBadge();
   };
 
   const navigateToPlanner = (tab: 'journal' | 'planner' = 'journal') => {
@@ -461,13 +435,6 @@ function AppContent() {
                   size={23}
                   color={currentScreen === 'shopping' ? colors.primary : colors.textSecondary}
                 />
-                {shoppingBadgeCount > 0 && (
-                  <View style={styles.tabBadge}>
-                    <Text style={styles.tabBadgeText}>
-                      {shoppingBadgeCount > 99 ? '99+' : shoppingBadgeCount}
-                    </Text>
-                  </View>
-                )}
               </View>
               <Text
                 style={[
@@ -568,25 +535,6 @@ const styles = createDynamicStyles((colors, shadows) => ({
     position: 'relative',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  tabBadge: {
-    position: 'absolute',
-    top: -5,
-    right: -10,
-    backgroundColor: colors.primary,
-    borderRadius: 9,
-    minWidth: 18,
-    height: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 4,
-    borderWidth: 1.5,
-    borderColor: colors.cardBackground,
-  },
-  tabBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '800',
   },
   tabLabel: {
     fontSize: 11,
