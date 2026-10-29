@@ -2,10 +2,13 @@ import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
+  TextInput,
   TouchableOpacity,
   SectionList,
   Modal,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -37,6 +40,7 @@ export const InStoreShoppingModal: React.FC<InStoreShoppingModalProps> = ({
 }) => {
   const { colors, isDark } = useTheme();
   const [hideChecked, setHideChecked] = useState(false);
+  const [quickItemText, setQuickItemText] = useState('');
 
   // Indexation du stock pour détection O(1) de présence dans les étagères
   const stockCanonicalSet = useMemo(() => {
@@ -103,6 +107,19 @@ export const InStoreShoppingModal: React.FC<InStoreShoppingModalProps> = ({
       await StorageService.toggleShoppingItem(id);
     } catch {
       // Tolérance offline
+    }
+  };
+
+  // Ajout rapide direct depuis le mode course
+  const handleQuickAdd = async () => {
+    const trimmed = quickItemText.trim();
+    if (!trimmed) return;
+    try {
+      const updated = await StorageService.addFreeformShoppingItem(trimmed, null);
+      onItemsChange(updated);
+      setQuickItemText('');
+    } catch {
+      Alert.alert('Erreur', "Impossible d'ajouter cet article.");
     }
   };
 
@@ -230,11 +247,15 @@ export const InStoreShoppingModal: React.FC<InStoreShoppingModalProps> = ({
         ) : (
           <SectionList
             style={styles.listArea}
-            contentContainerStyle={styles.listContent}
+            contentContainerStyle={[
+              styles.listContent,
+              { paddingBottom: completedCount > 0 ? 150 : 95 },
+            ]}
             sections={sections}
             keyExtractor={(item) => item.id}
             showsVerticalScrollIndicator={false}
             stickySectionHeadersEnabled={false}
+            keyboardShouldPersistTaps="handled"
             renderSectionHeader={({ section: { title, data } }) => {
               const aisle = title as ShoppingAisle;
               const cfg = AISLE_CONFIGS[aisle] || AISLE_CONFIGS['Autre'];
@@ -317,12 +338,6 @@ export const InStoreShoppingModal: React.FC<InStoreShoppingModalProps> = ({
                           <Text style={styles.inStockBadgeText}>Déjà en stock</Text>
                         </View>
                       )}
-
-                      {item.recipeTitle && (
-                        <Text style={styles.recipeTitleText} numberOfLines={1}>
-                          • {item.recipeTitle}
-                        </Text>
-                      )}
                     </View>
                   </View>
                 </TouchableOpacity>
@@ -331,22 +346,51 @@ export const InStoreShoppingModal: React.FC<InStoreShoppingModalProps> = ({
           />
         )}
 
-        {/* Barre fixe en bas pour ranger les achats dans les étagères */}
-        {completedCount > 0 && (
+        {/* Barre fixe en bas : ajout rapide compact et rangement des achats */}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.bottomBarWrapper}
+        >
           <View style={styles.bottomBar}>
-            <TouchableOpacity
-              style={styles.storePurchasesBtn}
-              onPress={handleStorePurchasesInShelves}
-              activeOpacity={0.85}
-            >
-              <Ionicons name="layers" size={20} color="#FFFFFF" />
-              <Text style={styles.storePurchasesBtnText}>
-                Ranger dans mes étagères ({completedCount})
-              </Text>
-              <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
-            </TouchableOpacity>
+            {completedCount > 0 && (
+              <TouchableOpacity
+                style={styles.storePurchasesBtn}
+                onPress={handleStorePurchasesInShelves}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="layers" size={18} color="#FFFFFF" />
+                <Text style={styles.storePurchasesBtnText}>
+                  Ranger dans mes étagères ({completedCount})
+                </Text>
+                <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
+              </TouchableOpacity>
+            )}
+
+            <View style={styles.quickAddRow}>
+              <TextInput
+                style={styles.quickAddInput}
+                value={quickItemText}
+                onChangeText={setQuickItemText}
+                placeholder="Ajouter un article oublié..."
+                placeholderTextColor={colors.textMuted}
+                returnKeyType="done"
+                onSubmitEditing={handleQuickAdd}
+              />
+              <TouchableOpacity
+                style={[
+                  styles.quickAddBtn,
+                  !quickItemText.trim() && styles.quickAddBtnDisabled,
+                ]}
+                onPress={handleQuickAdd}
+                disabled={!quickItemText.trim()}
+                activeOpacity={0.8}
+                accessibilityLabel="Ajouter l'article"
+              >
+                <Ionicons name="add" size={22} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
           </View>
-        )}
+        </KeyboardAvoidingView>
       </SafeAreaView>
     </Modal>
   );
@@ -569,31 +613,63 @@ const styles = createDynamicStyles((colors, shadows) => ({
     fontSize: 15,
     fontWeight: '700',
   },
-  bottomBar: {
+  bottomBarWrapper: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
+  },
+  bottomBar: {
     backgroundColor: colors.cardBackground,
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingTop: 10,
+    paddingBottom: Platform.OS === 'ios' ? 16 : 12,
     borderTopWidth: 1,
     borderTopColor: colors.borderLight,
+    gap: 8,
     ...shadows.card,
+  },
+  quickAddRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  quickAddInput: {
+    flex: 1,
+    height: 44,
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    fontSize: 14.5,
+    color: colors.textPrimary,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  quickAddBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...shadows.small,
+  },
+  quickAddBtnDisabled: {
+    opacity: 0.45,
   },
   storePurchasesBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 10,
+    gap: 8,
     backgroundColor: colors.secondary,
-    paddingVertical: 14,
-    borderRadius: 14,
+    paddingVertical: 11,
+    borderRadius: 12,
     ...shadows.small,
   },
   storePurchasesBtnText: {
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '800',
   },
 }));
