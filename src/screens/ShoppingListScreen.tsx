@@ -3,7 +3,6 @@ import {
   View,
   Text,
   TouchableOpacity,
-  TextInput,
   Alert,
   Share,
   Linking,
@@ -37,6 +36,8 @@ import { InStoreShoppingModal } from '../components/InStoreShoppingModal';
 import { UnifiedIngredientInput } from '../components/UnifiedIngredientInput';
 import { UnitQuickPicker } from '../components/UnitQuickPicker';
 import { UnitPickerModal } from '../components/UnitPickerModal';
+import { SwipeableShoppingItemRow } from '../components/SwipeableShoppingItemRow';
+import { EditShoppingItemModal } from '../components/EditShoppingItemModal';
 import { formatQuantityWithUnit, isStandardUnit, normalizeUnit } from '../constants/units';
 
 interface ShoppingListScreenProps {
@@ -187,8 +188,20 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
     [hideQuickAdd, showQuickAdd]
   );
 
-  // Section des articles cochés repliée/dépliée
-  const [showCompleted, setShowCompleted] = useState(false);
+  // Édition d'un article par appui long
+  const [editingItem, setEditingItem] = useState<ShoppingItem | null>(null);
+  const [isEditModalVisible, setIsEditModalVisible] = useState(false);
+
+  // Animation d'amorce (hint) pour faire découvrir le geste de swipe gauche
+  const hasAnimatedHintRef = useRef(false);
+  const [shouldAnimateFirstItem, setShouldAnimateFirstItem] = useState(false);
+
+  useEffect(() => {
+    if (items.length > 0 && !hasAnimatedHintRef.current) {
+      hasAnimatedHintRef.current = true;
+      setShouldAnimateFirstItem(true);
+    }
+  }, [items.length]);
 
   // Snackbar d'annulation de suppression temporaire (4 secondes)
   const [deletedSnackbar, setDeletedSnackbar] = useState<{
@@ -306,27 +319,19 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
   const totalCount = items.length;
   const completedCount = useMemo(() => items.filter((i) => i.isChecked).length, [items]);
   const activeItems = useMemo(() => items.filter((i) => !i.isChecked), [items]);
-  const completedItems = useMemo(
-    () => [...items.filter((i) => i.isChecked)].sort((a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' })),
-    [items]
-  );
 
   const isSearching = Boolean(isSearchActive || (searchQuery && searchQuery.trim().length > 0));
 
-  const filteredActiveItems = useMemo(() => {
-    if (!searchQuery || !searchQuery.trim()) return activeItems;
-    return filterIngredientItems(activeItems, searchQuery);
-  }, [activeItems, searchQuery]);
+  // Filtrage des articles (tous les articles restent dans leur rayon respectif)
+  const filteredItems = useMemo(() => {
+    if (!searchQuery || !searchQuery.trim()) return items;
+    return filterIngredientItems(items, searchQuery);
+  }, [items, searchQuery]);
 
-  const filteredCompletedItems = useMemo(() => {
-    if (!searchQuery || !searchQuery.trim()) return completedItems;
-    return filterIngredientItems(completedItems, searchQuery);
-  }, [completedItems, searchQuery]);
+  const totalFilteredCount = filteredItems.length;
 
-  const totalFilteredCount = filteredActiveItems.length + filteredCompletedItems.length;
-
-  // Groupement par rayon des articles actifs (filtrés si recherche)
-  const groupedActive = useMemo(() => groupItemsByAisle(filteredActiveItems), [filteredActiveItems]);
+  // Groupement par rayon de TOUS les articles (les articles cochés restent à leur place dans le rayon)
+  const groupedSections = useMemo(() => groupItemsByAisle(filteredItems), [filteredItems]);
 
   // Nombre de correspondances croisées dans les étagères
   const fridgeCrossCount = useMemo(() => {
@@ -526,21 +531,35 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
     }
   };
 
-  // Nettoyage des articles cochés avec auto-rangement dans les étagères
-  const handleClearCompleted = async () => {
+  // Passer tous les ingrédients cochés/grisés dans mes étagères
+  const handleBulkMoveCompletedToShelves = async () => {
     if (completedCount === 0) return;
     try {
-      const completedNames = completedItems.map((i) => i.name);
-      await StorageService.addMultipleFridgeItems(completedNames);
-      const updated = await StorageService.clearCompletedShoppingItems();
-      setItems(updated);
-      setFridgeCount((prev) => prev + completedNames.length);
+      const res = await StorageService.moveCheckedShoppingItemsToFridge();
+      setItems(res.shoppingList);
+      setFridgeCount(res.fridgeItems.length);
       Alert.alert(
         'Rangement terminé !',
-        `${completedNames.length} aliment(s) rangé(s) dans vos étagères.`
+        `${res.movedCount} article${res.movedCount > 1 ? 's ont été rangés' : ' a été rangé'} dans vos étagères.`
       );
     } catch (e) {
       Alert.alert('Erreur', "Impossible de ranger les articles dans vos étagères.");
+    }
+  };
+
+  // Édition d'un article par appui long
+  const handleOpenEditModal = (item: ShoppingItem) => {
+    setEditingItem(item);
+    setIsEditModalVisible(true);
+  };
+
+  const handleSaveEditedItem = async (updatedItem: ShoppingItem) => {
+    setItems((prev) => prev.map((it) => (it.id === updatedItem.id ? updatedItem : it)));
+    try {
+      await StorageService.updateShoppingItem(updatedItem);
+    } catch (e) {
+      loadShoppingList();
+      Alert.alert('Erreur', "Impossible d'enregistrer les modifications.");
     }
   };
 
@@ -789,17 +808,6 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
                 <Ionicons name="share-social-outline" size={20} color={colors.textPrimary} />
               </TouchableOpacity>
 
-              {completedCount > 0 && (
-                <TouchableOpacity
-                  style={styles.actionIconBtn}
-                  onPress={handleClearCompleted}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  accessibilityLabel="Ranger ou vider les articles cochés"
-                >
-                  <Ionicons name="sparkles-outline" size={19} color={colors.secondary} />
-                </TouchableOpacity>
-              )}
-
               {totalCount > 0 && (
                 <TouchableOpacity
                   style={styles.actionIconBtn}
@@ -881,22 +889,40 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
                 showsVerticalScrollIndicator={false}
                 stickySectionHeadersEnabled={false}
                 keyboardShouldPersistTaps="handled"
-                sections={groupedActive.map(g => ({ title: g.aisle, data: g.items }))}
-                keyExtractor={(item, index) => item.id}
+                sections={groupedSections.map((g) => ({ title: g.aisle, data: g.items }))}
+                keyExtractor={(item) => item.id}
                 initialNumToRender={15}
                 maxToRenderPerBatch={15}
                 windowSize={5}
                 onScroll={handleScroll}
                 scrollEventThrottle={16}
                 ListHeaderComponent={
-                  isSearching && searchQuery?.trim() ? (
-                    <View style={styles.searchSummaryStrip}>
-                      <Text style={styles.searchSummaryText}>
-                        {totalFilteredCount} article{totalFilteredCount > 1 ? 's' : ''} trouvé{totalFilteredCount > 1 ? 's' : ''}
-                        {filteredCompletedItems.length > 0 ? ` (dont ${filteredCompletedItems.length} déjà coché${filteredCompletedItems.length > 1 ? 's' : ''})` : ''} pour « {searchQuery.trim()} »
-                      </Text>
-                    </View>
-                  ) : undefined
+                  <>
+                    {isSearching && searchQuery?.trim() ? (
+                      <View style={styles.searchSummaryStrip}>
+                        <Text style={styles.searchSummaryText}>
+                          {totalFilteredCount} article{totalFilteredCount > 1 ? 's' : ''} trouvé{totalFilteredCount > 1 ? 's' : ''} pour « {searchQuery.trim()} »
+                        </Text>
+                      </View>
+                    ) : null}
+
+                    {completedCount > 0 && (
+                      <TouchableOpacity
+                        style={styles.bulkTransferBtn}
+                        onPress={handleBulkMoveCompletedToShelves}
+                        activeOpacity={0.85}
+                        accessibilityLabel="Ranger les articles cochés dans mes étagères"
+                      >
+                        <View style={styles.bulkTransferIconBox}>
+                          <Ionicons name="layers" size={16} color="#FFFFFF" />
+                        </View>
+                        <Text style={styles.bulkTransferBtnText}>
+                          Ranger les articles cochés ({completedCount}) dans mes étagères
+                        </Text>
+                        <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
+                      </TouchableOpacity>
+                    )}
+                  </>
                 }
               ListEmptyComponent={
                 isSearching && searchQuery?.trim() && totalFilteredCount === 0 ? (
@@ -960,9 +986,18 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
                 );
               }}
               renderItem={({ item, index, section }) => {
+                const isFirst = index === 0;
                 const isLast = index === section.data.length - 1;
+                const isGlobalFirstItem = groupedSections[0]?.items[0]?.id === item.id;
+
                 return (
-                  <View style={index === 0 ? [styles.itemsCard, {borderBottomLeftRadius: isLast ? 14 : 0, borderBottomRightRadius: isLast ? 14 : 0}] : isLast ? [styles.itemsCard, {borderTopLeftRadius: 0, borderTopRightRadius: 0, borderTopWidth: 0, elevation: 0, shadowOpacity: 0}] : [styles.itemsCard, {borderRadius: 0, borderTopWidth: 0, borderBottomWidth: 0, elevation: 0, shadowOpacity: 0}]}>
+                  <SwipeableShoppingItemRow
+                    isFirst={isFirst}
+                    isLast={isLast}
+                    shouldAnimateHint={shouldAnimateFirstItem && isGlobalFirstItem}
+                    onMoveToShelves={() => handleMoveToShelves(item)}
+                    onLongPress={() => handleOpenEditModal(item)}
+                  >
                     <View
                       style={[
                         styles.itemRow,
@@ -984,6 +1019,8 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
                       <TouchableOpacity
                         style={styles.itemTextContainer}
                         onPress={() => handleToggleItem(item.id)}
+                        onLongPress={() => handleOpenEditModal(item)}
+                        delayLongPress={350}
                         activeOpacity={0.7}
                       >
                         <Text
@@ -996,115 +1033,45 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
                           {item.name}
                         </Text>
 
-                        <View style={styles.itemMetaRow}>
-                          {(item.quantity || item.unit) && (
-                            <Text style={styles.itemQuantity}>
+                        {(item.quantity || item.unit) && (
+                          <View style={styles.itemMetaRow}>
+                            <Text
+                              style={[
+                                styles.itemQuantity,
+                                item.isChecked && styles.itemQuantityChecked,
+                              ]}
+                            >
                               {formatQuantityWithUnit(item.quantity, item.unit)}
                             </Text>
-                          )}
-                          {item.recipeTitle && (
-                            <Text style={styles.itemOrigin} numberOfLines={1}>
-                              • {item.recipeTitle}
-                              {item.servings ? ` (${item.servings} p.)` : ''}
-                            </Text>
-                          )}
-                        </View>
+                          </View>
+                        )}
                       </TouchableOpacity>
+
+                      {/* Action directe : ranger dans les étagères si coché */}
+                      {item.isChecked && (
+                        <TouchableOpacity
+                          style={styles.moveToFridgeBtn}
+                          onPress={() => handleMoveToShelves(item)}
+                          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                          accessibilityLabel="Ranger dans mes étagères"
+                        >
+                          <Ionicons name="layers-outline" size={15} color={colors.primary} />
+                          <Text style={styles.moveToFridgeText}>Étagères</Text>
+                        </TouchableOpacity>
+                      )}
 
                       <TouchableOpacity
                         style={styles.deleteItemBtn}
                         onPress={() => handleDeleteItem(item.id)}
                         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        accessibilityLabel="Supprimer de la liste"
                       >
                         <Ionicons name="close" size={18} color={colors.textMuted} />
                       </TouchableOpacity>
                     </View>
-                  </View>
+                  </SwipeableShoppingItemRow>
                 );
               }}
-              ListFooterComponent={
-                filteredCompletedItems.length > 0 ? (
-                  <View style={styles.completedSection}>
-                    <TouchableOpacity
-                      style={styles.completedHeader}
-                      onPress={() => setShowCompleted((prev) => !prev)}
-                      activeOpacity={0.7}
-                    >
-                      <View style={styles.completedHeaderLeft}>
-                        <Ionicons name="checkmark-done" size={17} color={colors.secondary} />
-                        <Text style={styles.completedHeaderText}>
-                          Articles déjà pris ({filteredCompletedItems.length})
-                        </Text>
-                      </View>
-                      <Ionicons
-                        name={showCompleted || isSearching ? 'chevron-up' : 'chevron-down'}
-                        size={17}
-                        color={colors.textSecondary}
-                      />
-                    </TouchableOpacity>
-
-                    {(showCompleted || isSearching) && (
-                      <View style={styles.itemsCard}>
-                        {filteredCompletedItems.map((item, index) => (
-                          <View
-                            key={item.id}
-                            style={[
-                              styles.itemRow,
-                              index < filteredCompletedItems.length - 1 && styles.itemRowBorder,
-                            ]}
-                          >
-                            <TouchableOpacity
-                              style={styles.checkboxBtn}
-                              onPress={() => handleToggleItem(item.id)}
-                              activeOpacity={0.7}
-                            >
-                              <Ionicons
-                                name="checkmark-circle"
-                                size={23}
-                                color={colors.secondary}
-                              />
-                            </TouchableOpacity>
-
-                            <TouchableOpacity
-                              style={styles.itemTextContainer}
-                              onPress={() => handleToggleItem(item.id)}
-                              activeOpacity={0.7}
-                            >
-                              <Text style={[styles.itemName, styles.itemNameChecked]}>
-                                {item.name}
-                              </Text>
-                              {(item.quantity || item.unit) && (
-                                <Text style={styles.itemQuantityChecked}>
-                                  {formatQuantityWithUnit(item.quantity, item.unit)}
-                                </Text>
-                              )}
-                            </TouchableOpacity>
-
-                            {/* Action rapide : ranger dans les étagères */}
-                            <TouchableOpacity
-                              style={styles.moveToFridgeBtn}
-                              onPress={() => handleMoveToShelves(item)}
-                              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                              accessibilityLabel="Ranger dans mes étagères"
-                            >
-                              <Ionicons name="layers-outline" size={15} color={colors.primary} />
-                              <Text style={styles.moveToFridgeText}>Étagères</Text>
-                            </TouchableOpacity>
-
-                            <TouchableOpacity
-                              style={styles.deleteItemBtn}
-                              onPress={() => handleDeleteItem(item.id)}
-                              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                            >
-                              <Ionicons name="trash-outline" size={17} color={colors.danger} />
-                            </TouchableOpacity>
-                          </View>
-                        ))}
-                      </View>
-                    )}
-                  </View>
-                ) : undefined
-              }
             />
           )}
 
@@ -1271,7 +1238,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
                 setIsAislePickerVisible(false);
               }}
             >
-              <Ionicons name="sparkles-outline" size={18} color={colors.primary} />
+              <Ionicons name="flash-outline" size={18} color={colors.primary} />
               <Text style={styles.aisleModalOptionText}>Détection automatique intelligente</Text>
               {selectedAisle === null && (
                 <Ionicons name="checkmark" size={18} color={colors.primary} />
@@ -1519,6 +1486,17 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
           </View>
         </Animated.View>
       )}
+
+      {/* Modal d'édition d'article (appui long) */}
+      <EditShoppingItemModal
+        visible={isEditModalVisible}
+        item={editingItem}
+        onClose={() => {
+          setIsEditModalVisible(false);
+          setEditingItem(null);
+        }}
+        onSave={handleSaveEditedItem}
+      />
     </SafeAreaView>
   );
 };
