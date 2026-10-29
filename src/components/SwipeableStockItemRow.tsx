@@ -17,6 +17,7 @@ interface SwipeableStockItemRowProps {
   isLast: boolean;
   shouldAnimateHint?: boolean;
   hintTrigger?: number;
+  indicatorColor?: string;
 }
 
 export const SwipeableStockItemRow: React.FC<SwipeableStockItemRowProps> = ({
@@ -26,6 +27,7 @@ export const SwipeableStockItemRow: React.FC<SwipeableStockItemRowProps> = ({
   isLast,
   shouldAnimateHint = false,
   hintTrigger = 0,
+  indicatorColor = '#16A34A',
 }) => {
   const [translateX] = useState(() => new Animated.Value(0));
   const [isTriggered, setIsTriggered] = useState(false);
@@ -235,16 +237,16 @@ export const SwipeableStockItemRow: React.FC<SwipeableStockItemRowProps> = ({
         style={[styles.swipeForeground, { transform: [{ translateX }] }]}
         {...panResponder.panHandlers}
       >
-        {/* Micro-signifier d'affordance permanent (swipe vers la droite) */}
+        {/* Micro-signifier d'affordance permanent (swipe vers la droite) avec couleur du rayon */}
         <Animated.View
           style={[styles.affordancePillLeft, { opacity: affordanceOpacity }]}
           pointerEvents="none"
         >
-          <View style={styles.affordanceBarLeft} />
+          <View style={[styles.affordanceBarLeft, { backgroundColor: indicatorColor }]} />
           <Ionicons
             name="chevron-forward"
             size={10}
-            color="#16A34A"
+            color={indicatorColor}
             style={styles.affordanceChevronLeft}
           />
         </Animated.View>
@@ -288,7 +290,7 @@ const styles = createDynamicStyles((colors, shadows) => ({
   },
   affordancePillLeft: {
     position: 'absolute',
-    left: 4,
+    left: 12,
     top: 0,
     bottom: 0,
     justifyContent: 'center',
@@ -298,14 +300,13 @@ const styles = createDynamicStyles((colors, shadows) => ({
   },
   affordanceBarLeft: {
     width: 2.5,
-    height: 16,
+    height: 15,
     borderRadius: 2,
-    backgroundColor: '#16A34A',
-    opacity: 0.55,
+    opacity: 0.8,
   },
   affordanceChevronLeft: {
     marginLeft: 0.5,
-    opacity: 0.55,
+    opacity: 0.8,
   },
   swipeForeground: {
     backgroundColor: colors.cardBackground,

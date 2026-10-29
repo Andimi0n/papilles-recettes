@@ -477,8 +477,9 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
   const renderSectionHeader = useCallback(({ section: { title, data } }: { section: { title: string; data: FridgeItem[] } }) => {
     const aisle = title as ShoppingAisle;
     const cfg = AISLE_CONFIGS[aisle] || AISLE_CONFIGS['Autre'];
+    const isFirstSection = sections[0]?.title === title;
     return (
-      <View style={styles.aisleSection}>
+      <View style={[styles.aisleSection, isFirstSection ? styles.aisleSectionFirst : styles.aisleSectionNext]}>
         <View style={styles.aisleHeaderRow}>
           <View
             style={[
@@ -495,7 +496,7 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
         </View>
       </View>
     );
-  }, [isDark]);
+  }, [isDark, sections]);
 
   const renderItem = useCallback(({ item, index, section }: { item: FridgeItem; index: number; section: { title: string; data: FridgeItem[] } }) => {
     const isFirst = index === 0;
@@ -509,6 +510,7 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
         key={item.id}
         isFirst={isFirst}
         isLast={isLast}
+        indicatorColor={cfg.color}
         shouldAnimateHint={shouldAnimateHint}
         onMoveToShopping={() => handleEmptyItem(item)}
       >
@@ -518,10 +520,6 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
             !isLast && styles.itemRowBorder,
           ]}
         >
-          <View style={styles.bulletPoint}>
-            <Ionicons name="ellipse" size={8} color={cfg.color} />
-          </View>
-
           <View style={styles.itemTextContainer}>
             <Text style={styles.itemName}>{item.name}</Text>
           </View>
@@ -1111,12 +1109,17 @@ const styles = createDynamicStyles((colors, shadows) => ({
     fontWeight: '700',
   },
   aisleSection: {
-    marginBottom: 14,
+    marginBottom: 8,
+  },
+  aisleSectionFirst: {
+    marginTop: 6,
+  },
+  aisleSectionNext: {
+    marginTop: 22,
   },
   aisleHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 6,
     gap: 8,
   },
   aisleIconBox: {
@@ -1130,17 +1133,23 @@ const styles = createDynamicStyles((colors, shadows) => ({
     fontSize: 14,
     fontWeight: '700',
     flex: 1,
+    lineHeight: 20,
+    includeFontPadding: false,
+    textAlignVertical: 'center',
   },
   aisleCountBadge: {
     backgroundColor: colors.surfaceAlt,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   aisleCountText: {
     fontSize: 11,
     fontWeight: '700',
     color: colors.textSecondary,
+    includeFontPadding: false,
   },
   itemsCard: {
     backgroundColor: colors.cardBackground,
@@ -1154,17 +1163,12 @@ const styles = createDynamicStyles((colors, shadows) => ({
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 10,
-    paddingLeft: 18,
+    paddingLeft: 30,
     paddingRight: 14,
   },
   itemRowBorder: {
     borderBottomWidth: 1,
     borderBottomColor: colors.borderLight,
-  },
-  bulletPoint: {
-    marginRight: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   itemTextContainer: {
     flex: 1,
