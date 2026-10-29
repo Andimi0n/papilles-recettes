@@ -663,18 +663,18 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
             <Text style={styles.itemName}>{item.name}</Text>
           </View>
 
-          {/* Action directe : basculer dans la liste de courses avec animation */}
+          {/* Micro-bouton discret : basculer dans la liste de courses avec animation */}
           <TouchableOpacity
             style={styles.transferToShoppingBtn}
             onPress={(e) => {
               const { pageX, pageY } = e.nativeEvent;
               handleTransferToShopping(item, { x: pageX, y: pageY });
             }}
-            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-            accessibilityLabel="Ajouter à ma liste de courses"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            activeOpacity={0.6}
+            accessibilityLabel={`Ajouter ${item.name} aux courses`}
           >
-            <Ionicons name="cart-outline" size={15} color={colors.primary} />
-            <Text style={styles.transferToShoppingText}>+ Courses</Text>
+            <Ionicons name="cart-outline" size={16} color={colors.primary} />
           </TouchableOpacity>
 
           {/* Bouton supprimer */}
@@ -1453,44 +1453,21 @@ const styles = createDynamicStyles((colors, shadows) => ({
     fontWeight: '600',
     color: colors.textPrimary,
   },
-  copyToShoppingBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: colors.surfaceAlt,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    marginRight: 8,
-  },
-  copyToShoppingBtnSuccess: {
-    backgroundColor: '#16A34A',
-  },
-  copyToShoppingText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.primary,
-  },
-  copyToShoppingTextSuccess: {
-    color: '#FFFFFF',
-  },
   transferToShoppingBtn: {
-    flexDirection: 'row',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     alignItems: 'center',
-    gap: 4,
-    backgroundColor: colors.surfaceAlt,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
+    justifyContent: 'center',
+    backgroundColor: colors.primaryLight,
     marginRight: 6,
   },
-  transferToShoppingText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.primary,
-  },
   deleteItemBtn: {
-    padding: 6,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   modalSafeArea: {
     flex: 1,

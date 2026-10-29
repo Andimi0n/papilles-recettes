@@ -930,7 +930,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
               )}
             </TouchableOpacity>
 
-            {/* Action directe : ranger dans les étagères si coché avec animation */}
+            {/* Action directe : micro-bouton ranger dans les étagères si coché avec animation */}
             {item.isChecked && (
               <TouchableOpacity
                 style={styles.moveToFridgeBtn}
@@ -938,11 +938,11 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
                   const { pageX, pageY } = e.nativeEvent;
                   handleTransferShoppingItemToFridge(item, { x: pageX, y: pageY });
                 }}
-                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                activeOpacity={0.6}
                 accessibilityLabel="Ranger dans mes étagères"
               >
-                <Ionicons name="layers-outline" size={15} color={colors.primary} />
-                <Text style={styles.moveToFridgeText}>Étagères</Text>
+                <Ionicons name="layers-outline" size={16} color={colors.primary} />
               </TouchableOpacity>
             )}
 
@@ -994,37 +994,43 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
               onPress={() => handleSelectTab('fridge')}
               activeOpacity={0.8}
             >
-              <Ionicons
-                name={activeTab === 'fridge' ? 'layers' : 'layers-outline'}
-                size={15}
-                color={activeTab === 'fridge' ? '#FFFFFF' : colors.textSecondary}
-              />
-              <Text
+              <Animated.View
                 style={[
-                  styles.tabSwitcherText,
-                  activeTab === 'fridge' && styles.tabSwitcherTextActive,
+                  styles.tabSwitcherContent,
+                  { transform: [{ scale: shelfTabScale }] },
                 ]}
               >
-                Mes étagères
-              </Text>
-              {fridgeCount > 0 && (
-                <Animated.View
+                <Ionicons
+                  name={activeTab === 'fridge' ? 'layers' : 'layers-outline'}
+                  size={15}
+                  color={activeTab === 'fridge' ? '#FFFFFF' : colors.textSecondary}
+                />
+                <Text
                   style={[
-                    styles.tabBadge,
-                    activeTab === 'fridge' && styles.tabBadgeActive,
-                    { transform: [{ scale: shelfTabScale }] },
+                    styles.tabSwitcherText,
+                    activeTab === 'fridge' && styles.tabSwitcherTextActive,
                   ]}
                 >
-                  <Text
+                  Mes étagères
+                </Text>
+                {fridgeCount > 0 && (
+                  <View
                     style={[
-                      styles.tabBadgeText,
-                      activeTab === 'fridge' && styles.tabBadgeTextActive,
+                      styles.tabBadge,
+                      activeTab === 'fridge' && styles.tabBadgeActive,
                     ]}
                   >
-                    {fridgeCount}
-                  </Text>
-                </Animated.View>
-              )}
+                    <Text
+                      style={[
+                        styles.tabBadgeText,
+                        activeTab === 'fridge' && styles.tabBadgeTextActive,
+                      ]}
+                    >
+                      {fridgeCount}
+                    </Text>
+                  </View>
+                )}
+              </Animated.View>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -1035,37 +1041,43 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
               onPress={() => handleSelectTab('shopping')}
               activeOpacity={0.8}
             >
-              <Ionicons
-                name={activeTab === 'shopping' ? 'cart' : 'cart-outline'}
-                size={15}
-                color={activeTab === 'shopping' ? '#FFFFFF' : colors.textSecondary}
-              />
-              <Text
+              <Animated.View
                 style={[
-                  styles.tabSwitcherText,
-                  activeTab === 'shopping' && styles.tabSwitcherTextActive,
+                  styles.tabSwitcherContent,
+                  { transform: [{ scale: shoppingTabScale }] },
                 ]}
               >
-                Liste de courses
-              </Text>
-              {activeItems.length > 0 && (
-                <Animated.View
+                <Ionicons
+                  name={activeTab === 'shopping' ? 'cart' : 'cart-outline'}
+                  size={15}
+                  color={activeTab === 'shopping' ? '#FFFFFF' : colors.textSecondary}
+                />
+                <Text
                   style={[
-                    styles.tabBadge,
-                    activeTab === 'shopping' && styles.tabBadgeActive,
-                    { transform: [{ scale: shoppingTabScale }] },
+                    styles.tabSwitcherText,
+                    activeTab === 'shopping' && styles.tabSwitcherTextActive,
                   ]}
                 >
-                  <Text
+                  Liste de courses
+                </Text>
+                {activeItems.length > 0 && (
+                  <View
                     style={[
-                      styles.tabBadgeText,
-                      activeTab === 'shopping' && styles.tabBadgeTextActive,
+                      styles.tabBadge,
+                      activeTab === 'shopping' && styles.tabBadgeActive,
                     ]}
                   >
-                    {activeItems.length}
-                  </Text>
-                </Animated.View>
-              )}
+                    <Text
+                      style={[
+                        styles.tabBadgeText,
+                        activeTab === 'shopping' && styles.tabBadgeTextActive,
+                      ]}
+                    >
+                      {activeItems.length}
+                    </Text>
+                  </View>
+                )}
+              </Animated.View>
             </TouchableOpacity>
           </View>
         </View>
