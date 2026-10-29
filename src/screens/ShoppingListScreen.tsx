@@ -203,13 +203,17 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
     prevIsShoppingActiveRef.current = isShopping;
   }, [activeTab, shoppingHintTrigger]);
 
-  // Snackbar d'annulation de suppression temporaire (4 secondes)
-  const [deletedSnackbar, setDeletedSnackbar] = useState<{
+  // Snackbar d'annulation de suppression ou basculement temporaire (4 secondes)
+  interface DeletedSnackbarInfo {
     item: ShoppingItem;
     index: number;
-  } | null>(null);
+    action?: 'delete' | 'transfer';
+    previousFridgeItems?: FridgeItem[];
+  }
+
+  const [deletedSnackbar, setDeletedSnackbar] = useState<DeletedSnackbarInfo | null>(null);
   const snackbarTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pendingDeletedItemRef = useRef<{ item: ShoppingItem; index: number } | null>(null);
+  const pendingDeletedItemRef = useRef<DeletedSnackbarInfo | null>(null);
   const [snackbarAnim] = useState(() => new Animated.Value(1));
   const [snackbarFadeAnim] = useState(() => new Animated.Value(0));
 
@@ -366,7 +370,11 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
     }
   }, [loadShoppingList]);
 
-  const handleDeleteItem = useCallback(async (id: string) => {
+  const handleDeleteItem = useCallback(async (
+    id: string,
+    action: 'delete' | 'transfer' = 'delete',
+    previousFridgeItems?: FridgeItem[]
+  ) => {
     let itemToDelete: ShoppingItem | undefined;
     let itemIndex = -1;
     setItems((prev) => {
@@ -388,8 +396,14 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
       StorageService.deleteShoppingItem(pendingDeletedItemRef.current.item.id).catch(() => {});
     }
 
-    pendingDeletedItemRef.current = { item: itemToDelete, index: itemIndex };
-    setDeletedSnackbar({ item: itemToDelete, index: itemIndex });
+    const snackbarInfo: DeletedSnackbarInfo = {
+      item: itemToDelete,
+      index: itemIndex,
+      action,
+      previousFridgeItems,
+    };
+    pendingDeletedItemRef.current = snackbarInfo;
+    setDeletedSnackbar(snackbarInfo);
 
     // Animation de la jauge sur 4 secondes (4000ms) et entrée fluide
     snackbarAnim.setValue(1);
@@ -427,16 +441,36 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
     const info = pendingDeletedItemRef.current || deletedSnackbar;
     if (!info) return;
 
-    setItems((prev) => {
-      const updated = [...prev];
-      const insertIdx = Math.min(Math.max(0, info.index), updated.length);
-      updated.splice(insertIdx, 0, info.item);
-      StorageService.saveShoppingList(updated).catch(() => {});
-      return updated;
-    });
-
     setDeletedSnackbar(null);
     pendingDeletedItemRef.current = null;
+
+    // 1. Si l'action était un basculement vers les étagères, rétablir la liste des étagères antérieure
+    if (info.action === 'transfer' && info.previousFridgeItems) {
+      try {
+        await StorageService.saveFridgeItems(info.previousFridgeItems);
+        setFridgeCount(info.previousFridgeItems.length);
+      } catch (e) {
+        console.error('Erreur annulation transfert étagères:', e);
+      }
+    }
+
+    // 2. Restaurer l'article dans la liste de courses
+    try {
+      const current = await StorageService.getShoppingList();
+      let updated: ShoppingItem[];
+      if (!current.some((it) => it.id === info.item.id)) {
+        updated = [...current];
+        const insertIdx = Math.min(Math.max(0, info.index), updated.length);
+        updated.splice(insertIdx, 0, info.item);
+        const saved = await StorageService.saveShoppingList(updated);
+        updated = saved;
+      } else {
+        updated = current;
+      }
+      setItems(updated);
+    } catch (e) {
+      console.error('Erreur restauration shopping item:', e);
+    }
   };
 
   const handleDismissSnackbar = async () => {
@@ -528,17 +562,17 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
     setNewItemText(`${trimmed} ${unitId} `);
   };
 
-  // Déplacer un article individuel vers les étagères
+  // Déplacer un article individuel vers les étagères (swipe vers la gauche)
   const handleMoveToShelves = useCallback(async (item: ShoppingItem) => {
     try {
-      const res = await StorageService.moveShoppingItemToFridge(item.id);
-      setItems(res.shoppingList);
-      setFridgeCount(res.fridgeItems.length);
-      Alert.alert('Rangé !', `"${item.name}" a été ajouté à vos étagères.`);
+      const prevFridgeItems = await StorageService.getFridgeItems();
+      const updatedFridge = await StorageService.addFridgeItem(item.name, item.aisle, item.canonicalId);
+      setFridgeCount(updatedFridge.length);
+      await handleDeleteItem(item.id, 'transfer', prevFridgeItems);
     } catch (_e) {
-      Alert.alert('Erreur', "Impossible de déplacer l'article dans vos étagères.");
+      Alert.alert('Erreur', "Impossible de basculer l'article dans vos étagères.");
     }
-  }, []);
+  }, [handleDeleteItem]);
 
   // Passer tous les ingrédients cochés/grisés dans mes étagères
   const handleBulkMoveCompletedToShelves = async () => {
@@ -1445,7 +1479,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
         </TouchableOpacity>
       </Modal>
 
-      {/* Barre Snackbar temporaire (4 secondes) pour annuler une suppression dans Courses */}
+      {/* Barre Snackbar temporaire (4 secondes) pour annuler une suppression ou basculement dans Courses */}
       {deletedSnackbar && (
         <Animated.View
           style={[
@@ -1465,9 +1499,15 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
         >
           <View style={styles.snackbarContent}>
             <View style={styles.snackbarLeft}>
-              <Ionicons name="trash-outline" size={17} color="#FFFFFF" />
+              <Ionicons
+                name={deletedSnackbar.action === 'transfer' ? 'layers-outline' : 'trash-outline'}
+                size={17}
+                color="#FFFFFF"
+              />
               <Text style={styles.snackbarText} numberOfLines={1}>
-                « {deletedSnackbar.item.name} » supprimé
+                {deletedSnackbar.action === 'transfer'
+                  ? `« ${deletedSnackbar.item.name} » basculé dans mes étagères`
+                  : `« ${deletedSnackbar.item.name} » supprimé`}
               </Text>
             </View>
 
@@ -1477,7 +1517,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
                 onPress={handleUndoDelete}
                 activeOpacity={0.8}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                accessibilityLabel="Annuler la suppression"
+                accessibilityLabel="Annuler l'action"
               >
                 <Ionicons name="arrow-undo" size={15} color="#FFFFFF" />
                 <Text style={styles.snackbarUndoText}>Annuler</Text>
