@@ -1,12 +1,10 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   Animated,
   PanResponder,
-  Platform,
-  Vibration,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { createDynamicStyles } from '../theme/colors';
@@ -30,17 +28,6 @@ export const SwipeableShoppingItemRow: React.FC<SwipeableShoppingItemRowProps> =
   const { colors } = useTheme();
   const [translateX] = useState(() => new Animated.Value(0));
   const [isTriggered, setIsTriggered] = useState(false);
-
-  // Micro-retour haptique au franchissement du seuil (-75px)
-  const triggerHaptic = useCallback(() => {
-    if (Platform.OS !== 'web') {
-      try {
-        Vibration.vibrate(12);
-      } catch {
-        // Fallback sans effet si vibration non supportée
-      }
-    }
-  }, []);
 
   // Interpolations dynamiques pour le retour visuel et l'affordance (P5)
   const affordanceOpacity = useMemo(() => {
@@ -96,7 +83,6 @@ export const SwipeableShoppingItemRow: React.FC<SwipeableShoppingItemRowProps> =
       },
       onPanResponderMove: (_, gestureState) => {
         if (isTriggered) return;
-        const state = gestureState as typeof gestureState & { _hapticFired?: boolean };
         if (gestureState.dx < 0) {
           // Amorti élastique progressif au-delà de -120px
           const offset =
@@ -104,18 +90,8 @@ export const SwipeableShoppingItemRow: React.FC<SwipeableShoppingItemRowProps> =
               ? -120 + (gestureState.dx + 120) * 0.4
               : gestureState.dx;
           translateX.setValue(offset);
-
-          // Détection du passage de seuil (-75px) avec retour haptique
-          const isPastThreshold = gestureState.dx <= -75;
-          if (isPastThreshold && !state._hapticFired) {
-            state._hapticFired = true;
-            triggerHaptic();
-          } else if (!isPastThreshold && state._hapticFired) {
-            state._hapticFired = false;
-          }
         } else {
           translateX.setValue(0);
-          state._hapticFired = false;
         }
       },
       onPanResponderRelease: (_, gestureState) => {
@@ -155,7 +131,7 @@ export const SwipeableShoppingItemRow: React.FC<SwipeableShoppingItemRowProps> =
         }
       },
     });
-  }, [translateX, isTriggered, onMoveToShelves, triggerHaptic]);
+  }, [translateX, isTriggered, onMoveToShelves]);
 
   return (
     <View

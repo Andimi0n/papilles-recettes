@@ -13,7 +13,9 @@ import {
   Animated,
   PanResponder,
   PanResponderGestureState,
-  Vibration,
+  useWindowDimensions,
+  LayoutChangeEvent,
+  Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -53,7 +55,14 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
   isActive = true,
 }) => {
   const { isDark, colors } = useTheme();
+  const { width: screenWidth } = useWindowDimensions();
   const [activeTab, setActiveTab] = useState<'shopping' | 'fridge'>(initialTab);
+
+  // Position horizontale du Pager (0 = étagères, -screenWidth = courses)
+  const [pageTranslateX] = useState(
+    () => new Animated.Value(initialTab === 'fridge' ? 0 : -screenWidth)
+  );
+
   const [items, setItems] = useState<ShoppingItem[]>(() => StorageService.getSyncShoppingList() || []);
   const [fridgeItems, setFridgeItems] = useState<FridgeItem[]>(() => StorageService.getSyncFridgeItems() || []);
   const [fridgeCount, setFridgeCount] = useState<number>(() => (StorageService.getSyncFridgeItems() || []).length);
@@ -64,14 +73,90 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
   const [isInStoreModeVisible, setIsInStoreModeVisible] = useState(false);
   const [isShareModalVisible, setIsShareModalVisible] = useState(false);
 
+  // Mesure dynamique de la largeur du sélecteur d'onglets pour caler la pilule
+  const [switcherWidth, setSwitcherWidth] = useState(0);
+
+  const onSwitcherLayout = useCallback((e: LayoutChangeEvent) => {
+    const { width } = e.nativeEvent.layout;
+    if (width > 0) {
+      setSwitcherWidth(width);
+    }
+  }, []);
+
   // Synchronise si initialTab change depuis l'extérieur (Pattern React 19)
   const [prevInitialTab, setPrevInitialTab] = useState(initialTab);
   if (prevInitialTab !== initialTab) {
     setPrevInitialTab(initialTab);
     if (initialTab) {
       setActiveTab(initialTab);
+      pageTranslateX.setValue(initialTab === 'fridge' ? 0 : -screenWidth);
     }
   }
+
+  // Recalage de la translation si la largeur d'écran change
+  useEffect(() => {
+    if (activeTab === 'shopping') {
+      pageTranslateX.setValue(-screenWidth);
+    } else {
+      pageTranslateX.setValue(0);
+    }
+  }, [screenWidth, activeTab, pageTranslateX]);
+
+  // Largeur d'un onglet dans le sélecteur (padding de 3px de chaque côté)
+  const tabWidth = useMemo(() => {
+    return switcherWidth > 0 ? (switcherWidth - 6) / 2 : (screenWidth - 38) / 2;
+  }, [switcherWidth, screenWidth]);
+
+  // Interpolation de la position de la pilule indicatrice active (0 -> tabWidth)
+  const indicatorTranslateX = useMemo(() => {
+    return pageTranslateX.interpolate({
+      inputRange: [-screenWidth, 0],
+      outputRange: [tabWidth, 0],
+      extrapolate: 'clamp',
+    });
+  }, [pageTranslateX, screenWidth, tabWidth]);
+
+  // Interpolations d'opacité croisée pour les libellés et icônes des onglets
+  const fridgeActiveOpacity = useMemo(() => {
+    return pageTranslateX.interpolate({
+      inputRange: [-screenWidth, 0],
+      outputRange: [0, 1],
+      extrapolate: 'clamp',
+    });
+  }, [pageTranslateX, screenWidth]);
+
+  const shoppingActiveOpacity = useMemo(() => {
+    return pageTranslateX.interpolate({
+      inputRange: [-screenWidth, 0],
+      outputRange: [1, 0],
+      extrapolate: 'clamp',
+    });
+  }, [pageTranslateX, screenWidth]);
+
+  // Basculement d'onglet fluide et synchronisé (spring physique)
+  const switchTab = useCallback(
+    (target: 'fridge' | 'shopping', animated = true) => {
+      if (activeTab === target) return;
+      Keyboard.dismiss();
+      const targetX = target === 'fridge' ? 0 : -screenWidth;
+
+      if (!animated) {
+        pageTranslateX.setValue(targetX);
+        setActiveTab(target);
+        return;
+      }
+
+      Animated.spring(pageTranslateX, {
+        toValue: targetX,
+        tension: 70,
+        friction: 9,
+        useNativeDriver: true,
+      }).start(() => {
+        setActiveTab(target);
+      });
+    },
+    [activeTab, screenWidth, pageTranslateX]
+  );
 
   // Formulaire d'ajout rapide courses (saisie libre intelligente)
   const [newItemText, setNewItemText] = useState('');
@@ -642,22 +727,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
     [colors, handleMoveToShelves, handleOpenEditModal, handleToggleItem, handleDeleteItem]
   );
 
-  // Micro-retour haptique lors du changement d'univers par swipe
-  const triggerHaptic = useCallback(() => {
-    if (Platform.OS !== 'web') {
-      try {
-        Vibration.vibrate(10);
-      } catch {
-        // Fallback sans effet si vibration non supportée
-      }
-    }
-  }, []);
-
-  // Swipe plein écran entre "Mes étagères" et "Liste de courses"
-  // - Sur mes étagères : swipe vers la gauche (dx < 0) -> Liste de courses
-  // - Sur liste de courses : swipe vers la droite (dx > 0) -> Mes étagères
-  // Ce geste est opposé au swipe d'ingrédient (droite sur étagères, gauche sur courses),
-  // garantissant 0 conflit et une navigation fluide n'importe où sur l'écran.
+  // Swipe tactile fluide et continu (type Pager / Launcher Android)
   const screenSwipePanResponder = useMemo(() => {
     const shouldCapture = (gestureState: PanResponderGestureState) => {
       if (isInStoreModeVisible || isShareModalVisible || isEditModalVisible) {
@@ -668,13 +738,13 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
         Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.5;
       if (!isHorizontal) return false;
 
-      // Sur mes étagères : swipe vers la gauche (dx < -20)
-      if (activeTab === 'fridge' && gestureState.dx < -20) {
+      // Sur mes étagères : swipe vers la gauche (dx < -15)
+      if (activeTab === 'fridge' && gestureState.dx < -15) {
         return true;
       }
 
-      // Sur liste de courses : swipe vers la droite (dx > 20)
-      if (activeTab === 'shopping' && gestureState.dx > 20) {
+      // Sur liste de courses : swipe vers la droite (dx > 15)
+      if (activeTab === 'shopping' && gestureState.dx > 15) {
         return true;
       }
 
@@ -685,180 +755,249 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
       onMoveShouldSetPanResponderCapture: (_, gestureState) => shouldCapture(gestureState),
       onMoveShouldSetPanResponder: (_, gestureState) => shouldCapture(gestureState),
       onPanResponderTerminationRequest: () => false,
-      onPanResponderRelease: (_, gestureState) => {
-        if (activeTab === 'fridge') {
-          const isSwipeLeft =
-            gestureState.dx < -50 ||
-            (gestureState.dx < -20 && gestureState.vx < -0.3);
-          if (isSwipeLeft) {
-            triggerHaptic();
-            setActiveTab('shopping');
-          }
-        } else if (activeTab === 'shopping') {
-          const isSwipeRight =
-            gestureState.dx > 50 ||
-            (gestureState.dx > 20 && gestureState.vx > 0.3);
-          if (isSwipeRight) {
-            triggerHaptic();
-            setActiveTab('fridge');
-          }
+      onPanResponderGrant: () => {
+        Keyboard.dismiss();
+        pageTranslateX.stopAnimation();
+      },
+      onPanResponderMove: (_, gestureState) => {
+        const base = activeTab === 'fridge' ? 0 : -screenWidth;
+        let newX = base + gestureState.dx;
+
+        // Amorti élastique doux aux limites extérieures
+        if (newX > 0) {
+          newX = newX * 0.15;
+        } else if (newX < -screenWidth) {
+          const over = newX + screenWidth;
+          newX = -screenWidth + over * 0.15;
         }
+
+        pageTranslateX.setValue(newX);
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        let shouldSwitch = false;
+
+        if (activeTab === 'fridge') {
+          // Vers la gauche : seuil de 35% de la largeur d'écran ou flick vif
+          shouldSwitch =
+            gestureState.dx < -screenWidth * 0.35 ||
+            (gestureState.dx < -25 && gestureState.vx < -0.35);
+        } else {
+          // Vers la droite : seuil de 35% de la largeur d'écran ou flick vif
+          shouldSwitch =
+            gestureState.dx > screenWidth * 0.35 ||
+            (gestureState.dx > 25 && gestureState.vx > 0.35);
+        }
+
+        const destinationTab = shouldSwitch
+          ? (activeTab === 'fridge' ? 'shopping' : 'fridge')
+          : activeTab;
+
+        const targetX = destinationTab === 'fridge' ? 0 : -screenWidth;
+
+        Animated.spring(pageTranslateX, {
+          toValue: targetX,
+          velocity: gestureState.vx,
+          tension: 70,
+          friction: 9,
+          useNativeDriver: true,
+        }).start(() => {
+          setActiveTab(destinationTab);
+        });
+      },
+      onPanResponderTerminate: () => {
+        const targetX = activeTab === 'fridge' ? 0 : -screenWidth;
+        Animated.spring(pageTranslateX, {
+          toValue: targetX,
+          tension: 70,
+          friction: 9,
+          useNativeDriver: true,
+        }).start(() => {
+          setActiveTab(activeTab);
+        });
       },
     });
-  }, [activeTab, isInStoreModeVisible, isShareModalVisible, isEditModalVisible, triggerHaptic]);
+  }, [
+    activeTab,
+    isInStoreModeVisible,
+    isShareModalVisible,
+    isEditModalVisible,
+    screenWidth,
+    pageTranslateX,
+  ]);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <View style={{ flex: 1 }} {...screenSwipePanResponder.panHandlers}>
+      <View style={{ flex: 1, overflow: 'hidden' }} {...screenSwipePanResponder.panHandlers}>
         {/* Switcher d'onglets au sommet : Mes étagères vs Liste de courses */}
-      <View style={styles.tabSwitcherWrapper}>
-        <View style={styles.tabSwitcherContainer}>
-          <TouchableOpacity
-            style={[
-              styles.tabSwitcherBtn,
-              activeTab === 'fridge' && styles.tabSwitcherBtnActive,
-            ]}
-            onPress={() => setActiveTab('fridge')}
-            activeOpacity={0.8}
-          >
-            <Ionicons
-              name={activeTab === 'fridge' ? 'layers' : 'layers-outline'}
-              size={15}
-              color={activeTab === 'fridge' ? '#FFFFFF' : colors.textSecondary}
-            />
-            <Text
+        <View style={styles.tabSwitcherWrapper} onLayout={onSwitcherLayout}>
+          <View style={styles.tabSwitcherContainer}>
+            {/* Pilule verte animée continue (glisse 1:1 sous le doigt) */}
+            <Animated.View
               style={[
-                styles.tabSwitcherText,
-                activeTab === 'fridge' && styles.tabSwitcherTextActive,
+                styles.tabSwitcherPill,
+                {
+                  width: tabWidth,
+                  transform: [{ translateX: indicatorTranslateX }],
+                },
               ]}
-            >
-              Mes étagères
-            </Text>
-            {fridgeCount > 0 && (
-              <View
-                style={[
-                  styles.tabBadge,
-                  activeTab === 'fridge' && styles.tabBadgeActive,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.tabBadgeText,
-                    activeTab === 'fridge' && styles.tabBadgeTextActive,
-                  ]}
-                >
-                  {fridgeCount}
-                </Text>
-              </View>
-            )}
-          </TouchableOpacity>
+            />
 
-          <TouchableOpacity
-            style={[
-              styles.tabSwitcherBtn,
-              activeTab === 'shopping' && styles.tabSwitcherBtnActive,
-            ]}
-            onPress={() => setActiveTab('shopping')}
-            activeOpacity={0.8}
-          >
-            <Ionicons
-              name={activeTab === 'shopping' ? 'cart' : 'cart-outline'}
-              size={15}
-              color={activeTab === 'shopping' ? '#FFFFFF' : colors.textSecondary}
-            />
-            <Text
-              style={[
-                styles.tabSwitcherText,
-                activeTab === 'shopping' && styles.tabSwitcherTextActive,
-              ]}
+            {/* Onglet 1 : Mes étagères */}
+            <TouchableOpacity
+              style={styles.tabSwitcherBtn}
+              onPress={() => switchTab('fridge')}
+              activeOpacity={0.8}
+              accessibilityLabel="Afficher mes étagères"
+              accessibilityRole="tab"
+              accessibilityState={{ selected: activeTab === 'fridge' }}
             >
-              Liste de courses
-            </Text>
-            {activeItems.length > 0 && (
-              <View
-                style={[
-                  styles.tabBadge,
-                  activeTab === 'shopping' && styles.tabBadgeActive,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.tabBadgeText,
-                    activeTab === 'shopping' && styles.tabBadgeTextActive,
-                  ]}
-                >
-                  {activeItems.length}
-                </Text>
+              {/* Couche au repos (couleurs secondaires) */}
+              <View style={styles.tabSwitcherBtnInner}>
+                <Ionicons name="layers-outline" size={15} color={colors.textSecondary} />
+                <Text style={styles.tabSwitcherText}>Mes étagères</Text>
+                {fridgeCount > 0 && (
+                  <View style={styles.tabBadge}>
+                    <Text style={styles.tabBadgeText}>{fridgeCount}</Text>
+                  </View>
+                )}
               </View>
-            )}
-          </TouchableOpacity>
+
+              {/* Couche active avec fondu enchaîné continu */}
+              <Animated.View
+                style={[
+                  styles.tabSwitcherBtnInner,
+                  styles.tabSwitcherBtnOverlay,
+                  { opacity: fridgeActiveOpacity },
+                ]}
+                pointerEvents="none"
+              >
+                <Ionicons name="layers" size={15} color="#FFFFFF" />
+                <Text style={[styles.tabSwitcherText, styles.tabSwitcherTextActive]}>
+                  Mes étagères
+                </Text>
+                {fridgeCount > 0 && (
+                  <View style={[styles.tabBadge, styles.tabBadgeActive]}>
+                    <Text style={[styles.tabBadgeText, styles.tabBadgeTextActive]}>
+                      {fridgeCount}
+                    </Text>
+                  </View>
+                )}
+              </Animated.View>
+            </TouchableOpacity>
+
+            {/* Onglet 2 : Liste de courses */}
+            <TouchableOpacity
+              style={styles.tabSwitcherBtn}
+              onPress={() => switchTab('shopping')}
+              activeOpacity={0.8}
+              accessibilityLabel="Afficher la liste de courses"
+              accessibilityRole="tab"
+              accessibilityState={{ selected: activeTab === 'shopping' }}
+            >
+              {/* Couche au repos */}
+              <View style={styles.tabSwitcherBtnInner}>
+                <Ionicons name="cart-outline" size={15} color={colors.textSecondary} />
+                <Text style={styles.tabSwitcherText}>Liste de courses</Text>
+                {activeItems.length > 0 && (
+                  <View style={styles.tabBadge}>
+                    <Text style={styles.tabBadgeText}>{activeItems.length}</Text>
+                  </View>
+                )}
+              </View>
+
+              {/* Couche active avec fondu enchaîné continu */}
+              <Animated.View
+                style={[
+                  styles.tabSwitcherBtnInner,
+                  styles.tabSwitcherBtnOverlay,
+                  { opacity: shoppingActiveOpacity },
+                ]}
+                pointerEvents="none"
+              >
+                <Ionicons name="cart" size={15} color="#FFFFFF" />
+                <Text style={[styles.tabSwitcherText, styles.tabSwitcherTextActive]}>
+                  Liste de courses
+                </Text>
+                {activeItems.length > 0 && (
+                  <View style={[styles.tabBadge, styles.tabBadgeActive]}>
+                    <Text style={[styles.tabBadgeText, styles.tabBadgeTextActive]}>
+                      {activeItems.length}
+                    </Text>
+                  </View>
+                )}
+              </Animated.View>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
 
-      {/* Barre de recherche ergonomique (commune aux deux univers) */}
-      {isSearchActive && (
-        <IngredientSearchBar
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          onClear={() => setSearchQuery('')}
-          onClose={() => {
-            setIsSearchActive(false);
-            setSearchQuery('');
-          }}
-          currentTab={activeTab}
-          currentMatchCount={
-            activeTab === 'fridge'
-              ? countMatchingItems(fridgeItems, searchQuery)
-              : totalFilteredCount
-          }
-          crossMatchCount={
-            activeTab === 'fridge'
-              ? totalFilteredCount
-              : fridgeCrossCount
-          }
-          onPressCrossUniverse={() => {
-            setActiveTab(activeTab === 'fridge' ? 'shopping' : 'fridge');
-          }}
-        />
-      )}
+        {/* Barre de recherche ergonomique (commune aux deux univers) */}
+        {isSearchActive && (
+          <IngredientSearchBar
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            onClear={() => setSearchQuery('')}
+            onClose={() => {
+              setIsSearchActive(false);
+              setSearchQuery('');
+            }}
+            currentTab={activeTab}
+            currentMatchCount={
+              activeTab === 'fridge'
+                ? countMatchingItems(fridgeItems, searchQuery)
+                : totalFilteredCount
+            }
+            crossMatchCount={
+              activeTab === 'fridge'
+                ? totalFilteredCount
+                : fridgeCrossCount
+            }
+            onPressCrossUniverse={() => {
+              switchTab(activeTab === 'fridge' ? 'shopping' : 'fridge');
+            }}
+          />
+        )}
 
-      {/* VUE 1 : DANS MES ÉTAGÈRES */}
-      <View
-        style={[
-          styles.tabContentContainer,
-          activeTab !== 'fridge' && styles.tabContentHidden,
-        ]}
-        pointerEvents={activeTab === 'fridge' ? 'auto' : 'none'}
-      >
-        <FridgeStockView
-          onNavigateToShopping={() => setActiveTab('shopping')}
-          onItemCopiedToShopping={() => {
-            loadShoppingList();
-          }}
-          onFridgeCountChange={handleFridgeCountChange}
-          searchQuery={searchQuery}
-          isSearchOpen={isSearchActive}
-          onToggleSearch={(open) => setIsSearchActive(open)}
-          shoppingItems={items}
-          onNavigateToShoppingWithSearch={(q) => {
-            setActiveTab('shopping');
-            setIsSearchActive(true);
-            setSearchQuery(q);
-          }}
-          initialItems={fridgeItems}
-          isActiveTab={activeTab === 'fridge'}
-        />
-      </View>
+        {/* Pager interactif continu plein écran */}
+        <Animated.View
+          style={[
+            styles.pagerTrack,
+            {
+              width: screenWidth * 2,
+              transform: [{ translateX: pageTranslateX }],
+            },
+          ]}
+        >
+          {/* VUE 1 : DANS MES ÉTAGÈRES */}
+          <View
+            style={[styles.pagerPage, { width: screenWidth }]}
+            aria-hidden={activeTab !== 'fridge'}
+          >
+            <FridgeStockView
+              onNavigateToShopping={() => switchTab('shopping')}
+              onItemCopiedToShopping={() => {
+                loadShoppingList();
+              }}
+              onFridgeCountChange={handleFridgeCountChange}
+              searchQuery={searchQuery}
+              isSearchOpen={isSearchActive}
+              onToggleSearch={(open) => setIsSearchActive(open)}
+              shoppingItems={items}
+              onNavigateToShoppingWithSearch={(q) => {
+                setIsSearchActive(true);
+                setSearchQuery(q);
+                switchTab('shopping');
+              }}
+              initialItems={fridgeItems}
+              isActiveTab={activeTab === 'fridge'}
+            />
+          </View>
 
-      {/* VUE 2 : LISTE DE COURSES */}
-      <View
-        style={[
-          styles.tabContentContainer,
-          activeTab !== 'shopping' && styles.tabContentHidden,
-        ]}
-        pointerEvents={activeTab === 'shopping' ? 'auto' : 'none'}
-      >
-        <View style={styles.shoppingListWrapper}>
+          {/* VUE 2 : LISTE DE COURSES */}
+          <View
+            style={[styles.pagerPage, { width: screenWidth }]}
+            aria-hidden={activeTab !== 'shopping'}
+          >
+            <View style={styles.shoppingListWrapper}>
           {/* Barre compacte d'actions et de statut (gain de hauteur P1) */}
           <View style={styles.compactSubHeader}>
             <View style={styles.compactStatusRow}>
@@ -1111,7 +1250,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
                         {fridgeCrossCount > 0 && (
                           <TouchableOpacity
                             style={styles.searchCrossBtn}
-                            onPress={() => setActiveTab('fridge')}
+                            onPress={() => switchTab('fridge')}
                             activeOpacity={0.85}
                           >
                             <Ionicons name="layers-outline" size={17} color={colors.primary} />
@@ -1173,6 +1312,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
           </View>
         </View>
       </View>
+    </Animated.View>
 
 
 
