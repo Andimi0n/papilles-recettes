@@ -7,6 +7,7 @@ import {
   SectionList,
   Alert,
   Animated,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { FridgeItem } from '../types/fridge';
@@ -19,6 +20,7 @@ import { AISLE_CONFIGS, ALL_AISLES, classifyIngredientAisle } from '../utils/ais
 import { normalizeString } from '../utils/helpers';
 import { normalizeIngredient } from '../utils/ingredientNormalizer';
 import { filterIngredientItems, countMatchingItems, areFridgeListsEqual } from '../utils/ingredientSearchMatcher';
+import { createSectionListGetItemLayout } from '../utils/sectionListLayoutHelper';
 import { VocabularyService } from '../services/vocabularyService';
 import { UnifiedIngredientInput } from './UnifiedIngredientInput';
 import {
@@ -387,7 +389,7 @@ const FridgeStockViewComponent: React.FC<FridgeStockViewProps> = ({
     Animated.timing(snackbarAnim, {
       toValue: 0,
       duration: 4000,
-      useNativeDriver: false,
+      useNativeDriver: true,
     }).start();
 
     // Délai de 4 secondes avant confirmation définitive
@@ -558,6 +560,14 @@ const FridgeStockViewComponent: React.FC<FridgeStockViewProps> = ({
     [handleEmptyItem, handleDeleteItem, colors.textMuted]
   );
 
+  const getItemLayout = useMemo(() => {
+    return createSectionListGetItemLayout<FridgeItem>({
+      getItemHeight: () => 46,
+      getSectionHeaderHeight: (sIdx) => (sIdx === 0 ? 40 : 56),
+      getSectionFooterHeight: () => 0,
+    });
+  }, []);
+
   return (
     <View style={styles.container}>
       {/* Barre compacte d'actions et de statut Étagères (gain de hauteur P1) */}
@@ -701,9 +711,12 @@ const FridgeStockViewComponent: React.FC<FridgeStockViewProps> = ({
               keyboardShouldPersistTaps="handled"
               sections={sections}
               keyExtractor={keyExtractor}
+              getItemLayout={getItemLayout}
               initialNumToRender={15}
-              maxToRenderPerBatch={10}
-              windowSize={5}
+              maxToRenderPerBatch={8}
+              updateCellsBatchingPeriod={50}
+              windowSize={7}
+              removeClippedSubviews={Platform.OS === 'android'}
               ListHeaderComponent={
                 isSearching && searchQuery?.trim() ? (
                   <View style={styles.searchSummaryStrip}>
@@ -870,10 +883,7 @@ const FridgeStockViewComponent: React.FC<FridgeStockViewProps> = ({
               style={[
                 styles.snackbarBar,
                 {
-                  width: snackbarAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: ['0%', '100%'],
-                  }),
+                  transform: [{ scaleX: snackbarAnim }],
                 },
               ]}
             />
@@ -1215,6 +1225,9 @@ const styles = createDynamicStyles((colors, shadows) => ({
   itemRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 46,
+    height: 46,
     paddingVertical: 10,
     paddingLeft: 30,
     paddingRight: 14,
@@ -1302,9 +1315,12 @@ const styles = createDynamicStyles((colors, shadows) => ({
     height: 3,
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
     width: '100%',
+    overflow: 'hidden',
   },
   snackbarBar: {
     height: '100%',
+    width: '100%',
     backgroundColor: colors.primary,
+    transformOrigin: 'left',
   },
 }));

@@ -33,6 +33,7 @@ import { AISLE_CONFIGS } from '../utils/aisleClassifier';
 import { groupItemsByAisle, formatShoppingListForShare } from '../utils/shoppingAggregator';
 import { normalizeString } from '../utils/helpers';
 import { filterIngredientItems, countMatchingItems, areShoppingListsEqual, areFridgeListsEqual } from '../utils/ingredientSearchMatcher';
+import { createSectionListGetItemLayout } from '../utils/sectionListLayoutHelper';
 import { FridgeStockView } from '../components/FridgeStockView';
 import { IngredientSearchBar } from '../components/IngredientSearchBar';
 import { InStoreShoppingModal } from '../components/InStoreShoppingModal';
@@ -532,7 +533,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
     Animated.timing(snackbarAnim, {
       toValue: 0,
       duration: 4000,
-      useNativeDriver: false,
+      useNativeDriver: true,
     }).start();
 
     // Délai de 4 secondes avant confirmation définitive
@@ -813,6 +814,14 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
     },
     [handleToggleItem, handleDeleteItem, handleMoveToShelves, handleOpenEditModal, colors.secondary, colors.border, colors.textMuted]
   );
+
+  const getItemLayout = useMemo(() => {
+    return createSectionListGetItemLayout<ShoppingItem>({
+      getItemHeight: (item) => (item.quantity || item.recipeTitle ? 58 : 46),
+      getSectionHeaderHeight: () => 46,
+      getSectionFooterHeight: () => 0,
+    });
+  }, []);
 
   // Swipe tactile fluide et continu (type Pager / Launcher Android)
   const screenSwipePanResponder = useMemo(() => {
@@ -1276,9 +1285,12 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
                   keyboardShouldPersistTaps="handled"
                   sections={sections}
                   keyExtractor={keyExtractor}
+                  getItemLayout={getItemLayout}
                   initialNumToRender={15}
-                  maxToRenderPerBatch={10}
-                  windowSize={5}
+                  maxToRenderPerBatch={8}
+                  updateCellsBatchingPeriod={50}
+                  windowSize={7}
+                  removeClippedSubviews={Platform.OS === 'android'}
                   ListHeaderComponent={
                     isSearching && searchQuery?.trim() ? (
                       <View style={styles.searchSummaryStrip}>
@@ -1568,10 +1580,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
               style={[
                 styles.snackbarBar,
                 {
-                  width: snackbarAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: ['0%', '100%'],
-                  }),
+                  transform: [{ scaleX: snackbarAnim }],
                 },
               ]}
             />

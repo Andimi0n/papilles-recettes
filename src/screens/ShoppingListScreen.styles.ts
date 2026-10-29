@@ -446,6 +446,8 @@ export const styles = createDynamicStyles((colors, shadows) => ({
   itemRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 46,
     paddingVertical: 10,
     paddingLeft: 12,
     paddingRight: 18,
@@ -780,9 +782,12 @@ export const styles = createDynamicStyles((colors, shadows) => ({
     height: 3,
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
     width: '100%',
+    overflow: 'hidden',
   },
   snackbarBar: {
     height: '100%',
+    width: '100%',
     backgroundColor: colors.primary,
+    transformOrigin: 'left',
   },
 }));
