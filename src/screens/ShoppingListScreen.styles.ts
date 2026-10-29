@@ -65,9 +65,6 @@ export const styles = createDynamicStyles((colors, shadows) => ({
   },
   tabSwitcherPill: {
     position: 'absolute',
-    top: 3,
-    left: 3,
-    bottom: 3,
     backgroundColor: colors.primary,
     borderRadius: 10,
     ...shadows.card,

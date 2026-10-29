@@ -73,13 +73,33 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
   const [isInStoreModeVisible, setIsInStoreModeVisible] = useState(false);
   const [isShareModalVisible, setIsShareModalVisible] = useState(false);
 
-  // Mesure dynamique de la largeur du sélecteur d'onglets pour caler la pilule
-  const [switcherWidth, setSwitcherWidth] = useState(0);
+  // Mesure dynamique exacte du premier onglet pour positionner et dimensionner la pastille verte
+  const [tabLayout, setTabLayout] = useState<{
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  }>(() => ({
+    x: 3,
+    y: 3,
+    width: Math.max(0, (screenWidth - 40) / 2),
+    height: 32,
+  }));
 
-  const onSwitcherLayout = useCallback((e: LayoutChangeEvent) => {
-    const { width } = e.nativeEvent.layout;
-    if (width > 0) {
-      setSwitcherWidth(width);
+  const onFirstTabLayout = useCallback((e: LayoutChangeEvent) => {
+    const { x, y, width, height } = e.nativeEvent.layout;
+    if (width > 0 && height > 0) {
+      setTabLayout((prev) => {
+        if (
+          Math.abs(prev.x - x) < 0.5 &&
+          Math.abs(prev.y - y) < 0.5 &&
+          Math.abs(prev.width - width) < 0.5 &&
+          Math.abs(prev.height - height) < 0.5
+        ) {
+          return prev;
+        }
+        return { x, y, width, height };
+      });
     }
   }, []);
 
@@ -102,19 +122,14 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
     }
   }, [screenWidth, activeTab, pageTranslateX]);
 
-  // Largeur d'un onglet dans le sélecteur (padding de 3px de chaque côté)
-  const tabWidth = useMemo(() => {
-    return switcherWidth > 0 ? (switcherWidth - 6) / 2 : (screenWidth - 38) / 2;
-  }, [switcherWidth, screenWidth]);
-
-  // Interpolation de la position de la pilule indicatrice active (0 -> tabWidth)
+  // Interpolation de la position de la pilule indicatrice active (0 -> tabLayout.width)
   const indicatorTranslateX = useMemo(() => {
     return pageTranslateX.interpolate({
       inputRange: [-screenWidth, 0],
-      outputRange: [tabWidth, 0],
+      outputRange: [tabLayout.width, 0],
       extrapolate: 'clamp',
     });
-  }, [pageTranslateX, screenWidth, tabWidth]);
+  }, [pageTranslateX, screenWidth, tabLayout.width]);
 
   // Interpolations d'opacité croisée pour les libellés et icônes des onglets
   const fridgeActiveOpacity = useMemo(() => {
@@ -829,14 +844,17 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <View style={{ flex: 1, overflow: 'hidden' }} {...screenSwipePanResponder.panHandlers}>
         {/* Switcher d'onglets au sommet : Mes étagères vs Liste de courses */}
-        <View style={styles.tabSwitcherWrapper} onLayout={onSwitcherLayout}>
+        <View style={styles.tabSwitcherWrapper}>
           <View style={styles.tabSwitcherContainer}>
             {/* Pilule verte animée continue (glisse 1:1 sous le doigt) */}
             <Animated.View
               style={[
                 styles.tabSwitcherPill,
                 {
-                  width: tabWidth,
+                  left: tabLayout.x,
+                  top: tabLayout.y,
+                  width: tabLayout.width,
+                  height: tabLayout.height,
                   transform: [{ translateX: indicatorTranslateX }],
                 },
               ]}
@@ -845,6 +863,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
             {/* Onglet 1 : Mes étagères */}
             <TouchableOpacity
               style={styles.tabSwitcherBtn}
+              onLayout={onFirstTabLayout}
               onPress={() => switchTab('fridge')}
               activeOpacity={0.8}
               accessibilityLabel="Afficher mes étagères"
