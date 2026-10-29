@@ -69,6 +69,8 @@ function AppContent() {
     const loadInitialData = async () => {
       try {
         await StorageService.migrateRecipesToCanonicalV1().catch(() => {});
+        // Préchauffage en tâche de fond du frigo et des courses pour une réactivité instantanée
+        StorageService.getFridgeItems().catch(() => {});
         const loaded = await StorageService.getRecipes();
         setRecipes(loaded);
         await refreshShoppingBadge();

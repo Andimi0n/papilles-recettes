@@ -979,6 +979,13 @@ export const StorageService = {
   },
 
   /**
+   * Récupère la liste de courses de manière synchrone depuis le cache mémoire si elle est déjà chargée
+   */
+  getSyncShoppingList(): ShoppingItem[] | null {
+    return memoryCache.shoppingList;
+  },
+
+  /**
    * Récupère la liste de courses stockée localement
    */
   async getShoppingList(): Promise<ShoppingItem[]> {
@@ -1269,6 +1276,13 @@ export const StorageService = {
   // ==========================================
   // GESTION DU FRIGO (INVENTAIRE & STOCK)
   // ==========================================
+
+  /**
+   * Récupère le stock du frigo de manière synchrone depuis le cache mémoire s'il est déjà chargé
+   */
+  getSyncFridgeItems(): FridgeItem[] | null {
+    return memoryCache.fridgeItems;
+  },
 
   /**
    * Récupère la liste des aliments actuellement présents dans le frigo
