@@ -9,7 +9,12 @@
 1. **CODE FIRST — ZÉRO « DOC-WASHING » :**
    - Toute fonctionnalité ou correction doit être **implémentée dans le code source (`src/`)**.
    - Ne modifiez **JAMAIS** `README.md` ou `AGENTS.md` à moins que le prompt ne le demande explicitement ou qu'un nouveau fichier/service majeur ne soit créé dans `src/`.
-2. **ÉCONOMIE DE TOKENS & VITESSE :**
+2. **NAVIGATION AST, ÉCONOMIE DE TOKENS & VITESSE :**
+   - **Outils de recherche rapides obligatoires (`fd`, `rg`, `ast-grep`) :** N'utilisez jamais `find`, `grep` ou `cat` sur des fichiers entiers pour explorer le code. Utilisez exclusivement :
+     - **`fd`** (ou `fdfind`) pour localiser des fichiers (ex: `fd -e ts -e tsx Stock src/`).
+     - **`rg`** (`ripgrep`) pour rechercher du texte ou des imports rapidement (ex: `rg -n "handleVocabularyCascade" src/`).
+     - **`ast-grep`** (`sg`) pour cibler la structure syntaxique TypeScript/TSX (fonctions, hooks, props, interfaces) sans lire tout le fichier (ex: `sg -p 'const { $$$ } = useTheme()' -l tsx src/`).
+   - **Respect strict de `.geminiignore` :** Ne lisez **jamais** les fichiers de seed massifs (`src/data/initialRecipes.ts`, `package-lock.json`) sauf instruction explicite. Pour connaître la structure des données, lisez uniquement `src/types/`.
    - **Éditions chirurgicales :** Utilisez des patchs ciblés. Ne réécrivez jamais un fichier entier pour modifier quelques lignes.
    - **Réponses concises :** Pas de longs préambules ni de résumés narratifs. En fin de tâche, listez uniquement les fichiers modifiés et le statut des tests en 3 à 5 lignes maximum.
 3. **GESTION DES DÉPENDANCES & NATIF :**
@@ -54,8 +59,8 @@
   - `allergenMatcher.ts` (et `aisleClassifier.ts`, `searchEngine.ts`, `helpers.ts`) : Détection des 14 allergènes majeurs INCO par `canonicalId` + filet de sécurité sémantique (`INCO_FAMILY_KEY_ROOTS`) sur les ingrédients non catalogués.
 - **`src/components/`** : `RecipeCard.tsx`, `StarRating.tsx` (0.5–5.0 sans label texte), `SearchBar.tsx`, `CategoryPills.tsx`, `IngredientChip.tsx`, `FridgeStockView.tsx`, `StockCookModal.tsx` (Chef IA en 2 étapes : 3 idées sobres < 300 tokens puis génération complète), `CookingModeModal.tsx`, `IngredientAutocompleteInput.tsx`, `UnitQuickPicker.tsx`, `UnitPickerModal.tsx`, `AllergenFamilyPickerModal.tsx`, `VocabularyManagerModal.tsx`, `MealSlotPickerModal.tsx`, `QuickMealLogModal.tsx`, `ImportMarmitonModal.tsx`, `ChefAiWidget.tsx`, `TodayMealWidget.tsx`, `EmptyState.tsx`.
 - **`src/constants/` & `src/data/`** :
-  - `constants/units.ts` : Catalogue standardisé des unités culinaires (5 catégories) et ` formatQuantityWithUnit`.
-  - `data/canonicalVocabulary.ts` (~350 ingrédients canoniques) & `data/initialRecipes.ts` (recettes par défaut).
+  - `constants/units.ts` : Catalogue standardisé des unités culinaires (5 catégories) et `formatQuantityWithUnit`.
+  - `data/canonicalVocabulary.ts` (~350 ingrédients canoniques) & `data/initialRecipes.ts` (recettes par défaut — **ignoré par défaut** via `.geminiignore`).
 - **`src/types/`** : `recipe.ts`, `shopping.ts`, `fridge.ts`, `planner.ts`, `mealLog.ts`, `vocabulary.ts`.
 
 ---
@@ -64,7 +69,7 @@
 
 1. **Architecture "Lexique-First" & `canonicalId` :**
    - `Recipe.Ingredient`, `FridgeItem` et `ShoppingItem` partagent `canonicalId?: string`.
-   - Ne appliquez la normalisation qu'aux **noms d'ingrédients** (les étapes `steps` des recettes restent 100 % intactes).
+   - N'appliquez la normalisation qu'aux **noms d'ingrédients** (les étapes `steps` des recettes restent 100 % intactes).
    - Dans `RecipeFormScreen`, toute modification manuelle du nom d'un ingrédient doit réévaluer `normalizeIngredient()` pour éviter un `canonicalId` obsolète.
    - Toute modification du lexique dans `VocabularyService` doit déclencher `StorageService.handleVocabularyCascade()` et `clearNormalizationCache()`.
 2. **Règles d'Unités & Stock :**
@@ -101,9 +106,15 @@
 
 ---
 
-## 🛠️ 5. COMMANDES DE VÉRIFICATION & TESTS UNITAIRES
+## 🛠️ 5. EXPLORATION DU CODE, VÉRIFICATION & TESTS UNITAIRES
 
 ```bash
+# 0. Exploration chirurgicale du code (À privilégier avant d'ouvrir un fichier)
+fd -e ts -e tsx <motif> src/                         # Trouver un fichier instantanément
+rg -n "<symbole_ou_texte>" src/                      # Chercher les occurrences exactes avec numéros de lignes
+sg -p 'export function $FUNC($$$)' -l ts src/        # Lister les signatures de fonctions via AST (ast-grep)
+sg -p 'interface $NAME {$$$ }' -l ts src/types/     # Inspecter les interfaces TypeScript via AST
+
 # 1. Vérification obligatoire avant fin de tâche (0 erreur tolérée)
 npx tsc --noEmit && npx expo lint
 

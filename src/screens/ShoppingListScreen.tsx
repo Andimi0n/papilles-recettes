@@ -1034,12 +1034,10 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
             >
               {/* Couche au repos (couleurs secondaires) */}
               <View style={styles.tabSwitcherBtnInner}>
-                <Ionicons name="layers-outline" size={15} color={colors.textSecondary} />
+                <Ionicons name="layers-outline" size={17} color={colors.textSecondary} />
                 <Text style={styles.tabSwitcherText}>Mes étagères</Text>
                 {fridgeCount > 0 && (
-                  <View style={styles.tabBadge}>
-                    <Text style={styles.tabBadgeText}>{fridgeCount}</Text>
-                  </View>
+                  <Text style={styles.tabCountText}>{fridgeCount}</Text>
                 )}
               </View>
 
@@ -1052,16 +1050,14 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
                 ]}
                 pointerEvents="none"
               >
-                <Ionicons name="layers" size={15} color="#FFFFFF" />
+                <Ionicons name="layers" size={17} color="#FFFFFF" />
                 <Text style={[styles.tabSwitcherText, styles.tabSwitcherTextActive]}>
                   Mes étagères
                 </Text>
                 {fridgeCount > 0 && (
-                  <View style={[styles.tabBadge, styles.tabBadgeActive]}>
-                    <Text style={[styles.tabBadgeText, styles.tabBadgeTextActive]}>
-                      {fridgeCount}
-                    </Text>
-                  </View>
+                  <Text style={[styles.tabCountText, styles.tabCountTextActive]}>
+                    {fridgeCount}
+                  </Text>
                 )}
               </Animated.View>
             </TouchableOpacity>
@@ -1077,12 +1073,10 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
             >
               {/* Couche au repos */}
               <View style={styles.tabSwitcherBtnInner}>
-                <Ionicons name="cart-outline" size={15} color={colors.textSecondary} />
+                <Ionicons name="cart-outline" size={17} color={colors.textSecondary} />
                 <Text style={styles.tabSwitcherText}>Liste de courses</Text>
                 {activeItems.length > 0 && (
-                  <View style={styles.tabBadge}>
-                    <Text style={styles.tabBadgeText}>{activeItems.length}</Text>
-                  </View>
+                  <Text style={styles.tabCountText}>{activeItems.length}</Text>
                 )}
               </View>
 
@@ -1095,16 +1089,14 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
                 ]}
                 pointerEvents="none"
               >
-                <Ionicons name="cart" size={15} color="#FFFFFF" />
+                <Ionicons name="cart" size={17} color="#FFFFFF" />
                 <Text style={[styles.tabSwitcherText, styles.tabSwitcherTextActive]}>
                   Liste de courses
                 </Text>
                 {activeItems.length > 0 && (
-                  <View style={[styles.tabBadge, styles.tabBadgeActive]}>
-                    <Text style={[styles.tabBadgeText, styles.tabBadgeTextActive]}>
-                      {activeItems.length}
-                    </Text>
-                  </View>
+                  <Text style={[styles.tabCountText, styles.tabCountTextActive]}>
+                    {activeItems.length}
+                  </Text>
                 )}
               </Animated.View>
             </TouchableOpacity>

@@ -1,0 +1,13 @@
+# Dépendances et builds
+node_modules/
+.expo/
+dist/
+web-build/
+package-lock.json
+yarn.lock
+
+# Fichiers de données massifs (Seeds) qui polluent le contexte
+# (L'agent connaît déjà leur structure via src/types/recipe.ts et vocabulary.ts)
+src/data/initialRecipes.ts
+scripts/*.json
+assets/

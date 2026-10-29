@@ -51,22 +51,22 @@ export const styles = createDynamicStyles((colors, shadows) => ({
   },
   tabSwitcherWrapper: {
     paddingHorizontal: 16,
-    paddingTop: 6,
-    paddingBottom: 2,
+    paddingTop: 8,
+    paddingBottom: 4,
   },
   tabSwitcherContainer: {
     position: 'relative',
     flexDirection: 'row',
     backgroundColor: colors.backgroundSecondary,
-    borderRadius: 14,
-    padding: 3,
+    borderRadius: 16,
+    padding: 4,
     borderWidth: 1,
     borderColor: colors.borderLight,
   },
   tabSwitcherPill: {
     position: 'absolute',
     backgroundColor: colors.primary,
-    borderRadius: 10,
+    borderRadius: 12,
     ...shadows.card,
   },
   tabSwitcherBtn: {
@@ -74,14 +74,14 @@ export const styles = createDynamicStyles((colors, shadows) => ({
     position: 'relative',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 7,
-    borderRadius: 10,
+    paddingVertical: 10,
+    borderRadius: 12,
   },
   tabSwitcherBtnInner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: 7,
   },
   tabSwitcherBtnOverlay: {
     position: 'absolute',
@@ -95,7 +95,7 @@ export const styles = createDynamicStyles((colors, shadows) => ({
     ...shadows.card,
   },
   tabSwitcherText: {
-    fontSize: 13,
+    fontSize: 14.5,
     fontWeight: '600',
     color: colors.textSecondary,
   },
@@ -103,22 +103,15 @@ export const styles = createDynamicStyles((colors, shadows) => ({
     color: '#FFFFFF',
     fontWeight: '700',
   },
-  tabBadge: {
-    backgroundColor: colors.surfaceAlt,
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    borderRadius: 10,
-  },
-  tabBadgeActive: {
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
-  },
-  tabBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
+  tabCountText: {
+    fontSize: 13.5,
+    fontWeight: '600',
     color: colors.textSecondary,
+    opacity: 0.8,
   },
-  tabBadgeTextActive: {
+  tabCountTextActive: {
     color: '#FFFFFF',
+    opacity: 0.9,
   },
   pagerTrack: {
     flex: 1,
