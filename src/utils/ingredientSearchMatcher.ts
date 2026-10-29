@@ -1,5 +1,7 @@
 import { normalizeString } from './helpers';
 import { VocabularyService } from '../services/vocabularyService';
+import { ShoppingItem } from '../types/shopping';
+import { FridgeItem } from '../types/fridge';
 
 export interface SearchableIngredientItem {
   id?: string;
@@ -161,4 +163,62 @@ export function filterIngredientItems<T extends SearchableIngredientItem>(
   const prepared = prepareSearchQuery(query);
   if (!prepared) return items;
   return items.filter((item) => matchIngredientSearch(item, prepared));
+}
+
+/**
+ * Compare deux listes de courses de manière stricte mais ultra-rapide O(N)
+ * pour éviter les re-renders redondants lors des retours de StorageService.
+ */
+export function areShoppingListsEqual(
+  a?: ShoppingItem[] | null,
+  b?: ShoppingItem[] | null
+): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    const itemA = a[i];
+    const itemB = b[i];
+    if (
+      itemA.id !== itemB.id ||
+      itemA.isChecked !== itemB.isChecked ||
+      itemA.name !== itemB.name ||
+      itemA.quantity !== itemB.quantity ||
+      itemA.unit !== itemB.unit ||
+      itemA.canonicalId !== itemB.canonicalId ||
+      itemA.aisle !== itemB.aisle ||
+      itemA.recipeTitle !== itemB.recipeTitle ||
+      itemA.recipeId !== itemB.recipeId ||
+      itemA.servings !== itemB.servings
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * Compare deux listes d'étagères/stock de manière stricte mais ultra-rapide O(N)
+ * pour éviter les re-renders redondants lors des retours de StorageService.
+ */
+export function areFridgeListsEqual(
+  a?: FridgeItem[] | null,
+  b?: FridgeItem[] | null
+): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    const itemA = a[i];
+    const itemB = b[i];
+    if (
+      itemA.id !== itemB.id ||
+      itemA.name !== itemB.name ||
+      itemA.canonicalId !== itemB.canonicalId ||
+      itemA.aisle !== itemB.aisle
+    ) {
+      return false;
+    }
+  }
+  return true;
 }

@@ -11,7 +11,7 @@ async function main() {
   try {
     const tscBin = path.join(__dirname, '../node_modules/.bin/tsc');
     execSync(
-      `"${tscBin}" src/utils/helpers.ts src/data/canonicalVocabulary.ts src/types/vocabulary.ts src/services/vocabularyService.ts src/utils/ingredientSearchMatcher.ts --outDir "${tmpDir}" --module commonjs --target es2020 --skipLibCheck --esModuleInterop --ignoreConfig`,
+      `"${tscBin}" src/utils/helpers.ts src/data/canonicalVocabulary.ts src/types/vocabulary.ts src/types/shopping.ts src/types/fridge.ts src/services/vocabularyService.ts src/utils/ingredientSearchMatcher.ts --outDir "${tmpDir}" --module commonjs --target es2020 --skipLibCheck --esModuleInterop --ignoreConfig`,
       { stdio: 'pipe' }
     );
   } catch (err) {
@@ -23,6 +23,8 @@ async function main() {
     matchIngredientSearch,
     countMatchingItems,
     filterIngredientItems,
+    areShoppingListsEqual,
+    areFridgeListsEqual,
   } = require(path.join(tmpDir, 'utils/ingredientSearchMatcher.js'));
 
   console.log('🧪 Lancement des tests de ingredientSearchMatcher...');
@@ -159,6 +161,19 @@ async function main() {
   assert.strictEqual(filtered[0].name, 'Beurre demi-sel');
 
   console.log('✓ Fonctions countMatchingItems et filterIngredientItems validées');
+
+  // 10. Dédoublonnement & égalité des listes courses / étagères
+  const item1 = { id: '1', name: 'Carotte', isChecked: false, aisle: 'Fruits & Légumes' };
+  const item2 = { id: '2', name: 'Farine', isChecked: true, aisle: 'Épicerie & Condiments' };
+
+  assert.strictEqual(areShoppingListsEqual([item1, item2], [{ ...item1 }, { ...item2 }]), true, 'Listes identiques doivent être égales');
+  assert.strictEqual(areShoppingListsEqual([item1], [{ ...item1, isChecked: true }]), false, 'Changement de isChecked doit invalider l\'égalité');
+  assert.strictEqual(areShoppingListsEqual([item1], []), false, 'Tailles différentes doivent invalider l\'égalité');
+
+  const fridge1 = { id: 'f1', name: 'Beurre', aisle: 'Produits Frais & Crèmerie', createdAt: '2026-01-01' };
+  assert.strictEqual(areFridgeListsEqual([fridge1], [{ ...fridge1 }]), true, 'Listes de stock identiques doivent être égales');
+  assert.strictEqual(areFridgeListsEqual([fridge1], [{ ...fridge1, name: 'Beurre salé' }]), false, 'Nom modifié doit invalider l\'égalité');
+  console.log('✓ Fonctions areShoppingListsEqual et areFridgeListsEqual validées');
 
   // Nettoyage dossier temporaire
   try {

@@ -32,7 +32,7 @@ import { useTheme } from '../theme/ThemeContext';
 import { AISLE_CONFIGS } from '../utils/aisleClassifier';
 import { groupItemsByAisle, formatShoppingListForShare } from '../utils/shoppingAggregator';
 import { normalizeString } from '../utils/helpers';
-import { filterIngredientItems, countMatchingItems } from '../utils/ingredientSearchMatcher';
+import { filterIngredientItems, countMatchingItems, areShoppingListsEqual, areFridgeListsEqual } from '../utils/ingredientSearchMatcher';
 import { FridgeStockView } from '../components/FridgeStockView';
 import { IngredientSearchBar } from '../components/IngredientSearchBar';
 import { InStoreShoppingModal } from '../components/InStoreShoppingModal';
@@ -344,7 +344,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
   const loadShoppingList = useCallback(async () => {
     try {
       const data = await StorageService.getShoppingList();
-      setItems(data);
+      setItems((prev) => (areShoppingListsEqual(prev, data) ? prev : data));
     } catch (e) {
       console.error('Erreur chargement liste courses:', e);
     }
@@ -354,16 +354,37 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
   const loadFridgeItems = useCallback(async () => {
     try {
       const data = await StorageService.getFridgeItems();
-      setFridgeItems(data);
-      setFridgeCount(data.length);
+      setFridgeItems((prev) => (areFridgeListsEqual(prev, data) ? prev : data));
+      setFridgeCount((prev) => (prev === data.length ? prev : data.length));
     } catch (e) {
       console.error('Erreur chargement aliments étagères:', e);
     }
   }, []);
 
   const handleFridgeCountChange = useCallback((count: number) => {
-    setFridgeCount(count);
+    setFridgeCount((prev) => (prev === count ? prev : count));
   }, []);
+
+  const handleNavigateToShopping = useCallback(() => {
+    switchTab('shopping');
+  }, [switchTab]);
+
+  const handleItemCopiedToShopping = useCallback(() => {
+    loadShoppingList();
+  }, [loadShoppingList]);
+
+  const handleToggleSearch = useCallback((open: boolean) => {
+    setIsSearchActive(open);
+  }, []);
+
+  const handleNavigateToShoppingWithSearch = useCallback(
+    (q: string) => {
+      setIsSearchActive(true);
+      setSearchQuery(q);
+      switchTab('shopping');
+    },
+    [switchTab]
+  );
 
   useEffect(() => {
     void (async () => {
@@ -372,12 +393,12 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
     })();
 
     const unsubShopping = StorageService.onShoppingListChange((updatedList) => {
-      setItems(updatedList);
+      setItems((prev) => (areShoppingListsEqual(prev, updatedList) ? prev : updatedList));
     });
 
     const unsubFridge = StorageService.onFridgeChange((updatedFridge) => {
-      setFridgeItems(updatedFridge);
-      setFridgeCount(updatedFridge.length);
+      setFridgeItems((prev) => (areFridgeListsEqual(prev, updatedFridge) ? prev : updatedFridge));
+      setFridgeCount((prev) => (prev === updatedFridge.length ? prev : updatedFridge.length));
     });
 
     const unsubVocab = VocabularyService.onVocabularyCascade(async () => {
@@ -1043,20 +1064,14 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
             aria-hidden={activeTab !== 'fridge'}
           >
             <FridgeStockView
-              onNavigateToShopping={() => switchTab('shopping')}
-              onItemCopiedToShopping={() => {
-                loadShoppingList();
-              }}
+              onNavigateToShopping={handleNavigateToShopping}
+              onItemCopiedToShopping={handleItemCopiedToShopping}
               onFridgeCountChange={handleFridgeCountChange}
               searchQuery={searchQuery}
               isSearchOpen={isSearchActive}
-              onToggleSearch={(open) => setIsSearchActive(open)}
+              onToggleSearch={handleToggleSearch}
               shoppingItems={items}
-              onNavigateToShoppingWithSearch={(q) => {
-                setIsSearchActive(true);
-                setSearchQuery(q);
-                switchTab('shopping');
-              }}
+              onNavigateToShoppingWithSearch={handleNavigateToShoppingWithSearch}
               initialItems={fridgeItems}
               isActiveTab={activeTab === 'fridge'}
             />

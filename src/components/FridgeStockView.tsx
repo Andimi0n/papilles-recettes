@@ -18,7 +18,7 @@ import { useTheme } from '../theme/ThemeContext';
 import { AISLE_CONFIGS, ALL_AISLES, classifyIngredientAisle } from '../utils/aisleClassifier';
 import { normalizeString } from '../utils/helpers';
 import { normalizeIngredient } from '../utils/ingredientNormalizer';
-import { filterIngredientItems, countMatchingItems } from '../utils/ingredientSearchMatcher';
+import { filterIngredientItems, countMatchingItems, areFridgeListsEqual } from '../utils/ingredientSearchMatcher';
 import { VocabularyService } from '../services/vocabularyService';
 import { UnifiedIngredientInput } from './UnifiedIngredientInput';
 import {
@@ -84,7 +84,7 @@ const StockListItemRow = React.memo<StockListItemRowProps>(
 
 StockListItemRow.displayName = 'StockListItemRow';
 
-export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
+const FridgeStockViewComponent: React.FC<FridgeStockViewProps> = ({
   onNavigateToShopping,
   onItemCopiedToShopping,
   onFridgeCountChange,
@@ -106,7 +106,7 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
   const [prevInitialItems, setPrevInitialItems] = useState(initialItems);
   if (initialItems && prevInitialItems !== initialItems) {
     setPrevInitialItems(initialItems);
-    if (initialItems.length !== items.length) {
+    if (!areFridgeListsEqual(items, initialItems)) {
       setItems(initialItems);
     }
   }
@@ -158,7 +158,7 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
   const loadStock = useCallback(async () => {
     try {
       const data = await StorageService.getFridgeItems();
-      setItems(data);
+      setItems((prev) => (areFridgeListsEqual(prev, data) ? prev : data));
       onFridgeCountChangeRef.current?.(data.length);
     } catch (e) {
       console.error('Erreur chargement étagères:', e);
@@ -175,7 +175,7 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
           VocabularyService.getAll(),
         ]);
         if (isMounted) {
-          setItems(loadedStock);
+          setItems((prev) => (areFridgeListsEqual(prev, loadedStock) ? prev : loadedStock));
           setCanonicalVocabulary(vocab);
           onFridgeCountChangeRef.current?.(loadedStock.length);
         }
@@ -186,14 +186,16 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
     initData();
 
     const unsubFridge = StorageService.onFridgeChange((updatedStock) => {
-      setItems(updatedStock);
+      setItems((prev) => (areFridgeListsEqual(prev, updatedStock) ? prev : updatedStock));
       onFridgeCountChangeRef.current?.(updatedStock.length);
     });
 
     const unsubVocab = VocabularyService.onVocabularyCascade(async () => {
       await loadStock();
       const updatedVocab = await VocabularyService.getAll();
-      setCanonicalVocabulary(updatedVocab);
+      if (isMounted) {
+        setCanonicalVocabulary(updatedVocab);
+      }
     });
 
     return () => {
@@ -881,6 +883,38 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
     </View>
   );
 };
+
+function areFridgeStockViewPropsEqual(
+  prevProps: FridgeStockViewProps,
+  nextProps: FridgeStockViewProps
+): boolean {
+  if (prevProps.isActiveTab !== nextProps.isActiveTab) return false;
+  if (prevProps.isSearchOpen !== nextProps.isSearchOpen) return false;
+  if (prevProps.searchQuery !== nextProps.searchQuery) return false;
+
+  // Si une recherche est active, vérifier si le comptage croisé depuis les courses a changé
+  const nextQuery = nextProps.searchQuery?.trim();
+  if (nextQuery) {
+    const prevCross = prevProps.shoppingItems ? countMatchingItems(prevProps.shoppingItems, prevProps.searchQuery || '') : 0;
+    const nextCross = nextProps.shoppingItems ? countMatchingItems(nextProps.shoppingItems, nextQuery) : 0;
+    if (prevCross !== nextCross) return false;
+  }
+
+  if (prevProps.onNavigateToShopping !== nextProps.onNavigateToShopping) return false;
+  if (prevProps.onItemCopiedToShopping !== nextProps.onItemCopiedToShopping) return false;
+  if (prevProps.onFridgeCountChange !== nextProps.onFridgeCountChange) return false;
+  if (prevProps.onToggleSearch !== nextProps.onToggleSearch) return false;
+  if (prevProps.onNavigateToShoppingWithSearch !== nextProps.onNavigateToShoppingWithSearch) return false;
+
+  if (!areFridgeListsEqual(prevProps.initialItems, nextProps.initialItems)) {
+    return false;
+  }
+
+  return true;
+}
+
+export const FridgeStockView = React.memo(FridgeStockViewComponent, areFridgeStockViewPropsEqual);
+FridgeStockView.displayName = 'FridgeStockView';
 
 const styles = createDynamicStyles((colors, shadows) => ({
   container: {

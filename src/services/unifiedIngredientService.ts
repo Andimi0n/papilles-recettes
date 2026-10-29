@@ -105,7 +105,66 @@ export const CANONICAL_QUICK_SUGGESTIONS = [
  * - Validation stricte du Passeport Ingrédient (Allergènes, Rayon, Placard, Alias)
  * - Rétroactivité immédiate lors de la création
  */
+interface IndexedCanonicalAlias {
+  alias: string;
+  stem: string;
+  phonetic: string;
+}
+
+interface IndexedCanonicalItem {
+  item: CanonicalIngredient;
+  norm: string;
+  stem: string;
+  phonetic: string;
+  tokens: string[];
+  aliases: IndexedCanonicalAlias[];
+}
+
+let indexedCanonicalCache: IndexedCanonicalItem[] | null = null;
+let lastVocabularyCacheRef: CanonicalIngredient[] | null = null;
+
+export function clearIndexedCanonicalCache(): void {
+  indexedCanonicalCache = null;
+  lastVocabularyCacheRef = null;
+}
+
+function getIndexedCanonicalVocabulary(): IndexedCanonicalItem[] {
+  const currentList = VocabularyService.getSyncList();
+  if (indexedCanonicalCache && lastVocabularyCacheRef === currentList) {
+    return indexedCanonicalCache;
+  }
+
+  const indexed: IndexedCanonicalItem[] = currentList.map((item) => {
+    const norm = item.normalizedName || normalizeString(item.canonicalName);
+    return {
+      item,
+      norm,
+      stem: stemWord(norm),
+      phonetic: frenchPhonetic(norm),
+      tokens: norm.split(/\s+/).filter((t: string) => t.length >= 3),
+      aliases: (item.aliases || []).map((alias) => {
+        const normAlias = normalizeString(alias);
+        return {
+          alias: normAlias,
+          stem: stemWord(normAlias),
+          phonetic: frenchPhonetic(normAlias),
+        };
+      }),
+    };
+  });
+
+  indexedCanonicalCache = indexed;
+  lastVocabularyCacheRef = currentList;
+  return indexed;
+}
+
+// Invalidation automatique sur cascade du lexique
+VocabularyService.onVocabularyCascade(() => {
+  clearIndexedCanonicalCache();
+});
+
 export const UnifiedIngredientService = {
+  clearIndexedCanonicalCache,
   /**
    * Retourne une liste dynamique des noms canoniques les plus pertinents
    * à suggérer pour les ajouts rapides (Stock & Courses).
@@ -227,13 +286,11 @@ export const UnifiedIngredientService = {
     const queryPhonetic = frenchPhonetic(cleanName);
     const queryTokens = normQuery.split(/\s+/).filter((t: string) => t.length >= 3);
 
-        const list = VocabularyService.getSyncList();
+    const indexedList = getIndexedCanonicalVocabulary();
     const scoredMap = new Map<string, ClosestCanonicalMatch>();
 
-    for (const item of list) {
-      const itemNorm = item.normalizedName;
-      const itemStem = stemWord(itemNorm);
-      const itemPhonetic = frenchPhonetic(itemNorm);
+    for (const indexed of indexedList) {
+      const { item, norm: itemNorm, stem: itemStem, phonetic: itemPhonetic } = indexed;
       let bestScore = 0;
       let bestReason: ClosestCanonicalMatch['reason'] = 'family';
       let bestLabel = 'Famille proche';
@@ -277,8 +334,9 @@ export const UnifiedIngredientService = {
       }
 
       // 5. Examen approfondi des alias de l'ingrédient
-      if (bestScore < 90 && item.aliases) {
-        for (const alias of item.aliases) {
+      if (bestScore < 90 && indexed.aliases.length > 0) {
+        for (const aliasEntry of indexed.aliases) {
+          const { alias, stem: aliasStem, phonetic: aliasPhonetic } = aliasEntry;
           if (!alias || alias.length < 3) continue;
 
           if (alias === normQuery) {
@@ -289,7 +347,6 @@ export const UnifiedIngredientService = {
             break;
           }
 
-          const aliasStem = stemWord(alias);
           if (queryStem === aliasStem) {
             if (bestScore < 90) {
               bestScore = 90;
@@ -299,7 +356,6 @@ export const UnifiedIngredientService = {
             }
           }
 
-          const aliasPhonetic = frenchPhonetic(alias);
           if (queryPhonetic && queryPhonetic.length >= 2 && queryPhonetic === aliasPhonetic) {
             if (bestScore < 89) {
               bestScore = 89;
@@ -328,9 +384,9 @@ export const UnifiedIngredientService = {
         }
       }
 
-      // 5. Chevauchement de tokens sémantiques (ex: "farine de châtaigne" -> "Farine")
+      // 6. Chevauchement de tokens sémantiques (ex: "farine de châtaigne" -> "Farine")
       if (bestScore < 70 && queryTokens.length > 0) {
-        const itemTokens = itemNorm.split(/\s+/).filter((t) => t.length >= 3);
+        const itemTokens = indexed.tokens;
         const hasTokenOverlap = queryTokens.some((qt) => itemTokens.includes(qt));
         if (hasTokenOverlap) {
           bestScore = 68;
