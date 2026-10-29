@@ -8,7 +8,6 @@ import {
   Alert,
   Modal,
   Animated,
-  PanResponder,
   NativeSyntheticEvent,
   NativeScrollEvent,
 } from 'react-native';
@@ -29,6 +28,7 @@ import {
   UnifiedIngredientService,
 } from '../services/unifiedIngredientService';
 import { QualifyIngredientModal } from './QualifyIngredientModal';
+import { SwipeableStockItemRow } from './SwipeableStockItemRow';
 
 interface FridgeStockViewProps {
   onNavigateToShopping?: () => void;
@@ -40,177 +40,8 @@ interface FridgeStockViewProps {
   shoppingItems?: ShoppingItem[];
   onNavigateToShoppingWithSearch?: (query: string) => void;
   initialItems?: FridgeItem[];
+  isActiveTab?: boolean;
 }
-
-interface SwipeableStockItemRowProps {
-  children: React.ReactNode;
-  onEmptyItem: () => void;
-  isFirst: boolean;
-  isLast: boolean;
-  styles: any;
-  shouldAnimateHint?: boolean;
-}
-
-const SwipeableStockItemRow: React.FC<SwipeableStockItemRowProps> = ({
-  children,
-  onEmptyItem,
-  isFirst,
-  isLast,
-  styles,
-  shouldAnimateHint = false,
-}) => {
-  const [translateX] = useState(() => new Animated.Value(0));
-
-  useEffect(() => {
-    if (shouldAnimateHint) {
-      const timer = setTimeout(() => {
-        Animated.sequence([
-          Animated.timing(translateX, {
-            toValue: -65,
-            duration: 340,
-            useNativeDriver: true,
-          }),
-          Animated.delay(220),
-          Animated.spring(translateX, {
-            toValue: 0,
-            friction: 7,
-            tension: 40,
-            useNativeDriver: true,
-          }),
-        ]).start();
-      }, 400);
-
-      return () => clearTimeout(timer);
-    }
-  }, [shouldAnimateHint, translateX]);
-
-  const snapClose = useCallback(() => {
-    Animated.spring(translateX, {
-      toValue: 0,
-      useNativeDriver: true,
-      bounciness: 4,
-    }).start();
-  }, [translateX]);
-
-  const [panResponder] = useState(() => {
-    let isOpen = false;
-    return PanResponder.create({
-      onMoveShouldSetPanResponder: (_, gestureState) => {
-        return (
-          Math.abs(gestureState.dx) > 12 &&
-          Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.5
-        );
-      },
-      onPanResponderMove: (_, gestureState) => {
-        if (isOpen) {
-          const nextVal = -110 + gestureState.dx;
-          translateX.setValue(Math.min(0, Math.max(nextVal, -130)));
-        } else if (gestureState.dx < 0) {
-          translateX.setValue(Math.max(gestureState.dx, -130));
-        }
-      },
-      onPanResponderRelease: (_, gestureState) => {
-        if (isOpen) {
-          if (gestureState.dx > 40) {
-            isOpen = false;
-            Animated.spring(translateX, {
-              toValue: 0,
-              useNativeDriver: true,
-              bounciness: 4,
-            }).start();
-          } else {
-            Animated.timing(translateX, {
-              toValue: -110,
-              duration: 160,
-              useNativeDriver: true,
-            }).start();
-          }
-        } else {
-          if (gestureState.dx < -50) {
-            isOpen = true;
-            Animated.timing(translateX, {
-              toValue: -110,
-              duration: 160,
-              useNativeDriver: true,
-            }).start();
-          } else {
-            Animated.spring(translateX, {
-              toValue: 0,
-              useNativeDriver: true,
-              bounciness: 4,
-            }).start();
-          }
-        }
-      },
-      onPanResponderTerminate: () => {
-        isOpen = false;
-        Animated.spring(translateX, {
-          toValue: 0,
-          useNativeDriver: true,
-          bounciness: 4,
-        }).start();
-      },
-    });
-  });
-
-  return (
-    <View
-      style={[
-        styles.swipeRowContainer,
-        isFirst && isLast && { borderRadius: 14 },
-        isFirst && !isLast && {
-          borderTopLeftRadius: 14,
-          borderTopRightRadius: 14,
-          borderBottomLeftRadius: 0,
-          borderBottomRightRadius: 0,
-        },
-        !isFirst && !isLast && {
-          borderRadius: 0,
-          borderTopWidth: 0,
-          borderBottomWidth: 0,
-          elevation: 0,
-          shadowOpacity: 0,
-        },
-        !isFirst && isLast && {
-          borderTopLeftRadius: 0,
-          borderTopRightRadius: 0,
-          borderBottomLeftRadius: 14,
-          borderBottomRightRadius: 14,
-          borderTopWidth: 0,
-          elevation: 0,
-          shadowOpacity: 0,
-        },
-      ]}
-    >
-      {/* Bouton d'action vert révélé par le swipe gauche */}
-      <View style={styles.swipeHiddenActionWrap}>
-        <TouchableOpacity
-          style={styles.swipeEmptyBtn}
-          onPress={() => {
-            snapClose();
-            onEmptyItem();
-          }}
-          activeOpacity={0.85}
-          accessibilityLabel="J'en ai plus, basculer dans ma liste de courses"
-        >
-          <Ionicons name="cart-outline" size={20} color="#FFFFFF" />
-          <Text style={styles.swipeEmptyBtnText}>J&apos;en ai plus</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Rangée de premier plan qui glisse */}
-      <Animated.View
-        style={[
-          styles.swipeForeground,
-          { transform: [{ translateX }] },
-        ]}
-        {...panResponder.panHandlers}
-      >
-        {children}
-      </Animated.View>
-    </View>
-  );
-};
 
 export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
   onNavigateToShopping,
@@ -222,6 +53,7 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
   shoppingItems = [],
   onNavigateToShoppingWithSearch,
   initialItems,
+  isActiveTab = true,
 }) => {
   const { isDark, colors } = useTheme();
   const [items, setItems] = useState<FridgeItem[]>(() => {
@@ -252,16 +84,16 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
     onFridgeCountChangeRef.current = onFridgeCountChange;
   }, [onFridgeCountChange]);
 
-  // Animation d'amorce (hint) pour faire découvrir le geste de swipe gauche
-  const hasAnimatedHintRef = useRef(false);
-  const [shouldAnimateFirstItem, setShouldAnimateFirstItem] = useState(false);
+  // Animation d'amorce (hint) pour faire découvrir le geste de swipe vers la droite à chaque arrivée sur l'écran
+  const [hintTrigger, setHintTrigger] = useState(0);
+  const prevIsActiveTabRef = useRef(isActiveTab);
 
   useEffect(() => {
-    if (items.length > 0 && !hasAnimatedHintRef.current) {
-      hasAnimatedHintRef.current = true;
-      setShouldAnimateFirstItem(true);
+    if (isActiveTab && (!prevIsActiveTabRef.current || hintTrigger === 0)) {
+      setHintTrigger((prev) => prev + 1);
     }
-  }, [items.length]);
+    prevIsActiveTabRef.current = isActiveTab;
+  }, [isActiveTab, hintTrigger]);
 
   // Snackbar d'annulation de suppression ou basculement temporaire (4 secondes)
   interface DeletedSnackbarInfo {
@@ -788,9 +620,9 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
         key={item.id}
         isFirst={isFirst}
         isLast={isLast}
-        shouldAnimateHint={shouldAnimateFirstItem && isGlobalFirstItem}
-        onEmptyItem={() => handleEmptyItem(item)}
-        styles={styles}
+        shouldAnimateHint={isGlobalFirstItem}
+        hintTrigger={hintTrigger}
+        onMoveToShopping={() => handleEmptyItem(item)}
       >
         <View
           style={[
@@ -818,7 +650,7 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
         </View>
       </SwipeableStockItemRow>
     );
-  }, [groupedByAisle, shouldAnimateFirstItem, handleEmptyItem, handleDeleteItem, colors.textMuted]);
+  }, [groupedByAisle, hintTrigger, handleEmptyItem, handleDeleteItem, colors.textMuted]);
 
   return (
     <View style={styles.container}>
@@ -1582,70 +1414,12 @@ const styles = createDynamicStyles((colors, shadows) => ({
     fontWeight: '600',
     color: colors.textPrimary,
   },
-  copyToShoppingBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: colors.surfaceAlt,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    marginRight: 8,
-  },
-  copyToShoppingBtnSuccess: {
-    backgroundColor: '#16A34A',
-  },
-  copyToShoppingText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.primary,
-  },
-  copyToShoppingTextSuccess: {
-    color: '#FFFFFF',
-  },
   deleteItemBtn: {
     padding: 6,
   },
   modalSafeArea: {
     flex: 1,
     backgroundColor: colors.background,
-  },
-  swipeRowContainer: {
-    backgroundColor: colors.cardBackground,
-    borderWidth: 1,
-    borderColor: colors.border,
-    overflow: 'hidden',
-    position: 'relative',
-    ...shadows.card,
-  },
-  swipeHiddenActionWrap: {
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    right: 0,
-    width: 110,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#16A34A',
-    borderTopRightRadius: 14,
-    borderBottomRightRadius: 14,
-  },
-  swipeEmptyBtn: {
-    width: '100%',
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-    flexDirection: 'column',
-    gap: 3,
-  },
-  swipeEmptyBtnText: {
-    color: '#FFFFFF',
-    fontSize: 11.5,
-    fontWeight: '700',
-  },
-  swipeForeground: {
-    backgroundColor: colors.cardBackground,
-    width: '100%',
   },
   modalOverlay: {
     flex: 1,
