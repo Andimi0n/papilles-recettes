@@ -11,7 +11,6 @@ import {
   SectionList,
   Modal,
   Animated,
-  PanResponder,
   Dimensions,
   NativeSyntheticEvent,
   NativeScrollEvent,
@@ -38,7 +37,6 @@ import { InStoreShoppingModal } from '../components/InStoreShoppingModal';
 import { UnifiedIngredientInput } from '../components/UnifiedIngredientInput';
 import { UnitQuickPicker } from '../components/UnitQuickPicker';
 import { UnitPickerModal } from '../components/UnitPickerModal';
-import { SwipeableShoppingItemRow } from '../components/SwipeableShoppingItemRow';
 import { EditShoppingItemModal } from '../components/EditShoppingItemModal';
 import { formatQuantityWithUnit, isStandardUnit, normalizeUnit } from '../constants/units';
 
@@ -192,17 +190,6 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
   // Édition d'un article par appui long
   const [editingItem, setEditingItem] = useState<ShoppingItem | null>(null);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
-
-  // Animation d'amorce (hint) pour faire découvrir le geste de swipe gauche
-  const hasAnimatedHintRef = useRef(false);
-  const [shouldAnimateFirstItem, setShouldAnimateFirstItem] = useState(false);
-
-  useEffect(() => {
-    if (items.length > 0 && !hasAnimatedHintRef.current) {
-      hasAnimatedHintRef.current = true;
-      setShouldAnimateFirstItem(true);
-    }
-  }, [items.length]);
 
   // Snackbar d'annulation de suppression temporaire (4 secondes)
   const [deletedSnackbar, setDeletedSnackbar] = useState<{
@@ -678,15 +665,35 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
     ({ item, index, section }: { item: ShoppingItem; index: number; section: { title: string; data: ShoppingItem[] } }) => {
       const isFirst = index === 0;
       const isLast = index === section.data.length - 1;
-      const isGlobalFirstItem = groupedSections[0]?.items[0]?.id === item.id;
 
       return (
-        <SwipeableShoppingItemRow
-          isFirst={isFirst}
-          isLast={isLast}
-          shouldAnimateHint={shouldAnimateFirstItem && isGlobalFirstItem}
-          onMoveToShelves={() => handleMoveToShelves(item)}
-          onLongPress={() => handleOpenEditModal(item)}
+        <View
+          style={[
+            styles.rowContainer,
+            isFirst && isLast && { borderRadius: 14 },
+            isFirst && !isLast && {
+              borderTopLeftRadius: 14,
+              borderTopRightRadius: 14,
+              borderBottomLeftRadius: 0,
+              borderBottomRightRadius: 0,
+            },
+            !isFirst && !isLast && {
+              borderRadius: 0,
+              borderTopWidth: 0,
+              borderBottomWidth: 0,
+              elevation: 0,
+              shadowOpacity: 0,
+            },
+            !isFirst && isLast && {
+              borderTopLeftRadius: 0,
+              borderTopRightRadius: 0,
+              borderBottomLeftRadius: 14,
+              borderBottomRightRadius: 14,
+              borderTopWidth: 0,
+              elevation: 0,
+              shadowOpacity: 0,
+            },
+          ]}
         >
           <View
             style={[
@@ -759,61 +766,15 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
               <Ionicons name="close" size={18} color={colors.textMuted} />
             </TouchableOpacity>
           </View>
-        </SwipeableShoppingItemRow>
+        </View>
       );
     },
-    [groupedSections, shouldAnimateFirstItem, colors, handleMoveToShelves, handleOpenEditModal, handleToggleItem, handleDeleteItem]
+    [colors, handleMoveToShelves, handleOpenEditModal, handleToggleItem, handleDeleteItem]
   );
-
-  // Navigation par swipe d'onglet :
-  // - Depuis 'fridge' : swipe gauche -> bascule vers 'shopping'
-  // - Depuis 'shopping' : swipe droite -> bascule vers 'fridge'
-  const tabPanResponder = useMemo(() => {
-    const screenWidth = Dimensions.get('window').width;
-    return PanResponder.create({
-      onMoveShouldSetPanResponderCapture: (_, gestureState) => {
-        const isHorizontal =
-          Math.abs(gestureState.dx) > 15 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.5;
-        if (!isHorizontal) return false;
-
-        // Swipe initié depuis le bord de l'écran (edge swipe standard)
-        if (activeTab === 'fridge' && gestureState.x0 > screenWidth - 75 && gestureState.dx < -15) {
-          return true;
-        }
-        if (activeTab === 'shopping' && gestureState.x0 < 75 && gestureState.dx > 15) {
-          return true;
-        }
-        return false;
-      },
-      onMoveShouldSetPanResponder: (_, gestureState) => {
-        const isHorizontal =
-          Math.abs(gestureState.dx) > 20 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.5;
-        if (!isHorizontal) return false;
-
-        if (activeTab === 'fridge' && gestureState.dx < -30) {
-          return true;
-        }
-        if (activeTab === 'shopping' && gestureState.dx > 30) {
-          return true;
-        }
-        return false;
-      },
-      onPanResponderRelease: (_, gestureState) => {
-        const isHorizontal = Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.4;
-        if (!isHorizontal) return;
-
-        if (activeTab === 'fridge' && (gestureState.dx < -50 || gestureState.vx < -0.35)) {
-          setActiveTab('shopping');
-        } else if (activeTab === 'shopping' && (gestureState.dx > 50 || gestureState.vx > 0.35)) {
-          setActiveTab('fridge');
-        }
-      },
-    });
-  }, [activeTab]);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <View style={{ flex: 1 }} {...tabPanResponder.panHandlers}>
+      <View style={{ flex: 1 }}>
         {/* Switcher d'onglets au sommet : Mes étagères vs Liste de courses */}
       <View style={styles.tabSwitcherWrapper}>
         <View style={styles.tabSwitcherContainer}>

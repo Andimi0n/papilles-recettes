@@ -8,7 +8,6 @@ import {
   Alert,
   Modal,
   Animated,
-  PanResponder,
   NativeSyntheticEvent,
   NativeScrollEvent,
 } from 'react-native';
@@ -41,176 +40,6 @@ interface FridgeStockViewProps {
   onNavigateToShoppingWithSearch?: (query: string) => void;
   initialItems?: FridgeItem[];
 }
-
-interface SwipeableStockItemRowProps {
-  children: React.ReactNode;
-  onEmptyItem: () => void;
-  isFirst: boolean;
-  isLast: boolean;
-  styles: any;
-  shouldAnimateHint?: boolean;
-}
-
-const SwipeableStockItemRow: React.FC<SwipeableStockItemRowProps> = ({
-  children,
-  onEmptyItem,
-  isFirst,
-  isLast,
-  styles,
-  shouldAnimateHint = false,
-}) => {
-  const [translateX] = useState(() => new Animated.Value(0));
-
-  useEffect(() => {
-    if (shouldAnimateHint) {
-      const timer = setTimeout(() => {
-        Animated.sequence([
-          Animated.timing(translateX, {
-            toValue: -65,
-            duration: 340,
-            useNativeDriver: true,
-          }),
-          Animated.delay(220),
-          Animated.spring(translateX, {
-            toValue: 0,
-            friction: 7,
-            tension: 40,
-            useNativeDriver: true,
-          }),
-        ]).start();
-      }, 400);
-
-      return () => clearTimeout(timer);
-    }
-  }, [shouldAnimateHint, translateX]);
-
-  const snapClose = useCallback(() => {
-    Animated.spring(translateX, {
-      toValue: 0,
-      useNativeDriver: true,
-      bounciness: 4,
-    }).start();
-  }, [translateX]);
-
-  const [panResponder] = useState(() => {
-    let isOpen = false;
-    return PanResponder.create({
-      onMoveShouldSetPanResponder: (_, gestureState) => {
-        return (
-          Math.abs(gestureState.dx) > 12 &&
-          Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.5
-        );
-      },
-      onPanResponderMove: (_, gestureState) => {
-        if (isOpen) {
-          const nextVal = -110 + gestureState.dx;
-          translateX.setValue(Math.min(0, Math.max(nextVal, -130)));
-        } else if (gestureState.dx < 0) {
-          translateX.setValue(Math.max(gestureState.dx, -130));
-        }
-      },
-      onPanResponderRelease: (_, gestureState) => {
-        if (isOpen) {
-          if (gestureState.dx > 40) {
-            isOpen = false;
-            Animated.spring(translateX, {
-              toValue: 0,
-              useNativeDriver: true,
-              bounciness: 4,
-            }).start();
-          } else {
-            Animated.timing(translateX, {
-              toValue: -110,
-              duration: 160,
-              useNativeDriver: true,
-            }).start();
-          }
-        } else {
-          if (gestureState.dx < -50) {
-            isOpen = true;
-            Animated.timing(translateX, {
-              toValue: -110,
-              duration: 160,
-              useNativeDriver: true,
-            }).start();
-          } else {
-            Animated.spring(translateX, {
-              toValue: 0,
-              useNativeDriver: true,
-              bounciness: 4,
-            }).start();
-          }
-        }
-      },
-      onPanResponderTerminate: () => {
-        isOpen = false;
-        Animated.spring(translateX, {
-          toValue: 0,
-          useNativeDriver: true,
-          bounciness: 4,
-        }).start();
-      },
-    });
-  });
-
-  return (
-    <View
-      style={[
-        styles.swipeRowContainer,
-        isFirst && isLast && { borderRadius: 14 },
-        isFirst && !isLast && {
-          borderTopLeftRadius: 14,
-          borderTopRightRadius: 14,
-          borderBottomLeftRadius: 0,
-          borderBottomRightRadius: 0,
-        },
-        !isFirst && !isLast && {
-          borderRadius: 0,
-          borderTopWidth: 0,
-          borderBottomWidth: 0,
-          elevation: 0,
-          shadowOpacity: 0,
-        },
-        !isFirst && isLast && {
-          borderTopLeftRadius: 0,
-          borderTopRightRadius: 0,
-          borderBottomLeftRadius: 14,
-          borderBottomRightRadius: 14,
-          borderTopWidth: 0,
-          elevation: 0,
-          shadowOpacity: 0,
-        },
-      ]}
-    >
-      {/* Bouton d'action vert révélé par le swipe gauche */}
-      <View style={styles.swipeHiddenActionWrap}>
-        <TouchableOpacity
-          style={styles.swipeEmptyBtn}
-          onPress={() => {
-            snapClose();
-            onEmptyItem();
-          }}
-          activeOpacity={0.85}
-          accessibilityLabel="J'en ai plus, basculer dans ma liste de courses"
-        >
-          <Ionicons name="cart-outline" size={20} color="#FFFFFF" />
-          <Text style={styles.swipeEmptyBtnText}>J&apos;en ai plus</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Rangée de premier plan qui glisse */}
-      <Animated.View
-        style={[
-          styles.swipeForeground,
-          { transform: [{ translateX }] },
-        ]}
-        {...panResponder.panHandlers}
-      >
-        {children}
-      </Animated.View>
-    </View>
-  );
-};
 
 export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
   onNavigateToShopping,
@@ -251,17 +80,6 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
   useEffect(() => {
     onFridgeCountChangeRef.current = onFridgeCountChange;
   }, [onFridgeCountChange]);
-
-  // Animation d'amorce (hint) pour faire découvrir le geste de swipe gauche
-  const hasAnimatedHintRef = useRef(false);
-  const [shouldAnimateFirstItem, setShouldAnimateFirstItem] = useState(false);
-
-  useEffect(() => {
-    if (items.length > 0 && !hasAnimatedHintRef.current) {
-      hasAnimatedHintRef.current = true;
-      setShouldAnimateFirstItem(true);
-    }
-  }, [items.length]);
 
   // Snackbar d'annulation de suppression ou basculement temporaire (4 secondes)
   interface DeletedSnackbarInfo {
@@ -781,16 +599,36 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
     const isLast = index === section.data.length - 1;
     const aisle = section.title as ShoppingAisle;
     const cfg = AISLE_CONFIGS[aisle] || AISLE_CONFIGS['Autre'];
-    const isGlobalFirstItem = groupedByAisle[0]?.items[0]?.id === item.id;
 
     return (
-      <SwipeableStockItemRow
+      <View
         key={item.id}
-        isFirst={isFirst}
-        isLast={isLast}
-        shouldAnimateHint={shouldAnimateFirstItem && isGlobalFirstItem}
-        onEmptyItem={() => handleEmptyItem(item)}
-        styles={styles}
+        style={[
+          styles.rowContainer,
+          isFirst && isLast && { borderRadius: 14 },
+          isFirst && !isLast && {
+            borderTopLeftRadius: 14,
+            borderTopRightRadius: 14,
+            borderBottomLeftRadius: 0,
+            borderBottomRightRadius: 0,
+          },
+          !isFirst && !isLast && {
+            borderRadius: 0,
+            borderTopWidth: 0,
+            borderBottomWidth: 0,
+            elevation: 0,
+            shadowOpacity: 0,
+          },
+          !isFirst && isLast && {
+            borderTopLeftRadius: 0,
+            borderTopRightRadius: 0,
+            borderBottomLeftRadius: 14,
+            borderBottomRightRadius: 14,
+            borderTopWidth: 0,
+            elevation: 0,
+            shadowOpacity: 0,
+          },
+        ]}
       >
         <View
           style={[
@@ -816,9 +654,9 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
             <Ionicons name="close" size={18} color={colors.textMuted} />
           </TouchableOpacity>
         </View>
-      </SwipeableStockItemRow>
+      </View>
     );
-  }, [groupedByAisle, shouldAnimateFirstItem, handleEmptyItem, handleDeleteItem, colors.textMuted]);
+  }, [colors.textMuted, handleDeleteItem]);
 
   return (
     <View style={styles.container}>
@@ -1610,42 +1448,12 @@ const styles = createDynamicStyles((colors, shadows) => ({
     flex: 1,
     backgroundColor: colors.background,
   },
-  swipeRowContainer: {
+  rowContainer: {
     backgroundColor: colors.cardBackground,
     borderWidth: 1,
     borderColor: colors.border,
     overflow: 'hidden',
-    position: 'relative',
     ...shadows.card,
-  },
-  swipeHiddenActionWrap: {
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    right: 0,
-    width: 110,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#16A34A',
-    borderTopRightRadius: 14,
-    borderBottomRightRadius: 14,
-  },
-  swipeEmptyBtn: {
-    width: '100%',
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-    flexDirection: 'column',
-    gap: 3,
-  },
-  swipeEmptyBtnText: {
-    color: '#FFFFFF',
-    fontSize: 11.5,
-    fontWeight: '700',
-  },
-  swipeForeground: {
-    backgroundColor: colors.cardBackground,
-    width: '100%',
   },
   modalOverlay: {
     flex: 1,

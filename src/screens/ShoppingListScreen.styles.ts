@@ -440,6 +440,13 @@ export const styles = createDynamicStyles((colors, shadows) => ({
     overflow: 'hidden',
     ...shadows.small,
   },
+  rowContainer: {
+    backgroundColor: colors.cardBackground,
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: 'hidden',
+    ...shadows.card,
+  },
   itemRow: {
     flexDirection: 'row',
     alignItems: 'center',
