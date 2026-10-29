@@ -40,6 +40,7 @@ import { InStoreShoppingModal } from '../components/InStoreShoppingModal';
 import { UnifiedIngredientInput } from '../components/UnifiedIngredientInput';
 import { SwipeableShoppingItemRow } from '../components/SwipeableShoppingItemRow';
 import { EditShoppingItemModal } from '../components/EditShoppingItemModal';
+import { TransferAnimationOverlay, FlyingItem } from '../components/TransferAnimationOverlay';
 import { formatQuantityWithUnit, isStandardUnit, normalizeUnit } from '../constants/units';
 
 interface ShoppingListScreenProps {
@@ -56,6 +57,7 @@ interface ShoppingListItemRowProps {
   onToggle: (id: string) => void;
   onDelete: (id: string) => void;
   onMoveToShelves: (item: ShoppingItem) => void;
+  onTriggerTransfer?: (item: ShoppingItem, coords: { startX: number; startY: number }) => void;
   onLongPress: (item: ShoppingItem) => void;
   secondaryColor: string;
   borderColor: string;
@@ -70,12 +72,19 @@ const ShoppingListItemRow = React.memo<ShoppingListItemRowProps>(
     onToggle,
     onDelete,
     onMoveToShelves,
+    onTriggerTransfer,
     onLongPress,
     secondaryColor,
     borderColor,
     textMutedColor,
   }) => {
     const handleMove = useCallback(() => onMoveToShelves(item), [onMoveToShelves, item]);
+    const handleTriggerTransfer = useCallback(
+      (coords: { startX: number; startY: number }) => {
+        onTriggerTransfer?.(item, coords);
+      },
+      [onTriggerTransfer, item]
+    );
     const handleEdit = useCallback(() => onLongPress(item), [onLongPress, item]);
     const handleToggle = useCallback(() => onToggle(item.id), [onToggle, item.id]);
     const handleDelete = useCallback(() => onDelete(item.id), [onDelete, item.id]);
@@ -85,6 +94,7 @@ const ShoppingListItemRow = React.memo<ShoppingListItemRowProps>(
         isFirst={isFirst}
         isLast={isLast}
         onMoveToShelves={handleMove}
+        onTriggerTransfer={handleTriggerTransfer}
         onLongPress={handleEdit}
       >
         <View style={[styles.itemRow, !isLast && styles.itemRowBorder]}>
@@ -221,14 +231,14 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
     }
   }
 
-  // Recalage de la translation si la largeur d'écran change
+  // Recalage de la translation si la largeur d'écran change ou si l'écran redevient actif
   useEffect(() => {
     if (activeTab === 'shopping') {
       pageTranslateX.setValue(-screenWidth);
     } else {
       pageTranslateX.setValue(0);
     }
-  }, [screenWidth, activeTab, pageTranslateX]);
+  }, [screenWidth, activeTab, pageTranslateX, isActive]);
 
   // Interpolation de la position de la pilule indicatrice active (0 -> tabLayout.width)
   const indicatorTranslateX = useMemo(() => {
@@ -279,6 +289,76 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
       });
     },
     [activeTab, screenWidth, pageTranslateX]
+  );
+
+  // Animation de vol d'ingrédient lors du swipe inter-écrans
+  const [flyingItems, setFlyingItems] = useState<FlyingItem[]>([]);
+
+  const targetPositions = useMemo(() => {
+    const tabWidth = tabLayout.width || (screenWidth - 40) / 2;
+    const fridgeCenterX = 16 + 3 + tabWidth * 0.5;
+    const shoppingCenterX = 16 + 3 + tabWidth + tabWidth * 0.5;
+    const targetY = tabLayout.y + tabLayout.height * 0.5 + 4;
+
+    return {
+      fridge: { x: fridgeCenterX, y: targetY },
+      shopping: { x: shoppingCenterX, y: targetY },
+    };
+  }, [tabLayout, screenWidth]);
+
+  const triggerTransferAnimation = useCallback(
+    (info: {
+      itemName: string;
+      target: 'fridge' | 'shopping';
+      startX?: number;
+      startY?: number;
+    }) => {
+      const id = `${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+      const startX =
+        info.startX ??
+        (info.target === 'shopping' ? screenWidth * 0.75 : screenWidth * 0.25);
+      const startY = info.startY ?? 260;
+
+      setFlyingItems((prev) => [
+        ...prev,
+        {
+          id,
+          itemName: info.itemName,
+          target: info.target,
+          startX,
+          startY,
+        },
+      ]);
+    },
+    [screenWidth]
+  );
+
+  const handleFlyingItemArrived = useCallback((id: string) => {
+    setFlyingItems((prev) => prev.filter((it) => it.id !== id));
+  }, []);
+
+  const handleTriggerTransferToShelves = useCallback(
+    (item: ShoppingItem, coords: { startX: number; startY: number }) => {
+      triggerTransferAnimation({
+        itemName: item.name,
+        target: 'fridge',
+        startX: coords.startX,
+        startY: coords.startY,
+      });
+    },
+    [triggerTransferAnimation]
+  );
+
+  const handleItemTransferToShopping = useCallback(
+    (info: { itemName: string; startX?: number; startY?: number }) => {
+      triggerTransferAnimation({
+        itemName: info.itemName,
+        target: 'shopping',
+        startX: info.startX,
+        startY: info.startY,
+      });
+    },
+    [triggerTransferAnimation]
   );
 
   // Formulaire d'ajout rapide courses (saisie libre intelligente)
@@ -805,6 +885,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
           onToggle={handleToggleItem}
           onDelete={handleDeleteItem}
           onMoveToShelves={handleMoveToShelves}
+          onTriggerTransfer={handleTriggerTransferToShelves}
           onLongPress={handleOpenEditModal}
           secondaryColor={colors.secondary}
           borderColor={colors.border}
@@ -812,7 +893,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
         />
       );
     },
-    [handleToggleItem, handleDeleteItem, handleMoveToShelves, handleOpenEditModal, colors.secondary, colors.border, colors.textMuted]
+    [handleToggleItem, handleDeleteItem, handleMoveToShelves, handleTriggerTransferToShelves, handleOpenEditModal, colors.secondary, colors.border, colors.textMuted]
   );
 
   const getItemLayout = useMemo(() => {
@@ -1069,12 +1150,13 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
         >
           {/* VUE 1 : DANS MES ÉTAGÈRES */}
           <View
-            style={[styles.pagerPage, { width: screenWidth }]}
+            style={[styles.pagerPage, { width: screenWidth, flexGrow: 0, flexShrink: 0 }]}
             aria-hidden={activeTab !== 'fridge'}
           >
             <FridgeStockView
               onNavigateToShopping={handleNavigateToShopping}
               onItemCopiedToShopping={handleItemCopiedToShopping}
+              onItemTransferToShopping={handleItemTransferToShopping}
               onFridgeCountChange={handleFridgeCountChange}
               searchQuery={searchQuery}
               isSearchOpen={isSearchActive}
@@ -1088,7 +1170,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
 
           {/* VUE 2 : LISTE DE COURSES */}
           <View
-            style={[styles.pagerPage, { width: screenWidth }]}
+            style={[styles.pagerPage, { width: screenWidth, flexGrow: 0, flexShrink: 0 }]}
             aria-hidden={activeTab !== 'shopping'}
           >
             <View style={styles.shoppingListWrapper}>
@@ -1600,6 +1682,13 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
             onSave={handleSaveEditedItem}
           />
         )}
+
+      {/* Animation d'envoi fluide d'un univers à l'autre lors du swipe */}
+      <TransferAnimationOverlay
+        items={flyingItems}
+        targetPositions={targetPositions}
+        onItemArrived={handleFlyingItemArrived}
+      />
       </View>
     </SafeAreaView>
   );

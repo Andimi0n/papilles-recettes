@@ -123,9 +123,11 @@ export const styles = createDynamicStyles((colors, shadows) => ({
   pagerTrack: {
     flex: 1,
     flexDirection: 'row',
+    alignSelf: 'flex-start',
   },
   pagerPage: {
-    flex: 1,
+    flexGrow: 0,
+    flexShrink: 0,
   },
   shoppingListWrapper: {
     flex: 1,

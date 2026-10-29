@@ -13,6 +13,7 @@ import { useTheme } from '../theme/ThemeContext';
 interface SwipeableShoppingItemRowProps {
   children: React.ReactNode;
   onMoveToShelves: () => void;
+  onTriggerTransfer?: (coords: { startX: number; startY: number }) => void;
   isFirst: boolean;
   isLast: boolean;
   onLongPress?: () => void;
@@ -21,12 +22,14 @@ interface SwipeableShoppingItemRowProps {
 export const SwipeableShoppingItemRow: React.FC<SwipeableShoppingItemRowProps> = React.memo(({
   children,
   onMoveToShelves,
+  onTriggerTransfer,
   isFirst,
   isLast,
   onLongPress,
 }) => {
   const { colors } = useTheme();
   const [translateX] = useState(() => new Animated.Value(0));
+  const [rowOpacity] = useState(() => new Animated.Value(1));
   const [isTriggered, setIsTriggered] = useState(false);
 
   // Interpolations dynamiques pour le retour visuel et l'affordance (P5)
@@ -58,6 +61,15 @@ export const SwipeableShoppingItemRow: React.FC<SwipeableShoppingItemRowProps> =
     return translateX.interpolate({
       inputRange: [-150, -75, 0],
       outputRange: [-16, 0, 16],
+      extrapolate: 'clamp',
+    });
+  }, [translateX]);
+
+  // Inclinaison dynamique subtile de la carte lors du swipe et de l'envol vers la gauche
+  const rowRotate = useMemo(() => {
+    return translateX.interpolate({
+      inputRange: [-500, -150, 0],
+      outputRange: ['-4.5deg', '-2deg', '0deg'],
       extrapolate: 'clamp',
     });
   }, [translateX]);
@@ -104,11 +116,22 @@ export const SwipeableShoppingItemRow: React.FC<SwipeableShoppingItemRowProps> =
 
         if (isSwipedEnough) {
           setIsTriggered(true);
-          Animated.timing(translateX, {
-            toValue: -500,
-            duration: 180,
-            useNativeDriver: true,
-          }).start(() => {
+          const startX = gestureState.moveX || 80;
+          const startY = gestureState.moveY || 300;
+          onTriggerTransfer?.({ startX, startY });
+
+          Animated.parallel([
+            Animated.timing(translateX, {
+              toValue: -550,
+              duration: 210,
+              useNativeDriver: true,
+            }),
+            Animated.timing(rowOpacity, {
+              toValue: 0,
+              duration: 190,
+              useNativeDriver: true,
+            }),
+          ]).start(() => {
             onMoveToShelves();
           });
         } else {
@@ -131,7 +154,7 @@ export const SwipeableShoppingItemRow: React.FC<SwipeableShoppingItemRowProps> =
         }
       },
     });
-  }, [translateX, isTriggered, onMoveToShelves]);
+  }, [translateX, rowOpacity, isTriggered, onMoveToShelves, onTriggerTransfer]);
 
   return (
     <View
@@ -183,7 +206,13 @@ export const SwipeableShoppingItemRow: React.FC<SwipeableShoppingItemRowProps> =
 
       {/* Rangée de premier plan qui glisse */}
       <Animated.View
-        style={[styles.swipeForeground, { transform: [{ translateX }] }]}
+        style={[
+          styles.swipeForeground,
+          {
+            opacity: rowOpacity,
+            transform: [{ translateX }, { rotate: rowRotate }],
+          },
+        ]}
         {...panResponder.panHandlers}
       >
         <TouchableOpacity

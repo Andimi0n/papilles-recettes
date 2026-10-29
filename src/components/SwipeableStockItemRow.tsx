@@ -11,6 +11,7 @@ import { createDynamicStyles } from '../theme/colors';
 interface SwipeableStockItemRowProps {
   children: React.ReactNode;
   onMoveToShopping: () => void;
+  onTriggerTransfer?: (coords: { startX: number; startY: number }) => void;
   isFirst: boolean;
   isLast: boolean;
   indicatorColor?: string;
@@ -19,11 +20,13 @@ interface SwipeableStockItemRowProps {
 export const SwipeableStockItemRow: React.FC<SwipeableStockItemRowProps> = React.memo(({
   children,
   onMoveToShopping,
+  onTriggerTransfer,
   isFirst,
   isLast,
   indicatorColor = '#16A34A',
 }) => {
   const [translateX] = useState(() => new Animated.Value(0));
+  const [rowOpacity] = useState(() => new Animated.Value(1));
   const [isTriggered, setIsTriggered] = useState(false);
 
   // Interpolations dynamiques pour le retour visuel et l'affordance
@@ -55,6 +58,15 @@ export const SwipeableStockItemRow: React.FC<SwipeableStockItemRowProps> = React
     return translateX.interpolate({
       inputRange: [0, 75, 150],
       outputRange: [-16, 0, 16],
+      extrapolate: 'clamp',
+    });
+  }, [translateX]);
+
+  // Inclinaison dynamique subtile de la carte lors du swipe et de l'envol
+  const rowRotate = useMemo(() => {
+    return translateX.interpolate({
+      inputRange: [0, 150, 500],
+      outputRange: ['0deg', '2deg', '4.5deg'],
       extrapolate: 'clamp',
     });
   }, [translateX]);
@@ -101,11 +113,22 @@ export const SwipeableStockItemRow: React.FC<SwipeableStockItemRowProps> = React
 
         if (isSwipedEnough) {
           setIsTriggered(true);
-          Animated.timing(translateX, {
-            toValue: 500,
-            duration: 180,
-            useNativeDriver: true,
-          }).start(() => {
+          const startX = gestureState.moveX || 280;
+          const startY = gestureState.moveY || 300;
+          onTriggerTransfer?.({ startX, startY });
+
+          Animated.parallel([
+            Animated.timing(translateX, {
+              toValue: 550,
+              duration: 210,
+              useNativeDriver: true,
+            }),
+            Animated.timing(rowOpacity, {
+              toValue: 0,
+              duration: 190,
+              useNativeDriver: true,
+            }),
+          ]).start(() => {
             onMoveToShopping();
           });
         } else {
@@ -128,7 +151,7 @@ export const SwipeableStockItemRow: React.FC<SwipeableStockItemRowProps> = React
         }
       },
     });
-  }, [translateX, isTriggered, onMoveToShopping]);
+  }, [translateX, rowOpacity, isTriggered, onMoveToShopping, onTriggerTransfer]);
 
   return (
     <View
@@ -180,7 +203,13 @@ export const SwipeableStockItemRow: React.FC<SwipeableStockItemRowProps> = React
 
       {/* Rangée de premier plan qui glisse */}
       <Animated.View
-        style={[styles.swipeForeground, { transform: [{ translateX }] }]}
+        style={[
+          styles.swipeForeground,
+          {
+            opacity: rowOpacity,
+            transform: [{ translateX }, { rotate: rowRotate }],
+          },
+        ]}
         {...panResponder.panHandlers}
       >
         {/* Micro-signifier d'affordance permanent (swipe vers la droite) avec couleur du rayon */}

@@ -32,6 +32,7 @@ import { SwipeableStockItemRow } from './SwipeableStockItemRow';
 interface FridgeStockViewProps {
   onNavigateToShopping?: () => void;
   onItemCopiedToShopping?: (name: string) => void;
+  onItemTransferToShopping?: (info: { itemName: string; startX?: number; startY?: number }) => void;
   onFridgeCountChange?: (count: number) => void;
   searchQuery?: string;
   isSearchOpen?: boolean;
@@ -48,13 +49,20 @@ interface StockListItemRowProps {
   isLast: boolean;
   indicatorColor: string;
   onMoveToShopping: (item: FridgeItem) => void;
+  onTriggerTransfer?: (item: FridgeItem, coords: { startX: number; startY: number }) => void;
   onDelete: (id: string) => void;
   textMutedColor: string;
 }
 
 const StockListItemRow = React.memo<StockListItemRowProps>(
-  ({ item, isFirst, isLast, indicatorColor, onMoveToShopping, onDelete, textMutedColor }) => {
+  ({ item, isFirst, isLast, indicatorColor, onMoveToShopping, onTriggerTransfer, onDelete, textMutedColor }) => {
     const handleMove = useCallback(() => onMoveToShopping(item), [onMoveToShopping, item]);
+    const handleTriggerTransfer = useCallback(
+      (coords: { startX: number; startY: number }) => {
+        onTriggerTransfer?.(item, coords);
+      },
+      [onTriggerTransfer, item]
+    );
     const handleDelete = useCallback(() => onDelete(item.id), [onDelete, item.id]);
 
     return (
@@ -63,6 +71,7 @@ const StockListItemRow = React.memo<StockListItemRowProps>(
         isLast={isLast}
         indicatorColor={indicatorColor}
         onMoveToShopping={handleMove}
+        onTriggerTransfer={handleTriggerTransfer}
       >
         <View style={[styles.itemRow, !isLast && styles.itemRowBorder]}>
           <View style={styles.itemTextContainer}>
@@ -89,6 +98,7 @@ StockListItemRow.displayName = 'StockListItemRow';
 const FridgeStockViewComponent: React.FC<FridgeStockViewProps> = ({
   onNavigateToShopping,
   onItemCopiedToShopping,
+  onItemTransferToShopping,
   onFridgeCountChange,
   searchQuery = '',
   isSearchOpen = false,
@@ -538,6 +548,17 @@ const FridgeStockViewComponent: React.FC<FridgeStockViewProps> = ({
     [isDark, firstSectionTitle]
   );
 
+  const handleTriggerTransfer = useCallback(
+    (item: FridgeItem, coords: { startX: number; startY: number }) => {
+      onItemTransferToShopping?.({
+        itemName: item.name,
+        startX: coords.startX,
+        startY: coords.startY,
+      });
+    },
+    [onItemTransferToShopping]
+  );
+
   const renderItem = useCallback(
     ({ item, index, section }: { item: FridgeItem; index: number; section: { title: string; data: FridgeItem[] } }) => {
       const isFirst = index === 0;
@@ -552,12 +573,13 @@ const FridgeStockViewComponent: React.FC<FridgeStockViewProps> = ({
           isLast={isLast}
           indicatorColor={cfg.color}
           onMoveToShopping={handleEmptyItem}
+          onTriggerTransfer={handleTriggerTransfer}
           onDelete={handleDeleteItem}
           textMutedColor={colors.textMuted}
         />
       );
     },
-    [handleEmptyItem, handleDeleteItem, colors.textMuted]
+    [handleEmptyItem, handleTriggerTransfer, handleDeleteItem, colors.textMuted]
   );
 
   const getItemLayout = useMemo(() => {
