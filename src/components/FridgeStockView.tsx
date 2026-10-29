@@ -417,16 +417,13 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
   const handleDeleteItem = useCallback(async (
     id: string,
     action: 'delete' | 'transfer' = 'delete',
-    previousShoppingList?: ShoppingItem[]
+    previousShoppingList?: ShoppingItem[],
+    targetItem?: FridgeItem
   ) => {
-    let itemToDelete: FridgeItem | undefined;
-    let itemIndex = -1;
+    const itemIndex = items.findIndex((it) => it.id === id);
+    const itemToDelete = targetItem || (itemIndex !== -1 ? items[itemIndex] : undefined);
 
     setItems((prev) => {
-      itemIndex = prev.findIndex((it) => it.id === id);
-      if (itemIndex !== -1) {
-        itemToDelete = prev[itemIndex];
-      }
       const updated = prev.filter((it) => it.id !== id);
       onFridgeCountChangeRef.current?.(updated.length);
       return updated;
@@ -478,7 +475,7 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
       pendingDeletedItemRef.current = null;
       snackbarTimerRef.current = null;
     }, 4000);
-  }, [snackbarAnim, snackbarFadeAnim]);
+  }, [items, snackbarAnim, snackbarFadeAnim]);
 
   const handleUndoDelete = async () => {
     if (snackbarTimerRef.current) {
@@ -570,7 +567,7 @@ export const FridgeStockView: React.FC<FridgeStockViewProps> = ({
     try {
       const prevShoppingList = await StorageService.getShoppingList();
       await handleCopyToShopping(item);
-      await handleDeleteItem(item.id, 'transfer', prevShoppingList);
+      await handleDeleteItem(item.id, 'transfer', prevShoppingList, item);
     } catch (_e) {
       Alert.alert('Erreur', "Impossible de basculer l'aliment dans la liste de courses.");
     }

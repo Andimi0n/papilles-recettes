@@ -373,17 +373,13 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
   const handleDeleteItem = useCallback(async (
     id: string,
     action: 'delete' | 'transfer' = 'delete',
-    previousFridgeItems?: FridgeItem[]
+    previousFridgeItems?: FridgeItem[],
+    targetItem?: ShoppingItem
   ) => {
-    let itemToDelete: ShoppingItem | undefined;
-    let itemIndex = -1;
-    setItems((prev) => {
-      itemIndex = prev.findIndex((it) => it.id === id);
-      if (itemIndex !== -1) {
-        itemToDelete = prev[itemIndex];
-      }
-      return prev.filter((it) => it.id !== id);
-    });
+    const itemIndex = items.findIndex((it) => it.id === id);
+    const itemToDelete = targetItem || (itemIndex !== -1 ? items[itemIndex] : undefined);
+
+    setItems((prev) => prev.filter((it) => it.id !== id));
 
     if (!itemToDelete) return;
 
@@ -398,7 +394,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
 
     const snackbarInfo: DeletedSnackbarInfo = {
       item: itemToDelete,
-      index: itemIndex,
+      index: itemIndex !== -1 ? itemIndex : 0,
       action,
       previousFridgeItems,
     };
@@ -431,7 +427,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
       pendingDeletedItemRef.current = null;
       snackbarTimerRef.current = null;
     }, 4000);
-  }, [snackbarAnim, snackbarFadeAnim]);
+  }, [items, snackbarAnim, snackbarFadeAnim]);
 
   const handleUndoDelete = async () => {
     if (snackbarTimerRef.current) {
@@ -568,7 +564,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
       const prevFridgeItems = await StorageService.getFridgeItems();
       const updatedFridge = await StorageService.addFridgeItem(item.name, item.aisle, item.canonicalId);
       setFridgeCount(updatedFridge.length);
-      await handleDeleteItem(item.id, 'transfer', prevFridgeItems);
+      await handleDeleteItem(item.id, 'transfer', prevFridgeItems, item);
     } catch (_e) {
       Alert.alert('Erreur', "Impossible de basculer l'article dans vos étagères.");
     }
@@ -962,10 +958,25 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
               >
                 <Ionicons
                   name={isSearchActive ? 'search' : 'search-outline'}
-                  size={19}
+                  size={18}
                   color={isSearchActive ? colors.primary : colors.textPrimary}
                 />
               </TouchableOpacity>
+
+              {/* Mode Course en magasin (discret et ergonomique dans l'en-tête) */}
+              {totalCount > 0 && (
+                <TouchableOpacity
+                  style={[styles.actionIconBtn, styles.inStoreHeaderBtn]}
+                  onPress={() => setIsInStoreModeVisible(true)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  accessibilityLabel="Lancer le mode course en magasin"
+                >
+                  <Ionicons name="cart-outline" size={19} color={colors.secondary} />
+                  {activeItems.length > 0 && (
+                    <View style={styles.inStoreBadgeDot} />
+                  )}
+                </TouchableOpacity>
+              )}
 
               <TouchableOpacity
                 style={styles.actionIconBtn}
@@ -973,7 +984,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 accessibilityLabel="Partager la liste"
               >
-                <Ionicons name="share-social-outline" size={20} color={colors.textPrimary} />
+                <Ionicons name="share-social-outline" size={18} color={colors.textPrimary} />
               </TouchableOpacity>
 
               {totalCount > 0 && (
@@ -983,7 +994,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   accessibilityLabel="Vider toute la liste"
                 >
-                  <Ionicons name="trash-outline" size={19} color={colors.danger} />
+                  <Ionicons name="trash-outline" size={18} color={colors.danger} />
                 </TouchableOpacity>
               )}
             </View>
@@ -1364,27 +1375,6 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
         onItemsChange={(updated) => setItems(updated)}
         onStockUpdated={(newCount) => setFridgeCount(newCount)}
       />
-
-      {/* Bouton d'action flottant : Mode Course en magasin */}
-      {activeTab === 'shopping' && totalCount > 0 && !isSearching && (
-        <TouchableOpacity
-          style={[
-            styles.floatingInStoreBtn,
-            { bottom: deletedSnackbar ? 88 : 22 },
-          ]}
-          onPress={() => setIsInStoreModeVisible(true)}
-          activeOpacity={0.88}
-          accessibilityLabel="Lancer le mode course en magasin"
-        >
-          <View style={styles.floatingInStoreIconBox}>
-            <Ionicons name="cart" size={18} color="#FFFFFF" />
-          </View>
-          <Text style={styles.floatingInStoreText}>Mode Course</Text>
-          <View style={styles.floatingInStoreBadge}>
-            <Text style={styles.floatingInStoreBadgeText}>{activeItems.length}</Text>
-          </View>
-        </TouchableOpacity>
-      )}
 
       {/* Modal dédiée de regroupement des formats de partage */}
       <Modal
