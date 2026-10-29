@@ -3,14 +3,36 @@ import { createDynamicStyles } from '../theme/colors';
 export const styles = createDynamicStyles((colors, shadows) => ({
   pinnedSuggestionsContainer: {
     paddingHorizontal: 16,
-    marginBottom: 8,
+    height: 54,
+    justifyContent: 'center',
     zIndex: 1,
   },
   suggestionsTitle: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
     color: colors.textSecondary,
-    marginBottom: 6,
+    marginBottom: 4,
+  },
+  tabContentContainer: {
+    flex: 1,
+  },
+  tabContentHidden: {
+    display: 'none',
+  },
+  contentArea: {
+    flex: 1,
+    position: 'relative',
+  },
+  collapsibleSuggestionsContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 54,
+    backgroundColor: colors.background,
+    zIndex: 4,
+    elevation: 2,
+    overflow: 'hidden',
   },
   suggestionsScroll: {
     gap: 8,

@@ -57,10 +57,9 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
 }) => {
   const { isDark, colors } = useTheme();
   const [activeTab, setActiveTab] = useState<'shopping' | 'fridge'>(initialTab);
-  const [items, setItems] = useState<ShoppingItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [fridgeItems, setFridgeItems] = useState<FridgeItem[]>([]);
-  const [fridgeCount, setFridgeCount] = useState<number>(0);
+  const [items, setItems] = useState<ShoppingItem[]>(() => StorageService.getSyncShoppingList() || []);
+  const [fridgeItems, setFridgeItems] = useState<FridgeItem[]>(() => StorageService.getSyncFridgeItems() || []);
+  const [fridgeCount, setFridgeCount] = useState<number>(() => (StorageService.getSyncFridgeItems() || []).length);
 
   // Recherche ergonomique unifiée Étagères ↔ Courses
   const [searchQuery, setSearchQuery] = useState('');
@@ -84,6 +83,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
   const [isUnitModalVisible, setIsUnitModalVisible] = useState(false);
 
   // Ajouts rapides rétractables au défilement (haute performance, 60fps via useNativeDriver)
+  const SUGGESTIONS_CONTAINER_HEIGHT = 54;
   const [quickAddAnim] = useState(() => new Animated.Value(1));
   const isQuickAddVisibleRef = useRef(true);
   const [isQuickAddVisible, setIsQuickAddVisible] = useState(true);
@@ -259,8 +259,6 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
       setItems(data);
     } catch (e) {
       console.error('Erreur chargement liste courses:', e);
-    } finally {
-      setIsLoading(false);
     }
   }, []);
 
@@ -333,6 +331,11 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
 
   // Groupement par rayon de TOUS les articles (les articles cochés restent à leur place dans le rayon)
   const groupedSections = useMemo(() => groupItemsByAisle(filteredItems), [filteredItems]);
+  const sections = useMemo(
+    () => groupedSections.map((g) => ({ title: g.aisle, data: g.items })),
+    [groupedSections]
+  );
+  const keyExtractor = useCallback((item: ShoppingItem) => item.id, []);
 
   // Nombre de correspondances croisées dans les étagères
   const fridgeCrossCount = useMemo(() => {
@@ -353,21 +356,29 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
   };
 
   // Actions utilisateur sur les courses
-  const handleToggleItem = async (id: string) => {
+  const handleToggleItem = useCallback(async (id: string) => {
     setItems((prev) =>
       prev.map((it) => (it.id === id ? { ...it, isChecked: !it.isChecked } : it))
     );
     try {
       await StorageService.toggleShoppingItem(id);
-    } catch (e) {
+    } catch (_e) {
       loadShoppingList();
     }
-  };
+  }, [loadShoppingList]);
 
-  const handleDeleteItem = async (id: string) => {
-    const itemToDelete = items.find((it) => it.id === id);
+  const handleDeleteItem = useCallback(async (id: string) => {
+    let itemToDelete: ShoppingItem | undefined;
+    let itemIndex = -1;
+    setItems((prev) => {
+      itemIndex = prev.findIndex((it) => it.id === id);
+      if (itemIndex !== -1) {
+        itemToDelete = prev[itemIndex];
+      }
+      return prev.filter((it) => it.id !== id);
+    });
+
     if (!itemToDelete) return;
-    const itemIndex = items.findIndex((it) => it.id === id);
 
     // Si une suppression était déjà en attente dans le snackbar, on la persiste tout de suite
     if (snackbarTimerRef.current) {
@@ -378,8 +389,6 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
       StorageService.deleteShoppingItem(pendingDeletedItemRef.current.item.id).catch(() => {});
     }
 
-    // Retrait optimiste de la liste affichée
-    setItems((prev) => prev.filter((it) => it.id !== id));
     pendingDeletedItemRef.current = { item: itemToDelete, index: itemIndex };
     setDeletedSnackbar({ item: itemToDelete, index: itemIndex });
 
@@ -402,14 +411,14 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
     snackbarTimerRef.current = setTimeout(async () => {
       try {
         await StorageService.deleteShoppingItem(id);
-      } catch (e) {
-        console.error('Erreur suppression persistée shoppingItem:', e);
+      } catch (err) {
+        console.error('Erreur suppression persistée shoppingItem:', err);
       }
       setDeletedSnackbar(null);
       pendingDeletedItemRef.current = null;
       snackbarTimerRef.current = null;
     }, 4000);
-  };
+  }, [snackbarAnim, snackbarFadeAnim]);
 
   const handleUndoDelete = async () => {
     if (snackbarTimerRef.current) {
@@ -521,16 +530,16 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
   };
 
   // Déplacer un article individuel vers les étagères
-  const handleMoveToShelves = async (item: ShoppingItem) => {
+  const handleMoveToShelves = useCallback(async (item: ShoppingItem) => {
     try {
       const res = await StorageService.moveShoppingItemToFridge(item.id);
       setItems(res.shoppingList);
       setFridgeCount(res.fridgeItems.length);
       Alert.alert('Rangé !', `"${item.name}" a été ajouté à vos étagères.`);
-    } catch (e) {
+    } catch (_e) {
       Alert.alert('Erreur', "Impossible de déplacer l'article dans vos étagères.");
     }
-  };
+  }, []);
 
   // Passer tous les ingrédients cochés/grisés dans mes étagères
   const handleBulkMoveCompletedToShelves = async () => {
@@ -549,10 +558,10 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
   };
 
   // Édition d'un article par appui long
-  const handleOpenEditModal = (item: ShoppingItem) => {
+  const handleOpenEditModal = useCallback((item: ShoppingItem) => {
     setEditingItem(item);
     setIsEditModalVisible(true);
-  };
+  }, []);
 
   const handleSaveEditedItem = async (updatedItem: ShoppingItem) => {
     setItems((prev) => prev.map((it) => (it.id === updatedItem.id ? updatedItem : it)));
@@ -635,6 +644,126 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
   };
 
   const progressPercent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+  const hasSuggestions = availableSuggestions.length > 0 && !isSearching;
+
+  const renderSectionHeader = useCallback(
+    ({ section: { title, data } }: { section: { title: string; data: ShoppingItem[] } }) => {
+      const aisle = title as ShoppingAisle;
+      const cfg = AISLE_CONFIGS[aisle] || AISLE_CONFIGS['Autre'];
+      return (
+        <View style={[styles.aisleSection, { marginTop: 14 }]}>
+          <View style={styles.aisleHeaderRow}>
+            <View
+              style={[
+                styles.aisleIconBox,
+                { backgroundColor: isDark ? cfg.color + '26' : cfg.bgColor },
+              ]}
+            >
+              <Ionicons name={cfg.iconName as any} size={15} color={cfg.color} />
+            </View>
+            <Text style={[styles.aisleTitle, { color: cfg.color }]}>
+              {aisle}
+            </Text>
+            <View style={styles.aisleCountBadge}>
+              <Text style={styles.aisleCountText}>{data.length}</Text>
+            </View>
+          </View>
+        </View>
+      );
+    },
+    [isDark]
+  );
+
+  const renderItem = useCallback(
+    ({ item, index, section }: { item: ShoppingItem; index: number; section: { title: string; data: ShoppingItem[] } }) => {
+      const isFirst = index === 0;
+      const isLast = index === section.data.length - 1;
+      const isGlobalFirstItem = groupedSections[0]?.items[0]?.id === item.id;
+
+      return (
+        <SwipeableShoppingItemRow
+          isFirst={isFirst}
+          isLast={isLast}
+          shouldAnimateHint={shouldAnimateFirstItem && isGlobalFirstItem}
+          onMoveToShelves={() => handleMoveToShelves(item)}
+          onLongPress={() => handleOpenEditModal(item)}
+        >
+          <View
+            style={[
+              styles.itemRow,
+              !isLast && styles.itemRowBorder,
+            ]}
+          >
+            <TouchableOpacity
+              style={styles.checkboxBtn}
+              onPress={() => handleToggleItem(item.id)}
+              activeOpacity={0.7}
+            >
+              <Ionicons
+                name={item.isChecked ? 'checkmark-circle' : 'ellipse-outline'}
+                size={23}
+                color={item.isChecked ? colors.secondary : colors.border}
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.itemTextContainer}
+              onPress={() => handleToggleItem(item.id)}
+              onLongPress={() => handleOpenEditModal(item)}
+              delayLongPress={350}
+              activeOpacity={0.7}
+            >
+              <Text
+                style={[
+                  styles.itemName,
+                  item.isChecked && styles.itemNameChecked,
+                ]}
+                numberOfLines={2}
+              >
+                {item.name}
+              </Text>
+
+              {(item.quantity || item.unit) && (
+                <View style={styles.itemMetaRow}>
+                  <Text
+                    style={[
+                      styles.itemQuantity,
+                      item.isChecked && styles.itemQuantityChecked,
+                    ]}
+                  >
+                    {formatQuantityWithUnit(item.quantity, item.unit)}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+
+            {/* Action directe : ranger dans les étagères si coché */}
+            {item.isChecked && (
+              <TouchableOpacity
+                style={styles.moveToFridgeBtn}
+                onPress={() => handleMoveToShelves(item)}
+                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                accessibilityLabel="Ranger dans mes étagères"
+              >
+                <Ionicons name="layers-outline" size={15} color={colors.primary} />
+                <Text style={styles.moveToFridgeText}>Étagères</Text>
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity
+              style={styles.deleteItemBtn}
+              onPress={() => handleDeleteItem(item.id)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityLabel="Supprimer de la liste"
+            >
+              <Ionicons name="close" size={18} color={colors.textMuted} />
+            </TouchableOpacity>
+          </View>
+        </SwipeableShoppingItemRow>
+      );
+    },
+    [groupedSections, shouldAnimateFirstItem, colors, handleMoveToShelves, handleOpenEditModal, handleToggleItem, handleDeleteItem]
+  );
 
   // Navigation par swipe d'onglet :
   // - Depuis 'fridge' : swipe gauche -> bascule vers 'shopping'
@@ -797,8 +926,14 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
         />
       )}
 
-      {/* VUE 1 : DANS MON FRIGO */}
-      {activeTab === 'fridge' ? (
+      {/* VUE 1 : DANS MES ÉTAGÈRES */}
+      <View
+        style={[
+          styles.tabContentContainer,
+          activeTab !== 'fridge' && styles.tabContentHidden,
+        ]}
+        pointerEvents={activeTab === 'fridge' ? 'auto' : 'none'}
+      >
         <FridgeStockView
           onNavigateToShopping={() => setActiveTab('shopping')}
           onItemCopiedToShopping={() => {
@@ -814,9 +949,18 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
             setIsSearchActive(true);
             setSearchQuery(q);
           }}
+          initialItems={fridgeItems}
         />
-      ) : (
-        /* VUE 2 : LISTE DE COURSES */
+      </View>
+
+      {/* VUE 2 : LISTE DE COURSES */}
+      <View
+        style={[
+          styles.tabContentContainer,
+          activeTab !== 'shopping' && styles.tabContentHidden,
+        ]}
+        pointerEvents={activeTab === 'shopping' ? 'auto' : 'none'}
+      >
         <View style={styles.shoppingListWrapper}>
           {/* En-tête de la liste de courses */}
           <View style={styles.header}>
@@ -959,289 +1103,194 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
                     </View>
                   </View>
                 </View>
-
-                {/* Seul le bandeau d'ajout rapide (suggestions en 1 clic) se rétracte au défilement */}
-                {availableSuggestions.length > 0 && (
-                  <Animated.View
-                    style={{
-                      maxHeight: quickAddAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [0, 68],
-                      }),
-                      opacity: quickAddAnim.interpolate({
-                        inputRange: [0, 0.4, 1],
-                        outputRange: [0, 0.3, 1],
-                      }),
-                      overflow: 'hidden',
-                    }}
-                    pointerEvents={isQuickAddVisible ? 'auto' : 'none'}
-                  >
-                    <View style={styles.pinnedSuggestionsContainer}>
-                      <Text style={styles.suggestionsTitle}>Ajout rapide en 1 clic :</Text>
-                      <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        keyboardShouldPersistTaps="handled"
-                        contentContainerStyle={styles.suggestionsScroll}
-                      >
-                        {availableSuggestions.slice(0, 15).map((sug) => (
-                          <TouchableOpacity
-                            key={sug.id}
-                            style={styles.suggestionChip}
-                            onPress={() => handleAddQuickSuggestion(sug)}
-                            activeOpacity={0.7}
-                          >
-                            <Ionicons name="add" size={13} color={colors.primary} />
-                            <Text style={styles.suggestionChipText}>{sug.canonicalName}</Text>
-                          </TouchableOpacity>
-                        ))}
-                      </ScrollView>
-                    </View>
-                  </Animated.View>
-                )}
               </View>
             )}
 
-            {/* Contenu principal : liste par rayons */}
-            {totalCount === 0 ? (
-              <ScrollView
-                style={styles.scrollArea}
-                contentContainerStyle={styles.scrollContent}
-                showsVerticalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled"
-                onScroll={handleScroll}
-                scrollEventThrottle={16}
-              >
-                <View style={styles.emptyContainer}>
-                  <View style={styles.emptyIconCircle}>
-                    <Ionicons name="cart-outline" size={46} color={colors.primary} />
-                  </View>
-                  <Text style={styles.emptyTitle}>Votre panier est vide</Text>
-                  <Text style={styles.emptySubtitle}>
-                    Ajoutez des articles avec la barre ci-dessus ou en 1 clic depuis vos recettes
-                    et le planning de la semaine !
-                  </Text>
-
-                  <View style={styles.emptyButtonsRow}>
-                    {onNavigateToRecipes && (
-                      <TouchableOpacity
-                        style={styles.emptyActionBtn}
-                        onPress={() => onNavigateToRecipes()}
-                        activeOpacity={0.85}
-                      >
-                        <Ionicons name="book-outline" size={17} color="#FFFFFF" />
-                        <Text style={styles.emptyActionBtnText}>Voir mes recettes</Text>
-                      </TouchableOpacity>
-                    )}
-
-                    {onNavigateToPlanner && (
-                      <TouchableOpacity
-                        style={[styles.emptyActionBtn, styles.emptyActionBtnSecondary]}
-                        onPress={() => onNavigateToPlanner()}
-                        activeOpacity={0.85}
-                      >
-                        <Ionicons name="calendar-outline" size={17} color={colors.primary} />
-                        <Text style={styles.emptyActionBtnSecondaryText}>Planning</Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                </View>
-              </ScrollView>
-            ) : (
-              <SectionList
-                style={styles.scrollArea}
-                contentContainerStyle={styles.scrollContent}
-                showsVerticalScrollIndicator={false}
-                stickySectionHeadersEnabled={false}
-                keyboardShouldPersistTaps="handled"
-                sections={groupedSections.map((g) => ({ title: g.aisle, data: g.items }))}
-                keyExtractor={(item) => item.id}
-                initialNumToRender={15}
-                maxToRenderPerBatch={15}
-                windowSize={5}
-                onScroll={handleScroll}
-                scrollEventThrottle={16}
-                ListHeaderComponent={
-                  <>
-                    {isSearching && searchQuery?.trim() ? (
-                      <View style={styles.searchSummaryStrip}>
-                        <Text style={styles.searchSummaryText}>
-                          {totalFilteredCount} article{totalFilteredCount > 1 ? 's' : ''} trouvé{totalFilteredCount > 1 ? 's' : ''} pour « {searchQuery.trim()} »
-                        </Text>
-                      </View>
-                    ) : null}
-
-                    {completedCount > 0 && (
-                      <TouchableOpacity
-                        style={styles.bulkTransferBtn}
-                        onPress={handleBulkMoveCompletedToShelves}
-                        activeOpacity={0.85}
-                        accessibilityLabel="Ranger les articles cochés dans mes étagères"
-                      >
-                        <View style={styles.bulkTransferIconBox}>
-                          <Ionicons name="layers" size={16} color="#FFFFFF" />
-                        </View>
-                        <Text style={styles.bulkTransferBtnText}>
-                          Ranger les articles cochés ({completedCount}) dans mes étagères
-                        </Text>
-                        <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
-                      </TouchableOpacity>
-                    )}
-                  </>
-                }
-              ListEmptyComponent={
-                isSearching && searchQuery?.trim() && totalFilteredCount === 0 ? (
-                  <View style={styles.emptySearchContainer}>
+            {/* Zone de contenu principale (SectionList + Bandeau suggestions rétractable natif) */}
+            <View style={styles.contentArea}>
+              {totalCount === 0 ? (
+                <ScrollView
+                  style={styles.scrollArea}
+                  contentContainerStyle={[
+                    styles.scrollContent,
+                    hasSuggestions ? { paddingTop: SUGGESTIONS_CONTAINER_HEIGHT + 6 } : undefined,
+                  ]}
+                  showsVerticalScrollIndicator={false}
+                  keyboardShouldPersistTaps="handled"
+                  onScroll={handleScroll}
+                  scrollEventThrottle={16}
+                >
+                  <View style={styles.emptyContainer}>
                     <View style={styles.emptyIconCircle}>
-                      <Ionicons name="search-outline" size={38} color={colors.primary} />
+                      <Ionicons name="cart-outline" size={46} color={colors.primary} />
                     </View>
-                    <Text style={styles.emptyTitle}>Article introuvable</Text>
+                    <Text style={styles.emptyTitle}>Votre panier est vide</Text>
                     <Text style={styles.emptySubtitle}>
-                      « {searchQuery.trim()} » n’est pas dans votre liste de courses.
+                      Ajoutez des articles avec la barre ci-dessus ou en 1 clic depuis vos recettes
+                      et le planning de la semaine !
                     </Text>
 
-                    <TouchableOpacity
-                      style={styles.searchAddBtn}
-                      onPress={() => handleAddDirectSearchItem(searchQuery.trim())}
-                      activeOpacity={0.85}
-                    >
-                      <Ionicons name="add-circle" size={18} color="#FFFFFF" />
-                      <Text style={styles.searchAddBtnText}>
-                        Ajouter « {searchQuery.trim()} » aux courses
-                      </Text>
-                    </TouchableOpacity>
-
-                    {fridgeCrossCount > 0 && (
-                      <TouchableOpacity
-                        style={styles.searchCrossBtn}
-                        onPress={() => setActiveTab('fridge')}
-                        activeOpacity={0.85}
-                      >
-                        <Ionicons name="layers-outline" size={17} color={colors.primary} />
-                        <Text style={styles.searchCrossBtnText}>
-                          Voir dans mes étagères ({fridgeCrossCount} aliment{fridgeCrossCount > 1 ? 's' : ''})
-                        </Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                ) : undefined
-              }
-              renderSectionHeader={({ section: { title, data } }) => {
-                const aisle = title as ShoppingAisle;
-                const cfg = AISLE_CONFIGS[aisle] || AISLE_CONFIGS['Autre'];
-                return (
-                  <View style={[styles.aisleSection, { marginTop: 14 }]}>
-                    <View style={styles.aisleHeaderRow}>
-                      <View
-                        style={[
-                          styles.aisleIconBox,
-                          { backgroundColor: isDark ? cfg.color + '26' : cfg.bgColor },
-                        ]}
-                      >
-                        <Ionicons name={cfg.iconName as any} size={15} color={cfg.color} />
-                      </View>
-                      <Text style={[styles.aisleTitle, { color: cfg.color }]}>
-                        {aisle}
-                      </Text>
-                      <View style={styles.aisleCountBadge}>
-                        <Text style={styles.aisleCountText}>{data.length}</Text>
-                      </View>
-                    </View>
-                  </View>
-                );
-              }}
-              renderItem={({ item, index, section }) => {
-                const isFirst = index === 0;
-                const isLast = index === section.data.length - 1;
-                const isGlobalFirstItem = groupedSections[0]?.items[0]?.id === item.id;
-
-                return (
-                  <SwipeableShoppingItemRow
-                    isFirst={isFirst}
-                    isLast={isLast}
-                    shouldAnimateHint={shouldAnimateFirstItem && isGlobalFirstItem}
-                    onMoveToShelves={() => handleMoveToShelves(item)}
-                    onLongPress={() => handleOpenEditModal(item)}
-                  >
-                    <View
-                      style={[
-                        styles.itemRow,
-                        !isLast && styles.itemRowBorder,
-                      ]}
-                    >
-                      <TouchableOpacity
-                        style={styles.checkboxBtn}
-                        onPress={() => handleToggleItem(item.id)}
-                        activeOpacity={0.7}
-                      >
-                        <Ionicons
-                          name={item.isChecked ? 'checkmark-circle' : 'ellipse-outline'}
-                          size={23}
-                          color={item.isChecked ? colors.secondary : colors.border}
-                        />
-                      </TouchableOpacity>
-
-                      <TouchableOpacity
-                        style={styles.itemTextContainer}
-                        onPress={() => handleToggleItem(item.id)}
-                        onLongPress={() => handleOpenEditModal(item)}
-                        delayLongPress={350}
-                        activeOpacity={0.7}
-                      >
-                        <Text
-                          style={[
-                            styles.itemName,
-                            item.isChecked && styles.itemNameChecked,
-                          ]}
-                          numberOfLines={2}
-                        >
-                          {item.name}
-                        </Text>
-
-                        {(item.quantity || item.unit) && (
-                          <View style={styles.itemMetaRow}>
-                            <Text
-                              style={[
-                                styles.itemQuantity,
-                                item.isChecked && styles.itemQuantityChecked,
-                              ]}
-                            >
-                              {formatQuantityWithUnit(item.quantity, item.unit)}
-                            </Text>
-                          </View>
-                        )}
-                      </TouchableOpacity>
-
-                      {/* Action directe : ranger dans les étagères si coché */}
-                      {item.isChecked && (
+                    <View style={styles.emptyButtonsRow}>
+                      {onNavigateToRecipes && (
                         <TouchableOpacity
-                          style={styles.moveToFridgeBtn}
-                          onPress={() => handleMoveToShelves(item)}
-                          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                          accessibilityLabel="Ranger dans mes étagères"
+                          style={styles.emptyActionBtn}
+                          onPress={() => onNavigateToRecipes()}
+                          activeOpacity={0.85}
                         >
-                          <Ionicons name="layers-outline" size={15} color={colors.primary} />
-                          <Text style={styles.moveToFridgeText}>Étagères</Text>
+                          <Ionicons name="book-outline" size={17} color="#FFFFFF" />
+                          <Text style={styles.emptyActionBtnText}>Voir mes recettes</Text>
                         </TouchableOpacity>
                       )}
 
-                      <TouchableOpacity
-                        style={styles.deleteItemBtn}
-                        onPress={() => handleDeleteItem(item.id)}
-                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                        accessibilityLabel="Supprimer de la liste"
-                      >
-                        <Ionicons name="close" size={18} color={colors.textMuted} />
-                      </TouchableOpacity>
+                      {onNavigateToPlanner && (
+                        <TouchableOpacity
+                          style={[styles.emptyActionBtn, styles.emptyActionBtnSecondary]}
+                          onPress={() => onNavigateToPlanner()}
+                          activeOpacity={0.85}
+                        >
+                          <Ionicons name="calendar-outline" size={17} color={colors.primary} />
+                          <Text style={styles.emptyActionBtnSecondaryText}>Planning</Text>
+                        </TouchableOpacity>
+                      )}
                     </View>
-                  </SwipeableShoppingItemRow>
-                );
-              }}
-            />
-          )}
+                  </View>
+                </ScrollView>
+              ) : (
+                <SectionList
+                  style={styles.scrollArea}
+                  contentContainerStyle={[
+                    styles.scrollContent,
+                    hasSuggestions ? { paddingTop: SUGGESTIONS_CONTAINER_HEIGHT + 6 } : undefined,
+                  ]}
+                  showsVerticalScrollIndicator={false}
+                  stickySectionHeadersEnabled={false}
+                  keyboardShouldPersistTaps="handled"
+                  sections={sections}
+                  keyExtractor={keyExtractor}
+                  initialNumToRender={15}
+                  maxToRenderPerBatch={10}
+                  windowSize={5}
+                  onScroll={handleScroll}
+                  scrollEventThrottle={16}
+                  ListHeaderComponent={
+                    <>
+                      {isSearching && searchQuery?.trim() ? (
+                        <View style={styles.searchSummaryStrip}>
+                          <Text style={styles.searchSummaryText}>
+                            {totalFilteredCount} article{totalFilteredCount > 1 ? 's' : ''} trouvé{totalFilteredCount > 1 ? 's' : ''} pour « {searchQuery.trim()} »
+                          </Text>
+                        </View>
+                      ) : null}
+
+                      {completedCount > 0 && (
+                        <TouchableOpacity
+                          style={styles.bulkTransferBtn}
+                          onPress={handleBulkMoveCompletedToShelves}
+                          activeOpacity={0.85}
+                          accessibilityLabel="Ranger les articles cochés dans mes étagères"
+                        >
+                          <View style={styles.bulkTransferIconBox}>
+                            <Ionicons name="layers" size={16} color="#FFFFFF" />
+                          </View>
+                          <Text style={styles.bulkTransferBtnText}>
+                            Ranger les articles cochés ({completedCount}) dans mes étagères
+                          </Text>
+                          <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
+                        </TouchableOpacity>
+                      )}
+                    </>
+                  }
+                  ListEmptyComponent={
+                    isSearching && searchQuery?.trim() && totalFilteredCount === 0 ? (
+                      <View style={styles.emptySearchContainer}>
+                        <View style={styles.emptyIconCircle}>
+                          <Ionicons name="search-outline" size={38} color={colors.primary} />
+                        </View>
+                        <Text style={styles.emptyTitle}>Article introuvable</Text>
+                        <Text style={styles.emptySubtitle}>
+                          « {searchQuery.trim()} » n’est pas dans votre liste de courses.
+                        </Text>
+
+                        <TouchableOpacity
+                          style={styles.searchAddBtn}
+                          onPress={() => handleAddDirectSearchItem(searchQuery.trim())}
+                          activeOpacity={0.85}
+                        >
+                          <Ionicons name="add-circle" size={18} color="#FFFFFF" />
+                          <Text style={styles.searchAddBtnText}>
+                            Ajouter « {searchQuery.trim()} » aux courses
+                          </Text>
+                        </TouchableOpacity>
+
+                        {fridgeCrossCount > 0 && (
+                          <TouchableOpacity
+                            style={styles.searchCrossBtn}
+                            onPress={() => setActiveTab('fridge')}
+                            activeOpacity={0.85}
+                          >
+                            <Ionicons name="layers-outline" size={17} color={colors.primary} />
+                            <Text style={styles.searchCrossBtnText}>
+                              Voir dans mes étagères ({fridgeCrossCount} aliment{fridgeCrossCount > 1 ? 's' : ''})
+                            </Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    ) : undefined
+                  }
+                  renderSectionHeader={renderSectionHeader}
+                  renderItem={renderItem}
+                />
+              )}
+
+              {/* Bandeau d'ajout rapide (suggestions en 1 clic) rétractable natif (translateY + opacity 60fps) */}
+              {hasSuggestions && (
+                <Animated.View
+                  style={[
+                    styles.collapsibleSuggestionsContainer,
+                    {
+                      transform: [
+                        {
+                          translateY: quickAddAnim.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [-SUGGESTIONS_CONTAINER_HEIGHT, 0],
+                          }),
+                        },
+                      ],
+                      opacity: quickAddAnim.interpolate({
+                        inputRange: [0, 0.35, 1],
+                        outputRange: [0, 0.2, 1],
+                      }),
+                    },
+                  ]}
+                  pointerEvents={isQuickAddVisible ? 'auto' : 'none'}
+                >
+                  <View style={styles.pinnedSuggestionsContainer}>
+                    <Text style={styles.suggestionsTitle}>Ajout rapide en 1 clic :</Text>
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      keyboardShouldPersistTaps="handled"
+                      contentContainerStyle={styles.suggestionsScroll}
+                    >
+                      {availableSuggestions.slice(0, 15).map((sug) => (
+                        <TouchableOpacity
+                          key={sug.id}
+                          style={styles.suggestionChip}
+                          onPress={() => handleAddQuickSuggestion(sug)}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons name="add" size={13} color={colors.primary} />
+                          <Text style={styles.suggestionChipText}>{sug.canonicalName}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                </Animated.View>
+              )}
+            </View>
+          </View>
         </View>
       </View>
-    )}
 
       {/* Modal de sélection de rayon supermarché */}
       <Modal
