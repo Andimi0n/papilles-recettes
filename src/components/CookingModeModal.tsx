@@ -15,6 +15,7 @@ import { useKeepAwake } from 'expo-keep-awake';
 import { Recipe, Ingredient } from '../types/recipe';
 import { UserAllergenItem } from '../types/vocabulary';
 import { StorageService } from '../services/storageService';
+import { AnalyticsService } from '../services/analyticsService';
 import { VocabularyService } from '../services/vocabularyService';
 import { Colors, Shadows, createDynamicStyles } from '../theme/colors';
 import { useTheme } from '../theme/ThemeContext';
@@ -142,6 +143,8 @@ export const CookingModeModal: React.FC<CookingModeModalProps> = ({
   const [isCompletedModalVisible, setIsCompletedModalVisible] = useState(false);
   const [userRating, setUserRating] = useState(recipe.rating || 0);
   const [userAllergens, setUserAllergens] = useState<UserAllergenItem[]>([]);
+  const cookingStartedAtRef = useRef<number | null>(null);
+  const cookingCompletionTrackedRef = useRef(false);
 
   // Réinitialisation d'état lors du basculement d'affichage (Pattern officiel React)
   const [prevVisible, setPrevVisible] = useState(visible);
@@ -157,11 +160,19 @@ export const CookingModeModal: React.FC<CookingModeModalProps> = ({
   // Chargement asynchrone des allergènes
   useEffect(() => {
     if (visible) {
+      cookingStartedAtRef.current = Date.now();
+      cookingCompletionTrackedRef.current = false;
+      void AnalyticsService.track({
+        type: 'cooking_started',
+        recipeId: recipe.id,
+        recipeTitle: recipe.title,
+        servings,
+      });
       StorageService.getUserAllergens()
         .then(setUserAllergens)
         .catch(() => {});
     }
-  }, [visible, recipe.id]);
+  }, [visible, recipe.id, recipe.title, servings]);
 
   const preparedAllergens = useMemo(
     () => prepareUserAllergens(userAllergens),
@@ -338,6 +349,19 @@ export const CookingModeModal: React.FC<CookingModeModalProps> = ({
     } else {
       // Dernière étape atteinte
       setIsCompletedModalVisible(true);
+      if (!cookingCompletionTrackedRef.current) {
+        cookingCompletionTrackedRef.current = true;
+        void AnalyticsService.track({
+          type: 'cooking_completed',
+          recipeId: recipe.id,
+          recipeTitle: recipe.title,
+          servings,
+          sessionDurationSeconds: Math.max(
+            0,
+            Math.floor((Date.now() - (cookingStartedAtRef.current ?? Date.now())) / 1000)
+          ),
+        });
+      }
     }
   };
 

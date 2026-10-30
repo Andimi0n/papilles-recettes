@@ -36,6 +36,7 @@ import { classifyIngredientAisle } from '../utils/aisleClassifier';
 import { normalizeIngredient } from '../utils/ingredientNormalizer';
 import { isKnownDefaultPantryStaple } from '../data/canonicalVocabulary';
 import { VocabularyService, VocabularyCascadeEvent } from './vocabularyService';
+import { AnalyticsService } from './analyticsService';
 
 const RECIPES_STORAGE_KEY = '@papilles_recipes_v4';
 const SCHEMA_VERSION_KEY = '@papilles_schema_version';
@@ -67,6 +68,60 @@ let memoryCache = {
   fridgeItems: null as FridgeItem[] | null,
   shoppingList: null as ShoppingItem[] | null,
 };
+
+function trackShoppingItemAdded(item: ShoppingItem, source?: string): void {
+  void AnalyticsService.track({
+    type: 'shopping_item_added',
+    itemName: item.name,
+    quantity: item.quantity,
+    unit: item.unit,
+    canonicalId: item.canonicalId,
+    source,
+  });
+}
+
+function trackShoppingItemRemoved(item: ShoppingItem): void {
+  void AnalyticsService.track({
+    type: 'shopping_item_removed',
+    itemName: item.name,
+    quantity: item.quantity,
+    unit: item.unit,
+    canonicalId: item.canonicalId,
+  });
+}
+
+function trackFridgeItemAdded(item: FridgeItem): void {
+  void AnalyticsService.track({
+    type: 'fridge_item_added',
+    itemName: item.name,
+    canonicalId: item.canonicalId,
+    aisle: item.aisle,
+  });
+}
+
+function trackFridgeItemRemoved(item: FridgeItem): void {
+  void AnalyticsService.track({
+    type: 'fridge_item_removed',
+    itemName: item.name,
+    canonicalId: item.canonicalId,
+  });
+}
+
+function trackMealPlanUpdate(
+  slotKey: string,
+  mealTime: MealTime,
+  meal: PlannedMeal | undefined,
+  added: boolean
+): void {
+  void AnalyticsService.track({
+    type: 'meal_plan_updated',
+    dateKey: meal?.date || slotKey.replace(/_(lunch|dinner)$/, ''),
+    slot: mealTime,
+    recipeId: meal?.recipeId,
+    recipeTitle: meal?.recipeTitle,
+    added,
+  });
+}
 
 /**
  * Assainit une URL d'image pour s'assurer qu'elle n'exploite aucun protocole malveillant (SEC-09)
@@ -1065,6 +1120,7 @@ export const StorageService = {
 
       const updatedList = mergeShoppingItems(currentList, newItems);
       await this.saveShoppingList(updatedList);
+      newItems.forEach((item) => trackShoppingItemAdded(item, 'recipe'));
       return { updatedList, addedCount: newItems.length };
     } catch (e) {
       console.error('Erreur ajout recette liste de courses:', e);
@@ -1123,6 +1179,7 @@ export const StorageService = {
       const currentList = await this.getShoppingList();
       const updatedList = mergeShoppingItems(currentList, [newItem]);
       await this.saveShoppingList(updatedList);
+      trackShoppingItemAdded(newItem, 'manual');
       return updatedList;
     } catch (e) {
       console.error('Erreur ajout article custom liste courses:', e);
@@ -1161,6 +1218,7 @@ export const StorageService = {
       const currentList = await this.getShoppingList();
       const updatedList = mergeShoppingItems(currentList, [newItem]);
       await this.saveShoppingList(updatedList);
+      trackShoppingItemAdded(newItem, 'manual');
       if (parsed.canonicalId) {
         VocabularyService.incrementUsage(parsed.canonicalId).catch(() => {});
       }
@@ -1224,6 +1282,7 @@ export const StorageService = {
 
       const updatedShopping = currentList.filter((i) => !i.isChecked);
       await this.saveShoppingList(updatedShopping);
+      checkedItems.forEach(trackShoppingItemRemoved);
 
       return { shoppingList: updatedShopping, fridgeItems, movedCount: checkedItems.length };
     } catch (e) {
@@ -1240,6 +1299,8 @@ export const StorageService = {
       const currentList = await this.getShoppingList();
       const updatedList = currentList.filter((item) => item.id !== id);
       await this.saveShoppingList(updatedList);
+      const removedItem = currentList.find((item) => item.id === id);
+      if (removedItem) trackShoppingItemRemoved(removedItem);
       return updatedList;
     } catch (e) {
       console.error('Erreur suppression shopping item:', e);
@@ -1255,6 +1316,7 @@ export const StorageService = {
       const currentList = await this.getShoppingList();
       const updatedList = currentList.filter((item) => !item.isChecked);
       await this.saveShoppingList(updatedList);
+      currentList.filter((item) => item.isChecked).forEach(trackShoppingItemRemoved);
       return updatedList;
     } catch (e) {
       console.error('Erreur suppression cochés:', e);
@@ -1267,7 +1329,10 @@ export const StorageService = {
    */
   async clearAllShoppingItems(): Promise<ShoppingItem[]> {
     try {
-      return await this.saveShoppingList([]);
+      const currentList = await this.getShoppingList();
+      const updatedList = await this.saveShoppingList([]);
+      currentList.forEach(trackShoppingItemRemoved);
+      return updatedList;
     } catch (e) {
       console.error('Erreur vidage liste courses:', e);
       throw e;
@@ -1425,6 +1490,7 @@ export const StorageService = {
 
       const updated = [newItem, ...currentItems];
       await this.saveFridgeItems(updated);
+      trackFridgeItemAdded(newItem);
       return updated;
     } catch (e) {
       console.error('Erreur ajout aliment frigo:', e);
@@ -1485,6 +1551,7 @@ export const StorageService = {
       if (toAdd.length === 0) return currentItems;
       const updated = [...toAdd, ...currentItems];
       await this.saveFridgeItems(updated);
+      toAdd.forEach(trackFridgeItemAdded);
       return updated;
     } catch (e) {
       console.error('Erreur ajout multiple frigo:', e);
@@ -1500,6 +1567,8 @@ export const StorageService = {
       const currentItems = await this.getFridgeItems();
       const updated = currentItems.filter((i) => i.id !== id);
       await this.saveFridgeItems(updated);
+      const removedItem = currentItems.find((item) => item.id === id);
+      if (removedItem) trackFridgeItemRemoved(removedItem);
       return updated;
     } catch (e) {
       console.error('Erreur suppression aliment frigo:', e);
@@ -1512,7 +1581,10 @@ export const StorageService = {
    */
   async clearFridge(): Promise<FridgeItem[]> {
     try {
-      return await this.saveFridgeItems([]);
+      const currentItems = await this.getFridgeItems();
+      const updatedItems = await this.saveFridgeItems([]);
+      currentItems.forEach(trackFridgeItemRemoved);
+      return updatedItems;
     } catch (e) {
       console.error('Erreur vidage frigo:', e);
       throw e;
@@ -1537,6 +1609,7 @@ export const StorageService = {
       // Suppression de la liste de courses
       const updatedShopping = shoppingList.filter((i) => i.id !== shoppingItemId);
       await this.saveShoppingList(updatedShopping);
+      trackShoppingItemRemoved(targetItem);
 
       return { shoppingList: updatedShopping, fridgeItems: updatedFridge };
     } catch (e) {
@@ -1647,6 +1720,15 @@ export const StorageService = {
       }
 
       await this.saveWeeklyPlan(nextPlan);
+      const previousMeal = currentPlan[slotKey];
+      if (meal) {
+        if (previousMeal && previousMeal.id !== meal.id) {
+          trackMealPlanUpdate(slotKey, mealTime, previousMeal, false);
+        }
+        trackMealPlanUpdate(slotKey, mealTime, meal, true);
+      } else if (previousMeal) {
+        trackMealPlanUpdate(slotKey, mealTime, previousMeal, false);
+      }
       return nextPlan;
     } catch (e) {
       console.error('Erreur mise à jour repas créneau:', e);
@@ -1660,13 +1742,21 @@ export const StorageService = {
   async clearWeeklyPlan(slotKeysToClear?: string[]): Promise<WeeklyPlanMap> {
     try {
       if (!slotKeysToClear || slotKeysToClear.length === 0) {
+        const currentPlan = await this.getWeeklyPlan();
         await AsyncStorage.setItem(WEEKLY_PLAN_KEY, JSON.stringify({}));
+        Object.entries(currentPlan).forEach(([slotKey, meal]) => {
+          if (meal) trackMealPlanUpdate(slotKey, meal.mealTime, meal, false);
+        });
         return {};
       }
       const currentPlan = await this.getWeeklyPlan();
       const nextPlan = { ...currentPlan };
       slotKeysToClear.forEach((k) => delete nextPlan[k]);
       await this.saveWeeklyPlan(nextPlan);
+      slotKeysToClear.forEach((slotKey) => {
+        const meal = currentPlan[slotKey];
+        if (meal) trackMealPlanUpdate(slotKey, meal.mealTime, meal, false);
+      });
       return nextPlan;
     } catch (e) {
       console.error('Erreur effacement planning semaine:', e);
@@ -1723,6 +1813,7 @@ export const StorageService = {
 
       const updatedList = mergeShoppingItems(currentShoppingList, newItemsToMerge);
       await this.saveShoppingList(updatedList);
+      newItemsToMerge.forEach((item) => trackShoppingItemAdded(item, 'planner'));
       return { updatedList, addedCount: newItemsToMerge.length };
     } catch (e) {
       console.error('Erreur génération liste de courses depuis planning:', e);
