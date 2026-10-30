@@ -23,7 +23,7 @@ import { StorageService } from '../services/storageService';
 import { Colors } from '../theme/colors';
 import { styles } from './HomeScreen.styles';
 import { useTheme } from '../theme/ThemeContext';
-import { RecipeCard } from '../components/RecipeCard';
+import { RecipeCard, RecipeStockProgress } from '../components/RecipeCard';
 import { SearchBar } from '../components/SearchBar';
 import { CategoryPills } from '../components/CategoryPills';
 import { EmptyState } from '../components/EmptyState';
@@ -44,6 +44,7 @@ import { evaluateRecipesWithStock, RecipeStockEvaluation } from '../utils/stockM
 import { prepareUserAllergens, recipeContainsAllergens } from '../utils/allergenMatcher';
 
 const RECIPES_PER_PAGE = 20;
+const EMPTY_HIGHLIGHTED_INGREDIENTS: string[] = [];
 
 const CATEGORIES: Category[] = [
   'Tous',
@@ -85,8 +86,21 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 }) => {
   const { isDark, colors, themeId } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const flashListRef = useRef<FlashListRef<Recipe>>(null);
+
+  // Debounce fluide sur la recherche pour ne jamais bloquer le thread UI à la frappe
+  useEffect(() => {
+    const delay = searchQuery.trim().length === 0 ? 0 : 220;
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+      if (searchQuery.trim().length > 0) {
+        setCurrentPage(1);
+      }
+    }, delay);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
   const [selectedCategories, setSelectedCategories] = useState<Category[]>([]);
   const [selectedIngredients, setSelectedIngredients] = useState<string[]>([]);
   const [targetTotalTime, setTargetTotalTime] = useState<number | null>(null);
@@ -350,10 +364,22 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     [userAllergens]
   );
 
+  // Set optimisé des IDs de recettes contenant des allergènes de l'utilisateur (évaluation unique en amont)
+  const recipesWithAllergensSet = useMemo(() => {
+    const set = new Set<string>();
+    if (preparedAllergens.items.length === 0) return set;
+    recipes.forEach((r) => {
+      if (recipeContainsAllergens(r, preparedAllergens)) {
+        set.add(r.id);
+      }
+    });
+    return set;
+  }, [recipes, preparedAllergens]);
+
   const hiddenByAllergensCount = useMemo(() => {
     if (!isAllergenFilterEnabled || userAllergens.length === 0) return 0;
-    return recipes.filter((r) => recipeContainsAllergens(r, preparedAllergens)).length;
-  }, [recipes, isAllergenFilterEnabled, userAllergens.length, preparedAllergens]);
+    return recipesWithAllergensSet.size;
+  }, [isAllergenFilterEnabled, userAllergens.length, recipesWithAllergensSet]);
 
   // Évaluation des recettes faisables avec le stock
   const { doableRecipesMap, doableCount } = useMemo(() => {
@@ -369,6 +395,22 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     });
     return { doableRecipesMap: map, doableCount: count };
   }, [recipes, stockItems]);
+
+  // Cache mémoïsé O(1) de la progression de stock par recette (évite d'allouer de nouveaux objets à chaque render)
+  const stockProgressMap = useMemo(() => {
+    const map = new Map<string, RecipeStockProgress>();
+    if (stockItems.length === 0) return map;
+    doableRecipesMap.forEach((stockEval, recipeId) => {
+      if (stockEval.totalEssentialCount > 0) {
+        map.set(recipeId, {
+          matchedCount: stockEval.matchedEssentialCount,
+          totalCount: stockEval.totalEssentialCount,
+          percentage: stockEval.matchPercentage,
+        });
+      }
+    });
+    return map;
+  }, [stockItems.length, doableRecipesMap]);
 
   const handleToggleDoableFilter = () => {
     setCurrentPage(1);
@@ -467,10 +509,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   // 1. Filtrage par tous les critères actifs hors catégorie (moteur de recherche, stock, allergènes, etc.)
   const { baseFilteredResults, matchedIngredientsMap, isSearching } = useMemo(() => {
     let searchResults: RecipeSearchResult[] = [];
-    const searching = searchQuery.trim().length > 0;
+    const searching = debouncedSearchQuery.trim().length > 0;
 
     if (searching) {
-      searchResults = searchRecipes(recipes, searchQuery);
+      searchResults = searchRecipes(recipes, debouncedSearchQuery);
     } else {
       searchResults = recipes.map((r) => ({
         recipe: r,
@@ -527,9 +569,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       );
     }
 
-    // Filtrage automatique des recettes contenant des allergènes personnels (activé par défaut)
+    // Filtrage automatique des recettes contenant des allergènes personnels (lookup O(1) précalculé)
     if (isAllergenFilterEnabled && userAllergens.length > 0) {
-      result = result.filter((r) => !recipeContainsAllergens(r.recipe, preparedAllergens));
+      result = result.filter((r) => !recipesWithAllergensSet.has(r.recipe.id));
     }
 
     return {
@@ -539,7 +581,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     };
   }, [
     recipes,
-    searchQuery,
+    debouncedSearchQuery,
     selectedIngredients,
     ingredientMatchMode,
     selectedTags,
@@ -552,7 +594,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     onlyDoableWithStock,
     isAllergenFilterEnabled,
     userAllergens.length,
-    preparedAllergens,
+    recipesWithAllergensSet,
     doableRecipesMap,
   ]);
 
@@ -634,31 +676,57 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     }
   };
 
-  // Helper pour trouver les ingrédients matchés pour chaque recette (recherche + frigo + stock)
-  const getMatchedIngredientsForRecipe = (recipe: Recipe): string[] => {
-    const fromSearch = matchedIngredientsMap[recipe.id] || [];
-    const fromDoable = onlyDoableWithStock
-      ? (doableRecipesMap.get(recipe.id)?.matchedIngredients || [])
-          .filter((m) => m.matchedBy === 'stock')
-          .map((m) => m.ingredient.name)
-      : [];
+  // Pré-calcul indexé des ingrédients mis en avant pour les recettes visibles (évite recalculs et allocations dans renderItem)
+  const highlightedIngredientsMapByRecipeId = useMemo(() => {
+    const map = new Map<string, string[]>();
+    const hasSearch = debouncedSearchQuery.trim().length > 0;
+    const hasSelected = selectedIngredients.length > 0;
+    const normSelected = hasSelected ? selectedIngredients.map(normalizeString) : [];
 
-    if (selectedIngredients.length === 0 && fromDoable.length === 0) return fromSearch;
+    if (!hasSearch && !hasSelected && !onlyDoableWithStock) {
+      return map;
+    }
 
-    const normSelected = selectedIngredients.map(normalizeString);
-    const fromFridge = recipe.ingredients
-      .filter((ing) => {
-        const norm = normalizeString(ing.name);
-        return normSelected.some((sel) => norm.includes(sel) || sel.includes(norm));
-      })
-      .map((i) => i.name);
+    paginatedRecipes.forEach((recipe) => {
+      const fromSearch = matchedIngredientsMap[recipe.id] || EMPTY_HIGHLIGHTED_INGREDIENTS;
+      const fromDoable = onlyDoableWithStock
+        ? (doableRecipesMap.get(recipe.id)?.matchedIngredients || [])
+            .filter((m) => m.matchedBy === 'stock')
+            .map((m) => m.ingredient.name)
+        : EMPTY_HIGHLIGHTED_INGREDIENTS;
 
-    const combined = new Set([...fromSearch, ...fromFridge, ...fromDoable]);
-    return Array.from(combined);
-  };
+      if (!hasSelected && fromDoable.length === 0) {
+        if (fromSearch.length > 0) map.set(recipe.id, fromSearch);
+        return;
+      }
+
+      const fromFridge = hasSelected
+        ? recipe.ingredients
+            .filter((ing) => {
+              const norm = normalizeString(ing.name);
+              return normSelected.some((sel) => norm.includes(sel) || sel.includes(norm));
+            })
+            .map((i) => i.name)
+        : EMPTY_HIGHLIGHTED_INGREDIENTS;
+
+      const combined = Array.from(new Set([...fromSearch, ...fromFridge, ...fromDoable]));
+      if (combined.length > 0) {
+        map.set(recipe.id, combined);
+      }
+    });
+    return map;
+  }, [
+    paginatedRecipes,
+    debouncedSearchQuery,
+    matchedIngredientsMap,
+    selectedIngredients,
+    onlyDoableWithStock,
+    doableRecipesMap,
+  ]);
 
   const handleResetAllFilters = () => {
     setSearchQuery('');
+    setDebouncedSearchQuery('');
     setSelectedCategories([]);
     setSelectedIngredients([]);
     setSelectedTags([]);
@@ -835,7 +903,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               {filteredRecipes.length > RECIPES_PER_PAGE && ` • Page ${safeCurrentPage}/${totalPages}`}
             </Text>
 
-            {searchQuery.trim().length > 0 && (
+            {debouncedSearchQuery.trim().length > 0 && (
               <View style={styles.smartBadge}>
                 <Ionicons name="sparkles" size={11} color={colors.primary} />
                 <Text style={styles.smartBadgeText}>Recherche intelligente</Text>
@@ -916,7 +984,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       hiddenByAllergensCount,
       safeCurrentPage,
       totalPages,
-      searchQuery,
+      debouncedSearchQuery,
       colors,
       viewMode,
       handleChangeViewMode,
@@ -986,40 +1054,29 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     );
   }, [themeId, isDark, colors, filteredRecipes.length, totalPages, safeCurrentPage]);
 
-  // Rendu mémoïsé de chaque carte recette
+  // Rendu mémoïsé de chaque carte recette (accès direct O(1) sans allocations de tableaux ou recalculs)
   const renderRecipeItem = useCallback(
     ({ item }: { item: Recipe }) => {
-      const stockEval = doableRecipesMap.get(item.id);
-      const stockProgress =
-        stockItems.length > 0 && stockEval && stockEval.totalEssentialCount > 0
-          ? {
-              matchedCount: stockEval.matchedEssentialCount,
-              totalCount: stockEval.totalEssentialCount,
-              percentage: stockEval.matchPercentage,
-            }
-          : undefined;
-
       return (
         <RecipeCard
           recipe={item}
           viewMode={viewMode}
           onPress={() => onSelectRecipe(item)}
           onQuickRate={(rating) => onQuickRate(item.id, rating)}
-          highlightedIngredients={getMatchedIngredientsForRecipe(item)}
-          hasAllergen={recipeContainsAllergens(item, preparedAllergens)}
-          stockProgress={stockProgress}
+          highlightedIngredients={
+            highlightedIngredientsMapByRecipeId.get(item.id) || EMPTY_HIGHLIGHTED_INGREDIENTS
+          }
+          hasAllergen={recipesWithAllergensSet.has(item.id)}
+          stockProgress={stockProgressMap.get(item.id)}
         />
       );
     },
     [
       onSelectRecipe,
       onQuickRate,
-      matchedIngredientsMap,
-      selectedIngredients,
-      onlyDoableWithStock,
-      doableRecipesMap,
-      preparedAllergens,
-      stockItems.length,
+      highlightedIngredientsMapByRecipeId,
+      recipesWithAllergensSet,
+      stockProgressMap,
       viewMode,
     ]
   );
@@ -1060,11 +1117,17 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             value={searchQuery}
             onChangeText={(text) => {
               setSearchQuery(text);
+              if (!text.trim()) {
+                setDebouncedSearchQuery('');
+                setCurrentPage(1);
+              }
               forceShowFilterBar();
             }}
             placeholder="Rechercher ingrédients, plats, synonymes..."
             onClear={() => {
               setSearchQuery('');
+              setDebouncedSearchQuery('');
+              setCurrentPage(1);
               forceShowFilterBar();
             }}
             onOpenAdvancedFilters={() => setIsAdvancedFiltersModalVisible(true)}
@@ -1424,7 +1487,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           recipes={recipes}
           doableRecipesMap={doableRecipesMap}
           selectedCategories={selectedCategories}
-          searchQuery={searchQuery}
+          searchQuery={debouncedSearchQuery}
         />
 
         {/* Modal Cuisiner avec mon stock & suggestions Chef IA */}

@@ -737,6 +737,28 @@ const styles = createDynamicStyles((colors, shadows) => ({
   },
 }));
 
+function areStringArraysShallowEqual(a?: string[], b?: string[]): boolean {
+  if (a === b) return true;
+  const aLen = a ? a.length : 0;
+  const bLen = b ? b.length : 0;
+  if (aLen !== bLen) return false;
+  if (aLen === 0) return true;
+  for (let i = 0; i < aLen; i++) {
+    if (a![i] !== b![i]) return false;
+  }
+  return true;
+}
+
+function areStockProgressEqual(a?: RecipeStockProgress, b?: RecipeStockProgress): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return (
+    a.matchedCount === b.matchedCount &&
+    a.totalCount === b.totalCount &&
+    a.percentage === b.percentage
+  );
+}
+
 export const RecipeCard = React.memo(RecipeCardComponent, (prevProps, nextProps) => {
   return (
     prevProps.recipe.id === nextProps.recipe.id &&
@@ -747,10 +769,8 @@ export const RecipeCard = React.memo(RecipeCardComponent, (prevProps, nextProps)
     prevProps.recipe.isVegetarian === nextProps.recipe.isVegetarian &&
     prevProps.recipe.prepTimeMinutes === nextProps.recipe.prepTimeMinutes &&
     prevProps.recipe.cookTimeMinutes === nextProps.recipe.cookTimeMinutes &&
-    (prevProps.highlightedIngredients || []).join(',') === (nextProps.highlightedIngredients || []).join(',') &&
     prevProps.hasAllergen === nextProps.hasAllergen &&
-    prevProps.stockProgress?.matchedCount === nextProps.stockProgress?.matchedCount &&
-    prevProps.stockProgress?.totalCount === nextProps.stockProgress?.totalCount &&
-    prevProps.stockProgress?.percentage === nextProps.stockProgress?.percentage
+    areStockProgressEqual(prevProps.stockProgress, nextProps.stockProgress) &&
+    areStringArraysShallowEqual(prevProps.highlightedIngredients, nextProps.highlightedIngredients)
   );
 });

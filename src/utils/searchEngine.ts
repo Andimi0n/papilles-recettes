@@ -217,6 +217,8 @@ function isSynonymMatch(synonymToken: string, targetToken: string): boolean {
  * Vérifie si un mot de requête (ou ses synonymes) matche une liste de tokens d'un champ
  */
 export function tokenMatchesTargetTokens(queryToken: string, targetTokens: string[]): boolean {
+  if (targetTokens.length === 0) return false;
+
   // 1. Match direct ou avec tolérance faute de frappe
   for (const target of targetTokens) {
     if (isFuzzyOrTypoMatch(queryToken, target)) {
@@ -239,12 +241,73 @@ export function tokenMatchesTargetTokens(queryToken: string, targetTokens: strin
   return false;
 }
 
+/**
+ * Version ultra-performante interne évitant de re-résoudre les synonymes à chaque champ
+ */
+function tokenMatchesTargetTokensWithSynonyms(
+  queryToken: string,
+  synonyms: string[],
+  targetTokens: string[]
+): boolean {
+  if (targetTokens.length === 0) return false;
+
+  // 1. Match direct ou avec tolérance faute de frappe
+  for (const target of targetTokens) {
+    if (isFuzzyOrTypoMatch(queryToken, target)) {
+      return true;
+    }
+  }
+
+  // 2. Match via synonymes culinaires pré-résolus
+  if (synonyms.length > 0) {
+    for (const syn of synonyms) {
+      for (const target of targetTokens) {
+        if (isSynonymMatch(syn, target)) {
+          return true;
+        }
+      }
+    }
+  }
+
+  return false;
+}
+
 export interface RecipeSearchResult {
   recipe: Recipe;
   score: number;
   matchedTokensCount: number;
   totalTokensCount: number;
   matchedIngredients: string[];
+}
+
+interface CachedRecipeSearchTokens {
+  titleTokens: string[];
+  descTokens: string[];
+  tagTokens: string[];
+  ingredientTokensMap: { name: string; tokens: string[] }[];
+}
+
+/**
+ * Cache mémoire O(1) des tokens de recettes.
+ * Utilise WeakMap pour un ramasse-miettes automatique sans risque de fuite mémoire.
+ */
+const RECIPE_SEARCH_INDEX_CACHE = new WeakMap<Recipe, CachedRecipeSearchTokens>();
+
+function getOrIndexRecipeTokens(recipe: Recipe): CachedRecipeSearchTokens {
+  let cached = RECIPE_SEARCH_INDEX_CACHE.get(recipe);
+  if (!cached) {
+    cached = {
+      titleTokens: tokenizeText(recipe.title),
+      descTokens: tokenizeText(recipe.description),
+      tagTokens: (recipe.tags || []).flatMap((t) => tokenizeText(t)),
+      ingredientTokensMap: recipe.ingredients.map((ing) => ({
+        name: ing.name,
+        tokens: tokenizeText(ing.name),
+      })),
+    };
+    RECIPE_SEARCH_INDEX_CACHE.set(recipe, cached);
+  }
+  return cached;
 }
 
 /**
@@ -276,35 +339,34 @@ export function searchRecipes(recipes: Recipe[], queryString: string): RecipeSea
     }));
   }
 
+  // Pré-résolution unique des synonymes pour chaque token de recherche (évite 1000+ lookups par requête)
+  const preparedQueryTokens = queryTokens.map((qToken) => ({
+    token: qToken,
+    synonyms: getSynonymsForWord(qToken),
+  }));
+
   const results: RecipeSearchResult[] = [];
 
   recipes.forEach((recipe) => {
-    const titleTokens = tokenizeText(recipe.title);
-    const descTokens = tokenizeText(recipe.description);
-    const tagTokens = (recipe.tags || []).flatMap((t) => tokenizeText(t));
-    
-    // Tokens par ingrédient pour identifier avec précision ceux qui correspondent
-    const ingredientTokensMap = recipe.ingredients.map((ing) => ({
-      name: ing.name,
-      tokens: tokenizeText(ing.name),
-    }));
+    const { titleTokens, descTokens, tagTokens, ingredientTokensMap } =
+      getOrIndexRecipeTokens(recipe);
 
     let matchedTokensForThisRecipe = 0;
     let score = 0;
     const matchedIngNames = new Set<string>();
 
-    queryTokens.forEach((qToken) => {
+    preparedQueryTokens.forEach(({ token: qToken, synonyms }) => {
       let tokenMatchedInRecipe = false;
 
       // 1. Titre (pondération prioritaire : 25 pts)
-      if (tokenMatchesTargetTokens(qToken, titleTokens)) {
+      if (tokenMatchesTargetTokensWithSynonyms(qToken, synonyms, titleTokens)) {
         score += 25;
         tokenMatchedInRecipe = true;
       }
 
       // 2. Ingrédients (pondération forte : 15 pts)
       ingredientTokensMap.forEach((ing) => {
-        if (tokenMatchesTargetTokens(qToken, ing.tokens)) {
+        if (tokenMatchesTargetTokensWithSynonyms(qToken, synonyms, ing.tokens)) {
           score += 15;
           tokenMatchedInRecipe = true;
           matchedIngNames.add(ing.name);
@@ -312,13 +374,13 @@ export function searchRecipes(recipes: Recipe[], queryString: string): RecipeSea
       });
 
       // 3. Description (pondération modérée : 5 pts)
-      if (tokenMatchesTargetTokens(qToken, descTokens)) {
+      if (tokenMatchesTargetTokensWithSynonyms(qToken, synonyms, descTokens)) {
         score += 5;
         tokenMatchedInRecipe = true;
       }
 
       // 4. Tags personnalisés (pondération forte : 20 pts)
-      if (tagTokens.length > 0 && tokenMatchesTargetTokens(qToken, tagTokens)) {
+      if (tagTokens.length > 0 && tokenMatchesTargetTokensWithSynonyms(qToken, synonyms, tagTokens)) {
         score += 20;
         tokenMatchedInRecipe = true;
       }
