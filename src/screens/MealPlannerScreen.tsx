@@ -6,6 +6,12 @@ import {
   TouchableOpacity,
   Alert,
   Modal,
+  Animated,
+  PanResponder,
+  PanResponderGestureState,
+  useWindowDimensions,
+  Keyboard,
+  LayoutChangeEvent,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -55,12 +61,111 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
   isActive = true,
 }) => {
   const { colors } = useTheme();
+  const { width: screenWidth } = useWindowDimensions();
   const [activeMainTab, setActiveMainTab] = useState<'journal' | 'planner'>(initialTab);
+
+  // Position horizontale du Pager (0 = journal, -screenWidth = planner)
+  const [pageTranslateX] = useState(
+    () => new Animated.Value(initialTab === 'journal' ? 0 : -screenWidth)
+  );
+
+  // Mesure dynamique exacte du premier onglet pour positionner et dimensionner la pastille verte
+  const [tabLayout, setTabLayout] = useState<{
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  }>(() => ({
+    x: 4,
+    y: 4,
+    width: Math.max(0, (screenWidth - 40) / 2),
+    height: 34,
+  }));
+
+  const onFirstTabLayout = useCallback((e: LayoutChangeEvent) => {
+    const { x, y, width, height } = e.nativeEvent.layout;
+    if (width > 0 && height > 0) {
+      setTabLayout((prev) => {
+        if (
+          Math.abs(prev.x - x) < 0.5 &&
+          Math.abs(prev.y - y) < 0.5 &&
+          Math.abs(prev.width - width) < 0.5 &&
+          Math.abs(prev.height - height) < 0.5
+        ) {
+          return prev;
+        }
+        return { x, y, width, height };
+      });
+    }
+  }, []);
+
+  // Synchronise si initialTab change depuis l'extérieur (Pattern React 19)
   const [prevInitialTab, setPrevInitialTab] = useState(initialTab);
   if (initialTab && prevInitialTab !== initialTab) {
     setPrevInitialTab(initialTab);
     setActiveMainTab(initialTab);
+    pageTranslateX.setValue(initialTab === 'journal' ? 0 : -screenWidth);
   }
+
+  // Recalage de la translation si la largeur d'écran change ou si l'écran redevient actif
+  useEffect(() => {
+    if (activeMainTab === 'planner') {
+      pageTranslateX.setValue(-screenWidth);
+    } else {
+      pageTranslateX.setValue(0);
+    }
+  }, [screenWidth, activeMainTab, pageTranslateX, isActive]);
+
+  // Interpolation de la position de la pilule indicatrice active (0 -> tabLayout.width)
+  const indicatorTranslateX = useMemo(() => {
+    return pageTranslateX.interpolate({
+      inputRange: [-screenWidth, 0],
+      outputRange: [tabLayout.width, 0],
+      extrapolate: 'clamp',
+    });
+  }, [pageTranslateX, screenWidth, tabLayout.width]);
+
+  // Interpolations d'opacité croisée pour les libellés et icônes des onglets
+  const journalActiveOpacity = useMemo(() => {
+    return pageTranslateX.interpolate({
+      inputRange: [-screenWidth, 0],
+      outputRange: [0, 1],
+      extrapolate: 'clamp',
+    });
+  }, [pageTranslateX, screenWidth]);
+
+  const plannerActiveOpacity = useMemo(() => {
+    return pageTranslateX.interpolate({
+      inputRange: [-screenWidth, 0],
+      outputRange: [1, 0],
+      extrapolate: 'clamp',
+    });
+  }, [pageTranslateX, screenWidth]);
+
+  // Basculement d'onglet fluide et synchronisé (spring physique)
+  const switchTab = useCallback(
+    (target: 'journal' | 'planner', animated = true) => {
+      if (activeMainTab === target) return;
+      Keyboard.dismiss();
+      const targetX = target === 'journal' ? 0 : -screenWidth;
+
+      if (!animated) {
+        pageTranslateX.setValue(targetX);
+        setActiveMainTab(target);
+        return;
+      }
+
+      Animated.spring(pageTranslateX, {
+        toValue: targetX,
+        tension: 70,
+        friction: 9,
+        useNativeDriver: true,
+      }).start(() => {
+        setActiveMainTab(target);
+      });
+    },
+    [activeMainTab, screenWidth, pageTranslateX]
+  );
 
   // --- ÉTAT DU PLANNING HEBDOMADAIRE & RÉGLAGES ---
   const [weeklyPlan, setWeeklyPlan] = useState<WeeklyPlanMap>({});
@@ -422,99 +527,256 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
     }
   };
 
+  // Swipe tactile fluide et continu (type Pager / Launcher Android)
+  const screenSwipePanResponder = useMemo(() => {
+    const shouldCapture = (gestureState: PanResponderGestureState) => {
+      // Si une modale est ouverte, aucun swipe de page
+      if (
+        quickLogModal.visible ||
+        isConfigModalVisible ||
+        isCalendarModalVisible ||
+        Boolean(activeSlot)
+      ) {
+        return false;
+      }
+
+      const absDx = Math.abs(gestureState.dx);
+      const absDy = Math.abs(gestureState.dy);
+
+      // Si le mouvement a une composante verticale significative,
+      // on donne une priorité absolue au scroll vertical de la semaine / journal
+      if (absDy > 10 && absDy * 1.5 > absDx) {
+        return false;
+      }
+
+      // Seuil d'orthogonalité stricte pour le swipe horizontal
+      const isHorizontal = absDx > absDy * 1.8;
+      if (!isHorizontal) return false;
+
+      // Sur suivi des repas : swipe vers la gauche uniquement pour aller vers planning (dx < -18)
+      if (activeMainTab === 'journal' && gestureState.dx < -18) {
+        return true;
+      }
+
+      // Sur planning menus : swipe vers la droite uniquement pour revenir vers suivi (dx > 18)
+      if (activeMainTab === 'planner' && gestureState.dx > 18) {
+        return true;
+      }
+
+      return false;
+    };
+
+    return PanResponder.create({
+      onMoveShouldSetPanResponderCapture: (_, gestureState) => shouldCapture(gestureState),
+      onMoveShouldSetPanResponder: (_, gestureState) => shouldCapture(gestureState),
+      onPanResponderTerminationRequest: () => false,
+      onPanResponderGrant: () => {
+        Keyboard.dismiss();
+        pageTranslateX.stopAnimation();
+      },
+      onPanResponderMove: (_, gestureState) => {
+        const base = activeMainTab === 'journal' ? 0 : -screenWidth;
+        let newX = base + gestureState.dx;
+
+        // Amorti élastique doux aux limites extérieures
+        if (newX > 0) {
+          newX = newX * 0.15;
+        } else if (newX < -screenWidth) {
+          const over = newX + screenWidth;
+          newX = -screenWidth + over * 0.15;
+        }
+
+        pageTranslateX.setValue(newX);
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        let shouldSwitch = false;
+
+        if (activeMainTab === 'journal') {
+          // Vers la gauche : seuil de 35% de la largeur d'écran ou flick vif
+          shouldSwitch =
+            gestureState.dx < -screenWidth * 0.35 ||
+            (gestureState.dx < -25 && gestureState.vx < -0.35);
+        } else {
+          // Vers la droite : seuil de 35% de la largeur d'écran ou flick vif
+          shouldSwitch =
+            gestureState.dx > screenWidth * 0.35 ||
+            (gestureState.dx > 25 && gestureState.vx > 0.35);
+        }
+
+        const destinationTab = shouldSwitch
+          ? (activeMainTab === 'journal' ? 'planner' : 'journal')
+          : activeMainTab;
+
+        const targetX = destinationTab === 'journal' ? 0 : -screenWidth;
+
+        Animated.spring(pageTranslateX, {
+          toValue: targetX,
+          velocity: gestureState.vx,
+          tension: 70,
+          friction: 9,
+          useNativeDriver: true,
+        }).start(() => {
+          setActiveMainTab(destinationTab);
+        });
+      },
+      onPanResponderTerminate: () => {
+        const targetX = activeMainTab === 'journal' ? 0 : -screenWidth;
+        Animated.spring(pageTranslateX, {
+          toValue: targetX,
+          tension: 70,
+          friction: 9,
+          useNativeDriver: true,
+        }).start(() => {
+          setActiveMainTab(activeMainTab);
+        });
+      },
+    });
+  }, [
+    activeMainTab,
+    quickLogModal.visible,
+    isConfigModalVisible,
+    isCalendarModalVisible,
+    activeSlot,
+    screenWidth,
+    pageTranslateX,
+  ]);
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      {/* En-tête principal avec Switcher d'onglets (Suivi des repas vs Planning menus) */}
-      <View style={styles.header}>
-        <View style={styles.headerTitleCol}>
-          <Text style={styles.headerTitle}>Repas</Text>
-          <Text style={styles.headerSubtitle}>
-            {activeMainTab === 'journal'
-              ? 'Suivi des repas midi & soir'
-              : plannedCount === 0
-              ? 'Planification des menus'
-              : `${plannedCount} sur 14 repas prévus`}
-          </Text>
+      <View style={{ flex: 1, overflow: 'hidden' }} {...screenSwipePanResponder.panHandlers}>
+        {/* En-tête principal avec Switcher d'onglets (Suivi des repas vs Planning menus) */}
+        <View style={styles.header}>
+          <View style={styles.headerTitleCol}>
+            <Text style={styles.headerTitle}>Repas</Text>
+            <Text style={styles.headerSubtitle}>
+              {activeMainTab === 'journal'
+                ? 'Suivi des repas midi & soir'
+                : plannedCount === 0
+                ? 'Planification des menus'
+                : `${plannedCount} sur 14 repas prévus`}
+            </Text>
+          </View>
+
+          {activeMainTab === 'planner' && plannedCount > 0 && (
+            <View style={styles.headerActionsRow}>
+              <TouchableOpacity
+                style={styles.headerCartIconBtn}
+                onPress={handleGenerateShoppingList}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityLabel="Générer la liste de courses"
+              >
+                <Ionicons name="cart" size={18} color="#FFFFFF" />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.clearBtn}
+                onPress={handleClearWeek}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityLabel="Effacer les repas de la semaine"
+              >
+                <Ionicons name="trash-outline" size={18} color={colors.danger} />
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
 
-        {activeMainTab === 'planner' && plannedCount > 0 && (
-          <View style={styles.headerActionsRow}>
+        {/* Switcher d'onglets au sommet */}
+        <View style={styles.tabSwitcherWrapper}>
+          <View style={styles.tabSwitcherContainer}>
+            {/* Pilule verte animée continue (glisse 1:1 sous le doigt) */}
+            <Animated.View
+              style={[
+                styles.tabSwitcherPill,
+                {
+                  left: tabLayout.x,
+                  top: tabLayout.y,
+                  width: tabLayout.width,
+                  height: tabLayout.height,
+                  transform: [{ translateX: indicatorTranslateX }],
+                },
+              ]}
+            />
+
+            {/* Onglet 1 : Suivi des repas */}
             <TouchableOpacity
-              style={styles.headerCartIconBtn}
-              onPress={handleGenerateShoppingList}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              accessibilityLabel="Générer la liste de courses"
+              style={styles.tabSwitcherBtn}
+              onLayout={onFirstTabLayout}
+              onPress={() => switchTab('journal')}
+              activeOpacity={0.8}
+              accessibilityLabel="Afficher le suivi des repas"
+              accessibilityRole="tab"
+              accessibilityState={{ selected: activeMainTab === 'journal' }}
             >
-              <Ionicons name="cart" size={18} color="#FFFFFF" />
+              {/* Couche au repos */}
+              <View style={styles.tabSwitcherBtnInner}>
+                <Ionicons name="today-outline" size={15} color={colors.textSecondary} />
+                <Text style={styles.tabSwitcherText}>Suivi des repas</Text>
+              </View>
+
+              {/* Couche active avec fondu enchaîné continu */}
+              <Animated.View
+                style={[
+                  styles.tabSwitcherBtnInner,
+                  styles.tabSwitcherBtnOverlay,
+                  { opacity: journalActiveOpacity },
+                ]}
+                pointerEvents="none"
+              >
+                <Ionicons name="today" size={15} color="#FFFFFF" />
+                <Text style={[styles.tabSwitcherText, styles.tabSwitcherTextActive]}>
+                  Suivi des repas
+                </Text>
+              </Animated.View>
             </TouchableOpacity>
 
+            {/* Onglet 2 : Planning menus */}
             <TouchableOpacity
-              style={styles.clearBtn}
-              onPress={handleClearWeek}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              accessibilityLabel="Effacer les repas de la semaine"
+              style={styles.tabSwitcherBtn}
+              onPress={() => switchTab('planner')}
+              activeOpacity={0.8}
+              accessibilityLabel="Afficher le planning menus"
+              accessibilityRole="tab"
+              accessibilityState={{ selected: activeMainTab === 'planner' }}
             >
-              <Ionicons name="trash-outline" size={18} color={colors.danger} />
+              {/* Couche au repos */}
+              <View style={styles.tabSwitcherBtnInner}>
+                <Ionicons name="calendar-outline" size={15} color={colors.textSecondary} />
+                <Text style={styles.tabSwitcherText}>Planning menus</Text>
+              </View>
+
+              {/* Couche active avec fondu enchaîné continu */}
+              <Animated.View
+                style={[
+                  styles.tabSwitcherBtnInner,
+                  styles.tabSwitcherBtnOverlay,
+                  { opacity: plannerActiveOpacity },
+                ]}
+                pointerEvents="none"
+              >
+                <Ionicons name="calendar" size={15} color="#FFFFFF" />
+                <Text style={[styles.tabSwitcherText, styles.tabSwitcherTextActive]}>
+                  Planning menus
+                </Text>
+              </Animated.View>
             </TouchableOpacity>
           </View>
-        )}
-      </View>
-
-      {/* Switcher d'onglets au sommet */}
-      <View style={styles.tabSwitcherWrapper}>
-        <View style={styles.tabSwitcherContainer}>
-          <TouchableOpacity
-            style={[
-              styles.tabSwitcherBtn,
-              activeMainTab === 'journal' && styles.tabSwitcherBtnActive,
-            ]}
-            onPress={() => setActiveMainTab('journal')}
-            activeOpacity={0.8}
-          >
-            <Ionicons
-              name={activeMainTab === 'journal' ? 'today' : 'today-outline'}
-              size={15}
-              color={activeMainTab === 'journal' ? '#FFFFFF' : colors.textSecondary}
-            />
-            <Text
-              style={[
-                styles.tabSwitcherText,
-                activeMainTab === 'journal' && styles.tabSwitcherTextActive,
-              ]}
-              numberOfLines={1}
-            >
-              Suivi des repas
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.tabSwitcherBtn,
-              activeMainTab === 'planner' && styles.tabSwitcherBtnActive,
-            ]}
-            onPress={() => setActiveMainTab('planner')}
-            activeOpacity={0.8}
-          >
-            <Ionicons
-              name={activeMainTab === 'planner' ? 'calendar' : 'calendar-outline'}
-              size={15}
-              color={activeMainTab === 'planner' ? '#FFFFFF' : colors.textSecondary}
-            />
-            <Text
-              style={[
-                styles.tabSwitcherText,
-                activeMainTab === 'planner' && styles.tabSwitcherTextActive,
-              ]}
-              numberOfLines={1}
-            >
-              Planning menus
-            </Text>
-          </TouchableOpacity>
         </View>
-      </View>
 
-      {/* VUE 1 : SUIVI DES REPAS (JOURNAL) */}
-      {activeMainTab === 'journal' ? (
+        {/* Pager Track animé */}
+        <Animated.View
+          style={[
+            styles.pagerTrack,
+            {
+              width: screenWidth * 2,
+              transform: [{ translateX: pageTranslateX }],
+            },
+          ]}
+        >
+          {/* VUE 1 : SUIVI DES REPAS (JOURNAL) */}
+          <View
+            style={[styles.pagerPage, { width: screenWidth }]}
+            aria-hidden={activeMainTab !== 'journal'}
+          >
         <ScrollView
           style={styles.journalScroll}
           contentContainerStyle={styles.journalContent}
@@ -937,8 +1199,13 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
             })}
           </View>
         </ScrollView>
-      ) : (
-        /* VUE 2 : MENU PRÉVISIONNEL DE LA SEMAINE (PLANNING) */
+      </View>
+
+      {/* VUE 2 : MENU PRÉVISIONNEL DE LA SEMAINE (PLANNING) */}
+      <View
+        style={[styles.pagerPage, { width: screenWidth }]}
+        aria-hidden={activeMainTab !== 'planner'}
+      >
         <ScrollView
           ref={scrollViewRef}
           style={styles.calendarScroll}
@@ -1340,7 +1607,9 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
               );
             })}
           </ScrollView>
-      )}
+        </View>
+      </Animated.View>
+    </View>
 
       {/* Modal de sélection de recette pour le planning prévisionnel */}
       {Boolean(activeSlot) && (

@@ -241,10 +241,10 @@ async function main() {
   console.log('\n--- Test 7 : CHEF_MOODS ---');
   assert.ok(Array.isArray(CHEF_MOODS), 'CHEF_MOODS doit être un tableau');
   assert.ok(CHEF_MOODS.length >= 6, 'CHEF_MOODS doit proposer au moins 6 styles');
-  assert.ok(CHEF_MOODS.some((m) => m.id === 'original'), 'Doit inclure le mood original');
-  assert.ok(CHEF_MOODS.some((m) => m.id === 'classique'), 'Doit inclure le mood classique');
-  assert.ok(CHEF_MOODS.some((m) => m.id === 'asiatique'), 'Doit inclure le mood asiatique');
-  assert.ok(CHEF_MOODS.some((m) => m.id === 'francais'), 'Doit inclure le mood francais');
+  assert.ok(CHEF_MOODS.some((m) => m.id === 'quotidien'), 'Doit inclure le mood quotidien');
+  assert.ok(CHEF_MOODS.some((m) => m.id === 'creatif'), 'Doit inclure le mood creatif');
+  assert.ok(CHEF_MOODS.some((m) => m.id === 'express'), 'Doit inclure le mood express');
+  assert.ok(CHEF_MOODS.some((m) => m.id === 'reconfort'), 'Doit inclure le mood reconfort');
   console.log('✓ Catalogue des styles & moods du Chef validé');
 
   // =========================================================================
