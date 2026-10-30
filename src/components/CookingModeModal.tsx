@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   Modal,
   View,
@@ -136,7 +136,8 @@ export const CookingModeModal: React.FC<CookingModeModalProps> = ({
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [checkedIngredients, setCheckedIngredients] = useState<Record<string, boolean>>({});
   const [isIngredientsSheetVisible, setIsIngredientsSheetVisible] = useState(false);
-  const [activeTimer, setActiveTimer] = useState<RunningTimer | null>(null);
+  const [activeTimers, setActiveTimers] = useState<RunningTimer[]>([]);
+  const [finishedTimerId, setFinishedTimerId] = useState<string | null>(null);
   const [isTimerFinishedModalVisible, setIsTimerFinishedModalVisible] = useState(false);
   const [isCompletedModalVisible, setIsCompletedModalVisible] = useState(false);
   const [userRating, setUserRating] = useState(recipe.rating || 0);
@@ -226,33 +227,11 @@ export const CookingModeModal: React.FC<CookingModeModalProps> = ({
   }, [stepDetectedIngredientsList, currentStepIndex, previouslyDetectedIngredientKeys]);
 
 
-  // Gestion du compte à rebours du minuteur actif
-  useEffect(() => {
-    let interval: any = null;
 
-    if (activeTimer && activeTimer.isRunning && activeTimer.remainingSeconds > 0) {
-      interval = setInterval(() => {
-        setActiveTimer((prev) => {
-          if (!prev) return null;
-          if (prev.remainingSeconds <= 1) {
-            // Fin du minuteur !
-            triggerTimerAlert();
-            return { ...prev, remainingSeconds: 0, isRunning: false };
-          }
-          return { ...prev, remainingSeconds: prev.remainingSeconds - 1 };
-        });
-      }, 1000);
-    }
-
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [activeTimer?.isRunning, activeTimer?.remainingSeconds]);
-
+  // Référence stable vers triggerTimerAlert (évite de recréer l'interval)
+  const triggerTimerAlertRef = useRef<() => void>(() => {});
   // Alerte haptique et sonore lors de la fin du minuteur
-  const triggerTimerAlert = () => {
-    setIsTimerFinishedModalVisible(true);
-
+  const triggerTimerAlert = useCallback(() => {
     // Vibration mobile (rythme d'alerte de cuisine)
     if (Platform.OS !== 'web') {
       Vibration.vibrate([0, 500, 200, 500, 200, 800]);
@@ -284,38 +263,73 @@ export const CookingModeModal: React.FC<CookingModeModalProps> = ({
         playTone(1760, 400, 0.8);
       }
     } catch {}
-  };
+  }, []);
+
+
+  // Synchronise la ref avec le callback le plus récent (après chaque render)
+  useEffect(() => {
+    triggerTimerAlertRef.current = triggerTimerAlert;
+  });
+
+  // Interval global unique pour décrémenter tous les minuteurs actifs
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const finished: string[] = [];
+      setActiveTimers((prev) => {
+        const next = prev.map((t) => {
+          if (!t.isRunning || t.remainingSeconds <= 0) return t;
+          if (t.remainingSeconds <= 1) {
+            finished.push(t.id);
+            return { ...t, remainingSeconds: 0, isRunning: false };
+          }
+          return { ...t, remainingSeconds: t.remainingSeconds - 1 };
+        });
+        return next;
+      });
+      // Déclenche l'alerte pour le premier timer terminé ce tick
+      if (finished.length > 0) {
+        setFinishedTimerId(finished[0]);
+        setIsTimerFinishedModalVisible(true);
+        triggerTimerAlertRef.current();
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
 
   const handleStartTimer = useCallback((label: string, totalSec: number) => {
-    setActiveTimer({
-      id: `timer_${Date.now()}`,
-      label,
-      stepIndex: currentStepIndex,
-      totalSeconds: totalSec,
-      remainingSeconds: totalSec,
-      isRunning: true,
-    });
+    setActiveTimers((prev) => [
+      ...prev,
+      {
+        id: `timer_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        label,
+        stepIndex: currentStepIndex,
+        totalSeconds: totalSec,
+        remainingSeconds: totalSec,
+        isRunning: true,
+      },
+    ]);
   }, [currentStepIndex]);
 
-  const handleToggleTimerPause = () => {
-    setActiveTimer((prev) => (prev ? { ...prev, isRunning: !prev.isRunning } : null));
+  const handleToggleTimerPause = (id: string) => {
+    setActiveTimers((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, isRunning: !t.isRunning } : t))
+    );
   };
 
-  const handleAdjustTimerMinutes = (deltaMinutes: number) => {
-    setActiveTimer((prev) => {
-      if (!prev) return null;
-      const newRem = Math.max(1, prev.remainingSeconds + deltaMinutes * 60);
-      return {
-        ...prev,
-        remainingSeconds: newRem,
-        totalSeconds: Math.max(newRem, prev.totalSeconds),
-        isRunning: true,
-      };
-    });
+  const handleAdjustTimerMinutes = (id: string, deltaMinutes: number) => {
+    setActiveTimers((prev) =>
+      prev.map((t) => {
+        if (t.id !== id) return t;
+        const newRem = Math.max(1, t.remainingSeconds + deltaMinutes * 60);
+        return { ...t, remainingSeconds: newRem, totalSeconds: Math.max(newRem, t.totalSeconds), isRunning: true };
+      })
+    );
   };
 
-  const handleStopTimer = () => {
-    setActiveTimer(null);
+  const handleStopTimer = (id: string) => {
+    setActiveTimers((prev) => prev.filter((t) => t.id !== id));
   };
 
   const handleNextStep = () => {
@@ -338,7 +352,7 @@ export const CookingModeModal: React.FC<CookingModeModalProps> = ({
   };
 
   const handleRequestClose = () => {
-    if (activeTimer && activeTimer.isRunning) {
+    if (activeTimers.some((t) => t.isRunning)) {
       Alert.alert(
         'Minuteur en cours',
         'Un minuteur de cuisine est actuellement en cours. Voulez-vous vraiment quitter le mode pas-à-pas ?',
@@ -348,7 +362,7 @@ export const CookingModeModal: React.FC<CookingModeModalProps> = ({
             text: 'Quitter',
             style: 'destructive',
             onPress: () => {
-              setActiveTimer(null);
+              setActiveTimers([]);
               onClose();
             },
           },
@@ -434,110 +448,116 @@ export const CookingModeModal: React.FC<CookingModeModalProps> = ({
             <View style={[styles.progressBarFill, { width: `${progressPercent}%` }]} />
           </View>
 
-          {/* Bandeau Minuteur Persistant (si actif) */}
-          {activeTimer && (
-            <View
-              style={[
-                styles.activeTimerBanner,
-                activeTimer.remainingSeconds === 0 && styles.activeTimerBannerFinished,
-              ]}
-            >
-              <View style={styles.activeTimerLeft}>
-                <Ionicons
-                  name={activeTimer.isRunning ? 'timer' : 'pause-circle'}
-                  size={20}
-                  color={activeTimer.remainingSeconds === 0 ? '#FFFFFF' : Colors.primary}
-                />
-                <View>
-                  <Text
-                    style={[
-                      styles.activeTimerDigits,
-                      activeTimer.remainingSeconds === 0 && styles.activeTimerDigitsFinished,
-                    ]}
-                  >
-                    {formatTimerSeconds(activeTimer.remainingSeconds)}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.activeTimerLabel,
-                      activeTimer.remainingSeconds === 0 && styles.activeTimerLabelFinished,
-                    ]}
-                  >
-                    Minuteur {activeTimer.label} (Étape {activeTimer.stepIndex + 1})
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.activeTimerActions}>
-                {activeTimer.remainingSeconds > 0 ? (
-                  <>
-                    <TouchableOpacity
-                      style={styles.timerSmallBtn}
-                      onPress={handleToggleTimerPause}
-                      activeOpacity={0.7}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      accessibilityLabel={activeTimer.isRunning ? 'Mettre en pause' : 'Reprendre'}
-                    >
-                      <Ionicons
-                        name={activeTimer.isRunning ? 'pause' : 'play'}
-                        size={15}
-                        color={Colors.primary}
-                      />
-                    </TouchableOpacity>
-
-                    {/* Bouton -1m */}
-                    <TouchableOpacity
-                      style={[
-                        styles.timerSmallBtn,
-                        activeTimer.remainingSeconds <= 60 && styles.timerSmallBtnDisabled,
-                      ]}
-                      onPress={() => handleAdjustTimerMinutes(-1)}
-                      disabled={activeTimer.remainingSeconds <= 60}
-                      activeOpacity={0.7}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      accessibilityLabel="Retirer 1 minute"
-                    >
+          {/* Bandeau Minuteurs Persistants (empilés, un par minuteur actif) */}
+          {activeTimers.length > 0 && (
+            <View style={styles.timerStack}>
+              {activeTimers.map((t) => (
+                <View
+                  key={t.id}
+                  style={[
+                    styles.activeTimerBanner,
+                    t.remainingSeconds === 0 && styles.activeTimerBannerFinished,
+                  ]}
+                >
+                  <View style={styles.activeTimerLeft}>
+                    <Ionicons
+                      name={t.isRunning ? 'timer' : 'pause-circle'}
+                      size={18}
+                      color={t.remainingSeconds === 0 ? '#FFFFFF' : Colors.primary}
+                    />
+                    <View>
                       <Text
                         style={[
-                          styles.timerAddMinuteText,
-                          activeTimer.remainingSeconds <= 60 && styles.timerMinuteTextDisabled,
+                          styles.activeTimerDigits,
+                          t.remainingSeconds === 0 && styles.activeTimerDigitsFinished,
                         ]}
                       >
-                        -1m
+                        {formatTimerSeconds(t.remainingSeconds)}
                       </Text>
-                    </TouchableOpacity>
+                      <Text
+                        style={[
+                          styles.activeTimerLabel,
+                          t.remainingSeconds === 0 && styles.activeTimerLabelFinished,
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {t.label} · Étape {t.stepIndex + 1}
+                      </Text>
+                    </View>
+                  </View>
 
-                    {/* Bouton +1m */}
-                    <TouchableOpacity
-                      style={styles.timerSmallBtn}
-                      onPress={() => handleAdjustTimerMinutes(1)}
-                      activeOpacity={0.7}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      accessibilityLabel="Ajouter 1 minute"
-                    >
-                      <Text style={styles.timerAddMinuteText}>+1m</Text>
-                    </TouchableOpacity>
+                  <View style={styles.activeTimerActions}>
+                    {t.remainingSeconds > 0 ? (
+                      <>
+                        <TouchableOpacity
+                          style={styles.timerSmallBtn}
+                          onPress={() => handleToggleTimerPause(t.id)}
+                          activeOpacity={0.7}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          accessibilityLabel={t.isRunning ? 'Mettre en pause' : 'Reprendre'}
+                        >
+                          <Ionicons
+                            name={t.isRunning ? 'pause' : 'play'}
+                            size={14}
+                            color={Colors.primary}
+                          />
+                        </TouchableOpacity>
 
-                    <TouchableOpacity
-                      style={[styles.timerSmallBtn, styles.timerStopBtn]}
-                      onPress={handleStopTimer}
-                      activeOpacity={0.7}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      accessibilityLabel="Arrêter le minuteur"
-                    >
-                      <Ionicons name="stop" size={14} color={Colors.danger} />
-                    </TouchableOpacity>
-                  </>
-                ) : (
-                  <TouchableOpacity
-                    style={styles.timerStopAlarmBtn}
-                    onPress={handleStopTimer}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={styles.timerStopAlarmText}>Arrêter</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
+                        {/* Bouton -1m */}
+                        <TouchableOpacity
+                          style={[
+                            styles.timerSmallBtn,
+                            t.remainingSeconds <= 60 && styles.timerSmallBtnDisabled,
+                          ]}
+                          onPress={() => handleAdjustTimerMinutes(t.id, -1)}
+                          disabled={t.remainingSeconds <= 60}
+                          activeOpacity={0.7}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          accessibilityLabel="Retirer 1 minute"
+                        >
+                          <Text
+                            style={[
+                              styles.timerAddMinuteText,
+                              t.remainingSeconds <= 60 && styles.timerMinuteTextDisabled,
+                            ]}
+                          >
+                            -1m
+                          </Text>
+                        </TouchableOpacity>
+
+                        {/* Bouton +1m */}
+                        <TouchableOpacity
+                          style={styles.timerSmallBtn}
+                          onPress={() => handleAdjustTimerMinutes(t.id, 1)}
+                          activeOpacity={0.7}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          accessibilityLabel="Ajouter 1 minute"
+                        >
+                          <Text style={styles.timerAddMinuteText}>+1m</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={[styles.timerSmallBtn, styles.timerStopBtn]}
+                          onPress={() => handleStopTimer(t.id)}
+                          activeOpacity={0.7}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          accessibilityLabel="Arrêter le minuteur"
+                        >
+                          <Ionicons name="stop" size={13} color={Colors.danger} />
+                        </TouchableOpacity>
+                      </>
+                    ) : (
+                      <TouchableOpacity
+                        style={styles.timerStopAlarmBtn}
+                        onPress={() => handleStopTimer(t.id)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.timerStopAlarmText}>Arrêter</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+              ))}
             </View>
           )}
 
@@ -757,14 +777,22 @@ export const CookingModeModal: React.FC<CookingModeModalProps> = ({
 
               <Text style={styles.alertTitle}>Minuteur Terminé !</Text>
               <Text style={styles.alertMessage}>
-                Le temps de cuisson pour l’étape {activeTimer ? activeTimer.stepIndex + 1 : ''} est écoulé.
+                {(() => {
+                  const finished = activeTimers.find((t) => t.id === finishedTimerId);
+                  return finished
+                    ? `Le minuteur « ${finished.label} » (Étape ${finished.stepIndex + 1}) est écoulé.`
+                    : 'Le temps de cuisson est écoulé.';
+                })()}
               </Text>
 
               <TouchableOpacity
                 style={styles.alertDismissBtn}
                 onPress={() => {
                   setIsTimerFinishedModalVisible(false);
-                  setActiveTimer(null);
+                  if (finishedTimerId) {
+                    setActiveTimers((prev) => prev.filter((t) => t.id !== finishedTimerId));
+                    setFinishedTimerId(null);
+                  }
                 }}
                 activeOpacity={0.85}
               >
@@ -915,6 +943,9 @@ const styles = createDynamicStyles((colors, shadows) => ({
     backgroundColor: Colors.primary,
   },
   // Bandeau Minuteur Persistant
+  timerStack: {
+    flexDirection: 'column',
+  },
   activeTimerBanner: {
     flexDirection: 'row',
     alignItems: 'center',
