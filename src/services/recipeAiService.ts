@@ -249,63 +249,110 @@ export interface ChefMoodOption {
   id: string;
   label: string;
   icon: string;
-  promptInstruction: string;
+  /** Identité et philosophie pour la recherche des 3 idées (Étape 1) */
+  systemPersona: string;
+  /** Formulation de la demande utilisateur pour les 3 idées (Étape 1) */
+  userDirective: string;
+  /** Consignes techniques et de style pour la rédaction de la recette complète (Étape 2) */
+  recipeExecutionPrompt: string;
 }
 
 export const CHEF_MOODS: ChefMoodOption[] = [
   {
-    id: 'libre',
-    label: 'Équilibré',
+    id: 'quotidien',
+    label: 'Quotidien',
     icon: 'sparkles-outline',
-    promptInstruction: '',
+    systemPersona: `Tu es un chef spécialisé dans la cuisine de tous les jours : simple, savoureuse, bien équilibrée et accessible.
+Ta philosophie : aller à l'essentiel avec des cuissons maîtrisées, des gestes simples et des associations valeurs sûres qui plaisent à toute la table sans passer des heures en cuisine.`,
+    userDirective: 'Conçois 3 idées de repas du quotidien simples, équilibrées et faciles à réaliser',
+    recipeExecutionPrompt: `Tu es un chef pédagogue spécialisé dans la cuisine du quotidien.
+- Style de rédaction : étapes claires, accessibles et rassurantes, sans jargon inutile.
+- Technique : privilégie des découpes simples et des cuissons faciles à contrôler.
+- Astuce ('userNote') : donne un conseil pratique d'organisation ou de conservation.`,
   },
   {
-    id: 'original',
-    label: 'Créatif',
+    id: 'creatif',
+    label: 'Créatif & Bistronomie',
     icon: 'color-palette-outline',
-    promptInstruction: 'STYLE / MOOD : Créatif et original. Propose des associations d\'ingrédients audacieuses mais harmonieuses et des revisites modernes.',
-  },
-  {
-    id: 'classique',
-    label: 'Classique',
-    icon: 'restaurant-outline',
-    promptInstruction: 'STYLE / MOOD : Classique et réconfortant. Privilégie les plats traditionnels, familiaux et les saveurs familières.',
+    systemPersona: `Tu es un jeune chef de restaurant bistronomique créatif et audacieux.
+Ta philosophie : surprendre avec des associations de saveurs originales mais harmonieuses, des contrastes de textures (croquant/fondant, chaud/froid, sucré/salé subtil) et des plats dignes d'un dîner avec des invités.`,
+    userDirective: 'Surprends-moi avec 3 idées bistronomiques créatives et originales',
+    recipeExecutionPrompt: `Tu es un chef de restaurant bistronomique créatif et exigeant sur les textures et le dressage.
+- Style de rédaction : soigné et inspirant. Détaille le travail des textures (éléments croquants, crémeux, rôtis) et consacre la dernière étape à un dressage élégant à l'assiette.
+- Astuce ('userNote') : donne un conseil de chef sur le dressage ou la touche finale visuelle et gustative.`,
   },
   {
     id: 'express',
-    label: 'Express',
+    label: 'Express 15 min',
     icon: 'flash-outline',
-    promptInstruction: 'STYLE / MOOD : Express et rapide. Propose des préparations prêtes en moins de 20 minutes avec un minimum de manipulations.',
+    systemPersona: `Tu es le roi de la cuisine ultra-rapide pour les soirs de semaine pressés.
+Ta philosophie : ZÉRO prise de tête, temps total (préparation + cuisson) strictement inférieur à 15-20 minutes, et minimum de vaisselle (privilégie le "one-pan" / une seule poêle ou casserole).
+Interdiction de proposer des plats mijotés, des cuissons au four longues, des pâtes à étaler ou des préparations multi-étapes.`,
+    userDirective: 'Trouve 3 idées express (prêtes en 15 minutes max, minimum de découpe et de vaisselle)',
+    recipeExecutionPrompt: `Tu es le spécialiste de la cuisine chrono et zéro vaisselle.
+- Contrainte stricte : la somme de 'prepTimeMinutes' + 'cookTimeMinutes' ne doit PAS dépasser 20 minutes. Difficulté obligatoirement 'Facile'.
+- Style de rédaction : étapes ultra-directes, optimisées dans le temps (ex: "Pendant que l'eau chauffe, émincez..."). Regroupe les cuissons dans un seul récipient quand c'est possible.
+- Astuce ('userNote') : donne un raccourci supplémentaire pour gagner encore plus de temps.`,
   },
   {
-    id: 'francais',
-    label: 'Français',
-    icon: 'flag-outline',
-    promptInstruction: 'STYLE / MOOD : Cuisine française de terroir ou esprit bistrot.',
-  },
-  {
-    id: 'italien',
-    label: 'Italien',
-    icon: 'pizza-outline',
-    promptInstruction: 'STYLE / MOOD : Inspiration italienne (trattoria, antipasti, pasta, risotto, herbes méditerranéennes).',
-  },
-  {
-    id: 'asiatique',
-    label: 'Asiatique',
+    id: 'reconfort',
+    label: 'Réconfortant',
     icon: 'flame-outline',
-    promptInstruction: 'STYLE / MOOD : Inspiration asiatique (saveurs sautées au wok, sauces soja/sésame/gingembre, équilibre sucré-salé ou vapeurs).',
+    systemPersona: `Tu es un chef expert en "Comfort Food" généreuse, gourmande et chaleureuse.
+Ta philosophie : faire plaisir avec des textures enveloppantes, fondantes ou croustillantes. Privilégie les plats gratinés, les sauces onctueuses, les poêlées généreuses, les plats mijotés ou les classiques régressifs qui réchauffent le cœur.`,
+    userDirective: 'Imagine 3 idées de plats ultra-réconfortants, généreux et gourmands',
+    recipeExecutionPrompt: `Tu es un chef expert en "Comfort Food" généreuse et gourmande.
+- Style de rédaction : mets l'accent sur la gourmandise des textures (le gratiné, le fondant, le lié d'une sauce, la caramélisation des sucs).
+- Technique : soigne particulièrement les étapes de coloration, d'assaisonnement et de liaison.
+- Astuce ('userNote') : propose une touche finale ultra-gourmande pour sublimer le plat à table.`,
   },
   {
-    id: 'mediterraneen',
-    label: 'Méditerranéen',
-    icon: 'sunny-outline',
-    promptInstruction: 'STYLE / MOOD : Méditerranéen et ensoleillé (huile d\'olive, légumes du soleil, ail, herbes fraîches).',
+    id: 'leger',
+    label: 'Léger & Saisonnier',
+    icon: 'leaf-outline',
+    systemPersona: `Tu es un chef spécialisé en cuisine bien-être, fraîche, digeste et pleine de vitalité.
+Ta philosophie : sublimer le goût brut des produits avec des cuissons douces ou minutes (vapeur, saisi rapide, cru/mariné), peu de matières grasses lourdes, une belle place aux légumes et aux herbes fraîches pour une assiette saine et rassasiante.`,
+    userDirective: 'Compose 3 idées fraîches, saines, légères et digestes',
+    recipeExecutionPrompt: `Tu es un chef spécialisé en cuisine saine, fraîche et vivante.
+- Style de rédaction : privilégie des cuissons courtes ou douces qui préservent le croquant, les couleurs et les nutriments des ingrédients.
+- Technique : dose les matières grasses avec justesse (filet d'huile en fin de cuisson, assaisonnements citronnés/vinaigrés, herbes fraîches).
+- Astuce ('userNote') : donne un conseil fraîcheur ou équilibre nutritionnel.`,
   },
   {
-    id: 'epice',
-    label: 'Épicé',
-    icon: 'bonfire-outline',
-    promptInstruction: 'STYLE / MOOD : Épicé et chaleureux (saveurs relevées, épices parfumées douces ou piquantes).',
+    id: 'vide_frigo',
+    label: 'Vide-frigo',
+    icon: 'basket-outline',
+    systemPersona: `Tu es un chef expert en cuisine anti-gaspillage et d'assemblage malin.
+Ta philosophie : combiner un maximum d'ingrédients disponibles dans un même plat cohérent pour vider le frigo intelligemment. Privilégie les formats caméléons : grandes poêlées complètes, frittatas/omelettes garnies, quiches/tartes rustiques, buddha bowls, woks ou soupes-repas.`,
+    userDirective: 'Crée 3 idées "zéro gaspi" malignes qui combinent un maximum de ces ingrédients',
+    recipeExecutionPrompt: `Tu es un chef expert en cuisine anti-gaspillage et d'assemblage malin.
+- Style de rédaction : organise les étapes par ordre de temps de cuisson des ingrédients (du plus ferme au plus tendre) pour que tout soit cuit à la perfection ensemble.
+- Technique : valorise l'intégralité des produits (fanes, tiges tendres, sucs).
+- Astuce ('userNote') : indique comment réutiliser les éventuels restes ou adapter les quantités selon ce qu'il reste au frigo.`,
+  },
+  {
+    id: 'bistrot',
+    label: 'Bistrot & Tradition',
+    icon: 'wine-outline',
+    systemPersona: `Tu es un chef de bistrot attaché au terroir, aux grands classiques familiaux et au savoir-faire traditionnel.
+Ta philosophie : proposer des valeurs sûres de la cuisine de brasserie et de grand-mère (beurre, herbes aromatiques, déglaçage, jus réduits, cuissons justes) avec des intitulés authentiques.`,
+    userDirective: 'Propose 3 idées esprit bistrot ou cuisine traditionnelle familiale',
+    recipeExecutionPrompt: `Tu es un chef de bistrot traditionnel attaché aux bons gestes culinaires.
+- Style de rédaction : précis et authentique, en expliquant les gestes clés (saisir à feu vif, faire suer, déglacer les sucs, monter au beurre ou réduire le jus).
+- Technique : respecte les cuissons traditionnelles qui donnent du goût.
+- Astuce ('userNote') : livre un secret de tour de main de bistrot pour réussir la cuisson ou la sauce.`,
+  },
+  {
+    id: 'voyage',
+    label: 'Voyage & Épices',
+    icon: 'earth-outline',
+    systemPersona: `Tu es un chef globe-trotter passionné par les cuisines du monde (Asie, Méditerranée, Moyen-Orient, Amérique Latine, Inde).
+Ta philosophie : faire voyager les papilles en transformant des ingrédients simples grâce aux épices, aux condiments, aux marinades, aux sautés au wok, aux currys ou aux saveurs ensoleillées.`,
+    userDirective: 'Fais voyager avec 3 idées dépaysantes inspirées des cuisines du monde',
+    recipeExecutionPrompt: `Tu es un chef globe-trotter expert en cuisines du monde et en maîtrise des épices.
+- Style de rédaction : insiste sur le développement des arômes (torréfier les épices à sec ou dans l'huile chaude, saisir à feu vif, équilibrer l'acide/salé/sucré/piquant).
+- Technique : adapte la découpe au style du plat (émincé fin pour sauter, cubes réguliers pour mijoter).
+- Astuce ('userNote') : suggère comment ajuster l'intensité aromatique ou le piquant selon les goûts.`,
   },
 ];
 
@@ -1583,29 +1630,39 @@ ${sanitizedInput}
         ? `ALLERGÈNES STRICTEMENT INTERDITS :\n${options.excludedAllergens.map((a) => `- ${escapeUntrustedDelimiters(a, 'untrusted_allergen')}`).join('\n')}\n`
         : '';
 
-    const moodConfig = CHEF_MOODS.find((m) => m.id === options?.chefMood);
-    const moodInstruction = moodConfig?.promptInstruction ? `\n${moodConfig.promptInstruction}\n` : '';
+    // Récupération du mood choisi (repli sur le 1er mood "quotidien" par défaut)
+    const moodConfig =
+      CHEF_MOODS.find((m) => m.id === options?.chefMood) || CHEF_MOODS[0];
 
-    const systemPrompt = `Tu es un chef cuisinier expert en cuisine simple du quotidien, saine et anti-gaspillage.
-Propose exactement 3 idées de ${targetType} adaptées aux ingrédients fournis (tu peux supposer disponibles sel, poivre, huiles usuelles, beurre, eau, herbes, épices basiques).
-Contraintes :
-1. ${isVege ? '100% végétarien obligatoire.' : 'Recettes simples et équilibrées.'}
-${allergenExclusionSection}
-${antiRedundancySection}
-${moodInstruction}
-2. ÉQUITÉ DU PANIER : Explore équitablement l'ensemble de la liste d'ingrédients sans privilégier arbitrairement les premiers cités par rapport aux derniers.
-3. TITRES : très courts, sobres et directs (ex: "Risotto aux champignons"). Interdiction absolue d'adjectifs dithyrambiques ou pompeux ("crémeux", "fondant", "sublime", "délicieux", "gourmand").
-4. DESCRIPTIONS : 1 phrase factuelle décrivant la préparation et la cuisson.`;
+    const systemPrompt = `${moodConfig.systemPersona}
+
+Ta mission : proposer exactement 3 idées de ${targetType} adaptées aux ingrédients disponibles (fond de placard supposé disponible : sel, poivre, huiles courantes, beurre, vinaigre, eau, ail/oignon sec, herbes et épices courantes).
+
+Règles strictes :
+1. ${isVege ? 'RÉGIME : 100% végétarien obligatoire (aucune viande, volaille, poisson ou fruit de mer).' : 'Respecte scrupuleusement l\'esprit et le style culinaire de ton rôle.'}
+${allergenExclusionSection}${antiRedundancySection}2. ÉQUITÉ DU PANIER : Pioche de façon variée dans toute la liste d'ingrédients sans favoriser systématiquement les premiers cités. Les 3 idées doivent être bien distinctes les unes des autres.
+3. TITRES : courts, sobres et précis (ex: "Poêlée de gnocchis aux champignons"). Interdiction formelle d'utiliser des adjectifs vendeurs ou pompeux ("délicieux", "gourmand", "sublime", "onctueux", "parfait").
+4. DESCRIPTIONS : 1 seule phrase factuelle résumant la technique de préparation et l'assemblage.
+5. TEMPS ESTIMÉ : cohérent avec ton style culinaire.`;
 
     // Mélange aléatoire (Fisher-Yates) pour supprimer le biais d'attention positionnelle de l'IA sur l'ordre du stock
     const randomizedIngredients = shuffleArray(cleanIngredientsList);
     const sanitizedIngredients = randomizedIngredients.map((i) =>
       escapeUntrustedDelimiters(i.slice(0, 100), 'untrusted_fridge_ingredients')
     );
-    const userPayload = `Propose 3 idées sobres et concises de type "${targetType}" avec ces ingrédients :
+
+    const userPayload = `${moodConfig.userDirective} (catégorie : "${targetType}") à partir de ce stock :
 <untrusted_fridge_ingredients>
 ${sanitizedIngredients.join(', ')}
-</untrusted_fridge_ingredients>${options?.additionalPreferences ? `\nPréférences : ${escapeUntrustedDelimiters(options.additionalPreferences.slice(0, 150), 'untrusted_fridge_ingredients')}` : ''}`;
+</untrusted_fridge_ingredients>${options?.additionalPreferences ? `\nPréférences supplémentaires : ${escapeUntrustedDelimiters(options.additionalPreferences.slice(0, 150), 'untrusted_fridge_ingredients')}` : ''}`;
+    // Journalisation explicite du prompt envoyé à l'IA pour les 3 idées de recettes
+    console.log('\n======================================================================');
+    console.log("🤖 [CHEF IA - TROUVER 3 IDÉES DE RECETTES] ENVOI DU PROMPT À L'IA");
+    console.log('======================================================================');
+    console.log(`📋 [Prompt Système] :\n${systemPrompt}\n`);
+    console.log(`💬 [Prompt Utilisateur] :\n${userPayload}\n`);
+    console.log(`⚙️ [Ingrédients du stock transmis] (${cleanIngredientsList.length}) :`, cleanIngredientsList);
+    console.log('======================================================================\n');
 
     const payload = {
       system_instruction: {
@@ -1634,13 +1691,25 @@ ${sanitizedIngredients.join(', ')}
     );
     const rawParsed = parsed;
 
-    const rawList = Array.isArray(rawParsed)
-      ? rawParsed
-      : Array.isArray(rawParsed?.ideas)
-        ? rawParsed.ideas
-        : [];
+    let rawList: any[] = [];
+    if (Array.isArray(rawParsed)) {
+      rawList = rawParsed;
+    } else if (Array.isArray(rawParsed?.ideas)) {
+      rawList = rawParsed.ideas;
+    } else if (Array.isArray(rawParsed?.recipeIdeas)) {
+      rawList = rawParsed.recipeIdeas;
+    } else if (Array.isArray(rawParsed?.recipes)) {
+      rawList = rawParsed.recipes;
+    } else if (Array.isArray(rawParsed?.suggestions)) {
+      rawList = rawParsed.suggestions;
+    } else if (rawParsed && typeof rawParsed === 'object') {
+      const arrayKey = Object.keys(rawParsed).find((k) => Array.isArray(rawParsed[k]));
+      if (arrayKey) {
+        rawList = rawParsed[arrayKey];
+      }
+    }
 
-    return rawList.slice(0, 3).map((item: any, idx: number) => ({
+    const resultIdeas = rawList.slice(0, 3).map((item: any, idx: number) => ({
       id: item?.id || `idea_${idx + 1}`,
       title: String(item?.title || `Idée gourmande ${idx + 1}`).trim(),
       description: String(item?.description || '').trim(),
@@ -1649,11 +1718,19 @@ ${sanitizedIngredients.join(', ')}
         ? item.highlightIngredients.map((h: any) => String(h).trim()).filter(Boolean)
         : cleanIngredientsList.slice(0, 3),
     }));
+
+    console.log(
+      `✨ [CHEF IA - 3 IDÉES REÇUES] :`,
+      resultIdeas.map((i) => i.title)
+    );
+
+    return resultIdeas;
   },
 
   /**
    * Étape 2 de la génération (Solution 4) :
-   * Développe la fiche recette complète à partir de l'idée choisie par l'utilisateur.
+   * Développe la fiche recette complète à partir de l'idée choisie par l'utilisateur,
+   * en conservant le "mood" culinaire sélectionné.
    */
   async generateRecipeFromIdea(
     idea: RecipeIdea,
@@ -1664,6 +1741,7 @@ ${sanitizedIngredients.join(', ')}
       onlyVegetarian?: boolean;
       excludedAllergens?: string[];
       additionalPreferences?: string;
+      chefMood?: string; // <-- AJOUT ICI
       onModelAttempt?: (modelName: string, isFallback: boolean) => void;
     },
     providedKey?: string
@@ -1679,6 +1757,10 @@ ${sanitizedIngredients.join(', ')}
     const targetType = options?.mealType || 'Plat';
     const servings = options?.servings || 4;
     const isVege = options?.onlyVegetarian ?? false;
+
+    // Récupération de la configuration du mood (repli sur "quotidien" par défaut)
+    const moodConfig =
+      CHEF_MOODS.find((m) => m.id === options?.chefMood) || CHEF_MOODS[0];
 
     // Prioriser les ingrédients clés de l'idée en premier, complétés par le stock disponible
     const highlightSet = new Set((idea.highlightIngredients || []).map((h) => h.toLowerCase().trim()));
@@ -1698,22 +1780,41 @@ ${sanitizedIngredients.join(', ')}
         ? `INSTRUCTIONS LIBRES DE L'UTILISATEUR :\n- ${escapeUntrustedDelimiters(options.additionalPreferences.trim().slice(0, 150), 'untrusted_preferences')}\n`
         : '';
 
-    const systemPrompt = `Tu es un chef cuisinier pédagogue et concis.
-Rédige la fiche recette pour "${escapeUntrustedDelimiters(idea.title, 'idea')}" (${targetType}, ${servings} personnes).
-Concept : "${escapeUntrustedDelimiters(idea.description, 'idea')}"
-${isVege ? '- 100% végétarien obligatoire (sans viande ni poisson).\n' : ''}${allergenExclusionSection}${additionalPreferencesSection}Règles :
-- Étapes : étapes directes, claires et numérotées (1 à 2 phrases par étape, droit au but). Adapte librement le nombre d'étapes à la recette (ex: 4 à 10 étapes selon le besoin, sans limite arbitraire).
-- Ingrédients : forme canonique brute au singulier pour 'name' (ex: 'Carotte', 'Poulet'). Contenants dans 'unit' et découpe dans 'steps'. Précise le type d'huile (ex: 'Huile d\'olive', 'Huile de tournesol') plutôt que 'Huile' générique.
-- 'isPantryStaple': true pour sel, poivre, huiles courantes, eau, vinaigre, épices basiques. False pour ingrédients frais.
-- 'userNote': 1 astuce pratique en 1 phrase courte.`;
+    const systemPrompt = `${moodConfig.recipeExecutionPrompt}
+
+Ta mission : rédiger la fiche recette complète pour "${escapeUntrustedDelimiters(idea.title, 'idea')}" (${targetType}, ${servings} personnes, temps cible : ~${escapeUntrustedDelimiters(idea.estimatedTime || '25 min', 'idea')}).
+Concept validé : "${escapeUntrustedDelimiters(idea.description, 'idea')}"
+
+${isVege ? '- RÉGIME : 100% végétarien obligatoire (sans viande ni poisson).\n' : ''}${allergenExclusionSection}${additionalPreferencesSection}Règles de formatage strictes :
+- Étapes ('steps') : étapes directes, claires et numérotées (1 à 2 phrases par étape, droit au but), fidèles à ton style culinaire.
+- Ingrédients ('ingredients') : forme canonique brute et précise au singulier pour 'name' (ex: 'Carotte', 'Huile d'olive'). Contenants ('boîte', 'tranche', 'pincée') dans 'unit' et consignes de découpe dans 'steps'.
+- 'isPantryStaple': true pour sel, poivre, huiles courantes, eau, vinaigre, épices basiques. False pour les ingrédients frais.
+- 'userNote': 1 astuce courte en 1 phrase selon ta spécialité.`;
 
     const sanitizedIngredients = relevantIngredients.map((i) =>
       escapeUntrustedDelimiters(i.slice(0, 100), 'untrusted_fridge_ingredients')
     );
-    const userPayload = `Rédige la recette avec des étapes concises pour "${idea.title}" avec les ingrédients suivants :
+    const userPayload = `Rédige cette recette (mode "${moodConfig.label}") en piochant parmi les ingrédients suivants :
 <untrusted_fridge_ingredients>
 ${sanitizedIngredients.join(', ')}
 </untrusted_fridge_ingredients>`;
+
+    // Journalisation explicite du prompt envoyé à l'IA pour la recette complète
+    console.log('\n======================================================================');
+    console.log(`🤖 [CHEF IA - SÉLECTION D'IDÉE DE PLAT] ENVOI DU PROMPT POUR "${idea.title}"`);
+    console.log('======================================================================');
+    console.log(`📋 [Prompt Système] :\n${systemPrompt}\n`);
+    console.log(`💬 [Prompt Utilisateur] :\n${userPayload}\n`);
+    console.log(`💡 [Idée retenue] :`, {
+      title: idea.title,
+      description: idea.description,
+      estimatedTime: idea.estimatedTime,
+    });
+    console.log(
+      `⚙️ [Ingrédients utilisés] (${relevantIngredients.length}) :`,
+      relevantIngredients
+    );
+    console.log('======================================================================\n');
 
     const payload = {
       system_instruction: {
@@ -1740,7 +1841,11 @@ ${sanitizedIngredients.join(', ')}
       options?.onModelAttempt,
       60000
     );
-    return sanitizeExtractedRecipe(parsed);
+    const sanitized = sanitizeExtractedRecipe(parsed);
+    console.log(
+      `✨ [CHEF IA - RECETTE FINALISÉE] : "${sanitized.title}" (${sanitized.ingredients.length} ingrédients, ${sanitized.steps.length} étapes)`
+    );
+    return sanitized;
   },
 
   /**

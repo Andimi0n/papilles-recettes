@@ -18,7 +18,7 @@ import { ShoppingAisle } from '../types/shopping';
 import { AISLE_CONFIGS, ALL_AISLES } from '../utils/aisleClassifier';
 import { createDynamicStyles } from '../theme/colors';
 import { useTheme } from '../theme/ThemeContext';
-import { evaluateRecipesWithStock, RecipeStockEvaluation } from '../utils/stockMatcher';
+import { evaluateRecipesWithStock } from '../utils/stockMatcher';
 import {
   RecipeAiService,
   formatAiModelName,
@@ -70,8 +70,10 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
 }) => {
   const { isDark, colors } = useTheme();
 
-  // Ingrédients du stock sélectionnés pour l'IA
-  const [selectedStockNames, setSelectedStockNames] = useState<string[]>([]);
+  // Ingrédients du stock sélectionnés pour l'IA (tous cochés par défaut à l'ouverture)
+  const [selectedStockNames, setSelectedStockNames] = useState<string[]>(() =>
+    stockItems.map((item) => item.name)
+  );
   const [servings, setServings] = useState<number>(4);
   const [isVegetarian, setIsVegetarian] = useState<boolean>(false);
   const [mealType, setMealType] = useState<AllowedMealType>('Plat');
@@ -88,26 +90,32 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
     model: FAST_GEMINI_MODELS_CASCADE[0],
     isFallback: false,
   });
-  const [chefMood, setChefMood] = useState<string>('libre');
+  const [chefMood, setChefMood] = useState<string>('quotidien');
 
   // Saisie clé API si absente
   const [isApiKeyModalVisible, setIsApiKeyModalVisible] = useState(false);
   const [tempApiKeyInput, setTempApiKeyInput] = useState('');
 
   const stepIntervalRef = useRef<any>(null);
+  const prevVisibleRef = useRef(visible);
+  const prevStockCountRef = useRef(stockItems.length);
 
-  // Synchronisation lors de l'ouverture pendant le render
-  const [prevVisible, setPrevVisible] = useState(visible);
-  if (visible && !prevVisible) {
-    setPrevVisible(true);
-    setSelectedStockNames(stockItems.map((item) => item.name));
-    setMealType('Plat');
-    setAiFlowStep('config');
-    setIdeas([]);
-    setSelectedIdea(null);
-  } else if (!visible && prevVisible) {
-    setPrevVisible(false);
-  }
+  // Synchronisation lors de l'ouverture ou lors de l'arrivée asynchrone des aliments du stock
+  useEffect(() => {
+    const justOpened = visible && !prevVisibleRef.current;
+    const stockLoadedAsync =
+      visible && prevStockCountRef.current === 0 && stockItems.length > 0;
+
+    if (justOpened || stockLoadedAsync) {
+      setSelectedStockNames(stockItems.map((item) => item.name));
+      setMealType('Plat');
+      setAiFlowStep('config');
+      setIdeas([]);
+      setSelectedIdea(null);
+    }
+    prevVisibleRef.current = visible;
+    prevStockCountRef.current = stockItems.length;
+  }, [visible, stockItems]);
 
   // Charger les portions par défaut depuis le storage si configuré
   useEffect(() => {
@@ -327,6 +335,7 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
           onlyVegetarian: isVegetarian,
           excludedAllergens,
           additionalPreferences: additionalPreferences.trim(),
+          chefMood: chefMood,
           onModelAttempt: (model, isFallback) => {
             setActiveModelInfo({ model, isFallback });
           },
@@ -356,6 +365,8 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
           unit: ing.unit || '',
           isPantryStaple: ing.isPantryStaple,
           isOptional: ing.isOptional,
+          canonicalId: (ing as any).canonicalId,
+          aisle: (ing as any).aisle,
         })),
         steps: generated.steps.map((st, idx) => ({
           id: generateUniqueId(`stp_${idx}`),

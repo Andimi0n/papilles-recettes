@@ -75,7 +75,10 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
 }) => {
   const { isDark, colors } = useTheme();
   const isEditing = Boolean(
-    initialRecipe && initialRecipe.id && !initialRecipe.id.startsWith('extracted_')
+    initialRecipe &&
+      initialRecipe.id &&
+      !initialRecipe.id.startsWith('extracted_') &&
+      !initialRecipe.id.startsWith('rec_ai_stock_')
   );
   const hasPreloadedData = Boolean(
     initialRecipe &&

@@ -589,42 +589,45 @@ export const CookingModeModal: React.FC<CookingModeModalProps> = ({
 
               {/* Contenu textuel et visuel ultra-épuré */}
               <View style={styles.stepContentInner} pointerEvents="box-none">
-                {/* Badge Numéro d'Étape */}
-                <View style={styles.stepHeaderRow} pointerEvents="none">
-                  <View style={styles.stepBadge}>
-                    <Text style={styles.stepBadgeText}>
-                      Étape {currentStepIndex + 1}
-                    </Text>
+                {/* Zone d'affichage informative transparente aux clics (laisse passer les taps vers tapZoneLeft/Right) */}
+                <View pointerEvents="none">
+                  {/* Badge Numéro d'Étape */}
+                  <View style={styles.stepHeaderRow}>
+                    <View style={styles.stepBadge}>
+                      <Text style={styles.stepBadgeText}>
+                        Étape {currentStepIndex + 1}
+                      </Text>
+                    </View>
+                    <Text style={styles.stepCountSub}>sur {steps.length}</Text>
                   </View>
-                  <Text style={styles.stepCountSub}>sur {steps.length}</Text>
+
+                  {/* Ingrédients détectés pour cette étape */}
+                  {detectedIngredients.length > 0 && (
+                    <View style={styles.detectedIngredientsRow}>
+                      {detectedIngredients.map((ing) => {
+                        const scaledQty = scaleQuantity(ing.quantity, recipe.servings || 4, servings);
+                        const qtyStr = scaledQty ? formatQuantityWithUnit(scaledQty, ing.unit) : '';
+
+                        return (
+                          <View key={ing.id} style={styles.ingredientChip}>
+                            <Text style={styles.ingredientChipText}>
+                              {qtyStr ? `${qtyStr} ` : ''}{ing.name}
+                            </Text>
+                          </View>
+                        );
+                      })}
+                    </View>
+                  )}
+
+                  {/* Texte de l'instruction en caractères géants */}
+                  <Text style={styles.instructionText}>
+                    {currentStep.instruction}
+                  </Text>
                 </View>
-
-                {/* Ingrédients détectés pour cette étape */}
-                {detectedIngredients.length > 0 && (
-                  <View style={styles.detectedIngredientsRow} pointerEvents="none">
-                    {detectedIngredients.map((ing) => {
-                      const scaledQty = scaleQuantity(ing.quantity, recipe.servings || 4, servings);
-                      const qtyStr = scaledQty ? formatQuantityWithUnit(scaledQty, ing.unit) : '';
-
-                      return (
-                        <View key={ing.id} style={styles.ingredientChip}>
-                          <Text style={styles.ingredientChipText}>
-                            {qtyStr ? `${qtyStr} ` : ''}{ing.name}
-                          </Text>
-                        </View>
-                      );
-                    })}
-                  </View>
-                )}
-
-                {/* Texte de l'instruction en caractères géants */}
-                <Text style={styles.instructionText} pointerEvents="none">
-                  {currentStep.instruction}
-                </Text>
 
                 {/* Minuteur détecté automatiquement (s'il y en a un) */}
                 {detectedTimers.length > 0 && (
-                  <View style={styles.detectedTimersRow}>
+                  <View style={styles.detectedTimersRow} pointerEvents="box-none">
                     {detectedTimers.map((t) => (
                       <TouchableOpacity
                         key={t.id}
@@ -998,6 +1001,7 @@ const styles = createDynamicStyles((colors, shadows) => ({
     bottom: 0,
     left: 0,
     width: '50%',
+    minHeight: '100%',
     zIndex: 1,
   },
   tapZoneRight: {
@@ -1006,6 +1010,7 @@ const styles = createDynamicStyles((colors, shadows) => ({
     bottom: 0,
     right: 0,
     width: '50%',
+    minHeight: '100%',
     zIndex: 1,
   },
   floatingChevronLeft: {
