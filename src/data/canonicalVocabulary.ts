@@ -43,7 +43,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
   {
     name: 'Oignon',
     aisle: 'Fruits & Légumes',
-    aliases: ['oignons', 'oignon jaune', 'oignon rouge', 'oignon blanc', 'oignons jaunes', 'oignons rouges', 'oignons blancs', 'oignon emince', 'oignon epluche', 'cebette', 'ciboule'],
+    aliases: ['oignons', 'oignon jaune', 'oignon rouge', 'oignon blanc', 'oignons jaunes', 'oignons rouges', 'oignons blancs', 'oignon emince', 'oignon epluche'],
   },
   {
     name: 'Ail',
@@ -235,7 +235,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
   {
     name: 'Chou vert',
     aisle: 'Fruits & Légumes',
-    aliases: ['chou', 'choux', 'chou blanc', 'chou rouge', 'chou frise'],
+    aliases: ['chou', 'choux', 'chou frise'],
   },
   {
     name: 'Choux de Bruxelles',
@@ -351,6 +351,233 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
     name: 'Estragon',
     aisle: 'Fruits & Légumes',
     aliases: ['estragon frais', 'feuilles d estragon'],
+  },
+
+  // --- ALLIACÉS & RACINES ---
+  {
+    name: 'Oignon nouveau',
+    aisle: 'Fruits & Légumes',
+    aliases: ['oignons nouveaux', 'cebette', 'cebettes', 'ciboule', 'oignon vert', 'oignons verts', 'oignon tige', 'botte d oignons nouveaux'],
+  },
+  {
+    name: 'Panais',
+    aisle: 'Fruits & Légumes',
+    aliases: ['panais epluche', 'panais en des'],
+  },
+  {
+    name: 'Topinambour',
+    aisle: 'Fruits & Légumes',
+    aliases: ['topinambours', 'artichaut de jerusalem'],
+  },
+  {
+    name: 'Rutabaga',
+    aisle: 'Fruits & Légumes',
+    aliases: ['rutabagas', 'chou navet'],
+  },
+  {
+    name: 'Salsifis',
+    aisle: 'Fruits & Légumes',
+    aliases: ['scorsonere', 'scorsoneres'],
+  },
+  {
+    name: 'Crosne',
+    aisle: 'Fruits & Légumes',
+    aliases: ['crosnes'],
+  },
+
+  // --- CHOUX & FEUILLES ---
+  {
+    name: 'Chou rouge',
+    aisle: 'Fruits & Légumes',
+    aliases: ['choux rouges', 'chou rouge emince', 'chou rouge rape'],
+  },
+  {
+    name: 'Chou blanc',
+    aisle: 'Fruits & Légumes',
+    aliases: ['choux blancs', 'chou blanc emince'],
+  },
+  {
+    name: 'Chou kale',
+    aisle: 'Fruits & Légumes',
+    aliases: ['kale', 'feuilles de kale', 'chou frise kale'],
+  },
+  {
+    name: 'Chou chinois',
+    aisle: 'Fruits & Légumes',
+    aliases: ['pak choi', 'bok choy', 'pe tsai', 'chou pak choi'],
+  },
+  {
+    name: 'Chou romanesco',
+    aisle: 'Fruits & Légumes',
+    aliases: ['romanesco', 'fleurettes de romanesco'],
+  },
+  {
+    name: 'Blette',
+    aisle: 'Fruits & Légumes',
+    aliases: ['blettes', 'bette', 'bettes', 'carde', 'cardes', 'cote de blette', 'cotes de blettes', 'feuilles de blette'],
+  },
+  {
+    name: 'Cresson',
+    aisle: 'Fruits & Légumes',
+    aliases: ['botte de cresson', 'cresson alénois', 'cresson de fontaine'],
+  },
+  {
+    name: 'Oseille',
+    aisle: 'Fruits & Légumes',
+    aliases: ['feuilles d oseille', 'oseille fraiche'],
+  },
+  {
+    name: 'Sucrine',
+    aisle: 'Fruits & Légumes',
+    aliases: ['sucrines', 'coeur de sucrine', 'salade romaine', 'romaine'],
+  },
+  {
+    name: 'Frisée',
+    aisle: 'Fruits & Légumes',
+    aliases: ['salade frisee', 'scarole'],
+  },
+
+  // --- LÉGUMES DU SOLEIL, COURGES & GOUSSES ---
+  {
+    name: 'Courge spaghetti',
+    aisle: 'Fruits & Légumes',
+    aliases: ['courges spaghetti'],
+  },
+  {
+    name: 'Piment frais',
+    aisle: 'Fruits & Légumes',
+    aliases: ['piment', 'piments', 'piment rouge', 'piment vert', 'piment oiseau', 'piment jalapeno', 'piment habanero'],
+  },
+  {
+    name: 'Fève',
+    aisle: 'Fruits & Légumes',
+    aliases: ['feves', 'feves fraiches', 'feves ecossées'],
+  },
+  {
+    name: 'Pois gourmand',
+    aisle: 'Fruits & Légumes',
+    aliases: ['pois gourmands', 'mange tout', 'pois mange tout'],
+  },
+  {
+    name: 'Haricot blanc frais',
+    aisle: 'Fruits & Légumes',
+    aliases: ['coco de paimpol', 'haricots coco', 'mogette fraiche'],
+  },
+  {
+    name: 'Maïs frais',
+    aisle: 'Fruits & Légumes',
+    aliases: ['epi de mais', 'epis de mais'],
+  },
+  {
+    name: 'Pousses de bambou',
+    aisle: 'Fruits & Légumes',
+    aliases: ['pousse de bambou'],
+  },
+  {
+    name: 'Germes de soja',
+    aisle: 'Fruits & Légumes',
+    aliases: ['pousses de soja', 'haricot mungo germe', 'pousses de haricot mungo'],
+  },
+
+  // --- CHAMPIGNONS ---
+  {
+    name: 'Shiitaké',
+    aisle: 'Fruits & Légumes',
+    aliases: ['shiitake', 'shiitakes', 'champignon shiitake', 'lentins du chene'],
+  },
+  {
+    name: 'Pleurote',
+    aisle: 'Fruits & Légumes',
+    aliases: ['pleurotes'],
+  },
+  {
+    name: 'Morille',
+    aisle: 'Fruits & Légumes',
+    aliases: ['morilles', 'morilles fraiches', 'morilles sechees'],
+  },
+
+  // --- HERBES AROMATIQUES FRAÎCHES ---
+  {
+    name: 'Sauge',
+    aisle: 'Fruits & Légumes',
+    aliases: ['feuilles de sauge', 'sauge fraiche'],
+  },
+  {
+    name: 'Cerfeuil',
+    aisle: 'Fruits & Légumes',
+    aliases: ['cerfeuil frais', 'brins de cerfeuil', 'pluches de cerfeuil'],
+  },
+  {
+    name: 'Citronnelle',
+    aisle: 'Fruits & Légumes',
+    aliases: ['tige de citronnelle', 'tiges de citronnelle', 'baton de citronnelle'],
+  },
+  {
+    name: 'Verveine',
+    aisle: 'Fruits & Légumes',
+    aliases: ['feuilles de verveine', 'verveine fraiche'],
+  },
+
+  // --- FRUITS & FRUITS ROUGES ---
+  {
+    name: 'Myrtille',
+    aisle: 'Fruits & Légumes',
+    aliases: ['myrtilles', 'barquette de myrtilles', 'bleuet', 'bleuets'],
+  },
+  {
+    name: 'Mûre',
+    aisle: 'Fruits & Légumes',
+    aliases: ['mure', 'mures', 'mures sauvages'],
+  },
+  {
+    name: 'Groseille',
+    aisle: 'Fruits & Légumes',
+    aliases: ['groseilles', 'grappes de groseilles'],
+  },
+  {
+    name: 'Cassis',
+    aisle: 'Fruits & Légumes',
+    aliases: ['baies de cassis'],
+  },
+  {
+    name: 'Rhubarbe',
+    aisle: 'Fruits & Légumes',
+    aliases: ['tiges de rhubarbe', 'rhubarbe coupee'],
+  },
+  {
+    name: 'Grenade',
+    aisle: 'Fruits & Légumes',
+    aliases: ['grenades', 'grains de grenade', 'graines de grenade'],
+  },
+  {
+    name: 'Fruit de la passion',
+    aisle: 'Fruits & Légumes',
+    aliases: ['fruits de la passion', 'maracuja', 'pulpe de fruit de la passion'],
+  },
+  {
+    name: 'Noix de coco',
+    aisle: 'Fruits & Légumes',
+    aliases: ['noix de coco fraiche', 'chair de noix de coco'],
+  },
+  {
+    name: 'Litchi',
+    aisle: 'Fruits & Légumes',
+    aliases: ['litchis', 'lychee'],
+  },
+  {
+    name: 'Kaki',
+    aisle: 'Fruits & Légumes',
+    aliases: ['kakis', 'kaki persimon'],
+  },
+  {
+    name: 'Coing',
+    aisle: 'Fruits & Légumes',
+    aliases: ['coings'],
+  },
+  {
+    name: 'Châtaigne',
+    aisle: 'Fruits & Légumes',
+    aliases: ['chataignes', 'marron', 'marrons', 'marrons cuits', 'bocal de marrons'],
   },
 
   // =========================================================================
@@ -520,6 +747,159 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
     name: 'Gnocchis',
     aisle: 'Produits Frais & Crèmerie',
     aliases: ['gnocchi', 'gnocchis a poeler'],
+    allergen: 'gluten',
+    secondaryAllergens: ['oeufs', 'lait']
+  },
+  // --- CRÈMERIE & SUBSTITUTS ---
+  {
+    name: 'Lait ribot',
+    aisle: 'Produits Frais & Crèmerie',
+    aliases: ['babeurre', 'lait fermente', 'buttermilk'],
+    allergen: 'lait',
+    density: 1.03,
+  },
+  {
+    name: 'Lait concentré sucré',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['lait concentre', 'boite de lait concentre sucre'],
+    allergen: 'lait',
+    density: 1.30,
+  },
+  {
+    name: 'Lait concentré non sucré',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['lait concentre non sucre', 'Gloria'],
+    allergen: 'lait',
+    density: 1.07,
+  },
+  {
+    name: 'Crème végétale',
+    aisle: 'Produits Frais & Crèmerie',
+    aliases: ['creme de soja', 'creme d avoine', 'creme de riz'],
+    allergen: 'soja',
+    density: 1.0,
+  },
+  {
+    name: 'Graisse de canard',
+    aisle: 'Produits Frais & Crèmerie',
+    aliases: ['graisse d oie', 'pot de graisse de canard'],
+    density: 0.92,
+  },
+  {
+    name: 'Saindoux',
+    aisle: 'Produits Frais & Crèmerie',
+    aliases: ['graisse de porc'],
+    density: 0.92,
+  },
+
+  // --- FROMAGES ITALIENS, GRECS & DU MONDE ---
+  {
+    name: 'Pecorino',
+    aisle: 'Produits Frais & Crèmerie',
+    aliases: ['pecorino romano', 'pecorino rape', 'fromage pecorino'],
+    allergen: 'lait',
+  },
+  {
+    name: 'Gorgonzola',
+    aisle: 'Produits Frais & Crèmerie',
+    aliases: ['fromage gorgonzola', 'gorgonzola piccante', 'gorgonzola dolce'],
+    allergen: 'lait',
+  },
+  {
+    name: 'Halloumi',
+    aisle: 'Produits Frais & Crèmerie',
+    aliases: ['fromage halloumi', 'halloumi a griller'],
+    allergen: 'lait',
+  },
+  {
+    name: 'Scamorza',
+    aisle: 'Produits Frais & Crèmerie',
+    aliases: ['scamorza fumee', 'provolone'],
+    allergen: 'lait',
+  },
+  {
+    name: 'Cottage cheese',
+    aisle: 'Produits Frais & Crèmerie',
+    aliases: ['fromage cottage', 'brousse', 'brocciu'],
+    allergen: 'lait',
+  },
+
+  // --- FROMAGES FRANÇAIS & DE TERROIR ---
+  {
+    name: 'Cantal',
+    aisle: 'Produits Frais & Crèmerie',
+    aliases: ['cantal entre deux', 'cantal jeune', 'salers', 'laguiole'],
+    allergen: 'lait',
+  },
+  {
+    name: 'Morbier',
+    aisle: 'Produits Frais & Crèmerie',
+    aliases: ['fromage morbier', 'tranches de morbier'],
+    allergen: 'lait',
+  },
+  {
+    name: 'Saint-Nectaire',
+    aisle: 'Produits Frais & Crèmerie',
+    aliases: ['saint nectaire', 'st nectaire'],
+    allergen: 'lait',
+  },
+  {
+    name: 'Munster',
+    aisle: 'Produits Frais & Crèmerie',
+    aliases: ['fromage munster', 'maroilles', 'epoisses'],
+    allergen: 'lait',
+  },
+  {
+    name: 'Tomme',
+    aisle: 'Produits Frais & Crèmerie',
+    aliases: ['tomme de savoie', 'tomme de brebis', 'ossau iraty', 'tome fraiche'],
+    allergen: 'lait',
+  },
+  {
+    name: 'Beaufort',
+    aisle: 'Produits Frais & Crèmerie',
+    aliases: ['fromage beaufort', 'abondance'],
+    allergen: 'lait',
+  },
+  {
+    name: 'Boursin',
+    aisle: 'Produits Frais & Crèmerie',
+    aliases: ['fromage ail et fines herbes', 'tartare', 'madame loik'],
+    allergen: 'lait',
+  },
+  {
+    name: 'Vache qui rit',
+    aisle: 'Produits Frais & Crèmerie',
+    aliases: ['portions de vache qui rit', 'kiri'],
+    allergen: 'lait',
+  },
+
+  // --- TRAITEUR FRAIS ---
+  {
+    name: 'Ravioles',
+    aisle: 'Produits Frais & Crèmerie',
+    aliases: ['ravioles du dauphine', 'ravioles du royans', 'plaques de ravioles', 'raviolis frais'],
+    allergen: 'gluten',
+    secondaryAllergens: ['oeufs', 'lait'],
+  },
+  {
+    name: 'Quenelle',
+    aisle: 'Produits Frais & Crèmerie',
+    aliases: ['quenelles', 'quenelles de brochet', 'quenelles de volaille', 'quenelles nature'],
+    allergen: 'gluten',
+    secondaryAllergens: ['oeufs', 'lait', 'poissons'],
+  },
+  {
+    name: 'Seitan',
+    aisle: 'Produits Frais & Crèmerie',
+    aliases: ['bloc de seitan', 'eminces de seitan'],
+    allergen: 'gluten',
+  },
+  {
+    name: 'Tempeh',
+    aisle: 'Produits Frais & Crèmerie',
+    aliases: ['bloc de tempeh'],
+    allergen: 'soja',
   },
 
   // =========================================================================
@@ -711,6 +1091,133 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
     aliases: ['calmars', 'encornet', 'encornets', 'seiche', 'anneaux d encornets'],
     allergen: 'mollusques',
   },
+  // --- CHARCUTERIE & BOUCHERIE ---
+  {
+    name: 'Guanciale',
+    aisle: 'Boucherie & Poissonnerie',
+    aliases: ['joue de porc', 'lard italien'],
+  },
+  {
+    name: 'Pancetta',
+    aisle: 'Boucherie & Poissonnerie',
+    aliases: ['tranches de pancetta', 'pancetta fumee', 'poitrine roulade'],
+  },
+  {
+    name: 'Viande des Grisons',
+    aisle: 'Boucherie & Poissonnerie',
+    aliases: ['tranches de viande des grisons', 'boeuf seche', 'bresaola'],
+  },
+  {
+    name: 'Saucisse de Francfort',
+    aisle: 'Boucherie & Poissonnerie',
+    aliases: ['knacki', 'saucisses de strasbourg', 'saucisse viennoise', 'saucisses hot dog'],
+  },
+  {
+    name: 'Boudin noir',
+    aisle: 'Boucherie & Poissonnerie',
+    aliases: ['boudins noirs', 'boudin aux pommes'],
+  },
+  {
+    name: 'Boudin blanc',
+    aisle: 'Boucherie & Poissonnerie',
+    aliases: ['boudins blancs'],
+    allergen: 'lait',
+    secondaryAllergens: ['oeufs'],
+  },
+  {
+    name: 'Andouillette',
+    aisle: 'Boucherie & Poissonnerie',
+    aliases: ['andouillettes', 'andouille', 'andouille de guemene', 'andouille de vire'],
+  },
+  {
+    name: 'Mortadelle',
+    aisle: 'Boucherie & Poissonnerie',
+    aliases: ['tranches de mortadelle', 'salami', 'pepperoni', 'coppa'],
+  },
+  {
+    name: 'Foie gras',
+    aisle: 'Boucherie & Poissonnerie',
+    aliases: ['foie gras de canard', 'foie gras mi cuit', 'foie gras cru', 'tranches de foie gras'],
+  },
+  {
+    name: 'Abats',
+    aisle: 'Boucherie & Poissonnerie',
+    aliases: ['foie de veau', 'foies de volaille', 'rognons', 'ris de veau', 'gesiers', 'gesiers de canard confits', 'tripes'],
+  },
+  {
+    name: 'Caille',
+    aisle: 'Boucherie & Poissonnerie',
+    aliases: ['cailles', 'filets de caille', 'pintade', 'cuisses de pintade', 'chapo', 'coquelet'],
+  },
+
+  // --- POISSONNERIE & MER ---
+  {
+    name: 'Lieu noir',
+    aisle: 'Boucherie & Poissonnerie',
+    aliases: ['filet de lieu noir', 'lieu jaune', 'filet de lieu', 'dos de lieu', 'julienne', 'églefin', 'haddock'],
+    allergen: 'poissons',
+  },
+  {
+    name: 'Sole',
+    aisle: 'Boucherie & Poissonnerie',
+    aliases: ['filets de sole', 'limande', 'filet de limande', 'turbot', ' carrelet'],
+    allergen: 'poissons',
+  },
+  {
+    name: 'Lotte',
+    aisle: 'Boucherie & Poissonnerie',
+    aliases: ['queue de lotte', 'baudroie', 'joues de lotte', 'medaillons de lotte'],
+    allergen: 'poissons',
+  },
+  {
+    name: 'Rouget',
+    aisle: 'Boucherie & Poissonnerie',
+    aliases: ['filets de rouget', 'rouget barbet'],
+    allergen: 'poissons',
+  },
+  {
+    name: 'Espadon',
+    aisle: 'Boucherie & Poissonnerie',
+    aliases: ['darne d espadon', 'steak d espadon'],
+    allergen: 'poissons',
+  },
+  {
+    name: 'Hareng',
+    aisle: 'Boucherie & Poissonnerie',
+    aliases: ['filets de hareng', 'hareng fume', 'harengs doux'],
+    allergen: 'poissons',
+  },
+  {
+    name: 'Poulpe',
+    aisle: 'Boucherie & Poissonnerie',
+    aliases: ['tentacules de poulpe', 'pieuvre', 'poulpe cuit'],
+    allergen: 'mollusques',
+  },
+  {
+    name: 'Palourde',
+    aisle: 'Boucherie & Poissonnerie',
+    aliases: ['palourdes', 'coques', 'praires', 'bulots', 'bigorneaux'],
+    allergen: 'mollusques',
+  },
+  {
+    name: 'Langoustine',
+    aisle: 'Boucherie & Poissonnerie',
+    aliases: ['langoustines', 'queues de langoustines', 'homard', 'langouste', 'ecrevisse'],
+    allergen: 'crustaces',
+  },
+  {
+    name: 'Surimi',
+    aisle: 'Boucherie & Poissonnerie',
+    aliases: ['batonnets de surimi', 'miettes de surimi'],
+    allergen: 'poissons',
+    secondaryAllergens: ['crustaces', 'oeufs', 'gluten'],
+  },
+  {
+    name: 'Œufs de poisson',
+    aisle: 'Boucherie & Poissonnerie',
+    aliases: ['oeufs de saumon', 'oeufs de truite', 'oeufs de lompe', 'tarama'],
+    allergen: 'poissons',
+  },
 
   // =========================================================================
   // 4. ÉPICERIE & CONDIMENTS
@@ -809,6 +1316,11 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
     secondaryAllergens: ['fruits_a_coque'],
   },
   {
+    name: 'Pesto rosso',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['pesto rouge']
+  },
+  {
     name: 'Harissa',
     aisle: 'Épicerie & Condiments',
     aliases: ['tube d harissa', 'pate d harissa'],
@@ -879,6 +1391,8 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
     name: 'Chocolat noir',
     aisle: 'Épicerie & Condiments',
     aliases: ['chocolat', 'chocolat patissier', 'tablette de chocolat noir', 'chocolat dessert', 'chocolat noir patissier'],
+    allergen: 'lait',
+    secondaryAllergens: ['soja']
   },
   {
     name: 'Chocolat au lait',
@@ -1262,6 +1776,243 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
     aisle: 'Épicerie & Condiments',
     aliases: ['noix de coco rapee', 'coco rapee', 'noix de coco en poudre'],
   },
+  // --- CÉRÉALES, LÉGUMINEUSES & FARINES SPÉCIALES ---
+  {
+    name: 'Polenta',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['semoule de mais', 'polenta pre-cuite', 'polenta instantanee'],
+    density: 0.75,
+  },
+  {
+    name: 'Farine de sarrasin',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['farine de ble noir', 'sarrasin', 'kasha'],
+    density: 0.55,
+  },
+  {
+    name: 'Farine complète',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['farine de ble complet', 'farine t110', 'farine t150', 'farine semi complete', 'farine t80', 'farine de seigle', 'farine d epeautre'],
+    allergen: 'gluten',
+    density: 0.60,
+  },
+  {
+    name: 'Farine de pois chiche',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['farine de pois chiches', 'besan', 'farine de besan'],
+    density: 0.55,
+  },
+  {
+    name: 'Fécule de pomme de terre',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['fecule de pdt', 'amidon de pomme de terre', 'tapioca', 'perles du japon'],
+    density: 0.65,
+  },
+  {
+    name: 'Haricot blanc',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['haricots blancs', 'boite de haricots blancs', 'haricots tarbais', 'mogettes', 'lingots blancs', 'flageolets', 'boite de flageolets'],
+  },
+  {
+    name: 'Haricot noir',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['haricots noirs', 'boite de haricots noirs', 'haricots azuki'],
+  },
+  {
+    name: 'Pois cassés',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['pois casse', 'feves seches'],
+  },
+  {
+    name: 'Blé précuit',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['ebly', 'ble dur precuit', 'orge perle', 'petit epeautre', 'freekeh'],
+    allergen: 'gluten',
+  },
+  {
+    name: 'Lasagnes',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['feuilles de lasagne', 'plaques de lasagnes', 'pates a lasagne'],
+    allergen: 'gluten',
+    secondaryAllergens: ['oeufs'],
+  },
+  {
+    name: 'Crozet',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['crozets', 'crozets au sarrasin', 'crozets nature'],
+    allergen: 'gluten',
+    secondaryAllergens: ['oeufs'],
+  },
+
+  // --- AIDES À LA PÂTISSERIE & SUCRANTS ---
+  {
+    name: 'Bicarbonate de soude',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['bicarbonate alimentaire', 'bicarbonate de sodium', 'bicarbonate'],
+    isPantryStaple: true,
+  },
+  {
+    name: 'Gélatine',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['feuille de gelatine', 'feuilles de gelatine', 'gelatine en poudre'],
+  },
+  {
+    name: 'Agar-agar',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['agar agar', 'sachet d agar agar'],
+  },
+  {
+    name: 'Pépites de chocolat',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['pepites de chocolat noir', 'pepites de chocolat au lait', 'pralin', 'chocolat praline', 'praline rose'],
+    allergen: 'lait',
+    secondaryAllergens: ['soja', 'fruits_a_coque'],
+  },
+  {
+    name: 'Crème de marrons',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['creme de marron', 'puree de marrons'],
+  },
+  {
+    name: 'Sirop d\'agave',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['sirop d agave', 'sirop de glucose', 'sirop de sucre de canne', 'melasse'],
+    density: 1.35,
+  },
+  {
+    name: 'Eau de fleur d\'oranger',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['fleur d oranger', 'arome fleur d oranger', 'eau de rose'],
+  },
+  {
+    name: 'Colorant alimentaire',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['colorant rouge', 'colorant vert', 'colorant jaune'],
+  },
+
+  // --- FRUITS SECS & GRAINES ---
+  {
+    name: 'Raisins secs',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['raisin sec', 'raisins de corinthe', 'raisins blonds'],
+    allergen: 'sulfites',
+  },
+  {
+    name: 'Abricots secs',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['abricot sec'],
+    allergen: 'sulfites',
+  },
+  {
+    name: 'Pruneau',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['pruneaux', 'pruneaux d agen', 'pruneaux denoyautes'],
+  },
+  {
+    name: 'Datte',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['dattes', 'dattes medjool', 'dattes denoyautees'],
+  },
+  {
+    name: 'Noix de pécan',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['pecan', 'cerneaux de noix de pecan', 'noix de macadamia', 'noix du bresil'],
+    allergen: 'fruits_a_coque',
+  },
+  {
+    name: 'Graines de courge',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['graine de courge'],
+  },
+  {
+    name: 'Graines de tournesol',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['graine de tournesol'],
+  },
+  {
+    name: 'Graines de chia',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['chia', 'graines de lin', 'graines de pavot', 'pavot'],
+  },
+
+  // --- CONDIMENTS, CONSERVES & ÉPICES ---
+  {
+    name: 'Tomates séchées',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['tomate sechee', 'tomates confites', 'bocal de tomates sechees', 'poivrons grilles en bocal'],
+  },
+  {
+    name: 'Sauce Worcestershire',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['worcestershire sauce', 'sauce anglaise'],
+    allergen: 'poissons',
+    secondaryAllergens: ['gluten'],
+  },
+  {
+    name: 'Tabasco',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['sauce piquante', 'sriracha', 'sauce sriracha', 'piment de cayenne', 'piment en poudre', 'flocons de piment'],
+    isPantryStaple: true,
+  },
+  {
+    name: 'Sauce barbecue',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['sauce bbq', 'sauce burger'],
+  },
+  {
+    name: 'Sauce d\'huître',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['sauce huitre', 'oyster sauce', 'sauce hoisin'],
+    allergen: 'mollusques',
+    secondaryAllergens: ['soja', 'gluten'],
+  },
+  {
+    name: 'Garam masala',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['epices tandoori', 'epices colombo', 'vadouvan', ' Massala'],
+    isPantryStaple: true,
+  },
+  {
+    name: 'Ras el-hanout',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['ras el hanout', 'raz el hanout', 'quatre epices', '4 epices', 'melange 4 epices', 'zaatar', 'sumac'],
+    isPantryStaple: true,
+  },
+  {
+    name: 'Cardamome',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['gousses de cardamome', 'cardamome en poudre', 'graines de cardamome'],
+    isPantryStaple: true,
+  },
+  {
+    name: 'Badiane',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['anis etoile', 'etoile de badiane', 'graines de fenouil', 'graines d anis', 'carvi'],
+    isPantryStaple: true,
+  },
+  {
+    name: 'Safran',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['pistils de safran', 'dose de safran', 'filaments de safran'],
+  },
+  {
+    name: 'Poivre en grains',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['poivre rose', 'baies de genievre', 'poivre de sichuan', 'poivre blanc'],
+    isPantryStaple: true,
+  },
+  {
+    name: 'Ail en poudre',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['ail semoule', 'ail deshydrate'],
+    isPantryStaple: true,
+  },
+  {
+    name: 'Oignon frit',
+    aisle: 'Épicerie & Condiments',
+    aliases: [],
+    isPantryStaple: true,
+  },
 
   // =========================================================================
   // 5. BOULANGERIE & PÂTISSERIE
@@ -1290,18 +2041,21 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
     aisle: 'Boulangerie & Pâtisserie',
     aliases: ['rouleau de pate feuilletee', 'pate feuilletee pur beurre'],
     allergen: 'gluten',
+    secondaryAllergens: ['lait']
   },
   {
     name: 'Pâte brisée',
     aisle: 'Boulangerie & Pâtisserie',
     aliases: ['rouleau de pate brisee'],
     allergen: 'gluten',
+    secondaryAllergens: ['lait']
   },
   {
     name: 'Pâte sablée',
     aisle: 'Boulangerie & Pâtisserie',
     aliases: ['rouleau de pate sablee'],
     allergen: 'gluten',
+    secondaryAllergens: ['lait', 'oeufs']
   },
   {
     name: 'Pâte à pizza',
@@ -1346,6 +2100,30 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
     aliases: ['brioches', 'tranches de brioche', 'brioche tranchee'],
     allergen: 'gluten',
     secondaryAllergens: ['oeufs', 'lait'],
+  },
+  {
+    name: 'Pain pita',
+    aisle: 'Boulangerie & Pâtisserie',
+    aliases: ['pita', 'pains pita', 'pain libanais', 'naan', 'pain bagnat', 'pain ciabatta', 'focaccia', 'english muffin'],
+    allergen: 'gluten',
+  },
+  {
+    name: 'Galette de sarrasin',
+    aisle: 'Boulangerie & Pâtisserie',
+    aliases: ['galettes de ble noir', 'galettes de sarrasin', 'crepes de sarrasin'],
+  },
+  {
+    name: 'Pâte filo',
+    aisle: 'Boulangerie & Pâtisserie',
+    aliases: ['pate phyllo', 'feuilles de filo', 'feuilles de pate filo', 'cheveux d ange', 'kadaif'],
+    allergen: 'gluten',
+  },
+  {
+    name: 'Spéculoos',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['speculoos', 'biscuits speculoos', 'miettes de speculoos', 'petit beurre', 'petits beurres', 'biscuits petits lu', 'palets bretons', 'biscuits roses de reims', 'amaretti', 'biscuits digestives'],
+    allergen: 'gluten',
+    secondaryAllergens: ['lait', 'oeufs', 'soja'],
   },
 
   // =========================================================================
@@ -1405,6 +2183,33 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
     name: 'Rhum',
     aisle: 'Boissons',
     aliases: ['rhum ambre', 'rhum blanc', 'cuillere de rhum'],
+  },
+  {
+    name: 'Cognac',
+    aisle: 'Boissons',
+    aliases: ['armagnac', 'calvados', 'grand marnier', 'cointreau', 'kirsch', 'amaretto', 'marsala', 'porto', 'madere', 'noilly prat', 'vermouth'],
+  },
+  {
+    name: 'Pastis',
+    aisle: 'Boissons',
+    aliases: [],
+  },
+
+  {
+    name: 'Lait d\'avoine',
+    aisle: 'Boissons',
+    aliases: ['boisson a l avoine', 'lait de riz', 'lait de noisette', 'lait de coco boisson'],
+    allergen: 'gluten',
+  },
+  {
+    name: 'Thé',
+    aisle: 'Boissons',
+    aliases: ['the vert', 'the noir', 'the matcha', 'infusion', 'camomille', 'hibiscus'],
+  },
+  {
+    name: 'Eau gazeuse',
+    aisle: 'Boissons',
+    aliases: ['eau petillante', 'perrier', 'badoit', 'san pellegrino', 'tonic'],
   },
 
   // =========================================================================
@@ -1605,9 +2410,9 @@ export function stripCulinaryStopWords(input: string): string {
 
   // Préfixes de contenants et portions (avec de ou d)
   const prefixPatterns = [
-    /^(?:boite|boites|barquette|barquettes|pot|pots|sachet|sachets|bocal|bocaux|brique|briques|conserve|conserves)\s+(?:de|d)\s+/i,
-    /^(?:tranche|tranches|filet|filets|pincee|pincees|poignee|poignees|gousse|gousses|branche|branches|feuille|feuilles|brin|brins|morceau|morceaux|zeste|zestes|jus)\s+(?:de|d)\s+/i,
-    /^(?:cuillere|cuilleres|cuillere a cafe|cuillere a soupe|c a cafe|c a soupe)\s+(?:de|d)\s+/i,
+    /^(?:boite|boites|barquette|barquettes|pot|pots|sachet|sachets|bocal|bocaux|brique|briques|conserve|conserves|tube|tubes|bouteille|bouteilles|paquet|paquets|rouleau|rouleaux|tablette|tablettes|bloc|blocs|plaquette|plaquettes)\s+(?:de|d)\s+/i,
+    /^(?:tranche|tranches|filet|filets|pincee|pincees|poignee|poignees|gousse|gousses|branche|branches|feuille|feuilles|brin|brins|morceau|morceaux|zeste|zestes|jus|quartier|quartiers|rondelle|rondelles|lamelle|lamelles|cube|cubes|de|des|botte|bottes|bouquet|bouquets|tete|tetes|pied|pieds|pave|paves|darne|darnes| escalope|escalopes)\s+(?:de|d)\s+/i,
+    /^(?:cuillere|cuilleres|cuillere a cafe|cuillere a soupe|c a cafe|c a soupe|cac|cas|verre|verres|tasse|tasses|bol|bols|trait|traits|goutte|gouttes|copeau|copeaux)\s+(?:de|d)\s+/i,
   ];
 
   for (const pat of prefixPatterns) {
@@ -1623,7 +2428,8 @@ export function stripCulinaryStopWords(input: string): string {
 
   // Mots de découpe, préparation, cuisson et état
   // Note : préserve frais/fraiche s'ils font partie de "creme fraiche" ou "fromage frais"
-  const stopWordsRegex = /\b(?:epluche|epluchee|epluches|epluchees|emince|emincee|eminces|emincees|rape|rapee|rapes|rapees|hache|hachee|haches|hachees|coupe|coupee|coupes|coupees|cisele|ciselee|ciseles|ciselees|concasse|concassee|concasses|concassees|moulu|moulue|moulus|moulues|ecrase|ecrasee|ecrases|ecrasees|pele|pelee|peles|pelees|(?<!\b(?:creme|fromage)\s+)(?:frais|fraiche|fraiches)|mur|mure|murs|mures|sec|seche|secs|seches|cuit|cuite|cuits|cuites|grille|grillee|grilles|grillees|roti|rotie|rotis|roties)\b/gi;
+  // Mots de découpe, préparation, cuisson, température et état
+  const stopWordsRegex = /\b(?:epluche|epluchee|epluches|epluchees|emince|epluche|emincee|eminces|emincees|rape|rapee|rapes|rapees|hache|hachee|haches|hachees|coupe|coupee|coupes|coupees|cisele|ciselee|ciseles|ciselees|concasse|concassee|concasses|concassees|moulu|moulue|moulus|moulues|ecrase|ecrasee|ecrases|ecrasees|pele|pelee|peles|pelees|epepine|epepinee|epepines|epepinees|denoyaute|denoyautee|denoyautes|denoyautees|decortique|decortiquee|decortiques|decortiquees|effile|effilee|effiles|effilees|emonde|emondee|emondes|emondees|torrefie|torrefiee|torrefies|torrefiees|grille|grillee|grilles|grillees|roti|rotie|rotis|roties|fondu|fondue|fondus|fondues|ramolli|ramollie|ramollis|ramollies|battu|battue|battus|battues|tamise|tamisee|tamises|tamisees|egoutte|egouttee|egouttes|egouttees|rince|rincee|rinces|rincees|lave|lavee|laves|lavees|(?<!\b(?:creme|fromage)\s+)(?:frais|fraiche|fraiches)|mur|mure|murs|mures|sec|seche|secs|seches|cuit|cuite|cuits|cuites|cru|crue|crus|crues|froid|froide|froids|froides|chaud|chaude|chauds|chaudes|tiede|tiedes|ambiant|ambiante|finement|grossierement|bien|tres|environ|facultatif|optionnel|bio|biologique|biologiques)\b/gi;
 
   const candidate = s.replace(stopWordsRegex, ' ').replace(/\s+/g, ' ').trim();
   if (candidate.length > 0) {
@@ -1717,8 +2523,12 @@ export function getDefaultAllergens(name: string): AllergenFamily[] {
 export const FORBIDDEN_ISOLATED_ALIASES = new Set<string>([
   'blanc', 'blanche', 'rouge', 'jaune', 'vert', 'verte', 'noir', 'noire',
   'emince', 'epluche', 'hache', 'rape', 'concasse', 'frais', 'fraiche',
-  'sec', 'seche', 'cuit', 'cuite', 'moulu', 'surgele', 'sauce', 'huile',
-  'poudre', 'puree', 'creme', 'pate', 'petit', 'gros', 'grand', 'morceau',
+  'sec', 'seche', 'cuit', 'cuite', 'cru', 'crue', 'moulu', 'surgele', 'surgelee',
+  'sauce', 'huile', 'vinaigre', 'farine', 'sucre', 'fromage', 'viande', 'poisson',
+  'poudre', 'puree', 'creme', 'pate', 'petit', 'petite', 'gros', 'grosse', 'grand', 'grande',
+  'morceau', 'tranche', 'filet', 'boite', 'sachet', 'pot', 'bocal', 'barquette',
+  'feuille', 'branche', 'gousse', 'brin', 'jus', 'zeste', 'bouillon', 'fond',
+  'doux', 'douce', 'fort', 'forte', 'piquant', 'fume', 'fumee', 'nature', 'entier', 'entiere',
 ]);
 
 // Ensemble pré-compilé des termes normalisés considérés par défaut comme fonds de placard

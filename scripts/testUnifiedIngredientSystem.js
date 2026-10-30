@@ -91,9 +91,9 @@ async function main() {
   console.log('✓ "2 oignons blancs émincés" résolu vers Oignon avec quantité 2 extraite');
 
   // Ingrédient non répertorié
-  const res4 = UnifiedIngredientService.resolveRecognizedIngredient('topinambour');
-  assert.strictEqual(res4.isRecognized, false, 'topinambour ne doit pas être reconnu dans le seed');
-  console.log('✓ "topinambour" correctement identifié comme non répertorié');
+  const res4 = UnifiedIngredientService.resolveRecognizedIngredient('salicorne');
+  assert.strictEqual(res4.isRecognized, false, 'salicorne ne doit pas être reconnu dans le seed');
+  console.log('✓ "salicorne" correctement identifié comme non répertorié');
 
   // =========================================================================
   // TEST 2 : Suggestions de synonymes proches (Levenshtein, pluriels, racines)
@@ -113,10 +113,10 @@ async function main() {
   console.log(`✓ "echalotte" suggère en premier "${matchesEchalote[0].item.canonicalName}" (${matchesEchalote[0].label})`);
 
   // Déclinaison sémantique / famille
-  const matchesFarine = UnifiedIngredientService.findClosestCanonicalMatches('farine de chataigne', 3);
+  const matchesFarine = UnifiedIngredientService.findClosestCanonicalMatches('farine de millet', 3);
   assert.ok(matchesFarine.length > 0);
   assert.strictEqual(matchesFarine[0].item.canonicalName, 'Farine');
-  console.log(`✓ "farine de chataigne" suggère en premier "${matchesFarine[0].item.canonicalName}" (${matchesFarine[0].label})`);
+  console.log(`✓ "farine de millet" suggère en premier "${matchesFarine[0].item.canonicalName}" (${matchesFarine[0].label})`);
 
   // Rapprochement phonétique ("voeu" -> "Veau")
   assert.strictEqual(frenchPhonetic('voeu'), frenchPhonetic('veau'), 'frenchPhonetic("voeu") doit égaler frenchPhonetic("veau")');
@@ -132,10 +132,10 @@ async function main() {
   assert.strictEqual(foundVeau.isFuzzySuggestion, true);
   console.log('✓ Le menu déroulant qualitatif propose "Veau" dès la saisie de "voeu"');
 
-  // Terme sans rapport (sumac) -> aucun faux positif
-  const matchesSumac = UnifiedIngredientService.findClosestCanonicalMatches('sumac', 3);
-  assert.strictEqual(matchesSumac.length, 0, 'sumac ne doit pas avoir de faux rapprochement forcé');
-  console.log('✓ "sumac" n\'impose aucun faux rapprochement avec un aliment existant');
+  // Terme sans rapport (spiruline) -> aucun faux positif
+  const matchesSpiruline = UnifiedIngredientService.findClosestCanonicalMatches('spiruline', 3);
+  assert.strictEqual(matchesSpiruline.length, 0, 'spiruline ne doit pas avoir de faux rapprochement forcé');
+  console.log('✓ "spiruline" n\'impose aucun faux rapprochement avec un aliment existant');
 
   // =========================================================================
   // TEST 3 : Association d'un nouveau synonyme & Garde-fous (Section 8.3)
@@ -244,37 +244,37 @@ async function main() {
 
   // Préparation de données non résolues dans AsyncStorage avant la création
   const existingRecipe = {
-    id: 'rec_test_topinambour',
-    title: 'Velouté d\'hiver',
-    description: 'Une soupe réconfortante',
+    id: 'rec_test_salicorne',
+    title: 'Poêlée marine',
+    description: 'Une recette côtière',
     category: 'plats',
     servings: 4,
     prepTime: 10,
     cookTime: 20,
     difficulty: 'facile',
     ingredients: [
-      { id: 'ing_topi_1', name: 'Topinambour', quantity: '500', unit: 'g' }, // canonicalId undefined !
+      { id: 'ing_sali_1', name: 'Salicorne', quantity: '200', unit: 'g' }, // canonicalId undefined !
     ],
-    steps: ['Éplucher', 'Cuire'],
+    steps: ['Rincer', 'Poêler'],
   };
   await StorageService.saveAllRecipes([existingRecipe]);
 
   const existingFridge = [
-    { id: 'fridge_topi_1', name: 'Topinambour', aisle: 'Autre', createdAt: new Date().toISOString() }, // canonicalId undefined !
+    { id: 'fridge_sali_1', name: 'Salicorne', aisle: 'Autre', createdAt: new Date().toISOString() }, // canonicalId undefined !
   ];
   await StorageService.saveFridgeItems(existingFridge);
 
-  // Création officielle de "Topinambour"
+  // Création officielle de "Salicorne"
   const createRes = await UnifiedIngredientService.registerNewCanonicalIngredient({
-    canonicalName: 'Topinambour',
+    canonicalName: 'Salicorne',
     defaultAisle: 'Fruits & Légumes',
     allergen: null, // aucun allergène
     isPantryStaple: false,
-    aliases: ['topinambours'],
+    aliases: ['salicornes'],
   });
 
   assert.strictEqual(createRes.success, true);
-  assert.ok(createRes.ingredient.id.startsWith('ing_custom_topinambour'));
+  assert.ok(createRes.ingredient.id.startsWith('ing_custom_salicorne'));
   assert.strictEqual(createRes.ingredient.isCustom, true);
   console.log(`✓ Nouvel ingrédient créé : "${createRes.ingredient.canonicalName}" (${createRes.ingredient.id})`);
 

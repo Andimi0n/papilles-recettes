@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,9 @@ import { useTheme } from '../theme/ThemeContext';
 import { createDynamicStyles } from '../theme/colors';
 import { UnitQuickPicker } from './UnitQuickPicker';
 import { UnitPickerModal } from './UnitPickerModal';
+import { VocabularyService } from '../services/vocabularyService';
+import { normalizeIngredient } from '../utils/ingredientNormalizer';
+import { normalizeString } from '../utils/helpers';
 
 interface EditShoppingItemModalProps {
   visible: boolean;
@@ -49,6 +52,73 @@ export const EditShoppingItemModal: React.FC<EditShoppingItemModalProps> = ({
     setAisle(item?.aisle || 'Autre');
   }
 
+  // Résolution de l'ingrédient canonique et extraction de ses synonymes répertoriés
+  const itemCanonicalId = item?.canonicalId;
+  const canonicalIngredient = useMemo(() => {
+    const cleanName = name.trim();
+    if (!cleanName) return null;
+
+    const vocabMapById = VocabularyService.getSyncMapById();
+
+    // 1. Tenter la normalisation lexique-first
+    const normResult = normalizeIngredient({
+      name: cleanName,
+      canonicalId: itemCanonicalId,
+    });
+
+    if (normResult.canonicalId && vocabMapById.has(normResult.canonicalId)) {
+      return vocabMapById.get(normResult.canonicalId) || null;
+    }
+
+    // 2. Fallback direct par canonicalId de l'item d'origine si présent
+    if (itemCanonicalId && vocabMapById.has(itemCanonicalId)) {
+      return vocabMapById.get(itemCanonicalId) || null;
+    }
+
+    // 3. Fallback direct par nom normalisé dans le lexique
+    const normString = normalizeString(cleanName);
+    const byNorm = VocabularyService.getSyncMapByNormName().get(normString);
+    if (byNorm) return byNorm;
+
+    // 4. Fallback par alias
+    const byAlias = VocabularyService.getSyncMapByAlias().get(normString);
+    if (byAlias) return byAlias;
+
+    return null;
+  }, [name, itemCanonicalId]);
+
+  const synonyms = useMemo(() => {
+    if (!canonicalIngredient) return [];
+
+    const normInput = normalizeString(name);
+    const normCanonical = canonicalIngredient.normalizedName;
+    const seen = new Set<string>();
+    const list: string[] = [];
+
+    // Ajouter les alias répertoriés
+    for (const alias of canonicalIngredient.aliases || []) {
+      const trimmed = alias.trim();
+      const normA = normalizeString(trimmed);
+      if (!normA) continue;
+      // Ne pas répéter le nom canonique officiel comme synonyme s'il est identique
+      if (normA === normCanonical && canonicalIngredient.canonicalName.toLowerCase() === trimmed.toLowerCase()) {
+        continue;
+      }
+      if (!seen.has(normA)) {
+        seen.add(normA);
+        list.push(trimmed);
+      }
+    }
+
+    // Si le nom saisi est un alias et diffère du nom canonique officiel,
+    // inclure le nom canonique de référence pour clarté
+    if (normInput !== normCanonical && !seen.has(normCanonical)) {
+      list.unshift(canonicalIngredient.canonicalName);
+    }
+
+    return list;
+  }, [canonicalIngredient, name]);
+
   if (!item) return null;
 
   const handleSave = () => {
@@ -63,6 +133,7 @@ export const EditShoppingItemModal: React.FC<EditShoppingItemModalProps> = ({
     onSave({
       ...item,
       name: trimmedName,
+      canonicalId: canonicalIngredient?.id || item.canonicalId,
       quantity: cleanQty || undefined,
       unit: unit.trim() || undefined,
       aisle,
@@ -120,6 +191,36 @@ export const EditShoppingItemModal: React.FC<EditShoppingItemModalProps> = ({
                 placeholderTextColor={colors.textMuted}
                 autoFocus={false}
               />
+            </View>
+
+            {/* Synonymes répertoriés (non modifiables) */}
+            <View style={styles.synonymsSection}>
+              <View style={styles.synonymsHeaderRow}>
+                <View style={styles.synonymsLabelRow}>
+                  <Ionicons name="pricetags-outline" size={13} color={colors.primary} />
+                  <Text style={styles.synonymsLabel}>Synonymes reconnus</Text>
+                </View>
+                <View style={styles.readOnlyBadge}>
+                  <Ionicons name="lock-closed" size={10} color={colors.textMuted} />
+                  <Text style={styles.readOnlyBadgeText}>Non modifiable</Text>
+                </View>
+              </View>
+
+              {synonyms.length > 0 ? (
+                <View style={styles.synonymsContainer}>
+                  {synonyms.map((syn, index) => (
+                    <View key={`${syn}-${index}`} style={styles.synonymChip}>
+                      <Text style={styles.synonymChipText}>{syn}</Text>
+                    </View>
+                  ))}
+                </View>
+              ) : (
+                <View style={styles.emptySynonymsBox}>
+                  <Text style={styles.emptySynonymsText}>
+                    Aucun synonyme associé dans le lexique
+                  </Text>
+                </View>
+              )}
             </View>
 
             {/* Quantité & Unité */}
@@ -334,6 +435,70 @@ const styles = createDynamicStyles((colors, shadows) => ({
     paddingVertical: 10,
     fontSize: 15,
     color: colors.textPrimary,
+  },
+  synonymsSection: {
+    marginBottom: 14,
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  synonymsHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  synonymsLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  synonymsLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  readOnlyBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 7,
+    paddingVertical: 2.5,
+    borderRadius: 8,
+    backgroundColor: colors.borderLight,
+  },
+  readOnlyBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: colors.textMuted,
+  },
+  synonymsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  synonymChip: {
+    backgroundColor: colors.cardBackground,
+    paddingHorizontal: 9,
+    paddingVertical: 4.5,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  synonymChipText: {
+    fontSize: 11.5,
+    fontWeight: '500',
+    color: colors.textSecondary,
+  },
+  emptySynonymsBox: {
+    paddingVertical: 4,
+  },
+  emptySynonymsText: {
+    fontSize: 11.5,
+    fontStyle: 'italic',
+    color: colors.textMuted,
   },
   row: {
     flexDirection: 'row',
