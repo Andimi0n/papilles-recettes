@@ -508,6 +508,29 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
     );
   };
 
+  const handleDeleteDefaultRecipes = () => {
+    Alert.alert(
+      'Supprimer les recettes par défaut ?',
+      'Cette action supprime définitivement toutes les recettes du catalogue initial. Seules vos recettes personnelles (ajoutées ou importées) seront conservées. Continuer ?',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Supprimer',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await StorageService.deleteDefaultRecipes();
+              Alert.alert('Terminé', 'Les recettes par défaut ont été supprimées.');
+              if (onRecipesReloadNeeded) onRecipesReloadNeeded();
+            } catch (e) {
+              Alert.alert('Erreur', 'Impossible de supprimer les recettes par défaut.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const handleResetVocabulary = () => {
     Alert.alert(
       'Réinitialiser le lexique',
@@ -534,7 +557,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   const handleFullFactoryReset = () => {
     Alert.alert(
       'Remise à zéro complète ?',
-      "Cette action va réinitialiser l'application à son état d'origine :\n\n• Rechargement des 100 recettes cultes Marmiton normalisées\n• Rechargement des 208 ingrédients de référence\n• Vidage complet de la liste de courses\n• Vidage complet du stock (étagères)\n• Vidage du planning hebdomadaire\n\nIdéal pour repartir sur une base 100% saine après une phase de test. Continuer ?",
+      "Cette action va réinitialiser l'application à son état d'origine :\n\n• Rechargement des 100 recettes par défaut normalisées\n• Rechargement des 208 ingrédients de référence\n• Vidage complet de la liste de courses\n• Vidage complet du stock (étagères)\n• Vidage du planning hebdomadaire\n\nIdéal pour repartir sur une base 100% saine après une phase de test. Continuer ?",
       [
         { text: 'Annuler', style: 'cancel' },
         {
@@ -1393,9 +1416,25 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                 <Ionicons name="refresh-outline" size={18} color={colors.danger} />
                 <View style={styles.dataActionInfo}>
                   <Text style={[styles.dataActionTitle, { color: colors.danger }]}>
-                    Réinitialiser les recettes Marmiton
+                    Réinitialiser les recettes par défaut
                   </Text>
                   <Text style={styles.dataActionDesc}>Recharge le catalogue culte par défaut</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+              </TouchableOpacity>
+
+              {/* Suppression des recettes par défaut */}
+              <TouchableOpacity
+                style={styles.dataActionBtn}
+                onPress={handleDeleteDefaultRecipes}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="library-outline" size={18} color={colors.danger} />
+                <View style={styles.dataActionInfo}>
+                  <Text style={[styles.dataActionTitle, { color: colors.danger }]}>
+                    Supprimer les recettes par défaut
+                  </Text>
+                  <Text style={styles.dataActionDesc}>Ne garde que vos recettes personnelles</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
               </TouchableOpacity>

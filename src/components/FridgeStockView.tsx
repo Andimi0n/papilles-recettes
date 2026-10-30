@@ -17,7 +17,7 @@ import { StorageService } from '../services/storageService';
 import { createDynamicStyles } from '../theme/colors';
 import { useTheme } from '../theme/ThemeContext';
 import { AISLE_CONFIGS, ALL_AISLES, classifyIngredientAisle } from '../utils/aisleClassifier';
-import { normalizeString } from '../utils/helpers';
+import { normalizeString, generateUniqueId } from '../utils/helpers';
 import { normalizeIngredient } from '../utils/ingredientNormalizer';
 import { filterIngredientItems, countMatchingItems, areFridgeListsEqual } from '../utils/ingredientSearchMatcher';
 import { createSectionListGetItemLayout } from '../utils/sectionListLayoutHelper';
@@ -340,13 +340,44 @@ const FridgeStockViewComponent: React.FC<FridgeStockViewProps> = ({
         : undefined) ||
       classifyIngredientAisle(name);
 
+    // Anti-doublon optimiste (évite les ajouts en double avant la persistance)
+    const currentItems = itemsRef.current;
+    const normNew = normalizeString(name);
+    const alreadyExists = currentItems.some((i) => {
+      if (resolvedCanonicalId && i.canonicalId) return i.canonicalId === resolvedCanonicalId;
+      const normItem = normalizeString(i.name);
+      return (
+        normItem === normNew ||
+        (normNew.endsWith('s') && normItem === normNew.slice(0, -1)) ||
+        (!normNew.endsWith('s') && `${normItem}s` === normNew)
+      );
+    });
+    if (alreadyExists) return;
+
+    // Mise à jour optimiste immédiate — l'UI répond sans attendre AsyncStorage
+    const optimisticItem: FridgeItem = {
+      id: generateUniqueId('fridge'),
+      name,
+      canonicalId: resolvedCanonicalId,
+      aisle: resolvedAisle,
+      createdAt: new Date().toISOString(),
+    };
+    const optimisticList = [optimisticItem, ...currentItems];
+    setItems(optimisticList);
+    onFridgeCountChangeRef.current?.(optimisticList.length);
+    setNewItemName('');
+
+    // Persistance en arrière-plan
     try {
-      const updated = await StorageService.addFridgeItem(name, resolvedAisle, resolvedCanonicalId);
-      setItems(updated);
+      const persisted = await StorageService.addFridgeItem(name, resolvedAisle, resolvedCanonicalId);
+      // Resynchronisation silencieuse si le service a normalisé différemment (ex: doublon détecté)
+      setItems((prev) => (areFridgeListsEqual(prev, persisted) ? prev : persisted));
+      onFridgeCountChangeRef.current?.(persisted.length);
       VocabularyService.incrementUsage(resolvedCanonicalId || name).catch(() => {});
-      onFridgeCountChangeRef.current?.(updated.length);
-      setNewItemName('');
     } catch (e) {
+      // Rollback en cas d'erreur de persistance
+      setItems(currentItems);
+      onFridgeCountChangeRef.current?.(currentItems.length);
       Alert.alert('Erreur', "Impossible d'ajouter cet aliment à vos étagères.");
     }
   };
@@ -361,11 +392,9 @@ const FridgeStockViewComponent: React.FC<FridgeStockViewProps> = ({
     const itemIndex = currentItems.findIndex((it) => it.id === id);
     const itemToDelete = targetItem || (itemIndex !== -1 ? currentItems[itemIndex] : undefined);
 
-    setItems((prev) => {
-      const updated = prev.filter((it) => it.id !== id);
-      onFridgeCountChangeRef.current?.(updated.length);
-      return updated;
-    });
+    const newCount = currentItems.filter((it) => it.id !== id).length;
+    setItems((prev) => prev.filter((it) => it.id !== id));
+    onFridgeCountChangeRef.current?.(newCount);
 
     if (!itemToDelete) return;
 

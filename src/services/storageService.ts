@@ -493,6 +493,24 @@ export const StorageService = {
   },
 
   /**
+   * Supprime toutes les recettes par défaut (préfixe `rec_top100_`)
+   * et ne conserve que les recettes ajoutées par l'utilisateur.
+   * Retourne la liste mise à jour.
+   */
+  async deleteDefaultRecipes(): Promise<Recipe[]> {
+    try {
+      const current = await this.getRecipes();
+      const userOnly = current.filter((r) => !r.id.startsWith('rec_top100_'));
+      memoryCache.recipes = userOnly;
+      await AsyncStorage.setItem(RECIPES_STORAGE_KEY, JSON.stringify(userOnly));
+      return userOnly;
+    } catch (error) {
+      console.error('Erreur suppression recettes par défaut:', error);
+      throw error;
+    }
+  },
+
+  /**
    * Migration ou harmonisation des données de l'utilisateur
    * (recettes personnelles, liste de courses et étagères du placard/frigo)
    * pour normaliser les ingrédients selon le lexique canonique strict.
