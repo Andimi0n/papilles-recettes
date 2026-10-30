@@ -4,9 +4,9 @@ import {
   Text,
   Modal,
   TouchableOpacity,
-  Image,
   ActivityIndicator,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { createDynamicStyles } from '../theme/colors';
 import { useTheme } from '../theme/ThemeContext';
@@ -75,7 +75,8 @@ export const RecipeQrModal: React.FC<RecipeQrModalProps> = ({
                 <Image
                   source={{ uri: qrUri }}
                   style={styles.qrImage}
-                  resizeMode="contain"
+                  contentFit="contain"
+                  cachePolicy="none"
                 />
               </View>
             ) : (

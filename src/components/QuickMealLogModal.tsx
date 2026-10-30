@@ -6,10 +6,10 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
-  Image,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { MealTime } from '../types/planner';
 import { MealLogEntry } from '../types/mealLog';
@@ -295,7 +295,13 @@ export const QuickMealLogModal: React.FC<QuickMealLogModalProps> = ({
                         activeOpacity={0.7}
                       >
                         {r.imageUrl ? (
-                          <Image source={{ uri: r.imageUrl }} style={styles.smartSuggestionThumb} />
+                          <Image
+                            source={{ uri: r.imageUrl }}
+                            style={styles.smartSuggestionThumb}
+                            contentFit="cover"
+                            cachePolicy="disk"
+                            transition={150}
+                          />
                         ) : (
                           <View style={styles.smartSuggestionPlaceholder}>
                             <Ionicons name="restaurant-outline" size={15} color={colors.primary} />
@@ -326,7 +332,13 @@ export const QuickMealLogModal: React.FC<QuickMealLogModalProps> = ({
             {selectedRecipe && (
               <View style={styles.linkedRecipeBanner}>
                 {selectedRecipe.imageUrl ? (
-                  <Image source={{ uri: selectedRecipe.imageUrl }} style={styles.linkedRecipeThumb} />
+                  <Image
+                    source={{ uri: selectedRecipe.imageUrl }}
+                    style={styles.linkedRecipeThumb}
+                    contentFit="cover"
+                    cachePolicy="disk"
+                    transition={150}
+                  />
                 ) : (
                   <View style={styles.linkedRecipePlaceholder}>
                     <Ionicons name="book" size={14} color={colors.primary} />
@@ -466,7 +478,13 @@ export const QuickMealLogModal: React.FC<QuickMealLogModalProps> = ({
                           activeOpacity={0.7}
                         >
                           {r.imageUrl ? (
-                            <Image source={{ uri: r.imageUrl }} style={styles.recipeSelectThumb} />
+                            <Image
+                              source={{ uri: r.imageUrl }}
+                              style={styles.recipeSelectThumb}
+                              contentFit="cover"
+                              cachePolicy="disk"
+                              transition={150}
+                            />
                           ) : (
                             <View style={styles.recipeSelectPlaceholder}>
                               <Ionicons name="restaurant-outline" size={14} color={colors.primary} />

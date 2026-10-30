@@ -7,13 +7,13 @@ import {
   TextInput,
   TouchableOpacity,
   Alert,
-  Image,
   ActivityIndicator,
   Modal,
   KeyboardAvoidingView,
   Platform,
   Animated,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -941,7 +941,12 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>Photo de la recette</Text>
             <View style={styles.imagePreviewContainer}>
-              <Image source={{ uri: imageUrl }} style={styles.imagePreview} resizeMode="cover" />
+              <Image
+                source={{ uri: imageUrl }}
+                style={styles.imagePreview}
+                contentFit="cover"
+                cachePolicy="disk"
+              />
               <TouchableOpacity
                 style={styles.changeImageBtn}
                 onPress={handlePickImage}
@@ -977,7 +982,13 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
                         onPress={() => setImageUrl(imgUrl)}
                         activeOpacity={0.8}
                       >
-                        <Image source={{ uri: imgUrl }} style={styles.candidateImage} />
+                        <Image
+                          source={{ uri: imgUrl }}
+                          style={styles.candidateImage}
+                          contentFit="cover"
+                          cachePolicy="disk"
+                          transition={150}
+                        />
                         {isSelected && (
                           <View style={styles.candidateCheckBadge}>
                             <Ionicons name="checkmark" size={12} color="#FFFFFF" />
@@ -1010,7 +1021,13 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
                   ]}
                   onPress={() => setImageUrl(preset.url)}
                 >
-                  <Image source={{ uri: preset.url }} style={styles.presetImage} />
+                  <Image
+                    source={{ uri: preset.url }}
+                    style={styles.presetImage}
+                    contentFit="cover"
+                    cachePolicy="disk"
+                    transition={150}
+                  />
                   <Text style={styles.presetText}>{preset.label}</Text>
                 </TouchableOpacity>
               ))}

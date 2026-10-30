@@ -4,10 +4,10 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-  Image,
   Alert,
   Modal,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Recipe } from '../types/recipe';
@@ -665,6 +665,9 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
                     <Image
                       source={{ uri: selectedLunch.recipeImageUrl }}
                       style={styles.journalDishThumb}
+                      contentFit="cover"
+                      cachePolicy="disk"
+                      transition={150}
                     />
                   ) : (
                     <View style={styles.journalDishPlaceholder}>
@@ -693,6 +696,9 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
                       <Image
                         source={{ uri: plannedLunchForDay.recipeImageUrl }}
                         style={styles.journalPlannedThumb}
+                        contentFit="cover"
+                        cachePolicy="disk"
+                        transition={150}
                       />
                     ) : (
                       <View style={styles.journalPlannedPlaceholder}>
@@ -766,6 +772,9 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
                     <Image
                       source={{ uri: selectedDinner.recipeImageUrl }}
                       style={styles.journalDishThumb}
+                      contentFit="cover"
+                      cachePolicy="disk"
+                      transition={150}
                     />
                   ) : (
                     <View style={styles.journalDishPlaceholder}>
@@ -794,6 +803,9 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
                       <Image
                         source={{ uri: plannedDinnerForDay.recipeImageUrl }}
                         style={styles.journalPlannedThumb}
+                        contentFit="cover"
+                        cachePolicy="disk"
+                        transition={150}
                       />
                     ) : (
                       <View style={styles.journalPlannedPlaceholder}>
@@ -1042,6 +1054,9 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
                               styles.slotThumb,
                               isLunchPassed && styles.slotThumbPassed,
                             ]}
+                            contentFit="cover"
+                            cachePolicy="disk"
+                            transition={150}
                           />
                         ) : (
                           <View
@@ -1199,6 +1214,9 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
                               styles.slotThumb,
                               isDinnerPassed && styles.slotThumbPassed,
                             ]}
+                            contentFit="cover"
+                            cachePolicy="disk"
+                            transition={150}
                           />
                         ) : (
                           <View
@@ -1325,199 +1343,207 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
       )}
 
       {/* Modal de sélection de recette pour le planning prévisionnel */}
-      <MealSlotPickerModal
-        visible={Boolean(activeSlot)}
-        day={
-          activeSlot
-            ? `${activeSlot.dayLabel}${activeSlot.dateStr ? ' (' + formatShortDateFrench(activeSlot.dateStr) + ')' : ''}`
-            : null
-        }
-        mealTime={activeSlot?.mealTime || null}
-        isPassed={activeSlot?.isPassed}
-        recipes={recipes}
-        currentMeal={
-          activeSlot ? weeklyPlan[activeSlot.slotKey] : undefined
-        }
-        onSelectRecipe={handleSaveRecipeToSlot}
-        onSelectCustomMeal={handleSaveCustomMealToSlot}
-        onRemoveMeal={() => {
-          if (activeSlot) {
-            handleRemoveMealFromSlot(activeSlot.slotKey, activeSlot.mealTime);
+      {Boolean(activeSlot) && (
+        <MealSlotPickerModal
+          visible={Boolean(activeSlot)}
+          day={
+            activeSlot
+              ? `${activeSlot.dayLabel}${activeSlot.dateStr ? ' (' + formatShortDateFrench(activeSlot.dateStr) + ')' : ''}`
+              : null
           }
-        }}
-        onClose={() => setActiveSlot(null)}
-      />
+          mealTime={activeSlot?.mealTime || null}
+          isPassed={activeSlot?.isPassed}
+          recipes={recipes}
+          currentMeal={
+            activeSlot ? weeklyPlan[activeSlot.slotKey] : undefined
+          }
+          onSelectRecipe={handleSaveRecipeToSlot}
+          onSelectCustomMeal={handleSaveCustomMealToSlot}
+          onRemoveMeal={() => {
+            if (activeSlot) {
+              handleRemoveMealFromSlot(activeSlot.slotKey, activeSlot.mealTime);
+            }
+          }}
+          onClose={() => setActiveSlot(null)}
+        />
+      )}
 
       {/* Modal de réglages rapides du planning (Fixe vs Dynamique) */}
-      <Modal
-        visible={isConfigModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setIsConfigModalVisible(false)}
-      >
-        <View style={styles.configModalBackdrop}>
-          <View style={styles.configModalDialog}>
-            <View style={styles.configModalHeader}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Ionicons name="options" size={20} color={colors.primary} />
-                <Text style={styles.configModalTitle}>Organisation du Menu</Text>
-              </View>
-              <TouchableOpacity
-                onPress={() => setIsConfigModalVisible(false)}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <Ionicons name="close" size={22} color={colors.textPrimary} />
-              </TouchableOpacity>
-            </View>
-
-            <Text style={styles.configModalSubtitle}>
-              Choisissez votre mode d’organisation de la semaine :
-            </Text>
-
-            <View style={styles.modalModeRow}>
-              <TouchableOpacity
-                style={[
-                  styles.modalModeBtn,
-                  plannerSettings.mode === 'fixed' && styles.modalModeBtnActive,
-                ]}
-                onPress={() => handleChangeMode('fixed')}
-                activeOpacity={0.8}
-              >
-                <Ionicons
-                  name="calendar"
-                  size={18}
-                  color={plannerSettings.mode === 'fixed' ? colors.primary : colors.textSecondary}
-                />
-                <Text
-                  style={[
-                    styles.modalModeBtnText,
-                    plannerSettings.mode === 'fixed' && styles.modalModeBtnTextActive,
-                  ]}
-                >
-                  Fixe
-                </Text>
-                <Text style={styles.modalModeSubText}>Semaine de courses</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.modalModeBtn,
-                  plannerSettings.mode === 'dynamic' && styles.modalModeBtnActive,
-                ]}
-                onPress={() => handleChangeMode('dynamic')}
-                activeOpacity={0.8}
-              >
-                <Ionicons
-                  name="flash"
-                  size={18}
-                  color={plannerSettings.mode === 'dynamic' ? colors.primary : colors.textSecondary}
-                />
-                <Text
-                  style={[
-                    styles.modalModeBtnText,
-                    plannerSettings.mode === 'dynamic' && styles.modalModeBtnTextActive,
-                  ]}
-                >
-                  Dynamique
-                </Text>
-                <Text style={styles.modalModeSubText}>Dès aujourd’hui</Text>
-              </TouchableOpacity>
-            </View>
-
-            {plannerSettings.mode === 'fixed' ? (
-              <View style={styles.modalDaysSection}>
-                <Text style={styles.modalDaysTitle}>Premier jour de la semaine :</Text>
-                <Text style={styles.modalDaysSub}>
-                  Jour où vous commencez vos menus (ex: courses le mercredi) :
-                </Text>
-                <View style={styles.modalDaysGrid}>
-                  {ORDERED_DAYS_OF_WEEK.map((d) => {
-                    const isSelected = plannerSettings.startDay === d;
-                    return (
-                      <TouchableOpacity
-                        key={d}
-                        style={[
-                          styles.modalDayChip,
-                          isSelected && styles.modalDayChipActive,
-                        ]}
-                        onPress={() => handleChangeStartDay(d)}
-                        activeOpacity={0.7}
-                      >
-                        <Text
-                          style={[
-                            styles.modalDayChipText,
-                            isSelected && styles.modalDayChipTextActive,
-                          ]}
-                        >
-                          {d.slice(0, 3)}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
+      {isConfigModalVisible && (
+        <Modal
+          visible={isConfigModalVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setIsConfigModalVisible(false)}
+        >
+          <View style={styles.configModalBackdrop}>
+            <View style={styles.configModalDialog}>
+              <View style={styles.configModalHeader}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Ionicons name="options" size={20} color={colors.primary} />
+                  <Text style={styles.configModalTitle}>Organisation du Menu</Text>
                 </View>
-                <View style={styles.modalInfoBox}>
-                  <Ionicons name="information-circle-outline" size={15} color={colors.primary} />
-                  <Text style={styles.modalInfoText}>
-                    Planning du {plannerSettings.startDay} au{' '}
-                    {ORDERED_DAYS_OF_WEEK[
-                      (ORDERED_DAYS_OF_WEEK.indexOf(plannerSettings.startDay) + 6) % 7
+                <TouchableOpacity
+                  onPress={() => setIsConfigModalVisible(false)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons name="close" size={22} color={colors.textPrimary} />
+                </TouchableOpacity>
+              </View>
+
+              <Text style={styles.configModalSubtitle}>
+                Choisissez votre mode d’organisation de la semaine :
+              </Text>
+
+              <View style={styles.modalModeRow}>
+                <TouchableOpacity
+                  style={[
+                    styles.modalModeBtn,
+                    plannerSettings.mode === 'fixed' && styles.modalModeBtnActive,
+                  ]}
+                  onPress={() => handleChangeMode('fixed')}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons
+                    name="calendar"
+                    size={18}
+                    color={plannerSettings.mode === 'fixed' ? colors.primary : colors.textSecondary}
+                  />
+                  <Text
+                    style={[
+                      styles.modalModeBtnText,
+                      plannerSettings.mode === 'fixed' && styles.modalModeBtnTextActive,
                     ]}
+                  >
+                    Fixe
+                  </Text>
+                  <Text style={styles.modalModeSubText}>Semaine de courses</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.modalModeBtn,
+                    plannerSettings.mode === 'dynamic' && styles.modalModeBtnActive,
+                  ]}
+                  onPress={() => handleChangeMode('dynamic')}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons
+                    name="flash"
+                    size={18}
+                    color={plannerSettings.mode === 'dynamic' ? colors.primary : colors.textSecondary}
+                  />
+                  <Text
+                    style={[
+                      styles.modalModeBtnText,
+                      plannerSettings.mode === 'dynamic' && styles.modalModeBtnTextActive,
+                    ]}
+                  >
+                    Dynamique
+                  </Text>
+                  <Text style={styles.modalModeSubText}>Dès aujourd’hui</Text>
+                </TouchableOpacity>
+              </View>
+
+              {plannerSettings.mode === 'fixed' ? (
+                <View style={styles.modalDaysSection}>
+                  <Text style={styles.modalDaysTitle}>Premier jour de la semaine :</Text>
+                  <Text style={styles.modalDaysSub}>
+                    Jour où vous commencez vos menus (ex: courses le mercredi) :
+                  </Text>
+                  <View style={styles.modalDaysGrid}>
+                    {ORDERED_DAYS_OF_WEEK.map((d) => {
+                      const isSelected = plannerSettings.startDay === d;
+                      return (
+                        <TouchableOpacity
+                          key={d}
+                          style={[
+                            styles.modalDayChip,
+                            isSelected && styles.modalDayChipActive,
+                          ]}
+                          onPress={() => handleChangeStartDay(d)}
+                          activeOpacity={0.7}
+                        >
+                          <Text
+                            style={[
+                              styles.modalDayChipText,
+                              isSelected && styles.modalDayChipTextActive,
+                            ]}
+                          >
+                            {d.slice(0, 3)}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                  <View style={styles.modalInfoBox}>
+                    <Ionicons name="information-circle-outline" size={15} color={colors.primary} />
+                    <Text style={styles.modalInfoText}>
+                      Planning du {plannerSettings.startDay} au{' '}
+                      {ORDERED_DAYS_OF_WEEK[
+                        (ORDERED_DAYS_OF_WEEK.indexOf(plannerSettings.startDay) + 6) % 7
+                      ]}
+                    </Text>
+                  </View>
+                </View>
+              ) : (
+                <View style={styles.modalDynamicNotice}>
+                  <Ionicons name="sparkles-outline" size={16} color={colors.primary} />
+                  <Text style={styles.modalDynamicNoticeText}>
+                    Planning glissant sur 7 jours débutant au prochain repas selon l’heure. Les repas passés sont grisés tout en restant modifiables si vous souhaitez forcer un choix.
                   </Text>
                 </View>
-              </View>
-            ) : (
-              <View style={styles.modalDynamicNotice}>
-                <Ionicons name="sparkles-outline" size={16} color={colors.primary} />
-                <Text style={styles.modalDynamicNoticeText}>
-                  Planning glissant sur 7 jours débutant au prochain repas selon l’heure. Les repas passés sont grisés tout en restant modifiables si vous souhaitez forcer un choix.
-                </Text>
-              </View>
-            )}
+              )}
 
-            <TouchableOpacity
-              style={styles.modalDoneBtn}
-              onPress={() => setIsConfigModalVisible(false)}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.modalDoneBtnText}>Enregistrer</Text>
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalDoneBtn}
+                onPress={() => setIsConfigModalVisible(false)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.modalDoneBtnText}>Enregistrer</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
-      </Modal>
+        </Modal>
+      )}
 
       {/* Modal de saisie rapide libre pour le suivi des repas (journal) */}
-      <QuickMealLogModal
-        visible={quickLogModal.visible}
-        date={quickLogModal.date}
-        mealTime={quickLogModal.mealTime}
-        currentEntry={quickLogModal.entry}
-        recipes={recipes}
-        plannedMealTitle={
-          quickLogModal.mealTime === 'lunch'
-            ? plannedLunchForDay?.recipeTitle
-            : plannedDinnerForDay?.recipeTitle
-        }
-        onSave={handleSaveMealLog}
-        onDelete={quickLogModal.entry ? handleDeleteMealLog : undefined}
-        onClose={() =>
-          setQuickLogModal((prev) => ({ ...prev, visible: false, entry: null }))
-        }
-      />
+      {quickLogModal.visible && (
+        <QuickMealLogModal
+          visible={quickLogModal.visible}
+          date={quickLogModal.date}
+          mealTime={quickLogModal.mealTime}
+          currentEntry={quickLogModal.entry}
+          recipes={recipes}
+          plannedMealTitle={
+            quickLogModal.mealTime === 'lunch'
+              ? plannedLunchForDay?.recipeTitle
+              : plannedDinnerForDay?.recipeTitle
+          }
+          onSave={handleSaveMealLog}
+          onDelete={quickLogModal.entry ? handleDeleteMealLog : undefined}
+          onClose={() =>
+            setQuickLogModal((prev) => ({ ...prev, visible: false, entry: null }))
+          }
+        />
+      )}
 
       {/* Modal du calendrier mensuel des repas (historique sans limite) */}
-      <MealCalendarModal
-        visible={isCalendarModalVisible}
-        selectedDate={selectedDate}
-        mealLogs={mealLogs}
-        weeklyPlan={weeklyPlan}
-        onSelectDate={(date) => {
-          setSelectedDate(date);
-          if (date === todayStr) {
-            ribbonScrollRef.current?.scrollToEnd({ animated: true });
-          }
-        }}
-        onClose={() => setIsCalendarModalVisible(false)}
-      />
+      {isCalendarModalVisible && (
+        <MealCalendarModal
+          visible={isCalendarModalVisible}
+          selectedDate={selectedDate}
+          mealLogs={mealLogs}
+          weeklyPlan={weeklyPlan}
+          onSelectDate={(date) => {
+            setSelectedDate(date);
+            if (date === todayStr) {
+              ribbonScrollRef.current?.scrollToEnd({ animated: true });
+            }
+          }}
+          onClose={() => setIsCalendarModalVisible(false)}
+        />
+      )}
     </SafeAreaView>
   );
 };

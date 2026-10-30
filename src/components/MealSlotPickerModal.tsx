@@ -6,9 +6,9 @@ import {
   TouchableOpacity,
   TextInput,
   FlatList,
-  Image,
   ScrollView,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { Recipe, Category } from '../types/recipe';
 import { DayOfWeek, MealTime, PlannedMeal } from '../types/planner';
@@ -245,7 +245,13 @@ export const MealSlotPickerModal: React.FC<MealSlotPickerModalProps> = ({
                   activeOpacity={0.7}
                 >
                   {item.imageUrl ? (
-                    <Image source={{ uri: item.imageUrl }} style={styles.recipeThumb} />
+                    <Image
+                      source={{ uri: item.imageUrl }}
+                      style={styles.recipeThumb}
+                      contentFit="cover"
+                      cachePolicy="disk"
+                      transition={150}
+                    />
                   ) : (
                     <View style={styles.recipeThumbPlaceholder}>
                       <Ionicons name="restaurant-outline" size={20} color={colors.primary} />

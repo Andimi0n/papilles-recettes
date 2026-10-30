@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  Image,
   TouchableOpacity,
   Alert,
   Share,
@@ -15,6 +14,7 @@ import {
   KeyboardAvoidingView,
   ActivityIndicator,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useKeepAwake } from 'expo-keep-awake';
@@ -700,7 +700,9 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
               <Image
                 source={{ uri: recipe.imageUrl }}
                 style={styles.image}
-                resizeMode="cover"
+                contentFit="cover"
+                cachePolicy="disk"
+                transition={200}
               />
               <View style={styles.heroBadgesRow}>
                 <View style={styles.categoryPill}>
@@ -972,350 +974,362 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
         </View>
 
         {/* Modal Modification Astuce */}
-        <Modal
-          visible={isNoteModalVisible}
-          transparent={true}
-          animationType="fade"
-          onRequestClose={() => setIsNoteModalVisible(false)}
-        >
-          <View style={styles.modalBackdrop}>
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Astuce ou note personnelle</Text>
-              <Text style={styles.modalSubtitle}>
-                Ajoutez vos secrets de cuisson ou remarques pour cette recette.
-              </Text>
+        {isNoteModalVisible && (
+          <Modal
+            visible={isNoteModalVisible}
+            transparent={true}
+            animationType="fade"
+            onRequestClose={() => setIsNoteModalVisible(false)}
+          >
+            <View style={styles.modalBackdrop}>
+              <View style={styles.modalContent}>
+                <Text style={styles.modalTitle}>Astuce ou note personnelle</Text>
+                <Text style={styles.modalSubtitle}>
+                  Ajoutez vos secrets de cuisson ou remarques pour cette recette.
+                </Text>
 
-              <TextInput
-                style={styles.noteInput}
-                value={noteText}
-                onChangeText={setNoteText}
-                placeholder="Ex: Remplacer le beurre par de l'huile de sésame..."
-                placeholderTextColor={Colors.textMuted}
-                multiline
-                numberOfLines={4}
-              />
+                <TextInput
+                  style={styles.noteInput}
+                  value={noteText}
+                  onChangeText={setNoteText}
+                  placeholder="Ex: Remplacer le beurre par de l'huile de sésame..."
+                  placeholderTextColor={Colors.textMuted}
+                  multiline
+                  numberOfLines={4}
+                />
 
-              <View style={styles.modalButtons}>
-                <TouchableOpacity
-                  style={styles.modalCancelBtn}
-                  onPress={() => setIsNoteModalVisible(false)}
-                >
-                  <Text style={styles.modalCancelText}>Annuler</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.modalSaveBtn}
-                  onPress={handleSaveNote}
-                >
-                  <Text style={styles.modalSaveText}>Enregistrer</Text>
-                </TouchableOpacity>
+                <View style={styles.modalButtons}>
+                  <TouchableOpacity
+                    style={styles.modalCancelBtn}
+                    onPress={() => setIsNoteModalVisible(false)}
+                  >
+                    <Text style={styles.modalCancelText}>Annuler</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.modalSaveBtn}
+                    onPress={handleSaveNote}
+                  >
+                    <Text style={styles.modalSaveText}>Enregistrer</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
-          </View>
-        </Modal>
+          </Modal>
+        )}
 
         {/* Modal de sélection avant ajout à la liste de courses */}
-        <Modal
-          visible={isShoppingModalVisible}
-          transparent={true}
-          animationType="fade"
-          onRequestClose={() => setIsShoppingModalVisible(false)}
-        >
-          <View style={styles.modalBackdrop}>
-            <View style={styles.shoppingDialogCard}>
-              <View style={styles.shoppingDialogHeader}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.shoppingDialogTitle}>Ajouter aux courses</Text>
-                  <Text style={styles.shoppingDialogSubtitle}>
-                    {recipe.title} • {currentServings} pers.
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  onPress={() => setIsShoppingModalVisible(false)}
-                  style={styles.shoppingDialogCloseBtn}
-                >
-                  <Ionicons name="close" size={20} color={colors.textSecondary} />
-                </TouchableOpacity>
-              </View>
-
-              {/* Raccourcis de sélection */}
-              <View style={styles.shoppingQuickBtnsRow}>
-                <TouchableOpacity
-                  style={styles.shoppingQuickBtn}
-                  onPress={handleSelectEssentialsOnly}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.shoppingQuickBtnText}>Indispensables uniquement</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.shoppingQuickBtn}
-                  onPress={() => handleSelectAllShopping(true)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.shoppingQuickBtnText}>Tout cocher</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.shoppingQuickBtn}
-                  onPress={() => handleSelectAllShopping(false)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.shoppingQuickBtnText}>Tout décocher</Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* Liste des ingrédients organisée en sous-sections Livre de Chef */}
-              <ScrollView style={styles.shoppingListScroll} showsVerticalScrollIndicator={true}>
-                {ingredientGroups.groups.map((group) => (
-                  <View key={`shop_group_${group.key}`} style={styles.shoppingGroupBlock}>
-                    <View style={styles.shoppingGroupHeader}>
-                      <View style={styles.shoppingGroupHeaderTop}>
-                        <Ionicons
-                          name={
-                            group.key === 'main'
-                              ? 'basket-outline'
-                              : group.key === 'pantry'
-                              ? 'sparkles-outline'
-                              : 'leaf-outline'
-                          }
-                          size={13}
-                          color={group.key === 'main' ? colors.primary : colors.textSecondary}
-                          style={{ marginRight: 6 }}
-                        />
-                        <Text style={styles.shoppingGroupTitle}>
-                          {group.key === 'main'
-                            ? 'INGRÉDIENTS PRINCIPAUX'
-                            : group.key === 'pantry'
-                            ? 'ASSAISONNEMENTS & CONDIMENTS'
-                            : 'EN FINITION & AU GOÛT'}
-                        </Text>
-                      </View>
-                      {group.key !== 'main' ? (
-                        <Text style={styles.shoppingGroupHint}>
-                          {group.key === 'pantry'
-                            ? 'Cochez si vous en manquez dans vos placards'
-                            : 'Touches facultatives ou selon vos préférences'}
-                        </Text>
-                      ) : null}
-                    </View>
-
-                    {group.items.map((ing) => {
-                      const isChecked = !!shoppingSelection[ing.id];
-                      const scaledQty = scaleQuantity(ing.quantity, recipe.servings || 4, currentServings);
-
-                      return (
-                        <TouchableOpacity
-                          key={`shop_item_${ing.id}`}
-                          style={[styles.shoppingItemRow, isChecked && styles.shoppingItemRowChecked]}
-                          onPress={() => handleToggleShoppingItem(ing.id)}
-                          activeOpacity={0.7}
-                        >
-                          <Ionicons
-                            name={isChecked ? 'checkbox' : 'square-outline'}
-                            size={20}
-                            color={isChecked ? colors.primary : colors.textMuted}
-                            style={{ marginRight: 10 }}
-                          />
-                          <Text style={[styles.shoppingItemName, !isChecked && styles.shoppingItemNameMuted]}>
-                            {ing.name}
-                          </Text>
-                          {scaledQty ? (
-                            <Text style={[styles.shoppingItemQty, !isChecked && styles.shoppingItemNameMuted]}>
-                              {formatQuantityWithUnit(scaledQty, ing.unit)}
-                            </Text>
-                          ) : null}
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                ))}
-              </ScrollView>
-
-              {/* Footer avec action */}
-              <View style={styles.shoppingDialogFooter}>
-                <TouchableOpacity
-                  style={styles.shoppingCancelBtn}
-                  onPress={() => setIsShoppingModalVisible(false)}
-                >
-                  <Text style={styles.shoppingCancelBtnText}>Annuler</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    styles.shoppingConfirmBtn,
-                    Object.values(shoppingSelection).filter(Boolean).length === 0 && styles.shoppingConfirmBtnDisabled,
-                  ]}
-                  onPress={handleConfirmAddToShopping}
-                  disabled={isAddingToShoppingList || Object.values(shoppingSelection).filter(Boolean).length === 0}
-                >
-                  <Ionicons name="cart" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
-                  <Text style={styles.shoppingConfirmBtnText}>
-                    Ajouter ({Object.values(shoppingSelection).filter(Boolean).length})
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        </Modal>
-
-        {/* Modal de gestion rapide des tags de la recette */}
-        <Modal
-          visible={isTagModalVisible}
-          transparent={true}
-          animationType="fade"
-          onRequestClose={() => setIsTagModalVisible(false)}
-        >
-          <View style={styles.modalBackdrop}>
-            <KeyboardAvoidingView
-              behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-              style={{ width: '100%', alignItems: 'center' }}
-            >
-              <View style={styles.tagDialogCard}>
-                <View style={styles.tagDialogHeader}>
-                  <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <View style={styles.tagDialogIconWrap}>
-                      <Ionicons name="pricetag" size={18} color={colors.primary} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.tagDialogTitle}>Tags & Étiquettes</Text>
-                      <Text style={styles.tagDialogSubtitle} numberOfLines={1}>
-                        {recipe.title}
-                      </Text>
-                    </View>
+        {isShoppingModalVisible && (
+          <Modal
+            visible={isShoppingModalVisible}
+            transparent={true}
+            animationType="fade"
+            onRequestClose={() => setIsShoppingModalVisible(false)}
+          >
+            <View style={styles.modalBackdrop}>
+              <View style={styles.shoppingDialogCard}>
+                <View style={styles.shoppingDialogHeader}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.shoppingDialogTitle}>Ajouter aux courses</Text>
+                    <Text style={styles.shoppingDialogSubtitle}>
+                      {recipe.title} • {currentServings} pers.
+                    </Text>
                   </View>
                   <TouchableOpacity
-                    onPress={() => setIsTagModalVisible(false)}
+                    onPress={() => setIsShoppingModalVisible(false)}
                     style={styles.shoppingDialogCloseBtn}
-                    accessibilityLabel="Fermer"
                   >
                     <Ionicons name="close" size={20} color={colors.textSecondary} />
                   </TouchableOpacity>
                 </View>
 
-                {/* Saisie d'un nouveau tag */}
-                <View style={styles.modalTagInputRow}>
-                  <View style={styles.modalTagInputWrap}>
-                    <Ionicons
-                      name="pricetag-outline"
-                      size={15}
-                      color={colors.textSecondary}
-                      style={{ marginRight: 6 }}
-                    />
-                    <TextInput
-                      style={styles.modalTagTextInput}
-                      value={detailTagInput}
-                      onChangeText={setDetailTagInput}
-                      placeholder="Nouveau tag personnalisé..."
-                      placeholderTextColor={colors.textMuted}
-                      onSubmitEditing={() => handleAddModalTag(detailTagInput)}
-                      returnKeyType="done"
-                    />
-                  </View>
+                {/* Raccourcis de sélection */}
+                <View style={styles.shoppingQuickBtnsRow}>
                   <TouchableOpacity
-                    style={[
-                      styles.modalAddTagBtn,
-                      !detailTagInput.trim() && styles.modalAddTagBtnDisabled,
-                    ]}
-                    onPress={() => handleAddModalTag(detailTagInput)}
-                    disabled={!detailTagInput.trim()}
-                    activeOpacity={0.8}
-                    accessibilityLabel="Ajouter le tag"
+                    style={styles.shoppingQuickBtn}
+                    onPress={handleSelectEssentialsOnly}
+                    activeOpacity={0.7}
                   >
-                    <Ionicons name="add" size={20} color="#FFFFFF" />
+                    <Text style={styles.shoppingQuickBtnText}>Indispensables uniquement</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.shoppingQuickBtn}
+                    onPress={() => handleSelectAllShopping(true)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.shoppingQuickBtnText}>Tout cocher</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.shoppingQuickBtn}
+                    onPress={() => handleSelectAllShopping(false)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.shoppingQuickBtnText}>Tout décocher</Text>
                   </TouchableOpacity>
                 </View>
 
-                {/* Tags assignés */}
-                <Text style={styles.tagModalSectionLabel}>
-                  {modalDraftTags.length > 0
-                    ? 'Tags associés à cette recette :'
-                    : 'Aucun tag associé pour le moment'}
-                </Text>
-                {modalDraftTags.length > 0 && (
-                  <View style={styles.modalAssignedTagsWrap}>
-                    {modalDraftTags.map((t) => (
-                      <View key={t} style={styles.modalAssignedTagChip}>
-                        <Text style={styles.modalAssignedTagText}>#{t}</Text>
-                        <TouchableOpacity
-                          onPress={() => handleRemoveModalTag(t)}
-                          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                          style={styles.modalRemoveTagBtn}
-                          accessibilityLabel={`Supprimer le tag ${t}`}
-                        >
-                          <Ionicons name="close" size={12} color="#FFFFFF" />
-                        </TouchableOpacity>
+                {/* Liste des ingrédients organisée en sous-sections Livre de Chef */}
+                <ScrollView style={styles.shoppingListScroll} showsVerticalScrollIndicator={true}>
+                  {ingredientGroups.groups.map((group) => (
+                    <View key={`shop_group_${group.key}`} style={styles.shoppingGroupBlock}>
+                      <View style={styles.shoppingGroupHeader}>
+                        <View style={styles.shoppingGroupHeaderTop}>
+                          <Ionicons
+                            name={
+                              group.key === 'main'
+                                ? 'basket-outline'
+                                : group.key === 'pantry'
+                                ? 'sparkles-outline'
+                                : 'leaf-outline'
+                            }
+                            size={13}
+                            color={group.key === 'main' ? colors.primary : colors.textSecondary}
+                            style={{ marginRight: 6 }}
+                          />
+                          <Text style={styles.shoppingGroupTitle}>
+                            {group.key === 'main'
+                              ? 'INGRÉDIENTS PRINCIPAUX'
+                              : group.key === 'pantry'
+                              ? 'ASSAISONNEMENTS & CONDIMENTS'
+                              : 'EN FINITION & AU GOÛT'}
+                          </Text>
+                        </View>
+                        {group.key !== 'main' ? (
+                          <Text style={styles.shoppingGroupHint}>
+                            {group.key === 'pantry'
+                              ? 'Cochez si vous en manquez dans vos placards'
+                              : 'Touches facultatives ou selon vos préférences'}
+                          </Text>
+                        ) : null}
                       </View>
-                    ))}
-                  </View>
-                )}
 
-                {/* Suggestions */}
-                {detailSuggestedTags.length > 0 && (
-                  <View style={styles.modalSuggestedContainer}>
-                    <Text style={styles.tagModalSectionLabel}>Suggestions du carnet :</Text>
-                    <ScrollView
-                      horizontal
-                      showsHorizontalScrollIndicator={false}
-                      style={styles.modalSuggestedScroll}
-                    >
-                      {detailSuggestedTags.map((t) => (
-                        <TouchableOpacity
-                          key={t}
-                          style={styles.modalSuggestedTagChip}
-                          onPress={() => handleAddModalTag(t)}
-                          activeOpacity={0.7}
-                        >
-                          <Ionicons name="add" size={12} color={colors.primary} style={{ marginRight: 2 }} />
-                          <Text style={styles.modalSuggestedTagText}>{t}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </ScrollView>
-                  </View>
-                )}
+                      {group.items.map((ing) => {
+                        const isChecked = !!shoppingSelection[ing.id];
+                        const scaledQty = scaleQuantity(ing.quantity, recipe.servings || 4, currentServings);
 
-                {/* Boutons d'actions */}
-                <View style={styles.modalActionButtonsRow}>
+                        return (
+                          <TouchableOpacity
+                            key={`shop_item_${ing.id}`}
+                            style={[styles.shoppingItemRow, isChecked && styles.shoppingItemRowChecked]}
+                            onPress={() => handleToggleShoppingItem(ing.id)}
+                            activeOpacity={0.7}
+                          >
+                            <Ionicons
+                              name={isChecked ? 'checkbox' : 'square-outline'}
+                              size={20}
+                              color={isChecked ? colors.primary : colors.textMuted}
+                              style={{ marginRight: 10 }}
+                            />
+                            <Text style={[styles.shoppingItemName, !isChecked && styles.shoppingItemNameMuted]}>
+                              {ing.name}
+                            </Text>
+                            {scaledQty ? (
+                              <Text style={[styles.shoppingItemQty, !isChecked && styles.shoppingItemNameMuted]}>
+                                {formatQuantityWithUnit(scaledQty, ing.unit)}
+                              </Text>
+                            ) : null}
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  ))}
+                </ScrollView>
+
+                {/* Footer avec action */}
+                <View style={styles.shoppingDialogFooter}>
                   <TouchableOpacity
-                    style={styles.tagModalCancelBtn}
-                    onPress={() => setIsTagModalVisible(false)}
-                    activeOpacity={0.7}
+                    style={styles.shoppingCancelBtn}
+                    onPress={() => setIsShoppingModalVisible(false)}
                   >
-                    <Text style={styles.tagModalCancelBtnText}>Annuler</Text>
+                    <Text style={styles.shoppingCancelBtnText}>Annuler</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={styles.tagModalSaveBtn}
-                    onPress={handleSaveTags}
-                    activeOpacity={0.85}
+                    style={[
+                      styles.shoppingConfirmBtn,
+                      Object.values(shoppingSelection).filter(Boolean).length === 0 && styles.shoppingConfirmBtnDisabled,
+                    ]}
+                    onPress={handleConfirmAddToShopping}
+                    disabled={isAddingToShoppingList || Object.values(shoppingSelection).filter(Boolean).length === 0}
                   >
-                    <Text style={styles.tagModalSaveBtnText}>Enregistrer</Text>
+                    <Ionicons name="cart" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
+                    <Text style={styles.shoppingConfirmBtnText}>
+                      Ajouter ({Object.values(shoppingSelection).filter(Boolean).length})
+                    </Text>
                   </TouchableOpacity>
                 </View>
               </View>
-            </KeyboardAvoidingView>
-          </View>
-        </Modal>
+            </View>
+          </Modal>
+        )}
+
+        {/* Modal de gestion rapide des tags de la recette */}
+        {isTagModalVisible && (
+          <Modal
+            visible={isTagModalVisible}
+            transparent={true}
+            animationType="fade"
+            onRequestClose={() => setIsTagModalVisible(false)}
+          >
+            <View style={styles.modalBackdrop}>
+              <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                style={{ width: '100%', alignItems: 'center' }}
+              >
+                <View style={styles.tagDialogCard}>
+                  <View style={styles.tagDialogHeader}>
+                    <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <View style={styles.tagDialogIconWrap}>
+                        <Ionicons name="pricetag" size={18} color={colors.primary} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.tagDialogTitle}>Tags & Étiquettes</Text>
+                        <Text style={styles.tagDialogSubtitle} numberOfLines={1}>
+                          {recipe.title}
+                        </Text>
+                      </View>
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => setIsTagModalVisible(false)}
+                      style={styles.shoppingDialogCloseBtn}
+                      accessibilityLabel="Fermer"
+                    >
+                      <Ionicons name="close" size={20} color={colors.textSecondary} />
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Saisie d'un nouveau tag */}
+                  <View style={styles.modalTagInputRow}>
+                    <View style={styles.modalTagInputWrap}>
+                      <Ionicons
+                        name="pricetag-outline"
+                        size={15}
+                        color={colors.textSecondary}
+                        style={{ marginRight: 6 }}
+                      />
+                      <TextInput
+                        style={styles.modalTagTextInput}
+                        value={detailTagInput}
+                        onChangeText={setDetailTagInput}
+                        placeholder="Nouveau tag personnalisé..."
+                        placeholderTextColor={colors.textMuted}
+                        onSubmitEditing={() => handleAddModalTag(detailTagInput)}
+                        returnKeyType="done"
+                      />
+                    </View>
+                    <TouchableOpacity
+                      style={[
+                        styles.modalAddTagBtn,
+                        !detailTagInput.trim() && styles.modalAddTagBtnDisabled,
+                      ]}
+                      onPress={() => handleAddModalTag(detailTagInput)}
+                      disabled={!detailTagInput.trim()}
+                      activeOpacity={0.8}
+                      accessibilityLabel="Ajouter le tag"
+                    >
+                      <Ionicons name="add" size={20} color="#FFFFFF" />
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Tags assignés */}
+                  <Text style={styles.tagModalSectionLabel}>
+                    {modalDraftTags.length > 0
+                      ? 'Tags associés à cette recette :'
+                      : 'Aucun tag associé pour le moment'}
+                  </Text>
+                  {modalDraftTags.length > 0 && (
+                    <View style={styles.modalAssignedTagsWrap}>
+                      {modalDraftTags.map((t) => (
+                        <View key={t} style={styles.modalAssignedTagChip}>
+                          <Text style={styles.modalAssignedTagText}>#{t}</Text>
+                          <TouchableOpacity
+                            onPress={() => handleRemoveModalTag(t)}
+                            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                            style={styles.modalRemoveTagBtn}
+                            accessibilityLabel={`Supprimer le tag ${t}`}
+                          >
+                            <Ionicons name="close" size={12} color="#FFFFFF" />
+                          </TouchableOpacity>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+
+                  {/* Suggestions */}
+                  {detailSuggestedTags.length > 0 && (
+                    <View style={styles.modalSuggestedContainer}>
+                      <Text style={styles.tagModalSectionLabel}>Suggestions du carnet :</Text>
+                      <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        style={styles.modalSuggestedScroll}
+                      >
+                        {detailSuggestedTags.map((t) => (
+                          <TouchableOpacity
+                            key={t}
+                            style={styles.modalSuggestedTagChip}
+                            onPress={() => handleAddModalTag(t)}
+                            activeOpacity={0.7}
+                          >
+                            <Ionicons name="add" size={12} color={colors.primary} style={{ marginRight: 2 }} />
+                            <Text style={styles.modalSuggestedTagText}>{t}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </ScrollView>
+                    </View>
+                  )}
+
+                  {/* Boutons d'actions */}
+                  <View style={styles.modalActionButtonsRow}>
+                    <TouchableOpacity
+                      style={styles.tagModalCancelBtn}
+                      onPress={() => setIsTagModalVisible(false)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.tagModalCancelBtnText}>Annuler</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.tagModalSaveBtn}
+                      onPress={handleSaveTags}
+                      activeOpacity={0.85}
+                    >
+                      <Text style={styles.tagModalSaveBtnText}>Enregistrer</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </KeyboardAvoidingView>
+            </View>
+          </Modal>
+        )}
 
         {/* Modal Mode Cuisine Pas-à-Pas Plein Écran */}
-        <CookingModeModal
-          visible={isCookingModeVisible}
-          recipe={recipe}
-          servings={currentServings}
-          onClose={() => setIsCookingModeVisible(false)}
-          onQuickRate={(rating) => onUpdateRating(recipe.id, rating)}
-        />
+        {isCookingModeVisible && (
+          <CookingModeModal
+            visible={isCookingModeVisible}
+            recipe={recipe}
+            servings={currentServings}
+            onClose={() => setIsCookingModeVisible(false)}
+            onQuickRate={(rating) => onUpdateRating(recipe.id, rating)}
+          />
+        )}
 
         {/* Modal QR Code de partage */}
-        <RecipeQrModal
-          visible={isQrModalVisible}
-          recipe={recipe}
-          servings={currentServings}
-          onClose={() => setIsQrModalVisible(false)}
-        />
+        {isQrModalVisible && (
+          <RecipeQrModal
+            visible={isQrModalVisible}
+            recipe={recipe}
+            servings={currentServings}
+            onClose={() => setIsQrModalVisible(false)}
+          />
+        )}
 
         {/* Modal d'impression et export PDF A4 */}
-        <RecipePrintModal
-          visible={isPrintModalVisible}
-          recipe={recipe}
-          initialServings={currentServings}
-          onClose={() => setIsPrintModalVisible(false)}
-        />
+        {isPrintModalVisible && (
+          <RecipePrintModal
+            visible={isPrintModalVisible}
+            recipe={recipe}
+            initialServings={currentServings}
+            onClose={() => setIsPrintModalVisible(false)}
+          />
+        )}
 
         {/* Bandeau flottant des minuteurs en cours si au moins un minuteur est actif */}
         {Object.values(inlineTimers).length > 0 && (
@@ -1336,92 +1350,96 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
         )}
 
         {/* Modal SOS Remplacement */}
-        <Modal
-          visible={isSosModalVisible}
-          transparent={true}
-          animationType="slide"
-          onRequestClose={() => setIsSosModalVisible(false)}
-        >
-          <View style={styles.modalBackdrop}>
-            <View style={styles.pimpModalCard}>
-              <View style={styles.pimpModalHeader}>
-                <Text style={styles.pimpModalTitle}>SOS : {sosTargetIngredient}</Text>
+        {isSosModalVisible && (
+          <Modal
+            visible={isSosModalVisible}
+            transparent={true}
+            animationType="slide"
+            onRequestClose={() => setIsSosModalVisible(false)}
+          >
+            <View style={styles.modalBackdrop}>
+              <View style={styles.pimpModalCard}>
+                <View style={styles.pimpModalHeader}>
+                  <Text style={styles.pimpModalTitle}>SOS : {sosTargetIngredient}</Text>
+                  <TouchableOpacity
+                    onPress={() => setIsSosModalVisible(false)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    accessibilityLabel="Fermer la fenêtre SOS"
+                  >
+                    <Ionicons name="close" size={22} color={colors.textSecondary} />
+                  </TouchableOpacity>
+                </View>
+
+                <ScrollView showsVerticalScrollIndicator={false}>
+                  {sosChefNote ? (
+                    <Text style={styles.pimpChefNote}>{sosChefNote}</Text>
+                  ) : null}
+
+                  {sosSuggestions.map((suggestion, index) => (
+                    <View key={index} style={styles.pimpSuggestionCard}>
+                      <Text style={styles.pimpSuggestionTitle}>{suggestion.substituteName}</Text>
+                      <Text style={styles.pimpSuggestionReason}>{suggestion.reason}</Text>
+                      <Text style={styles.pimpSuggestionUsage}>{suggestion.howToUse}</Text>
+                    </View>
+                  ))}
+                </ScrollView>
+
                 <TouchableOpacity
+                  style={styles.pimpModalCloseBtn}
                   onPress={() => setIsSosModalVisible(false)}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  accessibilityLabel="Fermer la fenêtre SOS"
                 >
-                  <Ionicons name="close" size={22} color={colors.textSecondary} />
+                  <Text style={styles.pimpModalCloseBtnText}>C&apos;est noté, merci Chef !</Text>
                 </TouchableOpacity>
               </View>
-
-              <ScrollView showsVerticalScrollIndicator={false}>
-                {sosChefNote ? (
-                  <Text style={styles.pimpChefNote}>{sosChefNote}</Text>
-                ) : null}
-
-                {sosSuggestions.map((suggestion, index) => (
-                  <View key={index} style={styles.pimpSuggestionCard}>
-                    <Text style={styles.pimpSuggestionTitle}>{suggestion.substituteName}</Text>
-                    <Text style={styles.pimpSuggestionReason}>{suggestion.reason}</Text>
-                    <Text style={styles.pimpSuggestionUsage}>{suggestion.howToUse}</Text>
-                  </View>
-                ))}
-              </ScrollView>
-
-              <TouchableOpacity
-                style={styles.pimpModalCloseBtn}
-                onPress={() => setIsSosModalVisible(false)}
-              >
-                <Text style={styles.pimpModalCloseBtnText}>C&apos;est noté, merci Chef !</Text>
-              </TouchableOpacity>
             </View>
-          </View>
-        </Modal>
+          </Modal>
+        )}
 
         {/* Modal Pimper ma recette */}
-        <Modal
-          visible={isPimpModalVisible}
-          transparent={true}
-          animationType="slide"
-          onRequestClose={() => setIsPimpModalVisible(false)}
-        >
-          <View style={styles.modalBackdrop}>
-            <View style={styles.pimpModalCard}>
-              <View style={styles.pimpModalHeader}>
-                <Text style={styles.pimpModalTitle}>Pimper ma recette 🌶️</Text>
+        {isPimpModalVisible && (
+          <Modal
+            visible={isPimpModalVisible}
+            transparent={true}
+            animationType="slide"
+            onRequestClose={() => setIsPimpModalVisible(false)}
+          >
+            <View style={styles.modalBackdrop}>
+              <View style={styles.pimpModalCard}>
+                <View style={styles.pimpModalHeader}>
+                  <Text style={styles.pimpModalTitle}>Pimper ma recette 🌶️</Text>
+                  <TouchableOpacity
+                    onPress={() => setIsPimpModalVisible(false)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    accessibilityLabel="Fermer la fenêtre Pimper"
+                  >
+                    <Ionicons name="close" size={22} color={colors.textSecondary} />
+                  </TouchableOpacity>
+                </View>
+
+                <ScrollView showsVerticalScrollIndicator={false}>
+                  {pimpChefNote ? (
+                    <Text style={styles.pimpChefNote}>{pimpChefNote}</Text>
+                  ) : null}
+
+                  {pimpSuggestions.map((suggestion, index) => (
+                    <View key={index} style={styles.pimpSuggestionCard}>
+                      <Text style={styles.pimpSuggestionTitle}>{suggestion.ingredientName}</Text>
+                      <Text style={styles.pimpSuggestionReason}>{suggestion.reason}</Text>
+                      <Text style={styles.pimpSuggestionUsage}>{suggestion.howToUse}</Text>
+                    </View>
+                  ))}
+                </ScrollView>
+
                 <TouchableOpacity
+                  style={styles.pimpModalCloseBtn}
                   onPress={() => setIsPimpModalVisible(false)}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  accessibilityLabel="Fermer la fenêtre Pimper"
                 >
-                  <Ionicons name="close" size={22} color={colors.textSecondary} />
+                  <Text style={styles.pimpModalCloseBtnText}>C&apos;est noté, merci Chef !</Text>
                 </TouchableOpacity>
               </View>
-
-              <ScrollView showsVerticalScrollIndicator={false}>
-                {pimpChefNote ? (
-                  <Text style={styles.pimpChefNote}>{pimpChefNote}</Text>
-                ) : null}
-
-                {pimpSuggestions.map((suggestion, index) => (
-                  <View key={index} style={styles.pimpSuggestionCard}>
-                    <Text style={styles.pimpSuggestionTitle}>{suggestion.ingredientName}</Text>
-                    <Text style={styles.pimpSuggestionReason}>{suggestion.reason}</Text>
-                    <Text style={styles.pimpSuggestionUsage}>{suggestion.howToUse}</Text>
-                  </View>
-                ))}
-              </ScrollView>
-
-              <TouchableOpacity
-                style={styles.pimpModalCloseBtn}
-                onPress={() => setIsPimpModalVisible(false)}
-              >
-                <Text style={styles.pimpModalCloseBtnText}>C&apos;est noté, merci Chef !</Text>
-              </TouchableOpacity>
             </View>
-          </View>
-        </Modal>
+          </Modal>
+        )}
 
       </View>
     </SafeAreaView>

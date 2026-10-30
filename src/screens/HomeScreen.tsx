@@ -5,12 +5,12 @@ import {
   TouchableOpacity,
   Modal,
   ScrollView,
-  Image,
   Animated,
   NativeSyntheticEvent,
   NativeScrollEvent,
   Alert,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { FlashList, FlashListRef } from '@shopify/flash-list';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -1093,7 +1093,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               <Image
                 source={require('../../assets/icon.png')}
                 style={styles.brandLogo}
-                resizeMode="cover"
+                contentFit="cover"
               />
               <View style={styles.brandTitleCol}>
                 <Text style={styles.brandTitle}>Papilles</Text>
@@ -1279,250 +1279,258 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         </View>
 
         {/* Modal Menu d'Ajout Fluide à 3 Choix */}
-        <Modal
-          visible={isAddMenuVisible}
-          transparent={true}
-          animationType="fade"
-          onRequestClose={() => setIsAddMenuVisible(false)}
-        >
-          <TouchableOpacity
-            style={styles.modalBackdrop}
-            activeOpacity={1}
-            onPress={() => setIsAddMenuVisible(false)}
+        {isAddMenuVisible && (
+          <Modal
+            visible={isAddMenuVisible}
+            transparent={true}
+            animationType="fade"
+            onRequestClose={() => setIsAddMenuVisible(false)}
           >
-            <View style={styles.addMenuBox} onStartShouldSetResponder={() => true}>
-              <View style={styles.modalHeaderRow}>
-                <Text style={styles.addMenuTitle}>Ajouter une recette</Text>
+            <TouchableOpacity
+              style={styles.modalBackdrop}
+              activeOpacity={1}
+              onPress={() => setIsAddMenuVisible(false)}
+            >
+              <View style={styles.addMenuBox} onStartShouldSetResponder={() => true}>
+                <View style={styles.modalHeaderRow}>
+                  <Text style={styles.addMenuTitle}>Ajouter une recette</Text>
+                  <TouchableOpacity
+                    onPress={() => setIsAddMenuVisible(false)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Ionicons name="close" size={22} color={colors.textSecondary} />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Choix 1 : Texte brut */}
                 <TouchableOpacity
-                  onPress={() => setIsAddMenuVisible(false)}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  <Ionicons name="close" size={22} color={colors.textSecondary} />
-                </TouchableOpacity>
-              </View>
-
-              {/* Choix 1 : Texte brut */}
-              <TouchableOpacity
-                style={styles.addMenuOption}
-                onPress={() => {
-                  setIsAddMenuVisible(false);
-                  onScanRecipe('text');
-                }}
-                activeOpacity={0.7}
-              >
-                <View style={[styles.addMenuIconBox, { backgroundColor: colors.primaryLight }]}>
-                  <Ionicons name="document-text-outline" size={22} color={colors.primary} />
-                </View>
-                <View style={styles.addMenuTextCol}>
-                  <Text style={styles.addMenuOptionTitle}>Texte brut</Text>
-                  <Text style={styles.addMenuOptionSubtitle}>
-                    Coller des notes ou du texte
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-              </TouchableOpacity>
-
-              {/* Choix 2 : Scanner */}
-              <TouchableOpacity
-                style={styles.addMenuOption}
-                onPress={() => {
-                  setIsAddMenuVisible(false);
-                  onScanRecipe('photo');
-                }}
-                activeOpacity={0.7}
-              >
-                <View style={[styles.addMenuIconBox, { backgroundColor: colors.secondaryLight }]}>
-                  <Ionicons name="camera-outline" size={22} color={colors.secondary} />
-                </View>
-                <View style={styles.addMenuTextCol}>
-                  <Text style={styles.addMenuOptionTitle}>Scanner</Text>
-                  <Text style={styles.addMenuOptionSubtitle}>
-                    Photo d’un livre ou carnet
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-              </TouchableOpacity>
-
-              {/* Choix 3 : Coller un lien web */}
-              <TouchableOpacity
-                style={styles.addMenuOption}
-                onPress={() => {
-                  setIsAddMenuVisible(false);
-                  onScanRecipe('url');
-                }}
-                activeOpacity={0.7}
-              >
-                <View style={[styles.addMenuIconBox, { backgroundColor: colors.surfaceAlt }]}>
-                  <Ionicons name="globe-outline" size={22} color={colors.primary} />
-                </View>
-                <View style={styles.addMenuTextCol}>
-                  <Text style={styles.addMenuOptionTitle}>Coller un lien web</Text>
-                  <Text style={styles.addMenuOptionSubtitle}>
-                    Marmiton, 750g, blogs...
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-              </TouchableOpacity>
-            </View>
-          </TouchableOpacity>
-        </Modal>
-
-        {/* Modal de Tri (labels concis et instinctifs) */}
-        <Modal
-          visible={isFilterModalVisible}
-          transparent={true}
-          animationType="fade"
-          onRequestClose={() => setIsFilterModalVisible(false)}
-        >
-          <View style={styles.modalBackdrop}>
-            <View style={styles.sortModalBox}>
-              <View style={styles.modalHeaderRow}>
-                <Text style={styles.sortModalTitle}>Trier les recettes</Text>
-                <TouchableOpacity
-                  onPress={() => setIsFilterModalVisible(false)}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  <Ionicons name="close" size={20} color={Colors.textSecondary} />
-                </TouchableOpacity>
-              </View>
-
-              {[
-                { id: 'rating_desc', label: 'Note', icon: 'star' },
-                { id: 'prep_time', label: 'Temps de préparation', icon: 'time-outline' },
-                { id: 'recent', label: "Date d'ajout", icon: 'calendar-outline' },
-                { id: 'title', label: 'A - Z', icon: 'text-outline' },
-              ].map((option) => (
-                <TouchableOpacity
-                  key={option.id}
-                  style={[
-                    styles.sortOptionRow,
-                    sortBy === option.id && styles.sortOptionSelected,
-                  ]}
+                  style={styles.addMenuOption}
                   onPress={() => {
-                    setSortBy(option.id as SortOption);
-                    setIsFilterModalVisible(false);
+                    setIsAddMenuVisible(false);
+                    onScanRecipe('text');
                   }}
                   activeOpacity={0.7}
                 >
-                  <View style={styles.sortOptionLeft}>
-                    <Ionicons
-                      name={option.icon as any}
-                      size={18}
-                      color={sortBy === option.id ? colors.primary : colors.textSecondary}
-                    />
-                    <Text
-                      style={[
-                        styles.sortOptionText,
-                        sortBy === option.id && styles.sortOptionTextActive,
-                      ]}
-                    >
-                      {option.label}
+                  <View style={[styles.addMenuIconBox, { backgroundColor: colors.primaryLight }]}>
+                    <Ionicons name="document-text-outline" size={22} color={colors.primary} />
+                  </View>
+                  <View style={styles.addMenuTextCol}>
+                    <Text style={styles.addMenuOptionTitle}>Texte brut</Text>
+                    <Text style={styles.addMenuOptionSubtitle}>
+                      Coller des notes ou du texte
                     </Text>
                   </View>
-                  {sortBy === option.id && (
-                    <Ionicons name="checkmark" size={18} color={colors.primary} />
-                  )}
+                  <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
                 </TouchableOpacity>
-              ))}
 
-              <TouchableOpacity
-                style={styles.closeSortModalBtn}
-                onPress={() => setIsFilterModalVisible(false)}
-              >
-                <Text style={styles.closeSortModalText}>Fermer</Text>
-              </TouchableOpacity>
+                {/* Choix 2 : Scanner */}
+                <TouchableOpacity
+                  style={styles.addMenuOption}
+                  onPress={() => {
+                    setIsAddMenuVisible(false);
+                    onScanRecipe('photo');
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.addMenuIconBox, { backgroundColor: colors.secondaryLight }]}>
+                    <Ionicons name="camera-outline" size={22} color={colors.secondary} />
+                  </View>
+                  <View style={styles.addMenuTextCol}>
+                    <Text style={styles.addMenuOptionTitle}>Scanner</Text>
+                    <Text style={styles.addMenuOptionSubtitle}>
+                      Photo d’un livre ou carnet
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+                </TouchableOpacity>
+
+                {/* Choix 3 : Coller un lien web */}
+                <TouchableOpacity
+                  style={styles.addMenuOption}
+                  onPress={() => {
+                    setIsAddMenuVisible(false);
+                    onScanRecipe('url');
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.addMenuIconBox, { backgroundColor: colors.surfaceAlt }]}>
+                    <Ionicons name="globe-outline" size={22} color={colors.primary} />
+                  </View>
+                  <View style={styles.addMenuTextCol}>
+                    <Text style={styles.addMenuOptionTitle}>Coller un lien web</Text>
+                    <Text style={styles.addMenuOptionSubtitle}>
+                      Marmiton, 750g, blogs...
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+                </TouchableOpacity>
+              </View>
+            </TouchableOpacity>
+          </Modal>
+        )}
+
+        {/* Modal de Tri (labels concis et instinctifs) */}
+        {isFilterModalVisible && (
+          <Modal
+            visible={isFilterModalVisible}
+            transparent={true}
+            animationType="fade"
+            onRequestClose={() => setIsFilterModalVisible(false)}
+          >
+            <View style={styles.modalBackdrop}>
+              <View style={styles.sortModalBox}>
+                <View style={styles.modalHeaderRow}>
+                  <Text style={styles.sortModalTitle}>Trier les recettes</Text>
+                  <TouchableOpacity
+                    onPress={() => setIsFilterModalVisible(false)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Ionicons name="close" size={20} color={Colors.textSecondary} />
+                  </TouchableOpacity>
+                </View>
+
+                {[
+                  { id: 'rating_desc', label: 'Note', icon: 'star' },
+                  { id: 'prep_time', label: 'Temps de préparation', icon: 'time-outline' },
+                  { id: 'recent', label: "Date d'ajout", icon: 'calendar-outline' },
+                  { id: 'title', label: 'A - Z', icon: 'text-outline' },
+                ].map((option) => (
+                  <TouchableOpacity
+                    key={option.id}
+                    style={[
+                      styles.sortOptionRow,
+                      sortBy === option.id && styles.sortOptionSelected,
+                    ]}
+                    onPress={() => {
+                      setSortBy(option.id as SortOption);
+                      setIsFilterModalVisible(false);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.sortOptionLeft}>
+                      <Ionicons
+                        name={option.icon as any}
+                        size={18}
+                        color={sortBy === option.id ? colors.primary : colors.textSecondary}
+                      />
+                      <Text
+                        style={[
+                          styles.sortOptionText,
+                          sortBy === option.id && styles.sortOptionTextActive,
+                        ]}
+                      >
+                        {option.label}
+                      </Text>
+                    </View>
+                    {sortBy === option.id && (
+                      <Ionicons name="checkmark" size={18} color={colors.primary} />
+                    )}
+                  </TouchableOpacity>
+                ))}
+
+                <TouchableOpacity
+                  style={styles.closeSortModalBtn}
+                  onPress={() => setIsFilterModalVisible(false)}
+                >
+                  <Text style={styles.closeSortModalText}>Fermer</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
-        </Modal>
+          </Modal>
+        )}
 
         {/* Modal Filtres Avancés (Temps total, Note minimale, Difficulté, Ingrédients, Tags) */}
-        <AdvancedFiltersModal
-          visible={isAdvancedFiltersModalVisible}
-          onClose={() => setIsAdvancedFiltersModalVisible(false)}
-          onApply={({
-            targetTotalTime: newTargetTime,
-            timeFilterMode: newTimeMode,
-            difficulties: newDifficulties,
-            selectedIngredients: newIngredients,
-            ingredientMatchMode: newMatchMode,
-            selectedTags: newTags,
-            tagMatchMode: newTagMatchMode,
-            minRating: newMinRating,
-            onlyVegetarian: newOnlyVegetarian,
-            onlyDoableWithStock: newOnlyDoableWithStock,
-          }) => {
-            setCurrentPage(1);
-            setTargetTotalTime(newTargetTime);
-            setTimeFilterMode(newTimeMode);
-            setSelectedDifficulties(newDifficulties);
-            setSelectedIngredients(newIngredients);
-            setIngredientMatchMode(newMatchMode);
-            if (newTags !== undefined) setSelectedTags(newTags);
-            if (newTagMatchMode !== undefined) setTagMatchMode(newTagMatchMode);
-            if (newMinRating !== undefined) setMinRatingFilter(newMinRating);
-            if (newOnlyVegetarian !== undefined) setOnlyVegetarian(newOnlyVegetarian);
-            if (newOnlyDoableWithStock !== undefined) setOnlyDoableWithStock(newOnlyDoableWithStock);
-          }}
-          onReset={() => {
-            setCurrentPage(1);
-            setTargetTotalTime(null);
-            setTimeFilterMode('max');
-            setSelectedDifficulties([]);
-            setSelectedIngredients([]);
-            setIngredientMatchMode('all');
-            setSelectedTags([]);
-            setTagMatchMode('any');
-            setMinRatingFilter(0);
-          }}
-          targetTotalTime={targetTotalTime}
-          timeFilterMode={timeFilterMode}
-          difficulties={selectedDifficulties}
-          selectedIngredients={selectedIngredients}
-          ingredientMatchMode={ingredientMatchMode}
-          selectedTags={selectedTags}
-          tagMatchMode={tagMatchMode}
-          minRating={minRatingFilter}
-          onlyVegetarian={onlyVegetarian}
-          onlyDoableWithStock={onlyDoableWithStock}
-          recipes={recipes}
-          doableRecipesMap={doableRecipesMap}
-          selectedCategories={selectedCategories}
-          searchQuery={debouncedSearchQuery}
-        />
+        {isAdvancedFiltersModalVisible && (
+          <AdvancedFiltersModal
+            visible={isAdvancedFiltersModalVisible}
+            onClose={() => setIsAdvancedFiltersModalVisible(false)}
+            onApply={({
+              targetTotalTime: newTargetTime,
+              timeFilterMode: newTimeMode,
+              difficulties: newDifficulties,
+              selectedIngredients: newIngredients,
+              ingredientMatchMode: newMatchMode,
+              selectedTags: newTags,
+              tagMatchMode: newTagMatchMode,
+              minRating: newMinRating,
+              onlyVegetarian: newOnlyVegetarian,
+              onlyDoableWithStock: newOnlyDoableWithStock,
+            }) => {
+              setCurrentPage(1);
+              setTargetTotalTime(newTargetTime);
+              setTimeFilterMode(newTimeMode);
+              setSelectedDifficulties(newDifficulties);
+              setSelectedIngredients(newIngredients);
+              setIngredientMatchMode(newMatchMode);
+              if (newTags !== undefined) setSelectedTags(newTags);
+              if (newTagMatchMode !== undefined) setTagMatchMode(newTagMatchMode);
+              if (newMinRating !== undefined) setMinRatingFilter(newMinRating);
+              if (newOnlyVegetarian !== undefined) setOnlyVegetarian(newOnlyVegetarian);
+              if (newOnlyDoableWithStock !== undefined) setOnlyDoableWithStock(newOnlyDoableWithStock);
+            }}
+            onReset={() => {
+              setCurrentPage(1);
+              setTargetTotalTime(null);
+              setTimeFilterMode('max');
+              setSelectedDifficulties([]);
+              setSelectedIngredients([]);
+              setIngredientMatchMode('all');
+              setSelectedTags([]);
+              setTagMatchMode('any');
+              setMinRatingFilter(0);
+            }}
+            targetTotalTime={targetTotalTime}
+            timeFilterMode={timeFilterMode}
+            difficulties={selectedDifficulties}
+            selectedIngredients={selectedIngredients}
+            ingredientMatchMode={ingredientMatchMode}
+            selectedTags={selectedTags}
+            tagMatchMode={tagMatchMode}
+            minRating={minRatingFilter}
+            onlyVegetarian={onlyVegetarian}
+            onlyDoableWithStock={onlyDoableWithStock}
+            recipes={recipes}
+            doableRecipesMap={doableRecipesMap}
+            selectedCategories={selectedCategories}
+            searchQuery={debouncedSearchQuery}
+          />
+        )}
 
         {/* Modal Cuisiner avec mon stock & suggestions Chef IA */}
-        <StockCookModal
-          visible={isStockModalVisible}
-          recipes={recipes}
-          stockItems={stockItems}
-          doableCount={doableCount}
-          isDoableFilterActive={onlyDoableWithStock}
-          onApplyDoableFilter={(active) => setOnlyDoableWithStock(active)}
-          onRecipeGenerated={(recipe) => {
-            setIsStockModalVisible(false);
-            if (onImportRecipe) {
-              onImportRecipe(recipe as Recipe);
-            }
-          }}
-          onNavigateToStock={onNavigateToStock}
-          onClose={() => setIsStockModalVisible(false)}
-        />
-
-
+        {isStockModalVisible && (
+          <StockCookModal
+            visible={isStockModalVisible}
+            recipes={recipes}
+            stockItems={stockItems}
+            doableCount={doableCount}
+            isDoableFilterActive={onlyDoableWithStock}
+            onApplyDoableFilter={(active) => setOnlyDoableWithStock(active)}
+            onRecipeGenerated={(recipe) => {
+              setIsStockModalVisible(false);
+              if (onImportRecipe) {
+                onImportRecipe(recipe as Recipe);
+              }
+            }}
+            onNavigateToStock={onNavigateToStock}
+            onClose={() => setIsStockModalVisible(false)}
+          />
+        )}
 
         {/* Modal Saisie Rapide Libre pour le suivi des repas du jour */}
-        <QuickMealLogModal
-          visible={quickLogModal.visible}
-          date={quickLogModal.date}
-          mealTime={quickLogModal.mealTime}
-          currentEntry={quickLogModal.entry}
-          recipes={recipes}
-          onSave={handleSaveQuickMeal}
-          onDelete={quickLogModal.entry ? handleDeleteQuickMeal : undefined}
-          onClose={() =>
-            setQuickLogModal((prev) => ({ ...prev, visible: false, entry: null }))
-          }
-        />
+        {quickLogModal.visible && (
+          <QuickMealLogModal
+            visible={quickLogModal.visible}
+            date={quickLogModal.date}
+            mealTime={quickLogModal.mealTime}
+            currentEntry={quickLogModal.entry}
+            recipes={recipes}
+            onSave={handleSaveQuickMeal}
+            onDelete={quickLogModal.entry ? handleDeleteQuickMeal : undefined}
+            onClose={() =>
+              setQuickLogModal((prev) => ({ ...prev, visible: false, entry: null }))
+            }
+          />
+        )}
       </View>
     </SafeAreaView>
   );

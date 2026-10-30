@@ -6,11 +6,11 @@ import {
   TouchableOpacity,
   TextInput,
   FlatList,
-  Image,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Recipe } from '../types/recipe';
@@ -187,7 +187,13 @@ export const RecipeLinkPickerModal: React.FC<RecipeLinkPickerModalProps> = ({
                   activeOpacity={0.7}
                 >
                   {item.imageUrl ? (
-                    <Image source={{ uri: item.imageUrl }} style={styles.recipeThumb} />
+                    <Image
+                      source={{ uri: item.imageUrl }}
+                      style={styles.recipeThumb}
+                      contentFit="cover"
+                      cachePolicy="disk"
+                      transition={150}
+                    />
                   ) : (
                     <View style={[styles.recipeThumb, styles.recipeThumbEmpty]}>
                       <Ionicons name="restaurant-outline" size={20} color={colors.textMuted} />

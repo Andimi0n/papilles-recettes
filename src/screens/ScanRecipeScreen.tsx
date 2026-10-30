@@ -3,7 +3,6 @@ import {
   View,
   Text,
   TouchableOpacity,
-  Image,
   ScrollView,
   ActivityIndicator,
   Alert,
@@ -12,6 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -727,7 +727,9 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
                         <Image
                           source={{ uri: photo.uri }}
                           style={styles.photoThumb}
-                          resizeMode="cover"
+                          contentFit="cover"
+                          cachePolicy="memory"
+                          transition={150}
                         />
                         <View style={styles.photoIndexBadge}>
                           <Text style={styles.photoIndexBadgeText}>

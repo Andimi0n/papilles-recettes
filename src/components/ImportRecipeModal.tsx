@@ -5,8 +5,8 @@ import {
   Modal,
   TouchableOpacity,
   ScrollView,
-  Image,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { createDynamicStyles } from '../theme/colors';
 import { useTheme } from '../theme/ThemeContext';
@@ -69,7 +69,9 @@ export const ImportRecipeModal: React.FC<ImportRecipeModalProps> = ({
               <Image
                 source={{ uri: recipe.imageUrl }}
                 style={styles.coverImage}
-                resizeMode="cover"
+                contentFit="cover"
+                cachePolicy="disk"
+                transition={200}
               />
             ) : null}
 
