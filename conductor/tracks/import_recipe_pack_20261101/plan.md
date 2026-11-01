@@ -7,9 +7,9 @@ Ce plan structure la réalisation technique en 4 phases progressives selon la m�
 - [x] Task: Installer et configurer les dépendances requises (`expo-document-picker`, `jszip`) [4b5feb6]
   - [x] Installer `expo-document-picker` via `npx expo install` et `jszip` (+ `@types/jszip`)
   - [x] Valider la compilation TypeScript et l'alignement Expo SDK 58
-- [ ] Task: Écrire les tests unitaires pour le parsing et l'extraction de pack (Red Phase)
-  - [ ] Créer `scripts/testRecipePackService.js` testant le décodage JSON, la détection Zip Slip, la lecture séquentielle et la gestion des erreurs
-  - [ ] Confirmer l'échec initial des tests
+- [x] Task: Écrire les tests unitaires pour le parsing et l'extraction de pack (Red Phase) [1bb2278]
+  - [x] Créer `scripts/testRecipePackService.js` testant le décodage JSON, la détection Zip Slip, la lecture séquentielle et la gestion des erreurs
+  - [x] Confirmer l'échec initial des tests
 - [ ] Task: Implémenter le service d'extraction de pack `RecipePackService` (Green Phase)
   - [ ] Créer `src/services/recipePackService.ts` avec traitement séquentiel par petits lots (3 à 5 images) pour préserver la mémoire (Point de vigilance 1)
   - [ ] Assurer la sécurisation contre les attaques Zip Slip et l'extraction des buffers images
