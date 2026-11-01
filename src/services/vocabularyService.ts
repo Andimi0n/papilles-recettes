@@ -850,6 +850,13 @@ export const VocabularyService = {
   },
 
   /**
+   * Nombre d'ingrédients certifiés par défaut
+   */
+  getDefaultCount(): number {
+    return getInitialCanonicalVocabulary().length;
+  },
+
+  /**
    * Réinitialise le vocabulaire aux données initiales de base
    */
   async resetToDefaults(): Promise<void> {

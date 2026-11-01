@@ -17,6 +17,7 @@
     },
     "android": {
       "package": "com.andimi0n.papilles",
+      "versionCode": 3,
       "adaptiveIcon": {
         "backgroundColor": "#1B3D2C",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -26,8 +27,8 @@
       "predictiveBackGestureEnabled": false,
       "allowBackup": false,
       "permissions": [
-        "CAMERA",
-        "READ_MEDIA_IMAGES"
+        "android.permission.CAMERA",
+        "android.permission.READ_MEDIA_IMAGES"
       ]
     },
     "web": {
@@ -53,6 +54,12 @@
           "photosPermission": "Papilles utilise vos photos pour importer des images de recettes depuis votre galerie."
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "84b3acf3-9d09-4c23-92e4-18152ddc9df8"
+      }
+    },
+    "owner": "andimion"
   }
 }

@@ -329,9 +329,10 @@ export const VocabularyManagerModal: React.FC<VocabularyManagerModalProps> = ({
   };
 
   const handleResetDefaults = () => {
+    const defaultCount = VocabularyService.getDefaultCount();
     Alert.alert(
       'Réinitialiser le lexique',
-      'Cette action va recharger les 208 ingrédients canoniques certifiés par défaut. Vos ajouts et modifications personnalisées seront réinitialisés. Continuer ?',
+      `Cette action va recharger les ${defaultCount} ingrédients canoniques certifiés par défaut. Vos ajouts et modifications personnalisées seront réinitialisés. Continuer ?`,
       [
         { text: 'Annuler', style: 'cancel' },
         {
@@ -341,7 +342,8 @@ export const VocabularyManagerModal: React.FC<VocabularyManagerModalProps> = ({
             try {
               await VocabularyService.resetToDefaults();
               await loadData();
-              Alert.alert('Succès', 'Le lexique d\'ingrédients a été réinitialisé avec les 208 termes certifiés.');
+              const refreshed = await VocabularyService.getAll();
+              Alert.alert('Succès', `Le lexique d'ingrédients a été réinitialisé avec les ${refreshed.length} termes certifiés.`);
             } catch (e) {
               Alert.alert('Erreur', 'Impossible de réinitialiser le lexique.');
             }

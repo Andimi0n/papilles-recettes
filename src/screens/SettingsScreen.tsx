@@ -532,9 +532,10 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   };
 
   const handleResetVocabulary = () => {
+    const defaultCount = VocabularyService.getDefaultCount();
     Alert.alert(
       'Réinitialiser le lexique',
-      'Cette action va recharger les 208 ingrédients canoniques certifiés par défaut. Vos ajouts et personnalisations d\'ingrédients seront réinitialisés. Continuer ?',
+      `Cette action va recharger les ${defaultCount} ingrédients canoniques certifiés par défaut. Vos ajouts et personnalisations d'ingrédients seront réinitialisés. Continuer ?`,
       [
         { text: 'Annuler', style: 'cancel' },
         {
@@ -544,7 +545,8 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
             try {
               await VocabularyService.resetToDefaults();
               await loadInitialSettings();
-              Alert.alert('Succès', 'Le lexique a été réinitialisé avec les 208 ingrédients certifiés.');
+              const refreshed = await VocabularyService.getAll();
+              Alert.alert('Succès', `Le lexique a été réinitialisé avec les ${refreshed.length} ingrédients certifiés.`);
             } catch (e) {
               Alert.alert('Erreur', 'Impossible de réinitialiser le lexique.');
             }
@@ -555,9 +557,10 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   };
 
   const handleFullFactoryReset = () => {
+    const defaultCount = VocabularyService.getDefaultCount();
     Alert.alert(
       'Remise à zéro complète ?',
-      "Cette action va réinitialiser l'application à son état d'origine :\n\n• Rechargement des 100 recettes par défaut normalisées\n• Rechargement des 208 ingrédients de référence\n• Vidage complet de la liste de courses\n• Vidage complet du stock (étagères)\n• Vidage du planning hebdomadaire\n\nIdéal pour repartir sur une base 100% saine après une phase de test. Continuer ?",
+      `Cette action va réinitialiser l'application à son état d'origine :\n\n• Rechargement des 100 recettes par défaut normalisées\n• Rechargement des ${defaultCount} ingrédients de référence\n• Vidage complet de la liste de courses\n• Vidage complet du stock (étagères)\n• Vidage du planning hebdomadaire\n\nIdéal pour repartir sur une base 100% saine après une phase de test. Continuer ?`,
       [
         { text: 'Annuler', style: 'cancel' },
         {
@@ -577,10 +580,11 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                 await onRecipesReloadNeeded();
               }
               await loadInitialSettings();
+              const refreshed = await VocabularyService.getAll();
 
               Alert.alert(
                 'Application réinitialisée !',
-                'Votre carnet a été restauré à l\'état d\'usine avec les 100 recettes cultes et le référentiel complet de 208 ingrédients.'
+                `Votre carnet a été restauré à l'état d'usine avec les 100 recettes par défaut et le référentiel complet de ${refreshed.length} ingrédients.`
               );
             } catch (e: any) {
               Alert.alert('Erreur', e?.message || 'Impossible de réinitialiser.');
@@ -1350,7 +1354,9 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                 <Ionicons name="refresh-outline" size={20} color={colors.primary} />
                 <View style={styles.dataActionInfo}>
                   <Text style={styles.dataActionTitle}>Réinitialiser le lexique d&apos;origine</Text>
-                  <Text style={styles.dataActionDesc}>Recharge les 208 ingrédients et alias certifiés</Text>
+                  <Text style={styles.dataActionDesc}>
+                    Recharge les {VocabularyService.getDefaultCount()} ingrédients et alias certifiés
+                  </Text>
                 </View>
                 <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
               </TouchableOpacity>
