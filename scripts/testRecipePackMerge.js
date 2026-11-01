@@ -75,7 +75,7 @@ async function main() {
     ];
     await StorageService.saveAllRecipes(initialRecipes);
 
-    await StorageService.saveFridgeStock([
+    await StorageService.saveFridgeItems([
       { id: 'stock_1', name: 'Lait', category: 'Produits Frais' },
     ]);
 
@@ -121,7 +121,7 @@ async function main() {
     assert.ok(newTarte, 'La Tarte doit exister');
     assert.ok(newTarte.imageUrl && newTarte.imageUrl.length > 0, 'La Tarte doit avoir une URL d image');
 
-    const stockAfter = await StorageService.getFridgeStock();
+    const stockAfter = await StorageService.getFridgeItems();
     assert.strictEqual(stockAfter.length, 1, 'Le stock doit être intact');
     assert.strictEqual(stockAfter[0].name, 'Lait', 'Lait toujours en stock');
 

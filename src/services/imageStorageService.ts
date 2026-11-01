@@ -138,6 +138,66 @@ export const ImageStorageService = {
   },
 
   /**
+   * Sauvegarde directement un flux d'octets d'image (ex: extrait d'une archive ZIP)
+   * dans le stockage permanent des photos avec URI propre file:///... (ou data URI en fallback).
+   */
+  async savePhotoBytesLocally(bytes: Uint8Array, originalFileName?: string): Promise<string> {
+    if (!bytes || bytes.length === 0) return '';
+
+    // Détecter l'extension
+    let ext = '.jpg';
+    if (originalFileName) {
+      const clean = originalFileName.split('?')[0].split('#')[0];
+      const dotIdx = clean.lastIndexOf('.');
+      if (dotIdx !== -1) {
+        const candidateExt = clean.substring(dotIdx).toLowerCase();
+        if (['.jpg', '.jpeg', '.png', '.webp', '.heic', '.gif'].includes(candidateExt)) {
+          ext = candidateExt;
+        }
+      }
+    }
+
+    const uint8ArrayToBase64 = (arr: Uint8Array): string => {
+      if (typeof Buffer !== 'undefined') {
+        return Buffer.from(arr).toString('base64');
+      }
+      let binary = '';
+      const len = arr.byteLength;
+      for (let i = 0; i < len; i++) {
+        binary += String.fromCharCode(arr[i]);
+      }
+      return typeof btoa !== 'undefined' ? btoa(binary) : '';
+    };
+
+    const fs = getFileSystem();
+    const targetDir = this.getPhotosDirectory();
+
+    if (fs && targetDir) {
+      try {
+        const dirReady = await this.ensureDirectoryExists();
+        if (dirReady) {
+          const fileName = `rec_photo_${Date.now()}_${Math.random().toString(36).substring(2, 9)}${ext}`;
+          const destinationUri = `${targetDir}${fileName}`;
+          const base64Data = uint8ArrayToBase64(bytes);
+
+          await fs.writeAsStringAsync(destinationUri, base64Data, {
+            encoding: fs.EncodingType.Base64,
+          });
+
+          return destinationUri;
+        }
+      } catch (err) {
+        console.warn('[ImageStorage] Échec écriture photo depuis bytes, fallback data URI:', err);
+      }
+    }
+
+    // Fallback Web ou environnement sans FileSystem (Node test)
+    const mime = ext === '.png' ? 'image/png' : ext === '.webp' ? 'image/webp' : 'image/jpeg';
+    const base64 = uint8ArrayToBase64(bytes);
+    return `data:${mime};base64,${base64}`;
+  },
+
+  /**
    * Supprime une photo persistée du disque local si et seulement si
    * elle réside dans notre dossier dédié (évite d'effacer les photos de la galerie de l'utilisateur).
    */

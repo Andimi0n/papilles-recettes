@@ -29,6 +29,15 @@ import { VocabularyService, VocabularyCascadeEvent } from './vocabularyService';
 import { AnalyticsService } from './analyticsService';
 import { DatabaseService } from './databaseService';
 import { ImageStorageService } from './imageStorageService';
+import { RecipePackService, ExtractedRecipePack } from './recipePackService';
+
+export interface RecipePackMergeResult {
+  success: boolean;
+  addedCount: number;
+  updatedCount: number;
+  photosCount: number;
+  error?: string;
+}
 
 // ─── Clés de settings SQLite (ex-AsyncStorage) ───────────────────────────────
 const SETTING_SCHEMA_VERSION = 'schema_version';
@@ -2239,6 +2248,134 @@ export const StorageService = {
       return { success: true, count: addedOrUpdated };
     } catch (err: any) {
       return { success: false, count: 0, error: err?.message || 'Format JSON invalide.' };
+    }
+  },
+
+  /**
+   * Importe et fusionne un pack de recettes (JSON ou archive ZIP avec photos)
+   * sans écraser le stock, la liste de courses ni le journal des repas.
+   * Déduplique par titre normalisé et assainit chaque recette via sanitizeStoredRecipe().
+   */
+  async mergeRecipePack(
+    pack: ExtractedRecipePack,
+    onProgress?: (processed: number, total: number) => void
+  ): Promise<RecipePackMergeResult> {
+    try {
+      if (!pack || !Array.isArray(pack.recipes) || pack.recipes.length === 0) {
+        return {
+          success: false,
+          addedCount: 0,
+          updatedCount: 0,
+          photosCount: 0,
+          error: 'Le pack ne contient aucune recette valide à importer.',
+        };
+      }
+
+      const current = await this.getRecipes();
+      const existingById = new Map<string, Recipe>();
+      const existingByNormalizedTitle = new Map<string, Recipe>();
+      const usedIds = new Set<string>();
+
+      current.forEach((r) => {
+        existingById.set(r.id, r);
+        usedIds.add(r.id);
+        const norm = normalizeString(r.title || '').trim().toLowerCase();
+        if (norm) {
+          existingByNormalizedTitle.set(norm, r);
+        }
+      });
+
+      let addedCount = 0;
+      let updatedCount = 0;
+      let photosCount = 0;
+
+      const mergedList: Recipe[] = [...current];
+      const totalToProcess = pack.recipes.length;
+
+      for (let i = 0; i < totalToProcess; i++) {
+        const rawRecipe = pack.recipes[i];
+        if (!rawRecipe || typeof rawRecipe !== 'object') continue;
+
+        const sanitized = sanitizeStoredRecipe(rawRecipe);
+        const normTitle = normalizeString(sanitized.title || '').trim().toLowerCase();
+
+        // 1. Recherche de photo correspondante dans le pack
+        let photoUri: string | null = null;
+        if (pack.images && pack.images.size > 0) {
+          const rawImageRef = typeof rawRecipe.imageUrl === 'string' ? rawRecipe.imageUrl : '';
+          const imageRef = rawImageRef || sanitized.imageUrl || rawRecipe.id || sanitized.id;
+          const found = RecipePackService.findImageBytes(pack.images, imageRef);
+          if (found) {
+            photoUri = await ImageStorageService.savePhotoBytesLocally(found.bytes, found.fileName);
+            if (photoUri) {
+              photosCount++;
+            }
+          }
+        }
+
+        // 2. Déduplication par titre normalisé
+        const existingRecipe = normTitle ? existingByNormalizedTitle.get(normTitle) : undefined;
+
+        if (existingRecipe) {
+          // Mise à jour de la recette existante en conservant son ID
+          const targetIndex = mergedList.findIndex((r) => r.id === existingRecipe.id);
+          if (targetIndex !== -1) {
+            const updatedRecipe: Recipe = {
+              ...sanitized,
+              id: existingRecipe.id,
+              // Conserver la photo existante si aucune nouvelle photo n'a été trouvée
+              imageUrl: photoUri || sanitized.imageUrl || existingRecipe.imageUrl,
+            };
+            mergedList[targetIndex] = updatedRecipe;
+            existingById.set(existingRecipe.id, updatedRecipe);
+            existingByNormalizedTitle.set(normTitle, updatedRecipe);
+            updatedCount++;
+          }
+        } else {
+          // Recette inédite : attribution d'un nouvel identifiant unique si collision ou manquant
+          let newId = sanitized.id;
+          if (!newId || usedIds.has(newId)) {
+            newId = generateUniqueId('rec');
+          }
+          usedIds.add(newId);
+
+          const newRecipe: Recipe = {
+            ...sanitized,
+            id: newId,
+            imageUrl: photoUri || sanitized.imageUrl,
+          };
+
+          mergedList.push(newRecipe);
+          existingById.set(newId, newRecipe);
+          if (normTitle) {
+            existingByNormalizedTitle.set(normTitle, newRecipe);
+          }
+          addedCount++;
+        }
+
+        if (onProgress) {
+          onProgress(i + 1, totalToProcess);
+        }
+      }
+
+      await DatabaseService.saveAllRecipes(mergedList);
+      memoryCache.recipes = mergedList;
+
+      return {
+        success: true,
+        addedCount,
+        updatedCount,
+        photosCount,
+      };
+    } catch (err: any) {
+      console.error('[StorageService] Erreur lors de la fusion du pack de recettes :', err);
+      return {
+        success: false,
+        addedCount: 0,
+        updatedCount: 0,
+        photosCount: 0,
+        error: err?.message || 'Erreur inattendue lors de la fusion du pack.',
+      };
     }
   },
 
