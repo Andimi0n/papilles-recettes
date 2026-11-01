@@ -90,6 +90,7 @@ export interface RecipeIdea {
   description: string;
   estimatedTime?: string;
   highlightIngredients?: string[];
+  isVegetarian?: boolean;
 }
 
 export interface ChefFavoritePrompt {

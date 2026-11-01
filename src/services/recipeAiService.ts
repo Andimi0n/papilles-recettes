@@ -82,12 +82,16 @@ const RECIPE_IDEAS_SCHEMA = {
           title: { type: 'STRING' },
           description: { type: 'STRING' },
           estimatedTime: { type: 'STRING' },
+          isVegetarian: {
+            type: 'BOOLEAN',
+            description: 'Vrai si la recette ne contient ni viande, ni volaille, ni poisson, ni fruit de mer',
+          },
           highlightIngredients: {
             type: 'ARRAY',
             items: { type: 'STRING' },
           },
         },
-        required: ['id', 'title', 'description', 'estimatedTime', 'highlightIngredients'],
+        required: ['id', 'title', 'description', 'estimatedTime', 'highlightIngredients', 'isVegetarian'],
       },
     },
   },
