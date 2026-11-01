@@ -64,10 +64,10 @@
 - [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) (f168aa2)
 
 
-## Phase 5 : Validation Globale, Tests Métier & Non-Régression
+## Phase 5 : Validation Globale, Tests Métier & Non-Régression [checkpoint: d1abc42]
 
-- [ ] Task: Exécution de la suite complète de validation
-  - [ ] Exécuter `npm test` pour s'assurer qu'aucun test existant n'est rompu
-  - [ ] Valider le typage strict et le linting : `npx tsc --noEmit && npx expo lint`
-  - [ ] Validation manuelle du cycle complet de génération d'idées avec Chef IA
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: Exécution de la suite complète de validation
+  - [x] Exécuter `npm test` pour s'assurer qu'aucun test existant n'est rompu
+  - [x] Valider le typage strict et le linting : `npx tsc --noEmit && npx expo lint`
+  - [x] Validation manuelle du cycle complet de génération d'idées avec Chef IA
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) (d1abc42)
