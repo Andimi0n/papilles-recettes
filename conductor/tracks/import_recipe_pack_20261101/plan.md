@@ -18,9 +18,9 @@ Ce plan structure la réalisation technique en 4 phases progressives selon la m�
 
 ## Phase 2 : Logique Métier de Fusion & Persistance (`StorageService`)
 
-- [ ] Task: Écrire les tests unitaires de la fusion incrémentale de recettes (Red Phase)
-  - [ ] Ajouter dans la suite de tests les scénarios de déduplication par titre normalisé, mise à jour des existantes et génération d'identifiants uniques pour les recettes inédites
-  - [ ] Confirmer l'échec initial des tests
+- [x] Task: Écrire les tests unitaires de la fusion incrémentale de recettes (Red Phase) [d51e7cf]
+  - [x] Ajouter dans la suite de tests les scénarios de déduplication par titre normalisé, mise à jour des existantes et génération d'identifiants uniques pour les recettes inédites
+  - [x] Confirmer l'échec initial des tests
 - [ ] Task: Implémenter la méthode `mergeRecipePack()` dans `StorageService` (Green Phase)
   - [ ] Ajouter `mergeRecipePack()` dans `src/services/storageService.ts` avec assainissement via `sanitizeStoredRecipe()`
   - [ ] Garantir l'isolation totale : zéro altération du stock, des courses ou de l'historique des repas
