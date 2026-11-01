@@ -10,11 +10,11 @@ Ce plan structure la réalisation technique en 4 phases progressives selon la m�
 - [x] Task: Écrire les tests unitaires pour le parsing et l'extraction de pack (Red Phase) [1bb2278]
   - [x] Créer `scripts/testRecipePackService.js` testant le décodage JSON, la détection Zip Slip, la lecture séquentielle et la gestion des erreurs
   - [x] Confirmer l'échec initial des tests
-- [ ] Task: Implémenter le service d'extraction de pack `RecipePackService` (Green Phase)
-  - [ ] Créer `src/services/recipePackService.ts` avec traitement séquentiel par petits lots (3 à 5 images) pour préserver la mémoire (Point de vigilance 1)
-  - [ ] Assurer la sécurisation contre les attaques Zip Slip et l'extraction des buffers images
-  - [ ] Confirmer le passage au vert des tests unitaires
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: Implémenter le service d'extraction de pack `RecipePackService` (Green Phase) [2a4c6ca]
+  - [x] Créer `src/services/recipePackService.ts` avec traitement séquentiel par petits lots (3 à 5 images) pour préserver la mémoire (Point de vigilance 1)
+  - [x] Assurer la sécurisation contre les attaques Zip Slip et l'extraction des buffers images
+  - [x] Confirmer le passage au vert des tests unitaires
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md)
 
 ## Phase 2 : Logique Métier de Fusion & Persistance (`StorageService`)
 
