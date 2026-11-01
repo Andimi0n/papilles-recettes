@@ -4,9 +4,9 @@ Ce plan structure la réalisation technique en 4 phases progressives selon la m�
 
 ## Phase 1 : Dépendances & Service d'Extraction de Pack (ZIP & JSON)
 
-- [ ] Task: Installer et configurer les dépendances requises (`expo-document-picker`, `jszip`)
-  - [ ] Installer `expo-document-picker` via `npx expo install` et `jszip` (+ `@types/jszip`)
-  - [ ] Valider la compilation TypeScript et l'alignement Expo SDK 58
+- [x] Task: Installer et configurer les dépendances requises (`expo-document-picker`, `jszip`) [4b5feb6]
+  - [x] Installer `expo-document-picker` via `npx expo install` et `jszip` (+ `@types/jszip`)
+  - [x] Valider la compilation TypeScript et l'alignement Expo SDK 58
 - [ ] Task: Écrire les tests unitaires pour le parsing et l'extraction de pack (Red Phase)
   - [ ] Créer `scripts/testRecipePackService.js` testant le décodage JSON, la détection Zip Slip, la lecture séquentielle et la gestion des erreurs
   - [ ] Confirmer l'échec initial des tests
