@@ -21,13 +21,13 @@ Ce plan structure la réalisation technique en 4 phases progressives selon la m�
 - [x] Task: Écrire les tests unitaires de la fusion incrémentale de recettes (Red Phase) [d51e7cf]
   - [x] Ajouter dans la suite de tests les scénarios de déduplication par titre normalisé, mise à jour des existantes et génération d'identifiants uniques pour les recettes inédites
   - [x] Confirmer l'échec initial des tests
-- [ ] Task: Implémenter la méthode `mergeRecipePack()` dans `StorageService` (Green Phase)
-  - [ ] Ajouter `mergeRecipePack()` dans `src/services/storageService.ts` avec assainissement via `sanitizeStoredRecipe()`
-  - [ ] Garantir l'isolation totale : zéro altération du stock, des courses ou de l'historique des repas
-  - [ ] Assurer la persistance locale des photos via `ImageStorageService` avec format d'URI propre (`file:///...` sur mobile) (Point de vigilance 2)
-  - [ ] Retourner le bilan détaillé `{ addedCount, updatedCount, photosCount }`
-  - [ ] Confirmer le passage au vert de tous les tests unitaires
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: Implémenter la méthode `mergeRecipePack()` dans `StorageService` (Green Phase) [5e6cfee]
+  - [x] Ajouter `mergeRecipePack()` dans `src/services/storageService.ts` avec assainissement via `sanitizeStoredRecipe()`
+  - [x] Garantir l'isolation totale : zéro altération du stock, des courses ou de l'historique des repas
+  - [x] Assurer la persistance locale des photos via `ImageStorageService` avec format d'URI propre (`file:///...` sur mobile) (Point de vigilance 2)
+  - [x] Retourner le bilan détaillé `{ addedCount, updatedCount, photosCount }`
+  - [x] Confirmer le passage au vert de tous les tests unitaires
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md)
 
 ## Phase 3 : Interface Utilisateur & Intégration (`SettingsScreen`)
 
