@@ -7,7 +7,7 @@
   *Link: [./tracks/quitoque_pdf_converter_20261101/index.md](./tracks/quitoque_pdf_converter_20261101/index.md)*
 
 ---
-- [~] **Track: Rework du système de suggestions d'idées de recettes par chef IA**
+- [x] **Track: Rework du système de suggestions d'idées de recettes par chef IA**
   *Link: [./tracks/chef_ia_suggestions_rework_20261101/index.md](./tracks/chef_ia_suggestions_rework_20261101/index.md)*
 
 
