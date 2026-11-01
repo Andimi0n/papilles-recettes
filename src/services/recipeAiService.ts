@@ -1010,6 +1010,173 @@ export function isRecipeVegetarian(
 }
 
 /**
+ * Détecte si une liste d'ingrédients ou des préférences textuelles contiennent de la viande, volaille, poisson ou fruit de mer.
+ */
+export function hasNonVegetarianIngredients(
+  ingredients: string[] = [],
+  preferences = ''
+): boolean {
+  const fullText = [...ingredients, preferences]
+    .join(' ')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+
+  return PRECOMPILED_NON_VEGE_REGEX.test(fullText);
+}
+
+export interface ChefRecipeIdeasPromptOptions {
+  primaryIngredients?: string[];
+  optionalIngredients?: string[];
+  mealType?: string;
+  servings?: number;
+  onlyVegetarian?: boolean;
+  existingDoableTitles?: string[];
+  rejectedIdeaTitles?: string[];
+  additionalPreferences?: string;
+  excludedAllergens?: string[];
+  chefMood?: string;
+}
+
+export interface BuiltChefRecipeIdeasPrompt {
+  systemPrompt: string;
+  userPayload: string;
+  isVegeGuaranteed: boolean;
+  sanitizedRejectedTitles: string[];
+  primaryIngredients: string[];
+  optionalIngredients: string[];
+}
+
+/**
+ * Construit et sécurise le prompt système et utilisateur pour la suggestion de 3 idées de recettes Chef IA.
+ */
+export function buildChefRecipeIdeasPrompt(
+  options: ChefRecipeIdeasPromptOptions
+): BuiltChefRecipeIdeasPrompt {
+  const primary = (options.primaryIngredients || []).map((i) => i.trim()).filter(Boolean).slice(0, 50);
+  const optional = (options.optionalIngredients || []).map((i) => i.trim()).filter(Boolean).slice(0, 50);
+
+  if (primary.length === 0 && optional.length === 0) {
+    throw new Error('Veuillez sélectionner au moins un ingrédient de votre réfrigérateur.');
+  }
+
+  const targetType = options.mealType || 'Plat';
+  const isStrictVege = options.onlyVegetarian ?? false;
+
+  // Règle d'arbitrage végé :
+  // Si le mode strict végé est activé -> 100% végé sur toutes les recettes
+  // Sinon -> si des viandes/poissons sont spécifiés en ingrédient obligatoire ou préférences -> l'IA n'est pas forcée à 1 végé
+  // Sinon -> au moins 1 idée sur les 3 garantie végétarienne
+  const hasMandatoryMeatOrFish = hasNonVegetarianIngredients(primary, options.additionalPreferences || '');
+  const isVegeGuaranteed = !isStrictVege && !hasMandatoryMeatOrFish;
+
+  // Titres déjà connus (max 15)
+  const existingTitles = (options.existingDoableTitles || [])
+    .map((t) => t.trim())
+    .filter(Boolean)
+    .slice(0, 15);
+  const sanitizedExistingTitles = existingTitles.map((t) =>
+    escapeUntrustedDelimiters(t.slice(0, 100), 'untrusted_existing_recipes')
+  );
+
+  // Titres rejetés (FIFO 15 max)
+  const rejectedTitles = (options.rejectedIdeaTitles || [])
+    .map((t) => t.trim())
+    .filter(Boolean)
+    .slice(-15);
+  const sanitizedRejectedTitles = rejectedTitles.map((t) =>
+    escapeUntrustedDelimiters(t.slice(0, 100), 'untrusted_rejected_recipes')
+  );
+
+  const antiRedundancyParts: string[] = [];
+  if (sanitizedExistingTitles.length > 0) {
+    antiRedundancyParts.push(
+      `Recettes déjà connues à NE PAS reproduire :\n${sanitizedExistingTitles.map((t) => `- ${t}`).join('\n')}`
+    );
+  }
+  if (sanitizedRejectedTitles.length > 0) {
+    antiRedundancyParts.push(
+      `IDÉES PRÉCÉDEMMENT REFUSÉES PAR L'UTILISATEUR (INTERDICTION FORMELLE DE LES REPROPOSER OU DE PROPOSER DES VARIANTES PROCHES) :\n${sanitizedRejectedTitles.map((t) => `- ${t}`).join('\n')}`
+    );
+  }
+  const antiRedundancySection =
+    antiRedundancyParts.length > 0 ? `${antiRedundancyParts.join('\n\n')}\n` : '';
+
+  const allergenExclusionSection =
+    options.excludedAllergens && options.excludedAllergens.length > 0
+      ? `ALLERGÈNES STRICTEMENT INTERDITS :\n${options.excludedAllergens.map((a) => `- ${escapeUntrustedDelimiters(a, 'untrusted_allergen')}`).join('\n')}\n`
+      : '';
+
+  const moodConfig =
+    CHEF_MOODS.find((m) => m.id === options.chefMood) || CHEF_MOODS[0];
+
+  let dietaryRule = 'Respecte scrupuleusement l\'esprit et le style culinaire de ton rôle.';
+  if (isStrictVege) {
+    dietaryRule = 'RÉGIME : 100% végétarien obligatoire sur les 3 propositions (aucune viande, volaille, poisson ou fruit de mer). Indique isVegetarian: true sur toutes les idées.';
+  } else if (isVegeGuaranteed) {
+    dietaryRule = 'ÉQUILIBRE VÉGÉTARIEN : Au moins 1 idée 100% végétarienne (sans aucune viande, volaille, poisson ni fruit de mer) DOIT être garantie parmi les 3 propositions. Indique fidèlement isVegetarian: true sur toute idée végétarienne et isVegetarian: false sinon.';
+  }
+
+  const systemPrompt = `${moodConfig.systemPersona}
+
+Ta mission : proposer exactement 3 idées de ${targetType} adaptées aux ingrédients disponibles (fond de placard supposé disponible : sel, poivre, huiles courantes, beurre, vinaigre, eau, ail/oignon sec, herbes et épices courantes).
+
+Règles strictes :
+1. ${dietaryRule}
+${allergenExclusionSection}${antiRedundancySection}2. GESTION DES INGRÉDIENTS :
+- Ingrédients obligatoires (s'il y en a) : doivent obligatoirement être utilisés et mis en valeur dans les recettes.
+- Ingrédients optionnels : peuvent être utilisés comme compléments ou accompagnements selon la pertinence de chaque idée.
+3. ÉQUITÉ DU PANIER : Pioche de façon variée dans toute la liste d'ingrédients. Les 3 idées doivent être bien distinctes les unes des autres.
+4. TITRES : courts, sobres et précis (ex: "Poêlée de gnocchis aux champignons"). Interdiction formelle d'utiliser des adjectifs vendeurs ou pompeux ("délicieux", "gourmand", "sublime", "onctueux", "parfait").
+5. DESCRIPTIONS : 1 seule phrase factuelle résumant la technique de préparation et l'assemblage.
+6. TEMPS ESTIMÉ : cohérent avec ton style culinaire.`;
+
+  // Préparation du payload utilisateur
+  const sanitizedPrimary = shuffleArray(primary).map((i) =>
+    escapeUntrustedDelimiters(i.slice(0, 100), 'untrusted_primary_ingredients')
+  );
+  const sanitizedOptional = shuffleArray(optional).map((i) =>
+    escapeUntrustedDelimiters(i.slice(0, 100), 'untrusted_optional_ingredients')
+  );
+
+  let stockSection = '';
+  if (sanitizedPrimary.length > 0 && sanitizedOptional.length > 0) {
+    stockSection = `Ingrédients OBLIGATOIRES à utiliser en priorité :
+<untrusted_primary_ingredients>
+${sanitizedPrimary.join(', ')}
+</untrusted_primary_ingredients>
+
+Ingrédients OPTIONNELS (compléments / fonds de frigo) :
+<untrusted_optional_ingredients>
+${sanitizedOptional.join(', ')}
+</untrusted_optional_ingredients>`;
+  } else if (sanitizedPrimary.length > 0) {
+    stockSection = `Ingrédients OBLIGATOIRES à utiliser :
+<untrusted_primary_ingredients>
+${sanitizedPrimary.join(', ')}
+</untrusted_primary_ingredients>`;
+  } else {
+    stockSection = `Ingrédients disponibles (tous optionnels) :
+<untrusted_optional_ingredients>
+${sanitizedOptional.join(', ')}
+</untrusted_optional_ingredients>`;
+  }
+
+  const userPayload = `${moodConfig.userDirective} (catégorie : "${targetType}") à partir de ce stock :
+${stockSection}${options.additionalPreferences ? `\nPréférences supplémentaires : ${escapeUntrustedDelimiters(options.additionalPreferences.slice(0, 150), 'untrusted_user_preferences')}` : ''}`;
+
+  return {
+    systemPrompt,
+    userPayload,
+    isVegeGuaranteed,
+    sanitizedRejectedTitles,
+    primaryIngredients: primary,
+    optionalIngredients: optional,
+  };
+}
+
+
+/**
  * Neutralise et échappe les balises XML/HTML de délimitation dans les données utilisateur
  * afin de prévenir le contournement de bac à sable par Prompt Injection (OWASP LLM01).
  */
@@ -1586,12 +1753,15 @@ ${sanitizedInput}
    * en évitant strictement les recettes faisables existantes du même type (Solution 1).
    */
   async suggestRecipeIdeasFromFridge(
-    ingredients: string[],
+    ingredients: string[] | { primary?: string[]; optional?: string[] },
     options?: {
+      primaryIngredients?: string[];
+      optionalIngredients?: string[];
       mealType?: string;
       servings?: number;
       onlyVegetarian?: boolean;
       existingDoableTitles?: string[];
+      rejectedIdeaTitles?: string[];
       additionalPreferences?: string;
       excludedAllergens?: string[];
       chefMood?: string;
@@ -1606,66 +1776,48 @@ ${sanitizedInput}
       );
     }
 
-    if (!ingredients || ingredients.length === 0) {
-      throw new Error('Veuillez sélectionner au moins un ingrédient de votre réfrigérateur.');
+    let primary = options?.primaryIngredients || [];
+    let optional = options?.optionalIngredients || [];
+
+    if (Array.isArray(ingredients)) {
+      if (primary.length === 0 && optional.length === 0) {
+        primary = ingredients;
+      }
+    } else if (ingredients && typeof ingredients === 'object') {
+      if (primary.length === 0 && ingredients.primary) {
+        primary = ingredients.primary;
+      }
+      if (optional.length === 0 && ingredients.optional) {
+        optional = ingredients.optional;
+      }
     }
 
-    const cleanIngredientsList = ingredients.map((i) => i.trim()).filter(Boolean).slice(0, 50);
-    const targetType = options?.mealType || 'Plat';
-    const isVege = options?.onlyVegetarian ?? false;
+    const {
+      systemPrompt,
+      userPayload,
+      primaryIngredients,
+      optionalIngredients,
+    } = buildChefRecipeIdeasPrompt({
+      primaryIngredients: primary,
+      optionalIngredients: optional,
+      mealType: options?.mealType,
+      servings: options?.servings,
+      onlyVegetarian: options?.onlyVegetarian,
+      existingDoableTitles: options?.existingDoableTitles,
+      rejectedIdeaTitles: options?.rejectedIdeaTitles,
+      additionalPreferences: options?.additionalPreferences,
+      excludedAllergens: options?.excludedAllergens,
+      chefMood: options?.chefMood,
+    });
 
-    // Transmission des titres faisables uniquement du type sélectionné (Solution 1)
-    const existingTitles = (options?.existingDoableTitles || [])
-      .map((t) => t.trim())
-      .filter(Boolean)
-      .slice(0, 15);
-
-    const sanitizedExistingTitles = existingTitles.map((t) =>
-      escapeUntrustedDelimiters(t.slice(0, 100), 'untrusted_existing_recipes')
-    );
-
-    const antiRedundancySection =
-      sanitizedExistingTitles.length > 0
-        ? `Recettes déjà connues à NE PAS reproduire :\n${sanitizedExistingTitles.map((t) => `- ${t}`).join('\n')}\n`
-        : '';
-
-    const allergenExclusionSection =
-      options?.excludedAllergens && options.excludedAllergens.length > 0
-        ? `ALLERGÈNES STRICTEMENT INTERDITS :\n${options.excludedAllergens.map((a) => `- ${escapeUntrustedDelimiters(a, 'untrusted_allergen')}`).join('\n')}\n`
-        : '';
-
-    // Récupération du mood choisi (repli sur le 1er mood "quotidien" par défaut)
-    const moodConfig =
-      CHEF_MOODS.find((m) => m.id === options?.chefMood) || CHEF_MOODS[0];
-
-    const systemPrompt = `${moodConfig.systemPersona}
-
-Ta mission : proposer exactement 3 idées de ${targetType} adaptées aux ingrédients disponibles (fond de placard supposé disponible : sel, poivre, huiles courantes, beurre, vinaigre, eau, ail/oignon sec, herbes et épices courantes).
-
-Règles strictes :
-1. ${isVege ? 'RÉGIME : 100% végétarien obligatoire (aucune viande, volaille, poisson ou fruit de mer).' : 'Respecte scrupuleusement l\'esprit et le style culinaire de ton rôle.'}
-${allergenExclusionSection}${antiRedundancySection}2. ÉQUITÉ DU PANIER : Pioche de façon variée dans toute la liste d'ingrédients sans favoriser systématiquement les premiers cités. Les 3 idées doivent être bien distinctes les unes des autres.
-3. TITRES : courts, sobres et précis (ex: "Poêlée de gnocchis aux champignons"). Interdiction formelle d'utiliser des adjectifs vendeurs ou pompeux ("délicieux", "gourmand", "sublime", "onctueux", "parfait").
-4. DESCRIPTIONS : 1 seule phrase factuelle résumant la technique de préparation et l'assemblage.
-5. TEMPS ESTIMÉ : cohérent avec ton style culinaire.`;
-
-    // Mélange aléatoire (Fisher-Yates) pour supprimer le biais d'attention positionnelle de l'IA sur l'ordre du stock
-    const randomizedIngredients = shuffleArray(cleanIngredientsList);
-    const sanitizedIngredients = randomizedIngredients.map((i) =>
-      escapeUntrustedDelimiters(i.slice(0, 100), 'untrusted_fridge_ingredients')
-    );
-
-    const userPayload = `${moodConfig.userDirective} (catégorie : "${targetType}") à partir de ce stock :
-<untrusted_fridge_ingredients>
-${sanitizedIngredients.join(', ')}
-</untrusted_fridge_ingredients>${options?.additionalPreferences ? `\nPréférences supplémentaires : ${escapeUntrustedDelimiters(options.additionalPreferences.slice(0, 150), 'untrusted_fridge_ingredients')}` : ''}`;
     // Journalisation explicite du prompt envoyé à l'IA pour les 3 idées de recettes
     console.log('\n======================================================================');
     console.log("🤖 [CHEF IA - TROUVER 3 IDÉES DE RECETTES] ENVOI DU PROMPT À L'IA");
     console.log('======================================================================');
     console.log(`📋 [Prompt Système] :\n${systemPrompt}\n`);
     console.log(`💬 [Prompt Utilisateur] :\n${userPayload}\n`);
-    console.log(`⚙️ [Ingrédients du stock transmis] (${cleanIngredientsList.length}) :`, cleanIngredientsList);
+    console.log(`⚙️ [Ingrédients obligatoires] (${primaryIngredients.length}) :`, primaryIngredients);
+    console.log(`⚙️ [Ingrédients optionnels] (${optionalIngredients.length}) :`, optionalIngredients);
     console.log('======================================================================\n');
 
     const payload = {
@@ -1713,19 +1865,29 @@ ${sanitizedIngredients.join(', ')}
       }
     }
 
-    const resultIdeas = rawList.slice(0, 3).map((item: any, idx: number) => ({
-      id: item?.id || `idea_${idx + 1}`,
-      title: String(item?.title || `Idée gourmande ${idx + 1}`).trim(),
-      description: String(item?.description || '').trim(),
-      estimatedTime: item?.estimatedTime ? String(item.estimatedTime).trim() : '25 min',
-      highlightIngredients: Array.isArray(item?.highlightIngredients)
-        ? item.highlightIngredients.map((h: any) => String(h).trim()).filter(Boolean)
-        : cleanIngredientsList.slice(0, 3),
-    }));
+    const resultIdeas: RecipeIdea[] = rawList.slice(0, 3).map((item: any, idx: number) => {
+      const title = String(item?.title || `Idée de recette ${idx + 1}`).trim();
+      const description = String(item?.description || '').trim();
+      const isVege =
+        typeof item?.isVegetarian === 'boolean'
+          ? item.isVegetarian
+          : isRecipeVegetarian([], title, description);
+
+      return {
+        id: item?.id || `idea_${idx + 1}`,
+        title,
+        description,
+        estimatedTime: item?.estimatedTime ? String(item.estimatedTime).trim() : '25 min',
+        isVegetarian: isVege,
+        highlightIngredients: Array.isArray(item?.highlightIngredients)
+          ? item.highlightIngredients.map((h: any) => String(h).trim()).filter(Boolean)
+          : [...primaryIngredients, ...optionalIngredients].slice(0, 3),
+      };
+    });
 
     console.log(
       `✨ [CHEF IA - 3 IDÉES REÇUES] :`,
-      resultIdeas.map((i) => i.title)
+      resultIdeas.map((i) => `${i.title} (${i.isVegetarian ? '🌿 végé' : 'standard'})`)
     );
 
     return resultIdeas;

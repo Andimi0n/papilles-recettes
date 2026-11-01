@@ -60,14 +60,17 @@ async function main() {
     mealType: 'Plat',
   });
   assert(prompt1.userPayload.includes('<untrusted_primary_ingredients>'), 'Doit inclure la balise primary');
-  assert(prompt1.userPayload.includes('Tomate, Courgette'), 'Doit lister les ingrédients obligatoires');
+  assert(prompt1.userPayload.includes('Tomate') && prompt1.userPayload.includes('Courgette'), 'Doit lister les ingrédients obligatoires');
   assert(prompt1.userPayload.includes('<untrusted_optional_ingredients>'), 'Doit inclure la balise optional');
-  assert(prompt1.userPayload.includes('Parmesan, Crème fraîche'), 'Doit lister les ingrédients optionnels');
+  assert(prompt1.userPayload.includes('Parmesan') && prompt1.userPayload.includes('Crème fraîche'), 'Doit lister les ingrédients optionnels');
+
 
   // 2. Test Garantie Végétarienne (Stock sans viande)
   console.log('  2. Vérification de la garantie d\'au moins 1 idée végétarienne...');
   assert.strictEqual(prompt1.isVegeGuaranteed, true, 'isVegeGuaranteed doit être true sans viande obligatoire');
-  assert(prompt1.systemPrompt.includes('au moins 1 idée 100% végétarienne'), 'Le prompt système doit exiger au moins 1 idée végé');
+  assert(prompt1.systemPrompt.toLowerCase().includes('au moins 1 idée 100% végétarienne'), 'Le prompt système doit exiger au moins 1 idée végé');
+
+
 
   // 3. Test Règle d'arbitrage Végétarienne (Viande en ingrédient obligatoire)
   console.log('  3. Vérification de l\'arbitrage végétarien avec viande obligatoire...');
