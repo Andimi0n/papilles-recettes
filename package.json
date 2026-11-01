@@ -68,7 +68,7 @@
     "test:web-recipe": "node scripts/testWebRecipeService.js",
     "test:search": "node scripts/testIngredientSearchMatcher.js",
     "test:section-layout": "node scripts/testSectionListLayoutHelper.js",
-    "test": "npm run validate:lexicon && npm run test:stock && npm run test:shopping && npm run test:allergens && npm run test:cascade && npm run test:unified-input && npm run test:recipe-links && npm run test:unit-converter && npm run test:tags && npm run test:share && npm run test:pdf && npm run test:web-recipe && npm run test:search && npm run test:section-layout && npm run test:aisle && npm run test:helpers && npm run test:recipe-ai && npm run test:marmiton && npm run test:normalizer && npm run test:units && npm run test:shopping-parser && npm run test:images && npm run test:pack && npm run test:pack-merge",
+    "test": "npm run validate:lexicon && npm run test:stock && npm run test:shopping && npm run test:allergens && npm run test:cascade && npm run test:unified-input && npm run test:recipe-links && npm run test:unit-converter && npm run test:tags && npm run test:share && npm run test:pdf && npm run test:web-recipe && npm run test:search && npm run test:section-layout && npm run test:aisle && npm run test:helpers && npm run test:recipe-ai && npm run test:marmiton && npm run test:normalizer && npm run test:units && npm run test:shopping-parser && npm run test:images && npm run test:pack && npm run test:pack-merge && npm run test:chef-prompts",
     "lint": "expo lint",
     "test:images": "node scripts/testImageStorageService.js",
     "test:aisle": "node scripts/testAisleClassifier.js",

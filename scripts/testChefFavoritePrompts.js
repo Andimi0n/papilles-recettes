@@ -48,8 +48,12 @@ async function main() {
     },
   };
   require.cache[require.resolve('@react-native-async-storage/async-storage')] = {
-    exports: { default: AsyncStorageMock },
+    id: require.resolve('@react-native-async-storage/async-storage'),
+    filename: require.resolve('@react-native-async-storage/async-storage'),
+    loaded: true,
+    exports: Object.assign(AsyncStorageMock, { default: AsyncStorageMock }),
   };
+
 
   // Chargement du module StorageService compilé
   const { StorageService } = require(path.join(tmpDir, 'services/storageService.js'));

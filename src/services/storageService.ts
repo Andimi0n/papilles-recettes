@@ -1,4 +1,4 @@
-import { Recipe, RecipeViewMode } from '../types/recipe';
+import { Recipe, RecipeViewMode, ChefFavoritePrompt } from '../types/recipe';
 import { ShoppingItem, ShoppingAisle } from '../types/shopping';
 import { FridgeItem } from '../types/fridge';
 import {
@@ -48,7 +48,30 @@ const SETTING_RECIPE_VIEW_MODE = 'recipe_view_mode_v1';
 const SETTING_DEFAULT_SERVINGS = 'default_servings_v1';
 const SETTING_ALLERGEN_FILTER = 'filter_allergens_recipes_v1';
 const SETTING_ALLERGEN_EXCLUDE_AI = 'exclude_allergens_ai_v1';
+const SETTING_CHEF_FAVORITE_PROMPTS = 'chef_favorite_prompts';
 const SETTING_ONBOARDING = 'onboarded_v1';
+
+export const DEFAULT_CHEF_FAVORITE_PROMPTS: ChefFavoritePrompt[] = [
+  {
+    id: 'seed_prompt_1',
+    title: 'Sans cuisson au four',
+    promptText: '100 % sans cuisson au four, uniquement poêle, casserole ou cru.',
+    createdAt: '2026-01-01T00:00:00.000Z',
+  },
+  {
+    id: 'seed_prompt_2',
+    title: 'Sauce légère & saine',
+    promptText: 'Sauce légère et digeste, sans crème fraîche ni excès de beurre.',
+    createdAt: '2026-01-01T00:00:00.000Z',
+  },
+  {
+    id: 'seed_prompt_3',
+    title: 'Enfants bienvenus',
+    promptText: 'Enfants bienvenus, saveurs douces, textures fondantes et présentation ludique.',
+    createdAt: '2026-01-01T00:00:00.000Z',
+  },
+];
+
 
 // ─── File d'attente mutex (cascade vocabulaire) ───────────────────────────────
 let cascadeMutexQueue: Promise<any> = Promise.resolve();
@@ -2113,6 +2136,87 @@ export const StorageService = {
       console.error('Erreur sauvegarde réglage exclusion IA allergènes:', e);
     }
   },
+
+  /**
+   * Récupère la liste des prompts favoris Chef IA (seeds par défaut si non configuré)
+   */
+  async getChefFavoritePrompts(): Promise<ChefFavoritePrompt[]> {
+    try {
+      const stored = await DatabaseService.getSetting(SETTING_CHEF_FAVORITE_PROMPTS);
+      if (stored === null || stored === undefined) {
+        return [...DEFAULT_CHEF_FAVORITE_PROMPTS];
+      }
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed)) {
+        return parsed;
+      }
+      return [...DEFAULT_CHEF_FAVORITE_PROMPTS];
+    } catch (e) {
+      console.error('Erreur lecture prompts favoris Chef IA:', e);
+      return [...DEFAULT_CHEF_FAVORITE_PROMPTS];
+    }
+  },
+
+  /**
+   * Enregistre ou met à jour un prompt favori Chef IA
+   */
+  async saveChefFavoritePrompt(
+    prompt: Omit<ChefFavoritePrompt, 'id' | 'createdAt'> & { id?: string }
+  ): Promise<ChefFavoritePrompt> {
+    try {
+      const currentList = await this.getChefFavoritePrompts();
+      let savedPrompt: ChefFavoritePrompt;
+
+      if (prompt.id) {
+        const existingIndex = currentList.findIndex((p) => p.id === prompt.id);
+        if (existingIndex >= 0) {
+          savedPrompt = {
+            ...currentList[existingIndex],
+            title: prompt.title.trim(),
+            promptText: prompt.promptText.trim(),
+          };
+          currentList[existingIndex] = savedPrompt;
+        } else {
+          savedPrompt = {
+            id: prompt.id,
+            title: prompt.title.trim(),
+            promptText: prompt.promptText.trim(),
+            createdAt: new Date().toISOString(),
+          };
+          currentList.unshift(savedPrompt);
+        }
+      } else {
+        savedPrompt = {
+          id: generateUniqueId('fav_prompt'),
+          title: prompt.title.trim(),
+          promptText: prompt.promptText.trim(),
+          createdAt: new Date().toISOString(),
+        };
+        currentList.unshift(savedPrompt);
+      }
+
+      await DatabaseService.setSetting(SETTING_CHEF_FAVORITE_PROMPTS, JSON.stringify(currentList));
+      return savedPrompt;
+    } catch (e) {
+      console.error('Erreur sauvegarde prompt favori Chef IA:', e);
+      throw e;
+    }
+  },
+
+  /**
+   * Supprime un prompt favori Chef IA par son ID
+   */
+  async deleteChefFavoritePrompt(id: string): Promise<void> {
+    try {
+      const currentList = await this.getChefFavoritePrompts();
+      const updatedList = currentList.filter((p) => p.id !== id);
+      await DatabaseService.setSetting(SETTING_CHEF_FAVORITE_PROMPTS, JSON.stringify(updatedList));
+    } catch (e) {
+      console.error('Erreur suppression prompt favori Chef IA:', e);
+      throw e;
+    }
+  },
+
 
   // ══════════════════════════════════════════════════════════════════════════
   // EXPORT / IMPORT
