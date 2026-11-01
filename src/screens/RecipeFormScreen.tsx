@@ -30,6 +30,7 @@ import { UnitPickerModal } from '../components/UnitPickerModal';
 import { formatQuantityWithUnit } from '../constants/units';
 import { UnifiedIngredientService } from '../services/unifiedIngredientService';
 import { VocabularyService } from '../services/vocabularyService';
+import { ImageStorageService } from '../services/imageStorageService';
 import { isKnownDefaultPantryStaple } from '../data/canonicalVocabulary';
 import { RecipeLinkPickerModal } from '../components/RecipeLinkPickerModal';
 import { IngredientTableEditor } from '../components/recipe-form/IngredientTableEditor';
@@ -359,7 +360,8 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        setImageUrl(result.assets[0].uri);
+        const permanentUri = await ImageStorageService.persistImageLocally(result.assets[0].uri);
+        setImageUrl(permanentUri);
       }
     } catch (e) {
       console.log('Erreur sélection image:', e);

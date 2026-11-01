@@ -114,8 +114,10 @@ Une application mobile moderne, soignée et intuitive pour gérer vos recettes, 
 - Ajustement dynamique des proportions selon le nombre de convives souhaité (avec réglage des convives par défaut via un sélecteur +/- précis dans les paramètres).
 - Partage clair et formaté de la recette via messagerie ou e-mail.
 
-### 9. 💾 100% Hors-Ligne, Sécurisé & Sauvegarde
-- Aucune donnée transmise à des serveurs tiers : tout reste sur votre téléphone dans `AsyncStorage`.
+### 9. 💾 100% Hors-Ligne, Scalable (SQLite) & Photos Permanentes
+- **Moteur SQLite natif (`expo-sqlite`)** : base de données relationnelle locale (`papilles.db` en mode WAL) garantissant le stockage fluide et instantané de milliers de recettes, sans le plafond de 2 Mo d'AsyncStorage.
+- **Sécurisation permanente des photos (`expo-file-system`)** : les photos prises ou sélectionnées depuis votre galerie sont automatiquement enregistrées dans le stockage permanent de l'application (`documentDirectory/recipe_photos/`), vous protégeant ainsi de tout nettoyage de cache de votre téléphone.
+- **Confidentialité totale** : aucune donnée personnelle ou recette n'est transmise à des serveurs tiers.
 - Clé d'API sécurisée avec `expo-secure-store`.
 - **Sauvegarde & Restauration** : exportez toutes vos recettes et données au format JSON (via la feuille de partage de votre téléphone) et restaurez-les en un clic.
 - Réinitialisation possible avec le catalogue de recettes Marmiton de démonstration.
@@ -160,6 +162,9 @@ npm run test:allergens
 # Tests de propagation en cascade du lexique (promotions, fusions, rayons)
 npm run test:cascade
 
+# Tests de la sécurisation permanente des photos de recettes
+npm run test:images
+
 # Vérification stricte des types TypeScript (0 erreur requise)
 npx tsc --noEmit
 
@@ -192,7 +197,9 @@ papilles-recettes/
     │   ├── colors.ts           # Palettes Jardin Botanique & Table Nocturne
     │   └── ThemeContext.tsx    # Fournisseur de thème & bascule d'apparence
     ├── services/               # Services métier & persistance
-    │   ├── storageService.ts   # Persistance AsyncStorage, SecureStore & sauvegarde JSON
+    │   ├── databaseService.ts  # Persistance relationnelle SQLite (papilles.db, WAL, indexes)
+    │   ├── imageStorageService.ts # Stockage permanent des photos locales (expo-file-system)
+    │   ├── storageService.ts   # Coordinateur métier, cache mémoire & SecureStore
     │   ├── recipeAiService.ts  # Service d'extraction Gemini multimodale
     │   └── marmitonService.ts  # Analyseur et extracteur d'URL Marmiton
     ├── utils/                  # Utilitaires & algorithmes

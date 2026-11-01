@@ -28,6 +28,7 @@ import { isKnownDefaultPantryStaple } from '../data/canonicalVocabulary';
 import { VocabularyService, VocabularyCascadeEvent } from './vocabularyService';
 import { AnalyticsService } from './analyticsService';
 import { DatabaseService } from './databaseService';
+import { ImageStorageService } from './imageStorageService';
 
 // ─── Clés de settings SQLite (ex-AsyncStorage) ───────────────────────────────
 const SETTING_SCHEMA_VERSION = 'schema_version';
@@ -248,6 +249,34 @@ async function getInitialRecipes(): Promise<Recipe[]> {
   return INITIAL_RECIPES;
 }
 
+let _migrationImagesDone = false;
+
+/**
+ * Migration paresseuse en tâche de fond des photos de recettes résidant encore
+ * dans le cache temporaire (file://) vers le stockage permanent (documentDirectory/recipe_photos/).
+ */
+async function _migrateTemporaryImagesIfNeeded(recipes: Recipe[]): Promise<void> {
+  if (_migrationImagesDone) return;
+  _migrationImagesDone = true;
+
+  try {
+    const candidates = recipes.filter(
+      (r) => r.imageUrl && r.imageUrl.startsWith('file://') && !ImageStorageService.isPermanent(r.imageUrl)
+    );
+    if (candidates.length === 0) return;
+
+    for (const r of candidates) {
+      const permanentUri = await ImageStorageService.persistImageLocally(r.imageUrl);
+      if (permanentUri && permanentUri !== r.imageUrl) {
+        r.imageUrl = permanentUri;
+        await DatabaseService.saveRecipe(r);
+      }
+    }
+  } catch (err) {
+    console.warn('[ImageStorage] Erreur lors de la migration des photos temporaires:', err);
+  }
+}
+
 export const StorageService = {
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -279,6 +308,10 @@ export const StorageService = {
       // Validation défensive runtime
       const result = rows.map(sanitizeStoredRecipe);
       memoryCache.recipes = result;
+
+      // Migration opportuniste en arrière-plan des photos encore temporaires
+      _migrateTemporaryImagesIfNeeded(result).catch(() => {});
+
       return result;
     } catch (error) {
       console.error('Erreur lors du chargement des recettes:', error);
@@ -289,13 +322,29 @@ export const StorageService = {
 
   /**
    * Enregistre ou met à jour une recette complète avec identifiant unique garanti (VULN-10 corrigé).
+   * Sécurise de manière permanente les photos locales dans documentDirectory/recipe_photos/.
    */
   async saveRecipe(recipe: Recipe): Promise<Recipe[]> {
     try {
       const safeRecipe: Recipe = sanitizeStoredRecipe(recipe);
-      const now = new Date().toISOString();
 
+      // Sécurisation permanente de la photo de couverture si locale
+      if (safeRecipe.imageUrl) {
+        safeRecipe.imageUrl = await ImageStorageService.persistImageLocally(safeRecipe.imageUrl);
+      }
+      if (Array.isArray(safeRecipe.availableImages) && safeRecipe.availableImages.length > 0) {
+        safeRecipe.availableImages = await Promise.all(
+          safeRecipe.availableImages.map((img) => ImageStorageService.persistImageLocally(img))
+        );
+      }
+
+      const now = new Date().toISOString();
       const existing = await DatabaseService.getRecipeById(safeRecipe.id);
+
+      // Nettoyage de l'ancienne photo permanente si elle a été remplacée
+      if (existing?.imageUrl && existing.imageUrl !== safeRecipe.imageUrl) {
+        await ImageStorageService.cleanupRecipePhoto(existing.imageUrl);
+      }
 
       const finalRecipe: Recipe = existing
         ? { ...safeRecipe, updatedAt: now }
@@ -416,9 +465,20 @@ export const StorageService = {
 
   /**
    * Supprime définitivement une recette sans risque de réinitialisation de la base.
+   * Nettoie également les photos permanentes associées sur le disque.
    */
   async deleteRecipe(id: string): Promise<Recipe[]> {
     try {
+      const existing = await DatabaseService.getRecipeById(id);
+      if (existing?.imageUrl) {
+        await ImageStorageService.cleanupRecipePhoto(existing.imageUrl);
+      }
+      if (Array.isArray(existing?.availableImages)) {
+        for (const img of existing.availableImages) {
+          await ImageStorageService.cleanupRecipePhoto(img);
+        }
+      }
+
       await DatabaseService.deleteRecipe(id);
       if (memoryCache.recipes) {
         memoryCache.recipes = memoryCache.recipes.filter((r) => r.id !== id);

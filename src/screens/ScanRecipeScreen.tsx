@@ -25,6 +25,7 @@ import {
 } from '../services/recipeAiService';
 import { UnifiedIngredientService } from '../services/unifiedIngredientService';
 import { WebRecipeService } from '../services/webRecipeService';
+import { ImageStorageService } from '../services/imageStorageService';
 import { Recipe } from '../types/recipe';
 import { generateUniqueId } from '../utils/helpers';
 import { QrScannerModal } from '../components/QrScannerModal';
@@ -240,6 +241,12 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
         apiKey
       );
 
+      // Sécurisation permanente des photos scannées vers le dossier de documents
+      const permanentPhotos = await Promise.all(
+        photos.map((p) => ImageStorageService.persistImageLocally(p.uri))
+      );
+      const coverPhotoUri = permanentPhotos[0] || photos[0]?.uri || '';
+
       const partialRecipe: Partial<Recipe> = {
         title: extracted.title || 'Recette scannée',
         description: extracted.description || '',
@@ -251,8 +258,8 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
         rating: 4.5,
         userNote: extracted.userNote ? extracted.userNote.trim() : undefined,
         isVegetarian: extracted.isVegetarian ?? false,
-        imageUrl: photos[0].uri,
-        availableImages: photos.map((p) => p.uri),
+        imageUrl: coverPhotoUri,
+        availableImages: permanentPhotos,
         ingredients: (extracted.ingredients || []).map((ing, idx) => {
           const res = UnifiedIngredientService.resolveRecognizedIngredient(ing.name);
           return {
@@ -272,7 +279,7 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
         })),
       };
 
-      onRecipeExtracted(partialRecipe, photos[0].uri);
+      onRecipeExtracted(partialRecipe, coverPhotoUri);
     } catch (error: any) {
       console.error('Erreur extraction photos:', error);
       Alert.alert(

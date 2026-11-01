@@ -46,7 +46,9 @@
   - `MealPlannerScreen.tsx` : Planning hebdomadaire (déjeuner/dîner) et journal de suivi quotidien.
   - `SettingsScreen.tsx` (et `SettingsModal.tsx`) : Thèmes visuels, clé API Gemini, convives par défaut (1–50), gestionnaire de lexique, allergies INCO, backup JSON.
 - **`src/services/`** (Logique métier & Persistance) :
-  - `storageService.ts` : Wrapper `AsyncStorage` (`@papilles_recipes_v4`, `@papilles_fridge_items_v1`, `@papilles_shopping_list_v1`) et `expo-secure-store` (clé API Gemini). Inclut `sanitizeStoredRecipe()`, `sanitizeImageUrl()`, `migrateRecipesToCanonicalV1()` et la cascade `handleVocabularyCascade()`.
+  - `storageService.ts` : Wrapper métier et coordinateur de persistance. Gère le cache mémoire `memoryCache`, les listeners réactifs, `sanitizeStoredRecipe()`, `sanitizeImageUrl()`, la cascade du lexique `handleVocabularyCascade()` et délègue à `DatabaseService` et `ImageStorageService`.
+  - `databaseService.ts` : Couche de persistance relationnelle SQLite (`papilles.db` avec mode WAL et PRAGMA foreign_keys). Tables indexées : `recipes`, `fridge_items`, `shopping_items`, `weekly_plan`, `meal_logs`, `user_allergens`, `settings`. Gère la migration one-shot depuis AsyncStorage et le fallback automatique pour l'environnement de test Node.js.
+  - `imageStorageService.ts` : Gestionnaire de persistance permanente des photos de recettes via `expo-file-system`. Déplace les images locales du cache temporaire de l'OS vers le dossier permanent sécurisé `documentDirectory/recipe_photos/` et nettoie les photos orphelines lors de la suppression de recettes.
   - `vocabularyService.ts` : CRUD du lexique canonique, gestion des alias, rayons (`defaultAisle`), promotion de synonymes et propagation automatique (Observer pattern).
   - `unifiedIngredientService.ts` : Résolution unifiée d'ingrédients et suggestion de synonymes.
   - `recipeAiService.ts` : Appels REST Gemini (`v1beta`) avec cascade multi-modèles (`GEMINI_MODELS_CASCADE`: `gemini-3.8-flash` → `2.5-flash` → `2.0-flash` → `1.5-flash`), backoff exponentiel et auto-réparation JSON (`repairTruncatedJsonString`).
@@ -78,7 +80,9 @@
    - **Placard (`isPantryStaple`) & Eau :** `Eau` est toujours exclue des courses. Les ingrédients `isPantryStaple` (sel, poivre, huile, épices de base) et `isOptional` sont décochés par défaut lors de l'ajout d'une recette aux courses, et ignorés comme bloquants dans `stockMatcher.ts`.
 3. **Prompts IA Gemini sobres :**
    - Dans `recipeAiService.ts` et `StockCookModal.tsx`, les titres et descriptions générés par l'IA doivent rester factuels et quotidiens (interdiction des adjectifs pompeux type *"sublime"*, *"divin"*, *"crémeux"* dans les titres).
-4. **Sécurité & Offline-First :**
+4. **Sécurité, Persistance & Offline-First :**
+   - **SQLite (`papilles.db`) :** Les recettes et collections sont persistées en tables individuelles indexées, sans limitation de taille arbitraire.
+   - **Persistance des Photos :** Les photos locales (galerie, caméra) sont systématiquement migrées et stockées dans `documentDirectory/recipe_photos/` via `ImageStorageService` pour immuniser l'app contre les nettoyages de cache de l'appareil.
    - Aucune donnée utilisateur n'est envoyée sur un serveur tiers (hors appels directs Gemini API et fetch Marmiton).
    - Toujours passer les données chargées ou générées par IA via `sanitizeStoredRecipe()` et `sanitizeImageUrl()`.
 
@@ -126,6 +130,7 @@ npm run validate:lexicon   # Audit d'intégrité du vocabulaire canonique (0 col
 npm run test:stock         # Tests unitaires stockMatcher & résolution Lexique-First
 npm run test:shopping      # Tests unitaires shoppingAggregator, conversions & placard
 npm run test:allergens     # Tests unitaires sécurité allergènes INCO & racines sémantiques
+npm run test:images        # Tests unitaires persistance et isolation ImageStorageService
 
 # 4. Utilitaires de maintenance (si pertinent)
 npx expo-doctor            # Diagnostic santé Expo
