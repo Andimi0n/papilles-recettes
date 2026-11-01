@@ -32,15 +32,16 @@
 - [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) (875cc47)
 
 
-## Phase 3 : Modale Dédiée des Prompts Favoris (ChefFavoritePromptsModal)
+## Phase 3 : Modale Dédiée des Prompts Favoris (ChefFavoritePromptsModal) [checkpoint: cc648d8]
 
-- [ ] Task: Conception et tests du composant ChefFavoritePromptsModal (Red/Green)
-  - [ ] Créer le composant `src/components/ChefFavoritePromptsModal.tsx` et ses styles dynamiques
-  - [ ] Intégrer l'affichage des prompts favoris avec badges et aperçu
-  - [ ] Intégrer l'action d'enregistrement du prompt actif avec dialogue de saisie du titre
-  - [ ] Intégrer la suppression d'un prompt favori
-  - [ ] Connecter au `useTheme` et vérifier la conformité ergonomique
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: Conception et tests du composant ChefFavoritePromptsModal (Red/Green) (cc648d8)
+  - [x] Créer le composant `src/components/ChefFavoritePromptsModal.tsx` et ses styles dynamiques
+  - [x] Intégrer l'affichage des prompts favoris avec badges et aperçu
+  - [x] Intégrer l'action d'enregistrement du prompt actif avec dialogue de saisie du titre
+  - [x] Intégrer la suppression d'un prompt favori
+  - [x] Connecter au `useTheme` et vérifier la conformité ergonomique
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) (cc648d8)
+
 
 ## Phase 4 : Refonte Ergonomique de StockCookModal & Interaction Utilisateur
 
