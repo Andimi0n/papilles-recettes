@@ -41,6 +41,9 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
+# test temporary folders
+.tmp_*
+
 # generated native folders
 /ios
 /android
