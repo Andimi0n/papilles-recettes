@@ -1,0 +1,8 @@
+{
+  "track_id": "import_recipe_pack_20261101",
+  "type": "feature",
+  "status": "new",
+  "created_at": "2026-11-01T15:11:00+01:00",
+  "updated_at": "2026-11-01T15:11:00+01:00",
+  "description": "Import et fusion incrémentale d'un pack de recettes (JSON ou ZIP avec photos)"
+}
