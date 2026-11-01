@@ -2,7 +2,7 @@
 
 ## Phase 1 : Typage & Persistance des Prompts Favoris (TDD)
 
-- [ ] Task: Définition des types et interfaces pour les Prompts Favoris
+- [x] Task: Définition des types et interfaces pour les Prompts Favoris (2b68d57)
   - [ ] Définir l'interface `ChefFavoritePrompt` (`id`, `title`, `promptText`, `createdAt`) dans `src/types/`
 - [ ] Task: Tests unitaires de persistance dans StorageService (Red Phase)
   - [ ] Créer le fichier de test unitaire pour la gestion des prompts favoris
