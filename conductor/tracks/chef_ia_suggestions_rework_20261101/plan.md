@@ -15,7 +15,7 @@
 - [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) (d34fd61)
 
 
-## Phase 2 : Évolution du Service IA Gemini & Prompting Équilibré (TDD)
+## Phase 2 : Évolution du Service IA Gemini & Prompting Équilibré (TDD) [checkpoint: 875cc47]
 
 - [x] Task: Mise à niveau du schéma de réponse et du typage RecipeIdea (667c3f7)
   - [x] Ajouter `isVegetarian?: boolean` à l'interface `RecipeIdea`
@@ -25,11 +25,12 @@
   - [x] Tester la consigne d'idée végétarienne garantie et la règle d'arbitrage en présence d'ingrédient carné
   - [x] Tester le mécanisme de mémoire des refus : injection FIFO des titres rejetés plafonnée à 15 éléments
   - [x] Valider que les tests échouent comme attendu
-- [~] Task: Implémentation des nouvelles capacités de prompt dans RecipeAiService (Green Phase)
-  - [ ] Adapter la méthode `suggestRecipeIdeasFromFridge` pour accepter `{ primaryIngredients, optionalIngredients, rejectedIdeaTitles }`
-  - [ ] Formuler les directives système sobres et strictes
-  - [ ] Vérifier le passage de l'ensemble des tests au vert
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: Implémentation des nouvelles capacités de prompt dans RecipeAiService (Green Phase) (875cc47)
+  - [x] Adapter la méthode `suggestRecipeIdeasFromFridge` pour accepter `{ primaryIngredients, optionalIngredients, rejectedIdeaTitles }`
+  - [x] Formuler les directives système sobres et strictes
+  - [x] Vérifier le passage de l'ensemble des tests au vert
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) (875cc47)
+
 
 ## Phase 3 : Modale Dédiée des Prompts Favoris (ChefFavoritePromptsModal)
 
