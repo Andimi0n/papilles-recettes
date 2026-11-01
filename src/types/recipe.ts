@@ -91,3 +91,11 @@ export interface RecipeIdea {
   estimatedTime?: string;
   highlightIngredients?: string[];
 }
+
+export interface ChefFavoritePrompt {
+  id: string;
+  title: string;
+  promptText: string;
+  createdAt: string;
+}
+
