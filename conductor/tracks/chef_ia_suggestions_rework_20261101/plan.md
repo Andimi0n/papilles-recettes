@@ -20,12 +20,12 @@
 - [x] Task: Mise à niveau du schéma de réponse et du typage RecipeIdea (667c3f7)
   - [x] Ajouter `isVegetarian?: boolean` à l'interface `RecipeIdea`
   - [x] Mettre à jour `RECIPE_IDEAS_SCHEMA` dans `src/services/recipeAiService.ts` avec la propriété booléenne `isVegetarian`
-- [~] Task: Tests unitaires de RecipeAiService pour la nouvelle logique d'idées (Red Phase)
-  - [ ] Tester la prise en compte distincte des ingrédients principaux vs optionnels dans le prompt généré
-  - [ ] Tester la consigne d'idée végétarienne garantie et la règle d'arbitrage en présence d'ingrédient carné
-  - [ ] Tester le mécanisme de mémoire des refus : injection FIFO des titres rejetés plafonnée à 15 éléments
-  - [ ] Valider que les tests échouent comme attendu
-- [ ] Task: Implémentation des nouvelles capacités de prompt dans RecipeAiService (Green Phase)
+- [x] Task: Tests unitaires de RecipeAiService pour la nouvelle logique d'idées (Red Phase) (0d0c969)
+  - [x] Tester la prise en compte distincte des ingrédients principaux vs optionnels dans le prompt généré
+  - [x] Tester la consigne d'idée végétarienne garantie et la règle d'arbitrage en présence d'ingrédient carné
+  - [x] Tester le mécanisme de mémoire des refus : injection FIFO des titres rejetés plafonnée à 15 éléments
+  - [x] Valider que les tests échouent comme attendu
+- [~] Task: Implémentation des nouvelles capacités de prompt dans RecipeAiService (Green Phase)
   - [ ] Adapter la méthode `suggestRecipeIdeasFromFridge` pour accepter `{ primaryIngredients, optionalIngredients, rejectedIdeaTitles }`
   - [ ] Formuler les directives système sobres et strictes
   - [ ] Vérifier le passage de l'ensemble des tests au vert
