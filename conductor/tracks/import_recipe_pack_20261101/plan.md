@@ -42,7 +42,7 @@ Ce plan structure la réalisation technique en 4 phases progressives selon la m�
 
 ## Phase 4 : Validation Globale & Non-Régression
 
-- [ ] Task: Exécution de la suite complète de contrôle qualité
-  - [ ] Exécuter la suite complète de tests de non-régression (`npm test`)
-  - [ ] Exécuter le typage strict et le linter (`npx tsc --noEmit && npx expo lint`)
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: Exécution de la suite complète de contrôle qualité [d7cbd9b]
+  - [x] Exécuter la suite complète de tests de non-régression (`npm test`)
+  - [x] Exécuter le typage strict et le linter (`npx tsc --noEmit && npx expo lint`)
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md)
