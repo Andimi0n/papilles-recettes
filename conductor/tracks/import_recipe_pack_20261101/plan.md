@@ -31,14 +31,14 @@ Ce plan structure la réalisation technique en 4 phases progressives selon la m�
 
 ## Phase 3 : Interface Utilisateur & Intégration (`SettingsScreen`)
 
-- [ ] Task: Intégrer l'option d'import de pack dans `SettingsScreen.tsx`
-  - [ ] Ajouter le bouton dédié « Importer un pack de recettes (.json, .zip) » dans la section Sauvegarde
-  - [ ] Câbler le sélecteur de documents (`expo-document-picker`) avec filtre `.json` et `.zip`
-  - [ ] Conserver l'option de secours par collage de texte JSON
-  - [ ] Afficher un indicateur d'activité/progression pendant le traitement des gros fichiers
-  - [ ] Afficher la boîte de dialogue récapitulative UX valorisante (Point de vigilance 3)
-  - [ ] Déclencher le rechargement réactif du carnet (`onRecipesReloadNeeded`)
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: Intégrer l'option d'import de pack dans `SettingsScreen.tsx` [3a7f62f]
+  - [x] Ajouter le bouton dédié « Importer un pack de recettes (.json, .zip) » dans la section Sauvegarde
+  - [x] Câbler le sélecteur de documents (`expo-document-picker`) avec filtre `.json` et `.zip`
+  - [x] Conserver l'option de secours par collage de texte JSON
+  - [x] Afficher un indicateur d'activité/progression pendant le traitement des gros fichiers
+  - [x] Afficher la boîte de dialogue récapitulative UX valorisante (Point de vigilance 3)
+  - [x] Déclencher le rechargement réactif du carnet (`onRecipesReloadNeeded`)
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md)
 
 ## Phase 4 : Validation Globale & Non-Régression
 
