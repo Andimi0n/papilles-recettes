@@ -14,8 +14,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Recipe, Category, RecipeIdea } from '../types/recipe';
 import { FridgeItem } from '../types/fridge';
-import { ShoppingAisle } from '../types/shopping';
-import { AISLE_CONFIGS, ALL_AISLES } from '../utils/aisleClassifier';
 import { createDynamicStyles } from '../theme/colors';
 import { useTheme } from '../theme/ThemeContext';
 import { evaluateRecipesWithStock } from '../utils/stockMatcher';
@@ -28,6 +26,9 @@ import {
 } from '../services/recipeAiService';
 import { StorageService } from '../services/storageService';
 import { generateUniqueId } from '../utils/helpers';
+import { ChefFavoritePromptsModal } from './ChefFavoritePromptsModal';
+import { UnifiedIngredientInput } from './UnifiedIngredientInput';
+
 
 interface StockCookModalProps {
   visible: boolean;
@@ -70,10 +71,14 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
 }) => {
   const { isDark, colors } = useTheme();
 
-  // Ingrédients du stock sélectionnés pour l'IA (tous cochés par défaut à l'ouverture)
-  const [selectedStockNames, setSelectedStockNames] = useState<string[]>(() =>
-    stockItems.map((item) => item.name)
-  );
+  // Ingrédients principaux (obligatoires) et optionnels pour l'IA
+  const [primaryIngredients, setPrimaryIngredients] = useState<string[]>([]);
+  const [optionalIngredients, setOptionalIngredients] = useState<string[]>([]);
+  const [ingredientInputMode, setIngredientInputMode] = useState<'primary' | 'optional'>('primary');
+  const [ingredientSearchText, setIngredientSearchText] = useState<string>('');
+  const [rejectedIdeaTitles, setRejectedIdeaTitles] = useState<string[]>([]);
+  const [isFavoritePromptsModalVisible, setIsFavoritePromptsModalVisible] = useState(false);
+
   const [servings, setServings] = useState<number>(4);
   const [isVegetarian, setIsVegetarian] = useState<boolean>(false);
   const [mealType, setMealType] = useState<AllowedMealType>('Plat');
@@ -100,14 +105,16 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
   const prevVisibleRef = useRef(visible);
   const prevStockCountRef = useRef(stockItems.length);
 
-  // Synchronisation lors de l'ouverture ou lors de l'arrivée asynchrone des aliments du stock
+  // Synchronisation lors de l'ouverture (listes vides au départ)
   useEffect(() => {
     const justOpened = visible && !prevVisibleRef.current;
-    const stockLoadedAsync =
-      visible && prevStockCountRef.current === 0 && stockItems.length > 0;
 
-    if (justOpened || stockLoadedAsync) {
-      setSelectedStockNames(stockItems.map((item) => item.name));
+    if (justOpened) {
+      setPrimaryIngredients([]);
+      setOptionalIngredients([]);
+      setIngredientInputMode('primary');
+      setIngredientSearchText('');
+      setRejectedIdeaTitles([]);
       setMealType('Plat');
       setAiFlowStep('config');
       setIdeas([]);
@@ -116,6 +123,7 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
     prevVisibleRef.current = visible;
     prevStockCountRef.current = stockItems.length;
   }, [visible, stockItems]);
+
 
   // Charger les portions par défaut depuis le storage si configuré
   useEffect(() => {
@@ -174,66 +182,63 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
     return recipes.filter((r) => map.get(r.id)?.isDoable && r.category === mealType);
   }, [recipes, stockItems, mealType]);
 
-  // Groupement des aliments du stock par rayon (comme dans Mes Étagères)
-  const groupedStockByAisle = useMemo(() => {
-    const map = new Map<ShoppingAisle, FridgeItem[]>();
-    stockItems.forEach((item) => {
-      const aisle = item.aisle || 'Autre';
-      const list = map.get(aisle) || [];
-      list.push(item);
-      map.set(aisle, list);
-    });
+  const handleAddIngredient = (name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    const trimmedLower = trimmed.toLowerCase();
 
-    const result: { aisle: ShoppingAisle; items: FridgeItem[] }[] = [];
-    ALL_AISLES.forEach((aisle) => {
-      const aisleItems = map.get(aisle);
-      if (aisleItems && aisleItems.length > 0) {
-        result.push({ aisle, items: aisleItems });
-      }
-    });
-
-    const otherItems = map.get('Autre');
-    if (otherItems && otherItems.length > 0 && !result.some((r) => r.aisle === 'Autre')) {
-      result.push({ aisle: 'Autre', items: otherItems });
-    }
-
-    return result;
-  }, [stockItems]);
-
-  const toggleStockIngredient = (name: string) => {
-    setSelectedStockNames((prev) => {
-      if (prev.includes(name)) {
-        return prev.filter((n) => n !== name);
-      } else {
-        return [...prev, name];
-      }
-    });
-  };
-
-  const toggleAisle = (aisleItems: FridgeItem[]) => {
-    const aisleNames = aisleItems.map((i) => i.name);
-    const allAisleSelected = aisleNames.every((n) => selectedStockNames.includes(n));
-    if (allAisleSelected) {
-      setSelectedStockNames((prev) => prev.filter((n) => !aisleNames.includes(n)));
+    if (ingredientInputMode === 'primary') {
+      setOptionalIngredients((prev) => prev.filter((i) => i.toLowerCase() !== trimmedLower));
+      setPrimaryIngredients((prev) => {
+        if (prev.some((i) => i.toLowerCase() === trimmedLower)) return prev;
+        return [...prev, trimmed];
+      });
+      setRejectedIdeaTitles([]);
     } else {
-      setSelectedStockNames((prev) => Array.from(new Set([...prev, ...aisleNames])));
+      setPrimaryIngredients((prev) => {
+        const filtered = prev.filter((i) => i.toLowerCase() !== trimmedLower);
+        if (filtered.length !== prev.length) {
+          setRejectedIdeaTitles([]);
+        }
+        return filtered;
+      });
+      setOptionalIngredients((prev) => {
+        if (prev.some((i) => i.toLowerCase() === trimmedLower)) return prev;
+        return [...prev, trimmed];
+      });
     }
+
+    setIngredientSearchText('');
   };
 
-  const handleSelectAllStock = () => {
-    setSelectedStockNames(stockItems.map((i) => i.name));
+  const handleRemovePrimaryIngredient = (name: string) => {
+    setPrimaryIngredients((prev) => prev.filter((i) => i !== name));
+    setRejectedIdeaTitles([]);
   };
 
-  const handleDeselectAllStock = () => {
-    setSelectedStockNames([]);
+  const handleRemoveOptionalIngredient = (name: string) => {
+    setOptionalIngredients((prev) => prev.filter((i) => i !== name));
   };
 
-  // Étape 1 : Demande de 3 idées gourmandes au Chef IA (Solution 4)
+  const handleAllStockToOptional = () => {
+    const primaryLower = new Set(primaryIngredients.map((i) => i.toLowerCase()));
+    const validStockNames = stockItems
+      .map((item) => item.name.trim())
+      .filter((n) => Boolean(n) && !primaryLower.has(n.toLowerCase()));
+
+    setOptionalIngredients((prev) => {
+      const existingLower = new Set(prev.map((i) => i.toLowerCase()));
+      const toAdd = validStockNames.filter((n) => !existingLower.has(n.toLowerCase()));
+      return [...prev, ...toAdd];
+    });
+  };
+
+  // Étape 1 : Demande de 3 idées gourmandes au Chef IA
   const handleStartFetchIdeas = async () => {
-    if (selectedStockNames.length === 0) {
+    if (primaryIngredients.length === 0 && optionalIngredients.length === 0) {
       Alert.alert(
         'Aucun ingrédient sélectionné',
-        'Veuillez sélectionner au moins un aliment présent dans votre stock pour inspirer le Chef IA.'
+        'Veuillez ajouter au moins un ingrédient obligatoire ou optionnel pour inspirer le Chef IA.'
       );
       return;
     }
@@ -247,17 +252,15 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
     executeFetchIdeas(apiKey);
   };
 
-  const executeFetchIdeas = async (key?: string) => {
+  const executeFetchIdeas = async (key?: string, customRejected?: string[]) => {
     setActiveModelInfo({ model: FAST_GEMINI_MODELS_CASCADE[0], isFallback: false });
     setAiFlowStep('loading_ideas');
 
     try {
-      // Uniquement les titres des recettes faisables du type choisi (Solution 1)
       const doableTitles = doableRecipesForCurrentType
         .map((r) => r.title?.trim())
         .filter(Boolean);
 
-      // Récupération des allergènes à exclure pour le Chef IA si l'option est active
       const aiExclusionEnabled = await StorageService.getAiAllergenExclusionEnabled();
       let excludedAllergens: string[] = [];
       if (aiExclusionEnabled) {
@@ -268,12 +271,16 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
       }
 
       const generatedIdeas = await RecipeAiService.suggestRecipeIdeasFromFridge(
-        selectedStockNames,
+        {
+          primary: primaryIngredients,
+          optional: optionalIngredients,
+        },
         {
           mealType,
           servings,
           onlyVegetarian: isVegetarian,
           existingDoableTitles: doableTitles,
+          rejectedIdeaTitles: customRejected || rejectedIdeaTitles,
           excludedAllergens,
           chefMood,
           additionalPreferences: additionalPreferences.trim(),
@@ -300,7 +307,21 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
     }
   };
 
-  // Étape 2 : Concrétisation de la recette complète à partir de l'idée choisie (Solution 4)
+  const handleRegenerateIdeas = async () => {
+    const currentTitles = ideas.map((i) => i.title.trim()).filter(Boolean);
+    const updatedRejected = [...rejectedIdeaTitles, ...currentTitles].slice(-15);
+    setRejectedIdeaTitles(updatedRejected);
+
+    const apiKey = await RecipeAiService.getApiKey();
+    if (!apiKey) {
+      setIsApiKeyModalVisible(true);
+      return;
+    }
+
+    executeFetchIdeas(apiKey, updatedRejected);
+  };
+
+  // Étape 2 : Concrétisation de la recette complète à partir de l'idée choisie
   const handleSelectIdea = async (idea: RecipeIdea) => {
     setSelectedIdea(idea);
     const apiKey = await RecipeAiService.getApiKey();
@@ -317,6 +338,7 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
     setAiFlowStep('generating_recipe');
 
     try {
+      const allChosenIngredients = [...primaryIngredients, ...optionalIngredients];
       const aiExclusionEnabled = await StorageService.getAiAllergenExclusionEnabled();
       let excludedAllergens: string[] = [];
       if (aiExclusionEnabled) {
@@ -328,7 +350,7 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
 
       const generated = await RecipeAiService.generateRecipeFromIdea(
         idea,
-        selectedStockNames,
+        allChosenIngredients,
         {
           mealType,
           servings,
@@ -355,7 +377,7 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
         isVegetarian: generated.isVegetarian ?? isVegetarian,
         userNote:
           generated.userNote ||
-          `Recette inédite créée par le Chef IA avec vos aliments en stock : ${selectedStockNames.join(', ')}`,
+          `Recette inédite créée par le Chef IA avec vos aliments : ${allChosenIngredients.join(', ')}`,
         rating: 0,
         isFavorite: false,
         ingredients: generated.ingredients.map((ing, idx) => ({
@@ -605,6 +627,18 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
                         <View style={styles.ideaTypeBadge}>
                           <Text style={styles.ideaTypeBadgeText}>{mealType}</Text>
                         </View>
+                        {idea.isVegetarian ? (
+                          <View
+                            style={[
+                              styles.ideaTypeBadge,
+                              { backgroundColor: colors.primaryLight, borderColor: colors.primary },
+                            ]}
+                          >
+                            <Text style={[styles.ideaTypeBadgeText, { color: colors.primary }]}>
+                              🌿 Végétarien
+                            </Text>
+                          </View>
+                        ) : null}
                         {idea.estimatedTime ? (
                           <View style={styles.ideaTimeBadge}>
                             <Ionicons name="time-outline" size={12} color={colors.textSecondary} />
@@ -612,6 +646,7 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
                           </View>
                         ) : null}
                       </View>
+
                       <View style={styles.ideaActionArrowCircle}>
                         <Ionicons name="arrow-forward" size={14} color="#FFFFFF" />
                       </View>
@@ -643,7 +678,7 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
               <View style={styles.ideasBottomActions}>
                 <TouchableOpacity
                   style={styles.refreshIdeasBtn}
-                  onPress={() => executeFetchIdeas()}
+                  onPress={handleRegenerateIdeas}
                   activeOpacity={0.8}
                 >
                   <Ionicons name="refresh" size={16} color={colors.primary} />
@@ -725,7 +760,10 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
                                   styles.mealTypeOptionBtn,
                                   isSelected && styles.mealTypeOptionBtnSelected,
                                 ]}
-                                onPress={() => setMealType(t.id)}
+                                onPress={() => {
+                                  setMealType(t.id);
+                                  setRejectedIdeaTitles([]);
+                                }}
                                 activeOpacity={0.7}
                               >
                                 <Ionicons
@@ -832,11 +870,21 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
                         />
                       </View>
 
-                      {/* Instructions libres */}
+                      {/* Instructions libres & Raccourci Prompts favoris */}
                       <View style={styles.aiPreferencesRow}>
-                        <View style={styles.aiParamLabelCol}>
-                          <Text style={styles.aiParamTitle}>Instructions libres (optionnel)</Text>
-                          <Text style={styles.aiParamSub}>Ex: Sans gluten, épicé, avec du fromage...</Text>
+                        <View style={styles.preferencesHeaderRow}>
+                          <View style={styles.aiParamLabelCol}>
+                            <Text style={styles.aiParamTitle}>Instructions libres (optionnel)</Text>
+                            <Text style={styles.aiParamSub}>Ex: Sans gluten, épicé, avec du fromage...</Text>
+                          </View>
+                          <TouchableOpacity
+                            style={styles.favoritePromptBtn}
+                            onPress={() => setIsFavoritePromptsModalVisible(true)}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          >
+                            <Ionicons name="bookmark-outline" size={15} color={colors.primary} />
+                            <Text style={styles.favoritePromptBtnText}>Favoris</Text>
+                          </TouchableOpacity>
                         </View>
                         <TextInput
                           style={styles.aiPreferencesInput}
@@ -867,14 +915,172 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
                       </View>
                     </View>
 
-                    {/* Bouton de génération des 3 idées (Solution 4 - Étape 1, placé au-dessus des ingrédients) */}
+                    {/* 2. Composition des ingrédients (Obligatoire / Optionnel) */}
+                    <View style={styles.ingredientsComposerSection}>
+                      <View style={styles.composerHeaderRow}>
+                        <Text style={styles.composerSectionTitle}>Composition des ingrédients</Text>
+
+                        {/* Bascule Obligatoire vs Optionnel */}
+                        <View style={styles.toggleRow}>
+                          <TouchableOpacity
+                            style={[
+                              styles.toggleBtn,
+                              ingredientInputMode === 'primary' && styles.toggleBtnActivePrimary,
+                            ]}
+                            onPress={() => setIngredientInputMode('primary')}
+                            activeOpacity={0.8}
+                          >
+                            <Ionicons
+                              name="star"
+                              size={12}
+                              color={ingredientInputMode === 'primary' ? '#FFFFFF' : colors.primary}
+                            />
+                            <Text
+                              style={[
+                                styles.toggleBtnText,
+                                ingredientInputMode === 'primary' && styles.toggleBtnTextActive,
+                              ]}
+                            >
+                              Obligatoire
+                            </Text>
+                          </TouchableOpacity>
+
+                          <TouchableOpacity
+                            style={[
+                              styles.toggleBtn,
+                              ingredientInputMode === 'optional' && styles.toggleBtnActiveOptional,
+                            ]}
+                            onPress={() => setIngredientInputMode('optional')}
+                            activeOpacity={0.8}
+                          >
+                            <Ionicons
+                              name="add-circle-outline"
+                              size={13}
+                              color={
+                                ingredientInputMode === 'optional'
+                                  ? '#FFFFFF'
+                                  : colors.textSecondary
+                              }
+                            />
+                            <Text
+                              style={[
+                                styles.toggleBtnText,
+                                ingredientInputMode === 'optional' && styles.toggleBtnTextActive,
+                              ]}
+                            >
+                              Optionnel
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+
+                      {/* Barre unique de recherche d'ingrédient */}
+                      <View style={styles.inputComposerWrapper}>
+                        <UnifiedIngredientInput
+                          value={ingredientSearchText}
+                          onChangeText={setIngredientSearchText}
+                          placeholder={
+                            ingredientInputMode === 'primary'
+                              ? 'Ajouter un ingrédient obligatoire...'
+                              : 'Ajouter un ingrédient optionnel...'
+                          }
+                          placeholderTextColor={colors.textMuted}
+                          onSelectIngredient={(canonical) => {
+                            handleAddIngredient(canonical.canonicalName);
+                          }}
+                          onSubmitEditing={() => {
+                            if (ingredientSearchText.trim()) {
+                              handleAddIngredient(ingredientSearchText.trim());
+                            }
+                          }}
+                          clearOnSelect
+                          keepFocusOnSelect
+                          context="stock"
+                        />
+                      </View>
+
+                      {/* Action rapide : Tout mon stock en optionnel */}
+                      {stockItems.length > 0 && (
+                        <TouchableOpacity
+                          style={styles.allStockToOptionalBtn}
+                          onPress={handleAllStockToOptional}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons name="sparkles-outline" size={15} color={colors.primary} />
+                          <Text style={styles.allStockToOptionalBtnText}>
+                            Mettre tout mon stock en optionnel ({stockItems.length} aliment{stockItems.length > 1 ? 's' : ''})
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+
+                      {/* Puces obligatoires */}
+                      {primaryIngredients.length > 0 && (
+                        <View style={styles.chipsSection}>
+                          <Text style={styles.chipsSectionHeader}>
+                            ⭐ Ingrédients obligatoires ({primaryIngredients.length}) :
+                          </Text>
+                          <View style={styles.chipsWrap}>
+                            {primaryIngredients.map((name) => (
+                              <TouchableOpacity
+                                key={`prim_${name}`}
+                                style={styles.primaryChip}
+                                onPress={() => handleRemovePrimaryIngredient(name)}
+                                activeOpacity={0.7}
+                              >
+                                <Ionicons name="star" size={11} color="#FFFFFF" />
+                                <Text style={styles.primaryChipText}>{name}</Text>
+                                <Ionicons name="close-circle" size={14} color="#FFFFFF" />
+                              </TouchableOpacity>
+                            ))}
+                          </View>
+                        </View>
+                      )}
+
+                      {/* Puces optionnelles */}
+                      {optionalIngredients.length > 0 && (
+                        <View style={styles.chipsSection}>
+                          <Text style={styles.chipsSectionHeader}>
+                            Ingrédients optionnels ({optionalIngredients.length}) :
+                          </Text>
+                          <View style={styles.chipsWrap}>
+                            {optionalIngredients.map((name) => (
+                              <TouchableOpacity
+                                key={`opt_${name}`}
+                                style={styles.optionalChip}
+                                onPress={() => handleRemoveOptionalIngredient(name)}
+                                activeOpacity={0.7}
+                              >
+                                <Text style={styles.optionalChipText}>{name}</Text>
+                                <Ionicons name="close-circle" size={14} color={colors.textSecondary} />
+                              </TouchableOpacity>
+                            ))}
+                          </View>
+                        </View>
+                      )}
+
+                      {/* Guide si vide */}
+                      {primaryIngredients.length === 0 && optionalIngredients.length === 0 && (
+                        <View style={styles.emptyIngredientsGuide}>
+                          <Ionicons name="restaurant-outline" size={20} color={colors.textMuted} />
+                          <Text style={styles.emptyIngredientsGuideText}>
+                            Ajoutez des ingrédients ci-dessus ou cliquez sur « Mettre tout mon stock en optionnel ».
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+
+                    {/* Bouton de génération des 3 idées */}
                     <TouchableOpacity
                       style={[
                         styles.generateAiBtn,
-                        selectedStockNames.length === 0 && styles.generateAiBtnDisabled,
+                        primaryIngredients.length === 0 &&
+                          optionalIngredients.length === 0 &&
+                          styles.generateAiBtnDisabled,
                       ]}
                       onPress={handleStartFetchIdeas}
-                      disabled={selectedStockNames.length === 0}
+                      disabled={
+                        primaryIngredients.length === 0 && optionalIngredients.length === 0
+                      }
                       activeOpacity={0.8}
                     >
                       <Ionicons name="sparkles" size={18} color="#FFFFFF" />
@@ -882,111 +1088,8 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
                         💡 Trouver 3 idées de {mealType.toLowerCase()}
                       </Text>
                     </TouchableOpacity>
-
-                    {/* 2. Choix des aliments en stock */}
-                    <View style={styles.stockSelectionHeader}>
-                      <Text style={styles.stockSelectionTitle}>
-                        Aliments en vedette ({selectedStockNames.length}/{totalStockCount}) :
-                      </Text>
-                      <View style={styles.stockSelectionActions}>
-                        <TouchableOpacity onPress={handleSelectAllStock}>
-                          <Text style={styles.stockMiniLink}>Tout cocher</Text>
-                        </TouchableOpacity>
-                        <Text style={styles.stockMiniDivider}>•</Text>
-                        <TouchableOpacity onPress={handleDeselectAllStock}>
-                          <Text style={styles.stockMiniLink}>Tout décocher</Text>
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-
-                    {/* Liste verticale des aliments groupés par rayon */}
-                    <View style={styles.stockAislesContainer}>
-                      {groupedStockByAisle.map(({ aisle, items }) => {
-                        const config = AISLE_CONFIGS[aisle] || {
-                          iconName: 'cube-outline',
-                          color: colors.primary,
-                          aisle,
-                        };
-                        const selectedInAisle = items.filter((i) =>
-                          selectedStockNames.includes(i.name)
-                        ).length;
-                        const allAisleSelected = selectedInAisle === items.length;
-
-                        return (
-                          <View key={aisle} style={styles.aisleGroupCard}>
-                            {/* En-tête de catégorie / rayon */}
-                            <View style={styles.aisleGroupHeader}>
-                              <View style={styles.aisleGroupTitleRow}>
-                                <View
-                                  style={[
-                                    styles.aisleIconBox,
-                                    { backgroundColor: config.color + '20' },
-                                  ]}
-                                >
-                                  <Ionicons
-                                    name={config.iconName as any}
-                                    size={14}
-                                    color={config.color}
-                                  />
-                                </View>
-                                <Text style={styles.aisleGroupTitle}>{aisle}</Text>
-                                <Text style={styles.aisleGroupCount}>
-                                  ({selectedInAisle}/{items.length})
-                                </Text>
-                              </View>
-
-                              {/* Action rapide cocher/décocher tout le rayon */}
-                              <TouchableOpacity
-                                onPress={() => toggleAisle(items)}
-                                hitSlop={{ top: 6, bottom: 6, left: 8, right: 8 }}
-                              >
-                                <Text
-                                  style={[
-                                    styles.aisleActionToggleText,
-                                    { color: config.color },
-                                  ]}
-                                >
-                                  {allAisleSelected ? 'Tout décocher' : 'Tout cocher'}
-                                </Text>
-                              </TouchableOpacity>
-                            </View>
-
-                            {/* Puces d'ingrédients du rayon disposées en grille/wrap vertical */}
-                            <View style={styles.aisleChipsWrap}>
-                              {items.map((item) => {
-                                const isSelected = selectedStockNames.includes(item.name);
-                                return (
-                                  <TouchableOpacity
-                                    key={item.id}
-                                    style={[
-                                      styles.stockChip,
-                                      isSelected && styles.stockChipSelected,
-                                    ]}
-                                    onPress={() => toggleStockIngredient(item.name)}
-                                    activeOpacity={0.7}
-                                  >
-                                    <Ionicons
-                                      name={isSelected ? 'checkmark-circle' : 'add-circle-outline'}
-                                      size={14}
-                                      color={isSelected ? '#FFFFFF' : colors.textSecondary}
-                                    />
-                                    <Text
-                                      style={[
-                                        styles.stockChipText,
-                                        isSelected && styles.stockChipTextSelected,
-                                      ]}
-                                    >
-                                      {item.name}
-                                    </Text>
-                                  </TouchableOpacity>
-                                );
-                              })}
-                            </View>
-                          </View>
-                        );
-                      })}
-                    </View>
                   </View>
+
 
                   {/* SECTION 2 : VÉRIFICATION DU CARNET (Besoin 1) */}
                   <View style={styles.card}>
@@ -1108,11 +1211,20 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
               </View>
             </View>
           </Modal>
+
+          {/* Modale des prompts favoris Chef IA */}
+          <ChefFavoritePromptsModal
+            visible={isFavoritePromptsModalVisible}
+            currentPromptText={additionalPreferences}
+            onSelectPrompt={(text) => setAdditionalPreferences(text)}
+            onClose={() => setIsFavoritePromptsModalVisible(false)}
+          />
         </View>
       </SafeAreaView>
     </Modal>
   );
 };
+
 
 const styles = createDynamicStyles((colors, shadows) => ({
   safeArea: {
@@ -1494,6 +1606,26 @@ const styles = createDynamicStyles((colors, shadows) => ({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
+  preferencesHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  favoritePromptBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primaryLight,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    gap: 4,
+  },
+  favoritePromptBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.primary,
+  },
   aiPreferencesInput: {
     marginTop: 8,
     backgroundColor: colors.cardBackground,
@@ -1505,6 +1637,7 @@ const styles = createDynamicStyles((colors, shadows) => ({
     fontSize: 14,
     color: colors.textPrimary,
   },
+
   // Sélecteur de type de plat (Entrée / Plat / Dessert)
   mealTypeSection: {
     paddingVertical: 8,
@@ -1775,6 +1908,135 @@ const styles = createDynamicStyles((colors, shadows) => ({
     fontSize: 13,
     fontWeight: '500',
     color: colors.textSecondary,
+  },
+
+  // Composition des ingrédients
+  ingredientsComposerSection: {
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    marginBottom: 14,
+  },
+  composerHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  composerSectionTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: 10,
+    padding: 2,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  toggleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 8,
+    gap: 4,
+  },
+  toggleBtnActivePrimary: {
+    backgroundColor: colors.primary,
+  },
+  toggleBtnActiveOptional: {
+    backgroundColor: colors.primaryDark || '#1B4332',
+  },
+  toggleBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  toggleBtnTextActive: {
+    color: '#FFFFFF',
+  },
+  inputComposerWrapper: {
+    zIndex: 100,
+    marginBottom: 8,
+  },
+  allStockToOptionalBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primaryLight,
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginBottom: 12,
+    gap: 6,
+  },
+  allStockToOptionalBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  chipsSection: {
+    marginBottom: 10,
+  },
+  chipsSectionHeader: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    marginBottom: 6,
+  },
+  chipsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  primaryChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primary,
+    borderRadius: 8,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    gap: 5,
+  },
+  primaryChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  optionalChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    gap: 5,
+  },
+  optionalChipText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: colors.textPrimary,
+  },
+  emptyIngredientsGuide: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: 10,
+    padding: 12,
+    gap: 10,
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  emptyIngredientsGuideText: {
+    flex: 1,
+    fontSize: 12,
+    color: colors.textSecondary,
+    lineHeight: 17,
   },
 
   generateAiBtn: {
