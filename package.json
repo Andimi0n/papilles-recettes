@@ -78,7 +78,8 @@
     "test:normalizer": "node scripts/testIngredientNormalizer.js",
     "test:units": "node scripts/testUnits.js",
     "test:shopping-parser": "node scripts/testShoppingInputParser.js",
-    "test:pack": "node scripts/testRecipePackService.js"
+    "test:pack": "node scripts/testRecipePackService.js",
+    "test:pack-merge": "node scripts/testRecipePackMerge.js"
   },
   "overrides": {
     "braces": "^3.0.3",
