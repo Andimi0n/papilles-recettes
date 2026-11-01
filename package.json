@@ -77,7 +77,8 @@
     "test:marmiton": "node scripts/testMarmitonImages.js",
     "test:normalizer": "node scripts/testIngredientNormalizer.js",
     "test:units": "node scripts/testUnits.js",
-    "test:shopping-parser": "node scripts/testShoppingInputParser.js"
+    "test:shopping-parser": "node scripts/testShoppingInputParser.js",
+    "test:pack": "node scripts/testRecipePackService.js"
   },
   "overrides": {
     "braces": "^3.0.3",
