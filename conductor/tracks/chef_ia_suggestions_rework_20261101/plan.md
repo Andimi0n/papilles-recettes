@@ -17,10 +17,10 @@
 
 ## Phase 2 : Évolution du Service IA Gemini & Prompting Équilibré (TDD)
 
-- [ ] Task: Mise à niveau du schéma de réponse et du typage RecipeIdea
-  - [ ] Ajouter `isVegetarian?: boolean` à l'interface `RecipeIdea`
-  - [ ] Mettre à jour `RECIPE_IDEAS_SCHEMA` dans `src/services/recipeAiService.ts` avec la propriété booléenne `isVegetarian`
-- [ ] Task: Tests unitaires de RecipeAiService pour la nouvelle logique d'idées (Red Phase)
+- [x] Task: Mise à niveau du schéma de réponse et du typage RecipeIdea (667c3f7)
+  - [x] Ajouter `isVegetarian?: boolean` à l'interface `RecipeIdea`
+  - [x] Mettre à jour `RECIPE_IDEAS_SCHEMA` dans `src/services/recipeAiService.ts` avec la propriété booléenne `isVegetarian`
+- [~] Task: Tests unitaires de RecipeAiService pour la nouvelle logique d'idées (Red Phase)
   - [ ] Tester la prise en compte distincte des ingrédients principaux vs optionnels dans le prompt généré
   - [ ] Tester la consigne d'idée végétarienne garantie et la règle d'arbitrage en présence d'ingrédient carné
   - [ ] Tester le mécanisme de mémoire des refus : injection FIFO des titres rejetés plafonnée à 15 éléments
