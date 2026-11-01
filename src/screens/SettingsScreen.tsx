@@ -21,8 +21,10 @@ import {
   ColorblindColors,
 } from '../theme/colors';
 import { styles } from './SettingsScreen.styles';
+import * as DocumentPicker from 'expo-document-picker';
 import { StorageService } from '../services/storageService';
 import { RecipeAiService } from '../services/recipeAiService';
+import { RecipePackService, ExtractedRecipePack } from '../services/recipePackService';
 import { VocabularyService } from '../services/vocabularyService';
 import { VocabularyManagerModal } from '../components/VocabularyManagerModal';
 import { AllergenFamilyPickerModal } from '../components/AllergenFamilyPickerModal';
@@ -146,6 +148,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   const [isImportModalVisible, setIsImportModalVisible] = useState(false);
   const [importJsonText, setImportJsonText] = useState('');
   const [isImporting, setIsImporting] = useState(false);
+  const [importStatusMessage, setImportStatusMessage] = useState('');
   const [isResetting, setIsResetting] = useState(false);
 
   const loadInitialSettings = async () => {
@@ -468,13 +471,26 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
     }
 
     setIsImporting(true);
+    setImportStatusMessage('Analyse des recettes...');
     try {
-      const result = await StorageService.importRecipes(importJsonText.trim());
+      const pack = await RecipePackService.parsePackFromJson(importJsonText.trim());
+      setImportStatusMessage('Fusion dans votre carnet...');
+      const result = await StorageService.mergeRecipePack(pack);
       if (result.success) {
-        Alert.alert('Succès', `${result.count} recette(s) ont été importées avec succès !`);
-        setIsImportModalVisible(false);
-        setImportJsonText('');
-        if (onRecipesReloadNeeded) onRecipesReloadNeeded();
+        Alert.alert(
+          'Pack importé avec succès',
+          `🎉 ${result.addedCount} nouvelle(s) recette(s) ajoutée(s)\n🔄 ${result.updatedCount} recette(s) mise(s) à jour\n🖼️ ${result.photosCount} photo(s) de couverture liée(s)`,
+          [
+            {
+              text: 'Super !',
+              onPress: () => {
+                setIsImportModalVisible(false);
+                setImportJsonText('');
+                if (onRecipesReloadNeeded) onRecipesReloadNeeded();
+              },
+            },
+          ]
+        );
       } else {
         Alert.alert('Erreur importation', result.error || 'Format JSON invalide.');
       }
@@ -482,6 +498,103 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
       Alert.alert('Erreur', err?.message || "Impossible d'importer les données.");
     } finally {
       setIsImporting(false);
+      setImportStatusMessage('');
+    }
+  };
+
+  const handlePickFileAndImport = async () => {
+    try {
+      const docRes = await DocumentPicker.getDocumentAsync({
+        type: [
+          'application/json',
+          'application/zip',
+          'application/x-zip-compressed',
+          'application/octet-stream',
+          '*/*',
+        ],
+        copyToCacheDirectory: true,
+      });
+
+      if (docRes.canceled || !docRes.assets || docRes.assets.length === 0) {
+        return;
+      }
+
+      const asset = docRes.assets[0];
+      setIsImporting(true);
+      setImportStatusMessage('Lecture du fichier...');
+
+      let pack: ExtractedRecipePack;
+      const isZip = asset.name.toLowerCase().endsWith('.zip') || (asset.mimeType && asset.mimeType.includes('zip'));
+
+      if (isZip) {
+        setImportStatusMessage('Décompression de l\'archive ZIP...');
+        let arrayBuffer: ArrayBuffer;
+        try {
+          const res = await fetch(asset.uri);
+          arrayBuffer = await res.arrayBuffer();
+        } catch {
+          // Fallback legacy FileSystem si fetch échoue sur URI locale
+          const fs = require('expo-file-system/legacy');
+          const base64 = await fs.readAsStringAsync(asset.uri, { encoding: fs.EncodingType.Base64 });
+          const binary = atob(base64);
+          const bytes = new Uint8Array(binary.length);
+          for (let i = 0; i < binary.length; i++) {
+            bytes[i] = binary.charCodeAt(i);
+          }
+          arrayBuffer = bytes.buffer;
+        }
+
+        pack = await RecipePackService.extractPackFromZipBuffer(arrayBuffer, {
+          batchSize: 4,
+          onBatchProcessed: (cur, tot) => {
+            setImportStatusMessage(`Extraction des photos (${cur}/${tot})...`);
+          },
+        });
+      } else {
+        setImportStatusMessage('Analyse des recettes...');
+        let content = '';
+        try {
+          const fs = require('expo-file-system/legacy');
+          if (fs && fs.readAsStringAsync) {
+            content = await fs.readAsStringAsync(asset.uri);
+          } else {
+            const res = await fetch(asset.uri);
+            content = await res.text();
+          }
+        } catch {
+          const res = await fetch(asset.uri);
+          content = await res.text();
+        }
+
+        pack = await RecipePackService.parsePackFromJson(content);
+      }
+
+      setImportStatusMessage('Fusion dans votre carnet...');
+      const result = await StorageService.mergeRecipePack(pack);
+
+      if (result.success) {
+        Alert.alert(
+          'Pack importé avec succès',
+          `🎉 ${result.addedCount} nouvelle(s) recette(s) ajoutée(s)\n🔄 ${result.updatedCount} recette(s) mise(s) à jour\n🖼️ ${result.photosCount} photo(s) de couverture liée(s)`,
+          [
+            {
+              text: 'Super !',
+              onPress: () => {
+                setIsImportModalVisible(false);
+                setImportJsonText('');
+                if (onRecipesReloadNeeded) onRecipesReloadNeeded();
+              },
+            },
+          ]
+        );
+      } else {
+        Alert.alert('Erreur importation', result.error || 'Impossible de fusionner le pack.');
+      }
+    } catch (err: any) {
+      Alert.alert('Erreur lors de l\'import', err?.message || 'Fichier non supporté ou corrompu.');
+    } finally {
+      setIsImporting(false);
+      setImportStatusMessage('');
     }
   };
 
@@ -1408,8 +1521,8 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
               >
                 <Ionicons name="download-outline" size={18} color={colors.textPrimary} />
                 <View style={styles.dataActionInfo}>
-                  <Text style={styles.dataActionTitle}>Importer des recettes</Text>
-                  <Text style={styles.dataActionDesc}>Coller un export JSON de recettes</Text>
+                  <Text style={styles.dataActionTitle}>Importer un pack de recettes</Text>
+                  <Text style={styles.dataActionDesc}>Fichier .json ou archive .zip avec photos</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
               </TouchableOpacity>
@@ -1478,19 +1591,42 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
         </ScrollView>
       </View>
 
-      {/* Modal d'importation JSON */}
+      {/* Modal d'importation de pack de recettes */}
       <Modal
         visible={isImportModalVisible}
         transparent
         animationType="fade"
-        onRequestClose={() => setIsImportModalVisible(false)}
+        onRequestClose={() => {
+          if (!isImporting) setIsImportModalVisible(false);
+        }}
       >
         <View style={styles.importBackdrop}>
           <View style={styles.importDialog}>
-            <Text style={styles.importDialogTitle}>Importer des Recettes</Text>
+            <Text style={styles.importDialogTitle}>Importer un pack de recettes</Text>
             <Text style={styles.importDialogDesc}>
-              Collez ci-dessous le code JSON issu d&apos;un export précédent :
+              Ajoutez des recettes à votre carnet sans écraser votre stock ni vos courses :
             </Text>
+
+            <TouchableOpacity
+              style={styles.importPickFileBtn}
+              onPress={handlePickFileAndImport}
+              disabled={isImporting}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="folder-open-outline" size={24} color={colors.primary} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.importPickFileText}>Choisir un fichier (.json ou .zip)</Text>
+                <Text style={styles.importPickFileSubtext}>Supporte les archives avec photos de couverture</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+            </TouchableOpacity>
+
+            <View style={styles.importDividerContainer}>
+              <View style={styles.importDividerLine} />
+              <Text style={styles.importDividerText}>OU COLLER DU JSON BRUT</Text>
+              <View style={styles.importDividerLine} />
+            </View>
+
             <TextInput
               style={styles.importTextInput}
               multiline
@@ -1498,25 +1634,40 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
               onChangeText={setImportJsonText}
               placeholder='[ { "title": "Ma recette", ... } ]'
               placeholderTextColor={colors.textMuted}
+              editable={!isImporting}
             />
+
+            {isImporting && !!importStatusMessage && (
+              <Text style={styles.importStatusText}>{importStatusMessage}</Text>
+            )}
+
             <View style={styles.importDialogBtnRow}>
               <TouchableOpacity
                 style={styles.importCancelBtn}
-                onPress={() => setIsImportModalVisible(false)}
+                onPress={() => {
+                  if (!isImporting) {
+                    setIsImportModalVisible(false);
+                    setImportJsonText('');
+                  }
+                }}
+                disabled={isImporting}
                 activeOpacity={0.7}
               >
                 <Text style={styles.importCancelText}>Annuler</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.importConfirmBtn, isImporting && { opacity: 0.6 }]}
+                style={[
+                  styles.importConfirmBtn,
+                  (isImporting || !importJsonText.trim()) && { opacity: 0.6 },
+                ]}
                 onPress={handleConfirmImport}
-                disabled={isImporting}
+                disabled={isImporting || !importJsonText.trim()}
                 activeOpacity={0.8}
               >
                 {isImporting ? (
                   <ActivityIndicator size="small" color="#FFFFFF" />
                 ) : (
-                  <Text style={styles.importConfirmText}>Importer</Text>
+                  <Text style={styles.importConfirmText}>Fusionner au carnet</Text>
                 )}
               </TouchableOpacity>
             </View>
