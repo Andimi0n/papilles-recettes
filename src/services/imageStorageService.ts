@@ -10,6 +10,8 @@
 
 // ─── Chargement sécurisé d'expo-file-system/legacy ───────────────────────────
 declare const require: any;
+declare const Buffer: any;
+declare const btoa: any;
 
 let _fsModule: typeof import('expo-file-system/legacy') | null = null;
 let _fsChecked = false;

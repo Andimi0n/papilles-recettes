@@ -22,6 +22,7 @@ import {
 } from '../theme/colors';
 import { styles } from './SettingsScreen.styles';
 import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system/legacy';
 import { StorageService } from '../services/storageService';
 import { RecipeAiService } from '../services/recipeAiService';
 import { RecipePackService, ExtractedRecipePack } from '../services/recipePackService';
@@ -533,9 +534,8 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           const res = await fetch(asset.uri);
           arrayBuffer = await res.arrayBuffer();
         } catch {
-          // Fallback legacy FileSystem si fetch échoue sur URI locale
-          const fs = require('expo-file-system/legacy');
-          const base64 = await fs.readAsStringAsync(asset.uri, { encoding: fs.EncodingType.Base64 });
+          // Fallback FileSystem si fetch échoue sur URI locale
+          const base64 = await FileSystem.readAsStringAsync(asset.uri, { encoding: FileSystem.EncodingType.Base64 });
           const binary = atob(base64);
           const bytes = new Uint8Array(binary.length);
           for (let i = 0; i < binary.length; i++) {
@@ -554,9 +554,8 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
         setImportStatusMessage('Analyse des recettes...');
         let content = '';
         try {
-          const fs = require('expo-file-system/legacy');
-          if (fs && fs.readAsStringAsync) {
-            content = await fs.readAsStringAsync(asset.uri);
+          if (FileSystem && FileSystem.readAsStringAsync) {
+            content = await FileSystem.readAsStringAsync(asset.uri);
           } else {
             const res = await fetch(asset.uri);
             content = await res.text();
