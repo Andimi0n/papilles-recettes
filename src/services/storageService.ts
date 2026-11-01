@@ -1,4 +1,3 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Recipe, RecipeViewMode } from '../types/recipe';
 import { ShoppingItem, ShoppingAisle } from '../types/shopping';
 import { FridgeItem } from '../types/fridge';
@@ -13,15 +12,6 @@ import {
 import { MealLogEntry, MealLogMap, DayMealLogSummary } from '../types/mealLog';
 import { UserAllergenItem, AllergenFamily } from '../types/vocabulary';
 
-/**
- * Chargement dynamique et paresseux (lazy) des recettes par défaut.
- * Évite d'embarquer et parser les 400 Ko de INITIAL_RECIPES au démarrage
- * lorsque l'utilisateur a déjà des recettes dans son stockage local.
- */
-async function getInitialRecipes(): Promise<Recipe[]> {
-  const { INITIAL_RECIPES } = await import('../data/initialRecipes');
-  return INITIAL_RECIPES;
-}
 import {
   generateUniqueId,
   getLocalDateString,
@@ -37,38 +27,35 @@ import { normalizeIngredient } from '../utils/ingredientNormalizer';
 import { isKnownDefaultPantryStaple } from '../data/canonicalVocabulary';
 import { VocabularyService, VocabularyCascadeEvent } from './vocabularyService';
 import { AnalyticsService } from './analyticsService';
+import { DatabaseService } from './databaseService';
 
-const RECIPES_STORAGE_KEY = '@papilles_recipes_v4';
-const SCHEMA_VERSION_KEY = '@papilles_schema_version';
+// ─── Clés de settings SQLite (ex-AsyncStorage) ───────────────────────────────
+const SETTING_SCHEMA_VERSION = 'schema_version';
+const SETTING_CANONICAL_MIGRATED = 'canonical_vocabulary_migrated_v1';
 const CURRENT_SCHEMA_VERSION = 'v4';
-const CANONICAL_MIGRATION_KEY = '@papilles_canonical_vocabulary_migrated_v1';
-const SHOPPING_LIST_KEY = '@papilles_shopping_list_v1';
-const FRIDGE_ITEMS_KEY = '@papilles_fridge_items_v1';
-const WEEKLY_PLAN_KEY = '@papilles_weekly_plan_v1';
-const MEAL_LOG_KEY = '@papilles_meal_log_v1';
-const THEME_MODE_KEY = '@papilles_theme_mode_v1';
-const DEFAULT_SERVINGS_KEY = '@papilles_default_servings_v1';
-const USER_ALLERGENS_KEY = '@papilles_user_allergens_v1';
-const ALLERGEN_FILTER_RECIPES_KEY = '@papilles_filter_allergens_recipes_v1';
-const ALLERGEN_EXCLUDE_AI_KEY = '@papilles_exclude_allergens_ai_v1';
-const PLANNER_SETTINGS_KEY = '@papilles_planner_settings_v1';
-const RECIPE_VIEW_MODE_KEY = '@papilles_recipe_view_mode_v1';
-const ONBOARDING_KEY = '@papilles_onboarded_v1';
+const SETTING_THEME_MODE = 'theme_mode_v1';
+const SETTING_RECIPE_VIEW_MODE = 'recipe_view_mode_v1';
+const SETTING_DEFAULT_SERVINGS = 'default_servings_v1';
+const SETTING_ALLERGEN_FILTER = 'filter_allergens_recipes_v1';
+const SETTING_ALLERGEN_EXCLUDE_AI = 'exclude_allergens_ai_v1';
+const SETTING_ONBOARDING = 'onboarded_v1';
 
-// File d'attente séquentielle (mutex async) pour sérialiser les cascades de vocabulaire et éviter tout conflit AsyncStorage
+// ─── File d'attente mutex (cascade vocabulaire) ───────────────────────────────
 let cascadeMutexQueue: Promise<any> = Promise.resolve();
 
+// ─── Listeners réactifs ───────────────────────────────────────────────────────
 type StorageListener<T> = (items: T) => void;
 let fridgeListeners: StorageListener<FridgeItem[]>[] = [];
 let shoppingListeners: StorageListener<ShoppingItem[]>[] = [];
 
-// Caches en mémoire pour éviter les accès disque O(N) coûteux à chaque re-render
+// ─── Cache mémoire (performance O(1) sur les re-renders) ─────────────────────
 let memoryCache = {
   recipes: null as Recipe[] | null,
   fridgeItems: null as FridgeItem[] | null,
   shoppingList: null as ShoppingItem[] | null,
 };
 
+// ─── Analytics helpers ────────────────────────────────────────────────────────
 function trackShoppingItemAdded(item: ShoppingItem, source?: string): void {
   void AnalyticsService.track({
     type: 'shopping_item_added',
@@ -123,6 +110,7 @@ function trackMealPlanUpdate(
   });
 }
 
+// ─── Sanitizers (inchangés) ────────────────────────────────────────────────────
 /**
  * Assainit une URL d'image pour s'assurer qu'elle n'exploite aucun protocole malveillant (SEC-09)
  */
@@ -250,11 +238,25 @@ function sanitizeFridgeItem(item: any): FridgeItem | null {
   };
 }
 
+/**
+ * Chargement dynamique et paresseux (lazy) des recettes par défaut.
+ * Évite d'embarquer et parser les 400 Ko de INITIAL_RECIPES au démarrage
+ * lorsque l'utilisateur a déjà des recettes dans son stockage local.
+ */
+async function getInitialRecipes(): Promise<Recipe[]> {
+  const { INITIAL_RECIPES } = await import('../data/initialRecipes');
+  return INITIAL_RECIPES;
+}
+
 export const StorageService = {
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // RECETTES
+  // ══════════════════════════════════════════════════════════════════════════
+
   /**
    * Charge toutes les recettes enregistrées.
-   * Utilise une migration non-destructive par version de schéma (VULN-04 corrigé).
-   * Les données créées par l'utilisateur ne sont JAMAIS écrasées.
+   * Cache mémoire O(1) → SQLite → recettes initiales (premier lancement).
    */
   async getRecipes(): Promise<Recipe[]> {
     if (memoryCache.recipes) {
@@ -262,42 +264,20 @@ export const StorageService = {
     }
 
     try {
-      const data = await AsyncStorage.getItem(RECIPES_STORAGE_KEY);
-      if (!data) {
-        // Premier lancement absolu de l'application : initialisation avec les recettes cultes (chargement lazy)
+      const rows = await DatabaseService.getRecipes();
+
+      if (rows.length === 0) {
+        // Premier lancement absolu : initialisation avec les recettes cultes (chargement lazy)
         const initial = await getInitialRecipes();
-        await AsyncStorage.setItem(RECIPES_STORAGE_KEY, JSON.stringify(initial));
-        await AsyncStorage.setItem(SCHEMA_VERSION_KEY, CURRENT_SCHEMA_VERSION);
-        memoryCache.recipes = initial;
-        return initial;
+        const sanitized = initial.map(sanitizeStoredRecipe);
+        await DatabaseService.saveAllRecipes(sanitized);
+        await DatabaseService.setSetting(SETTING_SCHEMA_VERSION, CURRENT_SCHEMA_VERSION);
+        memoryCache.recipes = sanitized;
+        return sanitized;
       }
 
-      let parsed: any[];
-      try {
-        parsed = JSON.parse(data);
-        if (!Array.isArray(parsed)) {
-          parsed = await getInitialRecipes();
-        }
-      } catch {
-        console.error('Données locales corrompues, retour aux recettes initiales');
-        const initial = await getInitialRecipes();
-        memoryCache.recipes = initial;
-        return initial;
-      }
-
-      // Vérification de la version du schéma pour migration sûre en place
-      const version = await AsyncStorage.getItem(SCHEMA_VERSION_KEY);
-      if (version !== CURRENT_SCHEMA_VERSION) {
-        // Migration non-destructive : on complète les champs manquants sans écraser la collection
-        const migrated = parsed.map(sanitizeStoredRecipe);
-        await AsyncStorage.setItem(RECIPES_STORAGE_KEY, JSON.stringify(migrated));
-        await AsyncStorage.setItem(SCHEMA_VERSION_KEY, CURRENT_SCHEMA_VERSION);
-        memoryCache.recipes = migrated;
-        return migrated;
-      }
-
-      // Validation défensive runtime de chaque recette
-      const result = parsed.map(sanitizeStoredRecipe);
+      // Validation défensive runtime
+      const result = rows.map(sanitizeStoredRecipe);
       memoryCache.recipes = result;
       return result;
     } catch (error) {
@@ -312,34 +292,20 @@ export const StorageService = {
    */
   async saveRecipe(recipe: Recipe): Promise<Recipe[]> {
     try {
-      const recipes = await this.getRecipes();
       const safeRecipe: Recipe = sanitizeStoredRecipe(recipe);
-      const existingIndex = recipes.findIndex((r) => r.id === safeRecipe.id);
-
-      let updatedRecipes: Recipe[];
       const now = new Date().toISOString();
 
-      if (existingIndex >= 0) {
-        // Mise à jour de la recette existante
-        updatedRecipes = [...recipes];
-        updatedRecipes[existingIndex] = {
-          ...safeRecipe,
-          updatedAt: now,
-        };
-      } else {
-        // Nouvelle recette ajoutée en tête avec ID robuste garanti unique
-        const newRecipe: Recipe = {
-          ...safeRecipe,
-          id: safeRecipe.id || generateUniqueId('rec'),
-          createdAt: now,
-          updatedAt: now,
-        };
-        updatedRecipes = [newRecipe, ...recipes];
-      }
+      const existing = await DatabaseService.getRecipeById(safeRecipe.id);
 
-      memoryCache.recipes = updatedRecipes;
-      await AsyncStorage.setItem(RECIPES_STORAGE_KEY, JSON.stringify(updatedRecipes));
-      return updatedRecipes;
+      const finalRecipe: Recipe = existing
+        ? { ...safeRecipe, updatedAt: now }
+        : { ...safeRecipe, id: safeRecipe.id || generateUniqueId('rec'), createdAt: now, updatedAt: now };
+
+      await DatabaseService.saveRecipe(finalRecipe);
+
+      // Invalide le cache pour forcer rechargement
+      memoryCache.recipes = null;
+      return this.getRecipes();
     } catch (error) {
       console.error('Erreur lors de la sauvegarde de la recette:', error);
       throw error;
@@ -351,8 +317,8 @@ export const StorageService = {
    */
   async saveAllRecipes(recipes: Recipe[]): Promise<Recipe[]> {
     try {
+      await DatabaseService.saveAllRecipes(recipes);
       memoryCache.recipes = recipes;
-      await AsyncStorage.setItem(RECIPES_STORAGE_KEY, JSON.stringify(recipes));
       return recipes;
     } catch (error) {
       console.error('Erreur lors de la sauvegarde globale des recettes:', error);
@@ -365,22 +331,21 @@ export const StorageService = {
    */
   async updateRecipeRating(id: string, rating: number, userNote?: string): Promise<Recipe[]> {
     try {
-      const recipes = await this.getRecipes();
-      const updatedRecipes = recipes.map((r) => {
-        if (r.id === id) {
+      await DatabaseService.updateRecipeRating(id, rating, userNote);
+      // Mise à jour du cache mémoire en place (évite un rechargement complet)
+      if (memoryCache.recipes) {
+        memoryCache.recipes = memoryCache.recipes.map((r) => {
+          if (r.id !== id) return r;
           return {
             ...r,
             rating,
             userNote: userNote !== undefined ? userNote : r.userNote,
             updatedAt: new Date().toISOString(),
           };
-        }
-        return r;
-      });
-
-      memoryCache.recipes = updatedRecipes;
-      await AsyncStorage.setItem(RECIPES_STORAGE_KEY, JSON.stringify(updatedRecipes));
-      return updatedRecipes;
+        });
+        return memoryCache.recipes;
+      }
+      return this.getRecipes();
     } catch (error) {
       console.error('Erreur lors de la mise à jour de la note:', error);
       throw error;
@@ -392,7 +357,6 @@ export const StorageService = {
    */
   async updateRecipeTags(id: string, tags: string[]): Promise<Recipe[]> {
     try {
-      const recipes = await this.getRecipes();
       const cleanTags = Array.from(
         new Set(
           tags
@@ -401,20 +365,17 @@ export const StorageService = {
         )
       ).slice(0, 30);
 
-      const updatedRecipes = recipes.map((r) => {
-        if (r.id === id) {
-          return {
-            ...r,
-            tags: cleanTags.length > 0 ? cleanTags : undefined,
-            updatedAt: new Date().toISOString(),
-          };
-        }
-        return r;
-      });
+      await DatabaseService.updateRecipeTags(id, cleanTags);
 
-      memoryCache.recipes = updatedRecipes;
-      await AsyncStorage.setItem(RECIPES_STORAGE_KEY, JSON.stringify(updatedRecipes));
-      return updatedRecipes;
+      if (memoryCache.recipes) {
+        memoryCache.recipes = memoryCache.recipes.map((r) =>
+          r.id === id
+            ? { ...r, tags: cleanTags.length > 0 ? cleanTags : undefined, updatedAt: new Date().toISOString() }
+            : r
+        );
+        return memoryCache.recipes;
+      }
+      return this.getRecipes();
     } catch (error) {
       console.error('Erreur lors de la mise à jour des tags:', error);
       throw error;
@@ -426,17 +387,7 @@ export const StorageService = {
    */
   async getAllTags(): Promise<string[]> {
     try {
-      const recipes = await this.getRecipes();
-      const tagSet = new Set<string>();
-      recipes.forEach((r) => {
-        if (Array.isArray(r.tags)) {
-          r.tags.forEach((t) => {
-            const trimmed = typeof t === 'string' ? t.trim() : '';
-            if (trimmed) tagSet.add(trimmed);
-          });
-        }
-      });
-      return Array.from(tagSet).sort((a, b) => a.localeCompare(b, 'fr'));
+      return await DatabaseService.getAllTags();
     } catch (error) {
       console.error('Erreur lors de la récupération des tags:', error);
       return [];
@@ -448,11 +399,15 @@ export const StorageService = {
    */
   async toggleFavorite(id: string): Promise<Recipe[]> {
     try {
-      const recipes = await this.getRecipes();
-      const updatedRecipes = recipes.map((r) => (r.id === id ? { ...r, isFavorite: !r.isFavorite } : r));
-      memoryCache.recipes = updatedRecipes;
-      await AsyncStorage.setItem(RECIPES_STORAGE_KEY, JSON.stringify(updatedRecipes));
-      return updatedRecipes;
+      await DatabaseService.toggleFavorite(id);
+
+      if (memoryCache.recipes) {
+        memoryCache.recipes = memoryCache.recipes.map((r) =>
+          r.id === id ? { ...r, isFavorite: !r.isFavorite, updatedAt: new Date().toISOString() } : r
+        );
+        return memoryCache.recipes;
+      }
+      return this.getRecipes();
     } catch (error) {
       console.error('Erreur lors de l\'inversion du favori:', error);
       throw error;
@@ -464,11 +419,12 @@ export const StorageService = {
    */
   async deleteRecipe(id: string): Promise<Recipe[]> {
     try {
-      const recipes = await this.getRecipes();
-      const updatedRecipes = recipes.filter((r) => r.id !== id);
-      memoryCache.recipes = updatedRecipes;
-      await AsyncStorage.setItem(RECIPES_STORAGE_KEY, JSON.stringify(updatedRecipes));
-      return updatedRecipes;
+      await DatabaseService.deleteRecipe(id);
+      if (memoryCache.recipes) {
+        memoryCache.recipes = memoryCache.recipes.filter((r) => r.id !== id);
+        return memoryCache.recipes;
+      }
+      return this.getRecipes();
     } catch (error) {
       console.error('Erreur lors de la suppression de la recette:', error);
       throw error;
@@ -481,10 +437,11 @@ export const StorageService = {
   async resetToDemoRecipes(): Promise<Recipe[]> {
     try {
       const initial = await getInitialRecipes();
-      memoryCache.recipes = initial;
-      await AsyncStorage.setItem(RECIPES_STORAGE_KEY, JSON.stringify(initial));
-      await AsyncStorage.setItem(SCHEMA_VERSION_KEY, CURRENT_SCHEMA_VERSION);
-      return initial;
+      const sanitized = initial.map(sanitizeStoredRecipe);
+      await DatabaseService.saveAllRecipes(sanitized);
+      await DatabaseService.setSetting(SETTING_SCHEMA_VERSION, CURRENT_SCHEMA_VERSION);
+      memoryCache.recipes = sanitized;
+      return sanitized;
     } catch (error) {
       console.error('Erreur réinitialisation recettes:', error);
       const initial = await getInitialRecipes().catch(() => []);
@@ -499,11 +456,9 @@ export const StorageService = {
    */
   async deleteDefaultRecipes(): Promise<Recipe[]> {
     try {
-      const current = await this.getRecipes();
-      const userOnly = current.filter((r) => !r.id.startsWith('rec_top100_'));
-      memoryCache.recipes = userOnly;
-      await AsyncStorage.setItem(RECIPES_STORAGE_KEY, JSON.stringify(userOnly));
-      return userOnly;
+      await DatabaseService.deleteRecipesByPrefix('rec_top100_');
+      memoryCache.recipes = null;
+      return this.getRecipes();
     } catch (error) {
       console.error('Erreur suppression recettes par défaut:', error);
       throw error;
@@ -523,7 +478,7 @@ export const StorageService = {
   }> {
     try {
       if (!force) {
-        const alreadyDone = await AsyncStorage.getItem(CANONICAL_MIGRATION_KEY);
+        const alreadyDone = await DatabaseService.getSetting(SETTING_CANONICAL_MIGRATED);
         if (alreadyDone === 'done') {
           return { recipesUpdated: 0, shoppingUpdated: 0, fridgeUpdated: 0 };
         }
@@ -534,124 +489,117 @@ export const StorageService = {
       let fridgeUpdated = 0;
 
       // 1. Migration des recettes existantes
-      const recipesData = await AsyncStorage.getItem(RECIPES_STORAGE_KEY);
-      if (recipesData) {
-        try {
-          const parsedRecipes: Recipe[] = JSON.parse(recipesData);
-          if (Array.isArray(parsedRecipes)) {
-            const updatedRecipes = parsedRecipes.map((recipe) => {
-              let hasChanges = false;
-              const updatedIngredients = (recipe.ingredients || []).map((ing) => {
-                const res = normalizeIngredient(ing);
-                if (
-                  res.name !== ing.name ||
-                  res.unit !== ing.unit ||
-                  res.quantity !== ing.quantity ||
-                  res.canonicalId !== ing.canonicalId
-                ) {
-                  hasChanges = true;
-                }
-                return {
-                  ...ing,
-                  name: res.name || ing.name,
-                  canonicalId: res.canonicalId || ing.canonicalId,
-                  quantity: res.quantity !== undefined ? res.quantity : ing.quantity,
-                  unit: res.unit !== undefined ? res.unit : ing.unit,
-                  isPantryStaple: res.isPantryStaple !== undefined ? res.isPantryStaple : ing.isPantryStaple,
-                  isOptional: res.isOptional !== undefined ? res.isOptional : ing.isOptional,
-                };
-              });
+      try {
+        const recipes = await DatabaseService.getRecipes();
+        const recipeUpdates: { id: string; ingredients: any[]; updatedAt: string }[] = [];
 
-              if (hasChanges) {
-                recipesUpdated++;
-                return {
-                  ...recipe,
-                  ingredients: updatedIngredients,
-                  // les étapes restent 100% intouchées
-                };
-              }
-              return recipe;
-            });
-
-            if (recipesUpdated > 0) {
-              await AsyncStorage.setItem(RECIPES_STORAGE_KEY, JSON.stringify(updatedRecipes));
+        for (const recipe of recipes) {
+          let hasChanges = false;
+          const updatedIngredients = (recipe.ingredients || []).map((ing) => {
+            const res = normalizeIngredient(ing);
+            if (
+              res.name !== ing.name ||
+              res.unit !== ing.unit ||
+              res.quantity !== ing.quantity ||
+              res.canonicalId !== ing.canonicalId
+            ) {
+              hasChanges = true;
             }
+            return {
+              ...ing,
+              name: res.name || ing.name,
+              canonicalId: res.canonicalId || ing.canonicalId,
+              quantity: res.quantity !== undefined ? res.quantity : ing.quantity,
+              unit: res.unit !== undefined ? res.unit : ing.unit,
+              isPantryStaple: res.isPantryStaple !== undefined ? res.isPantryStaple : ing.isPantryStaple,
+              isOptional: res.isOptional !== undefined ? res.isOptional : ing.isOptional,
+            };
+          });
+
+          if (hasChanges) {
+            recipesUpdated++;
+            recipeUpdates.push({ id: recipe.id, ingredients: updatedIngredients, updatedAt: new Date().toISOString() });
           }
-        } catch (e) {
-          console.error('Erreur migration recettes:', e);
         }
+
+        if (recipeUpdates.length > 0) {
+          await DatabaseService.updateRecipesIngredientsBatch(recipeUpdates);
+          memoryCache.recipes = null;
+        }
+      } catch (e) {
+        console.error('Erreur migration recettes:', e);
       }
 
       // 2. Migration de la liste de courses
-      const shoppingData = await AsyncStorage.getItem(SHOPPING_LIST_KEY);
-      if (shoppingData) {
-        try {
-          const parsedShopping: ShoppingItem[] = JSON.parse(shoppingData);
-          if (Array.isArray(parsedShopping)) {
-            const vocabMapById = VocabularyService.getSyncMapById();
-            const updatedShopping = parsedShopping.map((item) => {
-              const res = normalizeIngredient({ name: item.name, canonicalId: item.canonicalId });
-              const canonDef = res.canonicalId ? vocabMapById.get(res.canonicalId) : undefined;
-              const resolvedAisle = canonDef?.defaultAisle || item.aisle || classifyIngredientAisle(res.name || item.name);
+      try {
+        const shoppingItems = await DatabaseService.getShoppingItems();
+        const vocabMapById = VocabularyService.getSyncMapById();
+        const updatedItems: ShoppingItem[] = [];
+        let hasShoppingChange = false;
 
-              if (res.name !== item.name || res.canonicalId !== item.canonicalId || resolvedAisle !== item.aisle) {
-                shoppingUpdated++;
-                return {
-                  ...item,
-                  name: res.name || item.name,
-                  canonicalId: res.canonicalId || item.canonicalId,
-                  quantity: item.quantity || res.quantity,
-                  unit: item.unit || res.unit,
-                  aisle: resolvedAisle,
-                };
-              }
-              return item;
+        for (const item of shoppingItems) {
+          const res = normalizeIngredient({ name: item.name, canonicalId: item.canonicalId });
+          const canonDef = res.canonicalId ? vocabMapById.get(res.canonicalId) : undefined;
+          const resolvedAisle = canonDef?.defaultAisle || item.aisle || classifyIngredientAisle(res.name || item.name);
+
+          if (res.name !== item.name || res.canonicalId !== item.canonicalId || resolvedAisle !== item.aisle) {
+            shoppingUpdated++;
+            hasShoppingChange = true;
+            updatedItems.push({
+              ...item,
+              name: res.name || item.name,
+              canonicalId: res.canonicalId || item.canonicalId,
+              quantity: item.quantity || res.quantity,
+              unit: item.unit || res.unit,
+              aisle: resolvedAisle,
             });
-
-            if (shoppingUpdated > 0) {
-              await AsyncStorage.setItem(SHOPPING_LIST_KEY, JSON.stringify(updatedShopping));
-            }
+          } else {
+            updatedItems.push(item);
           }
-        } catch (e) {
-          console.error('Erreur migration courses:', e);
         }
+
+        if (hasShoppingChange) {
+          await this.saveShoppingList(updatedItems);
+        }
+      } catch (e) {
+        console.error('Erreur migration courses:', e);
       }
 
       // 3. Migration des étagères (stock du frigo / placard)
-      const fridgeData = await AsyncStorage.getItem(FRIDGE_ITEMS_KEY);
-      if (fridgeData) {
-        try {
-          const parsedFridge: FridgeItem[] = JSON.parse(fridgeData);
-          if (Array.isArray(parsedFridge)) {
-            const vocabMapById = VocabularyService.getSyncMapById();
-            const updatedFridge = parsedFridge.map((item) => {
-              const res = normalizeIngredient({ name: item.name, canonicalId: item.canonicalId });
-              const canonDef = res.canonicalId ? vocabMapById.get(res.canonicalId) : undefined;
-              const resolvedAisle = canonDef?.defaultAisle || item.aisle || classifyIngredientAisle(res.name || item.name);
+      try {
+        const fridgeItems = await DatabaseService.getFridgeItems();
+        const vocabMapById = VocabularyService.getSyncMapById();
+        const updatedFridge: FridgeItem[] = [];
+        let hasFridgeChange = false;
 
-              if (res.name !== item.name || res.canonicalId !== item.canonicalId || resolvedAisle !== item.aisle) {
-                fridgeUpdated++;
-                return {
-                  ...item,
-                  name: res.name || item.name,
-                  canonicalId: res.canonicalId || item.canonicalId,
-                  aisle: resolvedAisle,
-                };
-              }
-              return item;
+        for (const item of fridgeItems) {
+          const res = normalizeIngredient({ name: item.name, canonicalId: item.canonicalId });
+          const canonDef = res.canonicalId ? vocabMapById.get(res.canonicalId) : undefined;
+          const resolvedAisle = canonDef?.defaultAisle || item.aisle || classifyIngredientAisle(res.name || item.name);
+
+          if (res.name !== item.name || res.canonicalId !== item.canonicalId || resolvedAisle !== item.aisle) {
+            fridgeUpdated++;
+            hasFridgeChange = true;
+            updatedFridge.push({
+              ...item,
+              name: res.name || item.name,
+              canonicalId: res.canonicalId || item.canonicalId,
+              aisle: resolvedAisle,
             });
-
-            if (fridgeUpdated > 0) {
-              await AsyncStorage.setItem(FRIDGE_ITEMS_KEY, JSON.stringify(updatedFridge));
-            }
+          } else {
+            updatedFridge.push(item);
           }
-        } catch (e) {
-          console.error('Erreur migration étagères:', e);
         }
+
+        if (hasFridgeChange) {
+          await this.saveFridgeItems(updatedFridge);
+        }
+      } catch (e) {
+        console.error('Erreur migration étagères:', e);
       }
 
       // Marquer la migration comme effectuée avec succès
-      await AsyncStorage.setItem(CANONICAL_MIGRATION_KEY, 'done');
+      await DatabaseService.setSetting(SETTING_CANONICAL_MIGRATED, 'done');
       return { recipesUpdated, shoppingUpdated, fridgeUpdated };
     } catch (err) {
       console.error('Erreur globale migration canonique:', err);
@@ -670,7 +618,7 @@ export const StorageService = {
    * Propage en cascade les modifications structurelles du lexique
    * (promotions, fusions, suppressions, renommages de rayon)
    * vers les recettes, le stock et la liste de courses.
-   * Sérialisé via mutex pour prévenir tout risque de collision AsyncStorage.
+   * Sérialisé via mutex pour prévenir tout risque de collision SQLite.
    */
   async runWithCascadeMutex<T>(task: () => Promise<T>): Promise<T> {
     return new Promise((resolve, reject) => {
@@ -680,8 +628,6 @@ export const StorageService = {
         .catch(reject);
     });
   },
-
-
 
   async handleVocabularyCascade(event: VocabularyCascadeEvent): Promise<{
     recipesUpdated: number;
@@ -707,319 +653,268 @@ export const StorageService = {
 
     const vocabMapById = VocabularyService.getSyncMapById();
 
-    // 1. Traitement des Recettes (@papilles_recipes_v4)
+    // 1. Traitement des Recettes — UPDATE ciblé (pas de réécriture complète)
     try {
-      const recipesData = await AsyncStorage.getItem(RECIPES_STORAGE_KEY);
-      if (recipesData) {
-        const recipes: Recipe[] = JSON.parse(recipesData);
-        if (Array.isArray(recipes)) {
-          let hasAnyRecipeChange = false;
-          const updatedRecipes = recipes.map((recipe) => {
-            let hasRecipeChange = false;
-            const updatedIngredients = (recipe.ingredients || []).map((ing) => {
-              if (event.type === 'promote') {
-                if (event.parentIds.includes(ing.canonicalId || '')) {
-                  const recheck = normalizeIngredient({ name: ing.name });
-                  if (recheck.canonicalId === event.newIngredient.id) {
-                    hasRecipeChange = true;
-                    return {
-                      ...ing,
-                      canonicalId: event.newIngredient.id,
-                      isPantryStaple:
-                        event.newIngredient.isPantryStaple !== undefined
-                          ? event.newIngredient.isPantryStaple
-                          : ing.isPantryStaple,
-                    };
-                  }
-                }
-              } else if (event.type === 'merge') {
-                const isSource =
-                  ing.canonicalId === event.sourceId ||
-                  (event.sourceIngredient && (
-                    normalizeString(ing.name) === event.sourceIngredient.normalizedName ||
-                    (event.sourceIngredient.aliases && event.sourceIngredient.aliases.includes(normalizeString(ing.name)))
-                  ));
-                if (isSource) {
-                  hasRecipeChange = true;
-                  return {
-                    ...ing,
-                    canonicalId: event.targetId,
-                  };
-                }
-              } else if (event.type === 'delete') {
-                if (ing.canonicalId === event.deletedId) {
-                  hasRecipeChange = true;
-                  const recheck = normalizeIngredient({ name: ing.name });
-                  return {
-                    ...ing,
-                    canonicalId: recheck.canonicalId,
-                  };
-                }
-              } else if (event.type === 'reset') {
-                const recheck = normalizeIngredient(ing);
-                if (recheck.canonicalId !== ing.canonicalId) {
-                  hasRecipeChange = true;
-                  return {
-                    ...ing,
-                    canonicalId: recheck.canonicalId,
-                  };
-                }
+      const recipes = await DatabaseService.getRecipes();
+      const recipeUpdates: { id: string; ingredients: any[]; updatedAt: string }[] = [];
+
+      for (const recipe of recipes) {
+        let hasRecipeChange = false;
+        const updatedIngredients = (recipe.ingredients || []).map((ing) => {
+          if (event.type === 'promote') {
+            if (event.parentIds.includes(ing.canonicalId || '')) {
+              const recheck = normalizeIngredient({ name: ing.name });
+              if (recheck.canonicalId === event.newIngredient.id) {
+                hasRecipeChange = true;
+                return {
+                  ...ing,
+                  canonicalId: event.newIngredient.id,
+                  isPantryStaple:
+                    event.newIngredient.isPantryStaple !== undefined
+                      ? event.newIngredient.isPantryStaple
+                      : ing.isPantryStaple,
+                };
               }
-              return ing;
-            });
-
-            if (hasRecipeChange) {
-              recipesUpdated++;
-              hasAnyRecipeChange = true;
-              return {
-                ...recipe,
-                ingredients: updatedIngredients,
-                updatedAt: new Date().toISOString(),
-              };
             }
-            return recipe;
-          });
-
-          if (hasAnyRecipeChange) {
-            memoryCache.recipes = updatedRecipes;
-            await AsyncStorage.setItem(RECIPES_STORAGE_KEY, JSON.stringify(updatedRecipes));
+          } else if (event.type === 'merge') {
+            const isSource =
+              ing.canonicalId === event.sourceId ||
+              (event.sourceIngredient && (
+                normalizeString(ing.name) === event.sourceIngredient.normalizedName ||
+                (event.sourceIngredient.aliases && event.sourceIngredient.aliases.includes(normalizeString(ing.name)))
+              ));
+            if (isSource) {
+              hasRecipeChange = true;
+              return { ...ing, canonicalId: event.targetId };
+            }
+          } else if (event.type === 'delete') {
+            if (ing.canonicalId === event.deletedId) {
+              hasRecipeChange = true;
+              const recheck = normalizeIngredient({ name: ing.name });
+              return { ...ing, canonicalId: recheck.canonicalId };
+            }
+          } else if (event.type === 'reset') {
+            const recheck = normalizeIngredient(ing);
+            if (recheck.canonicalId !== ing.canonicalId) {
+              hasRecipeChange = true;
+              return { ...ing, canonicalId: recheck.canonicalId };
+            }
           }
+          return ing;
+        });
+
+        if (hasRecipeChange) {
+          recipesUpdated++;
+          recipeUpdates.push({
+            id: recipe.id,
+            ingredients: updatedIngredients,
+            updatedAt: new Date().toISOString(),
+          });
         }
+      }
+
+      if (recipeUpdates.length > 0) {
+        await DatabaseService.updateRecipesIngredientsBatch(recipeUpdates);
+        memoryCache.recipes = null; // Invalide le cache
       }
     } catch (e) {
       console.error('Erreur cascade recettes:', e);
     }
 
-    // 2. Traitement du Stock Frigo / Placard (@papilles_fridge_items_v1)
+    // 2. Traitement du Stock Frigo / Placard
     try {
-      const fridgeData = await AsyncStorage.getItem(FRIDGE_ITEMS_KEY);
-      if (fridgeData) {
-        const fridgeItems: FridgeItem[] = JSON.parse(fridgeData);
-        if (Array.isArray(fridgeItems)) {
-          let hasAnyFridgeChange = false;
-          const updatedFridge = fridgeItems.map((item) => {
-            if (event.type === 'promote') {
-              if (event.parentIds.includes(item.canonicalId || '')) {
-                const recheck = normalizeIngredient({ name: item.name });
-                if (recheck.canonicalId === event.newIngredient.id) {
-                  fridgeUpdated++;
-                  hasAnyFridgeChange = true;
-                  return {
-                    ...item,
-                    canonicalId: event.newIngredient.id,
-                    aisle: event.newIngredient.defaultAisle,
-                  };
-                }
-              }
-            } else if (event.type === 'merge') {
-              const isSource =
-                item.canonicalId === event.sourceId ||
-                (event.sourceIngredient && (
-                  normalizeString(item.name) === event.sourceIngredient.normalizedName ||
-                  (event.sourceIngredient.aliases && event.sourceIngredient.aliases.includes(normalizeString(item.name)))
-                ));
-              if (isSource) {
-                fridgeUpdated++;
-                hasAnyFridgeChange = true;
-                return {
-                  ...item,
-                  name: event.targetIngredient.canonicalName,
-                  canonicalId: event.targetId,
-                  aisle: event.targetIngredient.defaultAisle,
-                };
-              }
-            } else if (event.type === 'update') {
-              if (item.canonicalId === event.updatedIngredient.id) {
-                if (item.aisle !== event.updatedIngredient.defaultAisle) {
-                  fridgeUpdated++;
-                  hasAnyFridgeChange = true;
-                  return {
-                    ...item,
-                    aisle: event.updatedIngredient.defaultAisle,
-                  };
-                }
-              }
-            } else if (event.type === 'delete') {
-              if (item.canonicalId === event.deletedId) {
-                fridgeUpdated++;
-                hasAnyFridgeChange = true;
-                const recheck = normalizeIngredient({ name: item.name });
-                const canonDef = recheck.canonicalId ? vocabMapById.get(recheck.canonicalId) : undefined;
-                return {
-                  ...item,
-                  canonicalId: recheck.canonicalId,
-                  aisle: canonDef?.defaultAisle || item.aisle,
-                };
-              }
-            } else if (event.type === 'reset') {
-              const recheck = normalizeIngredient({ name: item.name });
-              const canonDef = recheck.canonicalId ? vocabMapById.get(recheck.canonicalId) : undefined;
-              if (recheck.canonicalId !== item.canonicalId || (canonDef && canonDef.defaultAisle !== item.aisle)) {
-                fridgeUpdated++;
-                hasAnyFridgeChange = true;
-                return {
-                  ...item,
-                  canonicalId: recheck.canonicalId,
-                  aisle: canonDef?.defaultAisle || item.aisle,
-                };
-              }
-            }
-            return item;
-          });
-
-          let finalFridge = updatedFridge;
-          if (event.type === 'merge') {
-            const seenCanonical = new Set<string>();
-            const seenNames = new Set<string>();
-            finalFridge = [];
-            for (const item of updatedFridge) {
-              const cId = item.canonicalId;
-              const nName = normalizeString(item.name);
-              if (cId && seenCanonical.has(cId)) {
-                hasAnyFridgeChange = true;
-                fridgeUpdated++;
-                continue;
-              }
-              if (seenNames.has(nName)) {
-                hasAnyFridgeChange = true;
-                fridgeUpdated++;
-                continue;
-              }
-              if (cId) seenCanonical.add(cId);
-              seenNames.add(nName);
-              finalFridge.push(item);
+      const fridgeItems = await DatabaseService.getFridgeItems();
+      let hasAnyFridgeChange = false;
+      let updatedFridge = fridgeItems.map((item) => {
+        if (event.type === 'promote') {
+          if (event.parentIds.includes(item.canonicalId || '')) {
+            const recheck = normalizeIngredient({ name: item.name });
+            if (recheck.canonicalId === event.newIngredient.id) {
+              fridgeUpdated++;
+              hasAnyFridgeChange = true;
+              return { ...item, canonicalId: event.newIngredient.id, aisle: event.newIngredient.defaultAisle };
             }
           }
-
-          if (hasAnyFridgeChange) {
-            memoryCache.fridgeItems = finalFridge;
-            await this.saveFridgeItems(finalFridge);
+        } else if (event.type === 'merge') {
+          const isSource =
+            item.canonicalId === event.sourceId ||
+            (event.sourceIngredient && (
+              normalizeString(item.name) === event.sourceIngredient.normalizedName ||
+              (event.sourceIngredient.aliases && event.sourceIngredient.aliases.includes(normalizeString(item.name)))
+            ));
+          if (isSource) {
+            fridgeUpdated++;
+            hasAnyFridgeChange = true;
+            return {
+              ...item,
+              name: event.targetIngredient.canonicalName,
+              canonicalId: event.targetId,
+              aisle: event.targetIngredient.defaultAisle,
+            };
+          }
+        } else if (event.type === 'update') {
+          if (item.canonicalId === event.updatedIngredient.id) {
+            if (item.aisle !== event.updatedIngredient.defaultAisle) {
+              fridgeUpdated++;
+              hasAnyFridgeChange = true;
+              return { ...item, aisle: event.updatedIngredient.defaultAisle };
+            }
+          }
+        } else if (event.type === 'delete') {
+          if (item.canonicalId === event.deletedId) {
+            fridgeUpdated++;
+            hasAnyFridgeChange = true;
+            const recheck = normalizeIngredient({ name: item.name });
+            const canonDef = recheck.canonicalId ? vocabMapById.get(recheck.canonicalId) : undefined;
+            return { ...item, canonicalId: recheck.canonicalId, aisle: canonDef?.defaultAisle || item.aisle };
+          }
+        } else if (event.type === 'reset') {
+          const recheck = normalizeIngredient({ name: item.name });
+          const canonDef = recheck.canonicalId ? vocabMapById.get(recheck.canonicalId) : undefined;
+          if (recheck.canonicalId !== item.canonicalId || (canonDef && canonDef.defaultAisle !== item.aisle)) {
+            fridgeUpdated++;
+            hasAnyFridgeChange = true;
+            return { ...item, canonicalId: recheck.canonicalId, aisle: canonDef?.defaultAisle || item.aisle };
           }
         }
+        return item;
+      });
+
+      // Déduplication après merge
+      if (event.type === 'merge') {
+        const seenCanonical = new Set<string>();
+        const seenNames = new Set<string>();
+        const deduped: FridgeItem[] = [];
+        for (const item of updatedFridge) {
+          const cId = item.canonicalId;
+          const nName = normalizeString(item.name);
+          if (cId && seenCanonical.has(cId)) { hasAnyFridgeChange = true; fridgeUpdated++; continue; }
+          if (seenNames.has(nName)) { hasAnyFridgeChange = true; fridgeUpdated++; continue; }
+          if (cId) seenCanonical.add(cId);
+          seenNames.add(nName);
+          deduped.push(item);
+        }
+        updatedFridge = deduped;
+      }
+
+      if (hasAnyFridgeChange) {
+        memoryCache.fridgeItems = updatedFridge;
+        await this.saveFridgeItems(updatedFridge);
       }
     } catch (e) {
       console.error('Erreur cascade stock:', e);
     }
 
-    // 3. Traitement de la Liste de Courses (@papilles_shopping_list_v1)
+    // 3. Traitement de la Liste de Courses
     try {
-      const shoppingData = await AsyncStorage.getItem(SHOPPING_LIST_KEY);
-      if (shoppingData) {
-        const shoppingItems: ShoppingItem[] = JSON.parse(shoppingData);
-        if (Array.isArray(shoppingItems)) {
-          let hasAnyShoppingChange = false;
-          const updatedShopping = shoppingItems.map((item) => {
-            if (event.type === 'promote') {
-              if (event.parentIds.includes(item.canonicalId || '')) {
-                const recheck = normalizeIngredient({ name: item.name });
-                if (recheck.canonicalId === event.newIngredient.id) {
-                  shoppingUpdated++;
-                  hasAnyShoppingChange = true;
-                  return {
-                    ...item,
-                    name: event.newIngredient.canonicalName,
-                    canonicalId: event.newIngredient.id,
-                    aisle: event.newIngredient.defaultAisle,
-                  };
-                }
-              }
-            } else if (event.type === 'merge') {
-              const isSource =
-                item.canonicalId === event.sourceId ||
-                (event.sourceIngredient && (
-                  normalizeString(item.name) === event.sourceIngredient.normalizedName ||
-                  (event.sourceIngredient.aliases && event.sourceIngredient.aliases.includes(normalizeString(item.name)))
-                ));
-              if (isSource) {
-                shoppingUpdated++;
-                hasAnyShoppingChange = true;
-                return {
-                  ...item,
-                  name: event.targetIngredient.canonicalName,
-                  canonicalId: event.targetId,
-                  aisle: event.targetIngredient.defaultAisle,
-                };
-              }
-            } else if (event.type === 'update') {
-              if (item.canonicalId === event.updatedIngredient.id) {
-                let changed = false;
-                const nextItem = { ...item };
-                if (
-                  event.previousIngredient.canonicalName === item.name &&
-                  event.updatedIngredient.canonicalName !== item.name
-                ) {
-                  nextItem.name = event.updatedIngredient.canonicalName;
-                  changed = true;
-                }
-                if (event.updatedIngredient.defaultAisle !== item.aisle) {
-                  nextItem.aisle = event.updatedIngredient.defaultAisle;
-                  changed = true;
-                }
-                if (changed) {
-                  shoppingUpdated++;
-                  hasAnyShoppingChange = true;
-                  return nextItem;
-                }
-              }
-            } else if (event.type === 'delete') {
-              if (item.canonicalId === event.deletedId) {
-                shoppingUpdated++;
-                hasAnyShoppingChange = true;
-                const recheck = normalizeIngredient({ name: item.name });
-                const canonDef = recheck.canonicalId ? vocabMapById.get(recheck.canonicalId) : undefined;
-                return {
-                  ...item,
-                  canonicalId: recheck.canonicalId,
-                  aisle: canonDef?.defaultAisle || item.aisle,
-                };
-              }
-            } else if (event.type === 'reset') {
-              const recheck = normalizeIngredient({ name: item.name });
-              const canonDef = recheck.canonicalId ? vocabMapById.get(recheck.canonicalId) : undefined;
-              if (recheck.canonicalId !== item.canonicalId || (canonDef && canonDef.defaultAisle !== item.aisle)) {
-                shoppingUpdated++;
-                hasAnyShoppingChange = true;
-                return {
-                  ...item,
-                  canonicalId: recheck.canonicalId,
-                  name: recheck.canonicalId ? recheck.name : item.name,
-                  aisle: canonDef?.defaultAisle || item.aisle,
-                };
-              }
+      const shoppingItems = await DatabaseService.getShoppingItems();
+      let hasAnyShoppingChange = false;
+      let updatedShopping = shoppingItems.map((item) => {
+        if (event.type === 'promote') {
+          if (event.parentIds.includes(item.canonicalId || '')) {
+            const recheck = normalizeIngredient({ name: item.name });
+            if (recheck.canonicalId === event.newIngredient.id) {
+              shoppingUpdated++;
+              hasAnyShoppingChange = true;
+              return {
+                ...item,
+                name: event.newIngredient.canonicalName,
+                canonicalId: event.newIngredient.id,
+                aisle: event.newIngredient.defaultAisle,
+              };
             }
-            return item;
-          });
-
-          let finalShopping = updatedShopping;
-          if (event.type === 'merge') {
-            const consolidated: ShoppingItem[] = [];
-            for (const item of updatedShopping) {
-              const existingIdx = consolidated.findIndex((c) =>
-                (c.canonicalId && item.canonicalId && c.canonicalId === item.canonicalId) ||
-                normalizeString(c.name) === normalizeString(item.name)
-              );
-              if (existingIdx >= 0) {
-                const existing = consolidated[existingIdx];
-                const mergedQty = [existing.quantity, item.quantity].filter(Boolean).join(' + ');
-                consolidated[existingIdx] = {
-                  ...existing,
-                  quantity: mergedQty || existing.quantity,
-                  isChecked: existing.isChecked && item.isChecked,
-                };
-                hasAnyShoppingChange = true;
-                shoppingUpdated++;
-              } else {
-                consolidated.push(item);
-              }
-            }
-            finalShopping = consolidated;
           }
-
-          if (hasAnyShoppingChange) {
-            memoryCache.shoppingList = finalShopping;
-            await this.saveShoppingList(finalShopping);
+        } else if (event.type === 'merge') {
+          const isSource =
+            item.canonicalId === event.sourceId ||
+            (event.sourceIngredient && (
+              normalizeString(item.name) === event.sourceIngredient.normalizedName ||
+              (event.sourceIngredient.aliases && event.sourceIngredient.aliases.includes(normalizeString(item.name)))
+            ));
+          if (isSource) {
+            shoppingUpdated++;
+            hasAnyShoppingChange = true;
+            return {
+              ...item,
+              name: event.targetIngredient.canonicalName,
+              canonicalId: event.targetId,
+              aisle: event.targetIngredient.defaultAisle,
+            };
+          }
+        } else if (event.type === 'update') {
+          if (item.canonicalId === event.updatedIngredient.id) {
+            let changed = false;
+            const nextItem = { ...item };
+            if (
+              event.previousIngredient.canonicalName === item.name &&
+              event.updatedIngredient.canonicalName !== item.name
+            ) {
+              nextItem.name = event.updatedIngredient.canonicalName;
+              changed = true;
+            }
+            if (event.updatedIngredient.defaultAisle !== item.aisle) {
+              nextItem.aisle = event.updatedIngredient.defaultAisle;
+              changed = true;
+            }
+            if (changed) {
+              shoppingUpdated++;
+              hasAnyShoppingChange = true;
+              return nextItem;
+            }
+          }
+        } else if (event.type === 'delete') {
+          if (item.canonicalId === event.deletedId) {
+            shoppingUpdated++;
+            hasAnyShoppingChange = true;
+            const recheck = normalizeIngredient({ name: item.name });
+            const canonDef = recheck.canonicalId ? vocabMapById.get(recheck.canonicalId) : undefined;
+            return { ...item, canonicalId: recheck.canonicalId, aisle: canonDef?.defaultAisle || item.aisle };
+          }
+        } else if (event.type === 'reset') {
+          const recheck = normalizeIngredient({ name: item.name });
+          const canonDef = recheck.canonicalId ? vocabMapById.get(recheck.canonicalId) : undefined;
+          if (recheck.canonicalId !== item.canonicalId || (canonDef && canonDef.defaultAisle !== item.aisle)) {
+            shoppingUpdated++;
+            hasAnyShoppingChange = true;
+            return {
+              ...item,
+              canonicalId: recheck.canonicalId,
+              name: recheck.canonicalId ? recheck.name : item.name,
+              aisle: canonDef?.defaultAisle || item.aisle,
+            };
           }
         }
+        return item;
+      });
+
+      // Consolidation après merge
+      if (event.type === 'merge') {
+        const consolidated: ShoppingItem[] = [];
+        for (const item of updatedShopping) {
+          const existingIdx = consolidated.findIndex((c) =>
+            (c.canonicalId && item.canonicalId && c.canonicalId === item.canonicalId) ||
+            normalizeString(c.name) === normalizeString(item.name)
+          );
+          if (existingIdx >= 0) {
+            const existing = consolidated[existingIdx];
+            const mergedQty = [existing.quantity, item.quantity].filter(Boolean).join(' + ');
+            consolidated[existingIdx] = {
+              ...existing,
+              quantity: mergedQty || existing.quantity,
+              isChecked: existing.isChecked && item.isChecked,
+            };
+            hasAnyShoppingChange = true;
+            shoppingUpdated++;
+          } else {
+            consolidated.push(item);
+          }
+        }
+        updatedShopping = consolidated;
+      }
+
+      if (hasAnyShoppingChange) {
+        memoryCache.shoppingList = updatedShopping;
+        await this.saveShoppingList(updatedShopping);
       }
     } catch (e) {
       console.error('Erreur cascade courses:', e);
@@ -1028,9 +923,9 @@ export const StorageService = {
     return { recipesUpdated, shoppingUpdated, fridgeUpdated };
   },
 
-  // ==========================================
+  // ══════════════════════════════════════════════════════════════════════════
   // GESTION DE LA LISTE DE COURSES
-  // ==========================================
+  // ══════════════════════════════════════════════════════════════════════════
 
   /**
    * Écouteur réactif des mutations du stock frigo / étagères
@@ -1068,15 +963,9 @@ export const StorageService = {
     }
 
     try {
-      const data = await AsyncStorage.getItem(SHOPPING_LIST_KEY);
-      if (!data) {
-        memoryCache.shoppingList = [];
-        return [];
-      }
-      const parsed = JSON.parse(data);
-      const result = Array.isArray(parsed) ? parsed : [];
-      memoryCache.shoppingList = result;
-      return result;
+      const items = await DatabaseService.getShoppingItems();
+      memoryCache.shoppingList = items;
+      return items;
     } catch (e) {
       console.error('Erreur lecture liste de courses:', e);
       return [];
@@ -1096,7 +985,7 @@ export const StorageService = {
         deduplicated.push(item);
       }
       memoryCache.shoppingList = deduplicated;
-      await AsyncStorage.setItem(SHOPPING_LIST_KEY, JSON.stringify(deduplicated));
+      await DatabaseService.saveShoppingItems(deduplicated);
       shoppingListeners.forEach((l) => {
         try { l(deduplicated); } catch (err) { console.error('Erreur listener shopping:', err); }
       });
@@ -1252,12 +1141,14 @@ export const StorageService = {
    */
   async toggleShoppingItem(id: string): Promise<ShoppingItem[]> {
     try {
-      const currentList = await this.getShoppingList();
-      const updatedList = currentList.map((item) =>
-        item.id === id ? { ...item, isChecked: !item.isChecked } : item
-      );
-      await this.saveShoppingList(updatedList);
-      return updatedList;
+      await DatabaseService.toggleShoppingItem(id);
+      if (memoryCache.shoppingList) {
+        memoryCache.shoppingList = memoryCache.shoppingList.map((item) =>
+          item.id === id ? { ...item, isChecked: !item.isChecked } : item
+        );
+        return memoryCache.shoppingList;
+      }
+      return this.getShoppingList();
     } catch (e) {
       console.error('Erreur toggle shopping item:', e);
       throw e;
@@ -1269,12 +1160,14 @@ export const StorageService = {
    */
   async updateShoppingItem(updatedItem: ShoppingItem): Promise<ShoppingItem[]> {
     try {
-      const currentList = await this.getShoppingList();
-      const updatedList = currentList.map((item) =>
-        item.id === updatedItem.id ? updatedItem : item
-      );
-      await this.saveShoppingList(updatedList);
-      return updatedList;
+      await DatabaseService.updateShoppingItem(updatedItem);
+      if (memoryCache.shoppingList) {
+        memoryCache.shoppingList = memoryCache.shoppingList.map((item) =>
+          item.id === updatedItem.id ? updatedItem : item
+        );
+        return memoryCache.shoppingList;
+      }
+      return this.getShoppingList();
     } catch (e) {
       console.error('Erreur modification shopping item:', e);
       throw e;
@@ -1315,11 +1208,13 @@ export const StorageService = {
   async deleteShoppingItem(id: string): Promise<ShoppingItem[]> {
     try {
       const currentList = await this.getShoppingList();
-      const updatedList = currentList.filter((item) => item.id !== id);
-      await this.saveShoppingList(updatedList);
       const removedItem = currentList.find((item) => item.id === id);
+      await DatabaseService.deleteShoppingItem(id);
+      if (memoryCache.shoppingList) {
+        memoryCache.shoppingList = memoryCache.shoppingList.filter((item) => item.id !== id);
+      }
       if (removedItem) trackShoppingItemRemoved(removedItem);
-      return updatedList;
+      return memoryCache.shoppingList ?? this.getShoppingList();
     } catch (e) {
       console.error('Erreur suppression shopping item:', e);
       throw e;
@@ -1332,8 +1227,9 @@ export const StorageService = {
   async clearCompletedShoppingItems(): Promise<ShoppingItem[]> {
     try {
       const currentList = await this.getShoppingList();
+      await DatabaseService.clearCheckedShoppingItems();
       const updatedList = currentList.filter((item) => !item.isChecked);
-      await this.saveShoppingList(updatedList);
+      memoryCache.shoppingList = updatedList;
       currentList.filter((item) => item.isChecked).forEach(trackShoppingItemRemoved);
       return updatedList;
     } catch (e) {
@@ -1348,18 +1244,19 @@ export const StorageService = {
   async clearAllShoppingItems(): Promise<ShoppingItem[]> {
     try {
       const currentList = await this.getShoppingList();
-      const updatedList = await this.saveShoppingList([]);
+      await DatabaseService.clearAllShoppingItems();
+      memoryCache.shoppingList = [];
       currentList.forEach(trackShoppingItemRemoved);
-      return updatedList;
+      return [];
     } catch (e) {
       console.error('Erreur vidage liste courses:', e);
       throw e;
     }
   },
 
-  // ==========================================
+  // ══════════════════════════════════════════════════════════════════════════
   // GESTION DU FRIGO (INVENTAIRE & STOCK)
-  // ==========================================
+  // ══════════════════════════════════════════════════════════════════════════
 
   /**
    * Récupère le stock du frigo de manière synchrone depuis le cache mémoire s'il est déjà chargé
@@ -1377,19 +1274,10 @@ export const StorageService = {
     }
 
     try {
-      const data = await AsyncStorage.getItem(FRIDGE_ITEMS_KEY);
-      if (!data) {
-        memoryCache.fridgeItems = [];
-        return [];
-      }
-      const parsed = JSON.parse(data);
-      if (!Array.isArray(parsed)) {
-        memoryCache.fridgeItems = [];
-        return [];
-      }
-      const sanitized = parsed.map(sanitizeFridgeItem).filter((i): i is FridgeItem => i !== null);
+      const rows = await DatabaseService.getFridgeItems();
+      const sanitized = rows.map(sanitizeFridgeItem).filter((i): i is FridgeItem => i !== null);
 
-      // Auto-guérison et déduplication stricte par canonicalId ou nom normalisé
+      // Auto-déduplication stricte
       const seenCanonical = new Set<string>();
       const seenNames = new Set<string>();
       const seenIds = new Set<string>();
@@ -1398,20 +1286,11 @@ export const StorageService = {
 
       for (const item of sanitized) {
         if (!item || !item.id) continue;
-        if (seenIds.has(item.id)) {
-          hadDuplicates = true;
-          continue;
-        }
+        if (seenIds.has(item.id)) { hadDuplicates = true; continue; }
         const cId = item.canonicalId;
         const nName = normalizeString(item.name);
-        if (cId && seenCanonical.has(cId)) {
-          hadDuplicates = true;
-          continue;
-        }
-        if (seenNames.has(nName)) {
-          hadDuplicates = true;
-          continue;
-        }
+        if (cId && seenCanonical.has(cId)) { hadDuplicates = true; continue; }
+        if (seenNames.has(nName)) { hadDuplicates = true; continue; }
         seenIds.add(item.id);
         if (cId) seenCanonical.add(cId);
         seenNames.add(nName);
@@ -1419,7 +1298,7 @@ export const StorageService = {
       }
 
       if (hadDuplicates) {
-        AsyncStorage.setItem(FRIDGE_ITEMS_KEY, JSON.stringify(deduplicated)).catch(() => {});
+        DatabaseService.saveFridgeItems(deduplicated).catch(() => {});
       }
 
       memoryCache.fridgeItems = deduplicated;
@@ -1444,7 +1323,7 @@ export const StorageService = {
         deduplicated.push(item);
       }
       memoryCache.fridgeItems = deduplicated;
-      await AsyncStorage.setItem(FRIDGE_ITEMS_KEY, JSON.stringify(deduplicated));
+      await DatabaseService.saveFridgeItems(deduplicated);
       fridgeListeners.forEach((l) => {
         try { l(deduplicated); } catch (err) { console.error('Erreur listener fridge:', err); }
       });
@@ -1506,8 +1385,9 @@ export const StorageService = {
         createdAt: new Date().toISOString(),
       };
 
+      await DatabaseService.addFridgeItem(newItem);
       const updated = [newItem, ...currentItems];
-      await this.saveFridgeItems(updated);
+      memoryCache.fridgeItems = updated;
       trackFridgeItemAdded(newItem);
       return updated;
     } catch (e) {
@@ -1535,16 +1415,10 @@ export const StorageService = {
         const resolvedName = norm.canonicalId ? norm.name : (trimmed.charAt(0).toUpperCase() + trimmed.slice(1));
         const normClean = normalizeString(resolvedName);
 
-        if (resolvedCanonicalId && existingCanonicalIds.has(resolvedCanonicalId)) {
-          return;
-        }
-        if (existingNames.has(normClean)) {
-          return;
-        }
+        if (resolvedCanonicalId && existingCanonicalIds.has(resolvedCanonicalId)) return;
+        if (existingNames.has(normClean)) return;
 
-        if (resolvedCanonicalId) {
-          existingCanonicalIds.add(resolvedCanonicalId);
-        }
+        if (resolvedCanonicalId) existingCanonicalIds.add(resolvedCanonicalId);
         existingNames.add(normClean);
 
         let assignedAisle: ShoppingAisle | undefined;
@@ -1583,11 +1457,13 @@ export const StorageService = {
   async removeFridgeItem(id: string): Promise<FridgeItem[]> {
     try {
       const currentItems = await this.getFridgeItems();
-      const updated = currentItems.filter((i) => i.id !== id);
-      await this.saveFridgeItems(updated);
       const removedItem = currentItems.find((item) => item.id === id);
+      await DatabaseService.removeFridgeItem(id);
+      if (memoryCache.fridgeItems) {
+        memoryCache.fridgeItems = memoryCache.fridgeItems.filter((i) => i.id !== id);
+      }
       if (removedItem) trackFridgeItemRemoved(removedItem);
-      return updated;
+      return memoryCache.fridgeItems ?? this.getFridgeItems();
     } catch (e) {
       console.error('Erreur suppression aliment frigo:', e);
       throw e;
@@ -1600,9 +1476,10 @@ export const StorageService = {
   async clearFridge(): Promise<FridgeItem[]> {
     try {
       const currentItems = await this.getFridgeItems();
-      const updatedItems = await this.saveFridgeItems([]);
+      await DatabaseService.clearFridge();
+      memoryCache.fridgeItems = [];
       currentItems.forEach(trackFridgeItemRemoved);
-      return updatedItems;
+      return [];
     } catch (e) {
       console.error('Erreur vidage frigo:', e);
       throw e;
@@ -1648,22 +1525,16 @@ export const StorageService = {
     }
   },
 
-  // ==========================================
+  // ══════════════════════════════════════════════════════════════════════════
   // GESTION DU MENU DE LA SEMAINE (PLANNING)
-  // ==========================================
+  // ══════════════════════════════════════════════════════════════════════════
 
   /**
    * Récupère les préférences de planification des menus (fixe vs dynamique, premier jour)
    */
   async getPlannerSettings(): Promise<PlannerSettings> {
     try {
-      const data = await AsyncStorage.getItem(PLANNER_SETTINGS_KEY);
-      if (!data) return DEFAULT_PLANNER_SETTINGS;
-      const parsed = JSON.parse(data);
-      return {
-        mode: parsed?.mode === 'dynamic' ? 'dynamic' : 'fixed',
-        startDay: parsed?.startDay || 'Lundi',
-      };
+      return await DatabaseService.getPlannerSettings();
     } catch (e) {
       console.error('Erreur lecture réglages planification:', e);
       return DEFAULT_PLANNER_SETTINGS;
@@ -1678,11 +1549,8 @@ export const StorageService = {
   ): Promise<PlannerSettings> {
     try {
       const current = await this.getPlannerSettings();
-      const updated: PlannerSettings = {
-        ...current,
-        ...settings,
-      };
-      await AsyncStorage.setItem(PLANNER_SETTINGS_KEY, JSON.stringify(updated));
+      const updated: PlannerSettings = { ...current, ...settings };
+      await DatabaseService.savePlannerSettings(updated);
       return updated;
     } catch (e) {
       console.error('Erreur sauvegarde réglages planification:', e);
@@ -1695,10 +1563,7 @@ export const StorageService = {
    */
   async getWeeklyPlan(): Promise<WeeklyPlanMap> {
     try {
-      const data = await AsyncStorage.getItem(WEEKLY_PLAN_KEY);
-      if (!data) return {};
-      const parsed = JSON.parse(data);
-      return parsed && typeof parsed === 'object' ? parsed : {};
+      return await DatabaseService.getWeeklyPlan();
     } catch (e) {
       console.error('Erreur lecture planning semaine:', e);
       return {};
@@ -1710,7 +1575,11 @@ export const StorageService = {
    */
   async saveWeeklyPlan(plan: WeeklyPlanMap): Promise<WeeklyPlanMap> {
     try {
-      await AsyncStorage.setItem(WEEKLY_PLAN_KEY, JSON.stringify(plan));
+      // Remplace tout le planning (supprime + réinsère)
+      await DatabaseService.clearWeeklyPlan();
+      for (const [slotKey, meal] of Object.entries(plan)) {
+        if (meal) await DatabaseService.setWeeklyMeal(slotKey, meal);
+      }
       return plan;
     } catch (e) {
       console.error('Erreur sauvegarde planning semaine:', e);
@@ -1727,18 +1596,19 @@ export const StorageService = {
     meal: PlannedMeal | null
   ): Promise<WeeklyPlanMap> {
     try {
-      const currentPlan = await this.getWeeklyPlan();
       const slotKey = dayOrKey.includes('_') ? dayOrKey : `${dayOrKey}_${mealTime}`;
-      const nextPlan = { ...currentPlan };
+      const currentPlan = await this.getWeeklyPlan();
+      const previousMeal = currentPlan[slotKey];
 
+      await DatabaseService.setWeeklyMeal(slotKey, meal);
+
+      const nextPlan = { ...currentPlan };
       if (meal) {
         nextPlan[slotKey] = meal;
       } else {
         delete nextPlan[slotKey];
       }
 
-      await this.saveWeeklyPlan(nextPlan);
-      const previousMeal = currentPlan[slotKey];
       if (meal) {
         if (previousMeal && previousMeal.id !== meal.id) {
           trackMealPlanUpdate(slotKey, mealTime, previousMeal, false);
@@ -1759,21 +1629,22 @@ export const StorageService = {
    */
   async clearWeeklyPlan(slotKeysToClear?: string[]): Promise<WeeklyPlanMap> {
     try {
+      const currentPlan = await this.getWeeklyPlan();
+
       if (!slotKeysToClear || slotKeysToClear.length === 0) {
-        const currentPlan = await this.getWeeklyPlan();
-        await AsyncStorage.setItem(WEEKLY_PLAN_KEY, JSON.stringify({}));
+        await DatabaseService.clearWeeklyPlan();
         Object.entries(currentPlan).forEach(([slotKey, meal]) => {
           if (meal) trackMealPlanUpdate(slotKey, meal.mealTime, meal, false);
         });
         return {};
       }
-      const currentPlan = await this.getWeeklyPlan();
+
+      await DatabaseService.clearWeeklyPlan(slotKeysToClear);
       const nextPlan = { ...currentPlan };
-      slotKeysToClear.forEach((k) => delete nextPlan[k]);
-      await this.saveWeeklyPlan(nextPlan);
-      slotKeysToClear.forEach((slotKey) => {
-        const meal = currentPlan[slotKey];
-        if (meal) trackMealPlanUpdate(slotKey, meal.mealTime, meal, false);
+      slotKeysToClear.forEach((k) => {
+        const meal = currentPlan[k];
+        if (meal) trackMealPlanUpdate(k, meal.mealTime, meal, false);
+        delete nextPlan[k];
       });
       return nextPlan;
     } catch (e) {
@@ -1839,24 +1710,16 @@ export const StorageService = {
     }
   },
 
+  // ══════════════════════════════════════════════════════════════════════════
+  // JOURNAL DES REPAS
+  // ══════════════════════════════════════════════════════════════════════════
+
   /**
    * Charge l'ensemble du journal des repas (ce qui a été mangé)
    */
   async getMealLogs(): Promise<MealLogMap> {
     try {
-      const data = await AsyncStorage.getItem(MEAL_LOG_KEY);
-      if (!data) return {};
-      const parsed = JSON.parse(data);
-      if (!parsed || typeof parsed !== 'object') return {};
-
-      const sanitized: MealLogMap = {};
-      Object.entries(parsed).forEach(([key, val]) => {
-        const item = sanitizeMealLogEntry(val);
-        if (item) {
-          sanitized[key] = item;
-        }
-      });
-      return sanitized;
+      return await DatabaseService.getMealLogs();
     } catch (e) {
       console.error('Erreur lecture suivi repas:', e);
       return {};
@@ -1868,7 +1731,7 @@ export const StorageService = {
    */
   async saveMealLogs(logs: MealLogMap): Promise<MealLogMap> {
     try {
-      await AsyncStorage.setItem(MEAL_LOG_KEY, JSON.stringify(logs));
+      await DatabaseService.saveMealLogs(logs);
       return logs;
     } catch (e) {
       console.error('Erreur sauvegarde suivi repas:', e);
@@ -1890,13 +1753,12 @@ export const StorageService = {
     } | null
   ): Promise<MealLogMap> {
     try {
-      const currentLogs = await this.getMealLogs();
       const slotKey = `${date}_${mealTime}`;
-      const nextLogs = { ...currentLogs };
+      const currentLogs = await this.getMealLogs();
 
       if (entry && entry.title.trim()) {
-        const existing = nextLogs[slotKey];
-        nextLogs[slotKey] = {
+        const existing = currentLogs[slotKey];
+        const logEntry: MealLogEntry = {
           id: existing?.id || generateUniqueId('mlog'),
           date,
           mealTime,
@@ -1907,12 +1769,14 @@ export const StorageService = {
           createdAt: existing?.createdAt || new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         };
+        await DatabaseService.setMealLog(slotKey, logEntry);
+        return { ...currentLogs, [slotKey]: logEntry };
       } else {
+        await DatabaseService.setMealLog(slotKey, null);
+        const nextLogs = { ...currentLogs };
         delete nextLogs[slotKey];
+        return nextLogs;
       }
-
-      await this.saveMealLogs(nextLogs);
-      return nextLogs;
     } catch (e) {
       console.error('Erreur enregistrement plat suivi repas:', e);
       throw e;
@@ -1931,7 +1795,7 @@ export const StorageService = {
         dinner: logs[`${todayStr}_dinner`],
       };
     } catch (e) {
-      console.error('Erreur lecture repas aujourd’hui:', e);
+      console.error('Erreur lecture repas aujourd\'hui:', e);
       return {};
     }
   },
@@ -1968,12 +1832,16 @@ export const StorageService = {
     }
   },
 
+  // ══════════════════════════════════════════════════════════════════════════
+  // PRÉFÉRENCES UTILISATEUR (Thème, vue, portions, allergènes…)
+  // ══════════════════════════════════════════════════════════════════════════
+
   /**
    * Récupère le mode de thème sauvegardé ('system' | 'light' | 'dark' | 'colorblind')
    */
   async getThemeMode(): Promise<'system' | 'light' | 'dark' | 'colorblind'> {
     try {
-      const mode = await AsyncStorage.getItem(THEME_MODE_KEY);
+      const mode = await DatabaseService.getSetting(SETTING_THEME_MODE);
       if (mode === 'light' || mode === 'dark' || mode === 'system' || mode === 'colorblind') {
         return mode as 'system' | 'light' | 'dark' | 'colorblind';
       }
@@ -1989,7 +1857,7 @@ export const StorageService = {
    */
   async saveThemeMode(mode: 'system' | 'light' | 'dark' | 'colorblind'): Promise<void> {
     try {
-      await AsyncStorage.setItem(THEME_MODE_KEY, mode);
+      await DatabaseService.setSetting(SETTING_THEME_MODE, mode);
     } catch (e) {
       console.error('Erreur sauvegarde thème:', e);
     }
@@ -2000,7 +1868,7 @@ export const StorageService = {
    */
   async getRecipeViewMode(): Promise<RecipeViewMode> {
     try {
-      const mode = await AsyncStorage.getItem(RECIPE_VIEW_MODE_KEY);
+      const mode = await DatabaseService.getSetting(SETTING_RECIPE_VIEW_MODE);
       if (mode === 'compact' || mode === 'detailed' || mode === 'grid') {
         return mode as RecipeViewMode;
       }
@@ -2015,7 +1883,7 @@ export const StorageService = {
    */
   async saveRecipeViewMode(mode: RecipeViewMode): Promise<void> {
     try {
-      await AsyncStorage.setItem(RECIPE_VIEW_MODE_KEY, mode);
+      await DatabaseService.setSetting(SETTING_RECIPE_VIEW_MODE, mode);
     } catch (e) {
       console.error('Erreur sauvegarde mode de vue recettes:', e);
     }
@@ -2026,7 +1894,7 @@ export const StorageService = {
    */
   async getDefaultServings(): Promise<number> {
     try {
-      const stored = await AsyncStorage.getItem(DEFAULT_SERVINGS_KEY);
+      const stored = await DatabaseService.getSetting(SETTING_DEFAULT_SERVINGS);
       if (stored) {
         const parsed = parseInt(stored, 10);
         if (!isNaN(parsed) && parsed > 0 && parsed <= 50) return parsed;
@@ -2042,7 +1910,7 @@ export const StorageService = {
    */
   async saveDefaultServings(servings: number): Promise<void> {
     try {
-      await AsyncStorage.setItem(DEFAULT_SERVINGS_KEY, String(servings));
+      await DatabaseService.setSetting(SETTING_DEFAULT_SERVINGS, String(servings));
     } catch (e) {
       console.error('Erreur sauvegarde portions par défaut:', e);
     }
@@ -2053,24 +1921,7 @@ export const StorageService = {
    */
   async getUserAllergens(): Promise<UserAllergenItem[]> {
     try {
-      const stored = await AsyncStorage.getItem(USER_ALLERGENS_KEY);
-      if (!stored) return [];
-      const parsed = JSON.parse(stored);
-      if (!Array.isArray(parsed)) return [];
-      return parsed
-        .map((raw: any) => {
-          if (!raw || typeof raw !== 'object') return null;
-          const name = typeof raw.name === 'string' ? raw.name.trim().slice(0, 100) : '';
-          if (!name) return null;
-          return {
-            id: typeof raw.id === 'string' && raw.id ? raw.id.slice(0, 100) : generateUniqueId('allg'),
-            canonicalId: typeof raw.canonicalId === 'string' ? raw.canonicalId.slice(0, 100) : undefined,
-            name,
-            allergenFamily: typeof raw.allergenFamily === 'string' ? (raw.allergenFamily as AllergenFamily) : null,
-            addedAt: typeof raw.addedAt === 'string' ? raw.addedAt : new Date().toISOString(),
-          } as UserAllergenItem;
-        })
-        .filter((i): i is UserAllergenItem => i !== null);
+      return await DatabaseService.getUserAllergens();
     } catch (e) {
       console.error('Erreur lecture allergènes:', e);
       return [];
@@ -2082,7 +1933,7 @@ export const StorageService = {
    */
   async saveUserAllergens(items: UserAllergenItem[]): Promise<void> {
     try {
-      await AsyncStorage.setItem(USER_ALLERGENS_KEY, JSON.stringify(items));
+      await DatabaseService.saveUserAllergens(items);
     } catch (e) {
       console.error('Erreur sauvegarde allergènes:', e);
       throw e;
@@ -2099,10 +1950,7 @@ export const StorageService = {
   }): Promise<UserAllergenItem> {
     const list = await this.getUserAllergens();
     const cleanNorm = normalizeString(item.name);
-    // Vérifier si déjà présent par nom normalisé strict
-    const existingIdx = list.findIndex(
-      (i) => normalizeString(i.name) === cleanNorm
-    );
+    const existingIdx = list.findIndex((i) => normalizeString(i.name) === cleanNorm);
 
     const now = new Date().toISOString();
     if (existingIdx >= 0) {
@@ -2154,7 +2002,7 @@ export const StorageService = {
    */
   async getAllergenFilterEnabled(): Promise<boolean> {
     try {
-      const stored = await AsyncStorage.getItem(ALLERGEN_FILTER_RECIPES_KEY);
+      const stored = await DatabaseService.getSetting(SETTING_ALLERGEN_FILTER);
       if (stored === null) return true; // Activé par défaut
       return stored === 'true';
     } catch {
@@ -2167,7 +2015,7 @@ export const StorageService = {
    */
   async setAllergenFilterEnabled(enabled: boolean): Promise<void> {
     try {
-      await AsyncStorage.setItem(ALLERGEN_FILTER_RECIPES_KEY, enabled ? 'true' : 'false');
+      await DatabaseService.setSetting(SETTING_ALLERGEN_FILTER, enabled ? 'true' : 'false');
     } catch (e) {
       console.error('Erreur sauvegarde réglage filtre allergènes:', e);
     }
@@ -2178,7 +2026,7 @@ export const StorageService = {
    */
   async getAiAllergenExclusionEnabled(): Promise<boolean> {
     try {
-      const stored = await AsyncStorage.getItem(ALLERGEN_EXCLUDE_AI_KEY);
+      const stored = await DatabaseService.getSetting(SETTING_ALLERGEN_EXCLUDE_AI);
       if (stored === null) return true; // Activé par défaut
       return stored === 'true';
     } catch {
@@ -2191,11 +2039,15 @@ export const StorageService = {
    */
   async setAiAllergenExclusionEnabled(enabled: boolean): Promise<void> {
     try {
-      await AsyncStorage.setItem(ALLERGEN_EXCLUDE_AI_KEY, enabled ? 'true' : 'false');
+      await DatabaseService.setSetting(SETTING_ALLERGEN_EXCLUDE_AI, enabled ? 'true' : 'false');
     } catch (e) {
       console.error('Erreur sauvegarde réglage exclusion IA allergènes:', e);
     }
   },
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // EXPORT / IMPORT
+  // ══════════════════════════════════════════════════════════════════════════
 
   /**
    * Exporte l'intégralité des données sous forme de chaîne JSON formatée (recettes, courses, planning, suivi, frigo, allergènes)
@@ -2263,8 +2115,8 @@ export const StorageService = {
         });
 
         const merged = Array.from(currentMap.values());
+        await DatabaseService.saveAllRecipes(merged);
         memoryCache.recipes = merged;
-        await AsyncStorage.setItem(RECIPES_STORAGE_KEY, JSON.stringify(merged));
       }
 
       // Restauration facultative des entrées du journal des repas si présentes dans le backup
@@ -2337,7 +2189,7 @@ export const StorageService = {
    */
   async hasCompletedOnboarding(): Promise<boolean> {
     try {
-      const val = await AsyncStorage.getItem(ONBOARDING_KEY);
+      const val = await DatabaseService.getSetting(SETTING_ONBOARDING);
       return val === '1';
     } catch {
       return false;
@@ -2349,7 +2201,7 @@ export const StorageService = {
    */
   async completeOnboarding(): Promise<void> {
     try {
-      await AsyncStorage.setItem(ONBOARDING_KEY, '1');
+      await DatabaseService.setSetting(SETTING_ONBOARDING, '1');
     } catch (e) {
       console.error('Erreur sauvegarde onboarding:', e);
     }
@@ -2360,7 +2212,7 @@ export const StorageService = {
    */
   async resetOnboarding(): Promise<void> {
     try {
-      await AsyncStorage.removeItem(ONBOARDING_KEY);
+      await DatabaseService.removeSetting(SETTING_ONBOARDING);
     } catch (e) {
       console.error('Erreur réinitialisation onboarding:', e);
     }

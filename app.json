@@ -53,7 +53,8 @@
         {
           "photosPermission": "Papilles utilise vos photos pour importer des images de recettes depuis votre galerie."
         }
-      ]
+      ],
+      "expo-sqlite"
     ],
     "extra": {
       "eas": {
