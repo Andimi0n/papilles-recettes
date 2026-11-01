@@ -43,25 +43,26 @@
 - [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) (cc648d8)
 
 
-## Phase 4 : Refonte Ergonomique de StockCookModal & Interaction Utilisateur
+## Phase 4 : Refonte Ergonomique de StockCookModal & Interaction Utilisateur [checkpoint: f168aa2]
 
-- [ ] Task: Nouvelle barre unique d'ingrédients & bouton à bascule Obligatoire/Optionnel
-  - [ ] Remplacer la sélection globale par la barre unifiée connectée au catalogue canonique
-  - [ ] Implémenter le toggle Obligatoire / Optionnel
-  - [ ] Implémenter la logique de bascule sans doublon (déplacement d'une catégorie à l'autre si ré-ajouté)
-  - [ ] Afficher les puces avec distinction visuelle claire et suppression instantanée en 1 tap
-- [ ] Task: Intégration du bouton rapide « Tout mon stock en optionnel »
-  - [ ] Ajouter le bouton sous la barre de saisie injectant l'intégralité du stock dans les optionnels
-- [ ] Task: Connexion de la modale des prompts favoris
-  - [ ] Ajouter l'icône marque-page dans le champ des préférences ouvrant `ChefFavoritePromptsModal`
-  - [ ] Pré-remplir instantanément le champ au clic sur un favori
-- [ ] Task: Gestion de la mémoire des refus et navigation réversible
-  - [ ] Conserver l'état complet du formulaire lors du retour depuis l'écran des idées (« Modifier mes critères »)
-  - [ ] Gérer le tableau FIFO des titres rejetés (max 15) lors du clic sur « Proposer 3 autres idées »
-  - [ ] Réinitialiser l'historique des refus dès modification des ingrédients obligatoires ou de la catégorie
-- [ ] Task: Affichage du badge « 🌿 Végétarien » sur les cartes de recettes proposées
-  - [ ] Afficher le badge dans la vue des 3 idées pour toute recette identifiée `isVegetarian`
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: Nouvelle barre unique d'ingrédients & bouton à bascule Obligatoire/Optionnel (cf075ca)
+  - [x] Remplacer la sélection globale par la barre unifiée connectée au catalogue canonique
+  - [x] Implémenter le toggle Obligatoire / Optionnel
+  - [x] Implémenter la logique de bascule sans doublon (déplacement d'une catégorie à l'autre si ré-ajouté)
+  - [x] Afficher les puces avec distinction visuelle claire et suppression instantanée en 1 tap
+- [x] Task: Intégration du bouton rapide « Tout mon stock en optionnel » (cf075ca)
+  - [x] Ajouter le bouton sous la barre de saisie injectant l'intégralité du stock dans les optionnels
+- [x] Task: Connexion de la modale des prompts favoris (cf075ca)
+  - [x] Ajouter l'icône marque-page dans le champ des préférences ouvrant `ChefFavoritePromptsModal`
+  - [x] Pré-remplir instantanément le champ au clic sur un favori
+- [x] Task: Gestion de la mémoire des refus et navigation réversible (cf075ca)
+  - [x] Conserver l'état complet du formulaire lors du retour depuis l'écran des idées (« Modifier mes critères »)
+  - [x] Gérer le tableau FIFO des titres rejetés (max 15) lors du clic sur « Proposer 3 autres idées »
+  - [x] Réinitialiser l'historique des refus dès modification des ingrédients obligatoires ou de la catégorie
+- [x] Task: Affichage du badge « 🌿 Végétarien » sur les cartes de recettes proposées (cf075ca)
+  - [x] Afficher le badge dans la vue des 3 idées pour toute recette identifiée `isVegetarian`
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) (f168aa2)
+
 
 ## Phase 5 : Validation Globale, Tests Métier & Non-Régression
 
