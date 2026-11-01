@@ -80,7 +80,9 @@
     "test:shopping-parser": "node scripts/testShoppingInputParser.js",
     "test:pack": "node scripts/testRecipePackService.js",
     "test:pack-merge": "node scripts/testRecipePackMerge.js",
-    "test:chef-prompts": "node scripts/testChefFavoritePrompts.js"
+    "test:chef-prompts": "node scripts/testChefFavoritePrompts.js",
+    "test:ai-prompt": "node scripts/testRecipeAiIdeasPrompt.js"
+
   },
   "overrides": {
     "braces": "^3.0.3",
