@@ -1,0 +1,8 @@
+{
+  "track_id": "quitoque_pdf_converter_20261101",
+  "type": "feature",
+  "status": "new",
+  "created_at": "2026-11-01T17:08:30+01:00",
+  "updated_at": "2026-11-01T17:08:30+01:00",
+  "description": "Pipeline CLI Python de conversion des fiches recettes PDF Quitoque en pack ZIP Papilles (recipes.json + photos)"
+}
