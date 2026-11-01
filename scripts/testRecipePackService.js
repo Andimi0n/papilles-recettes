@@ -88,9 +88,16 @@ async function runTests() {
 
     assert.strictEqual(packResult.recipes.length, 3, 'Doit extraire 3 recettes du ZIP');
     assert.strictEqual(packResult.images.size, 3, 'Doit extraire 3 images du ZIP');
-    assert.ok(packResult.images.has('photos/clafoutis.jpg') || packResult.images.has('clafoutis.jpg'), 'Image clafoutis présente');
-    assert.ok(packResult.images.has('r3.jpg') || packResult.images.has('photos/r3.jpg'), 'Image r3 présente');
-    console.log('✓ Extraction ZIP complet avec photos OK');
+
+    const clafoutisImg = RecipePackService.findImageBytes(packResult.images, 'photos/clafoutis.jpg');
+    assert.ok(clafoutisImg && clafoutisImg.fileName === 'clafoutis.jpg', 'Image clafoutis résolue');
+
+    const chocolatImg = RecipePackService.findImageBytes(packResult.images, 'chocolat.png');
+    assert.ok(chocolatImg && chocolatImg.fileName === 'chocolat.png', 'Image chocolat résolue par nom simple');
+
+    const r3Img = RecipePackService.findImageBytes(packResult.images, 'r3');
+    assert.ok(r3Img && r3Img.fileName === 'r3.jpg', 'Image r3 résolue par ID de recette sans extension');
+    console.log('✓ Extraction ZIP complet avec photos et résolution findImageBytes OK');
 
     // Test 5: Traitement séquentiel par petits lots
     console.log('\n--- Test 5 : Traitement séquentiel et libération mémoire par lots ---');
