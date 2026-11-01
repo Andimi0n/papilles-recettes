@@ -69,7 +69,7 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
   onNavigateToStock,
   onClose,
 }) => {
-  const { isDark, colors } = useTheme();
+  const { colors } = useTheme();
 
   // Ingrédients principaux (obligatoires) et optionnels pour l'IA
   const [primaryIngredients, setPrimaryIngredients] = useState<string[]>([]);
@@ -917,61 +917,61 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
 
                     {/* 2. Composition des ingrédients (Obligatoire / Optionnel) */}
                     <View style={styles.ingredientsComposerSection}>
-                      <View style={styles.composerHeaderRow}>
-                        <Text style={styles.composerSectionTitle}>Composition des ingrédients</Text>
+                      <View style={styles.composerHeader}>
+                        <Text style={styles.composerSectionTitle}>Ingrédients à utiliser</Text>
+                      </View>
 
-                        {/* Bascule Obligatoire vs Optionnel */}
-                        <View style={styles.toggleRow}>
-                          <TouchableOpacity
+                      {/* Bascule pleine largeur Obligatoire vs Optionnel */}
+                      <View style={styles.inputModeSegmented}>
+                        <TouchableOpacity
+                          style={[
+                            styles.inputModeTab,
+                            ingredientInputMode === 'primary' && styles.inputModeTabActivePrimary,
+                          ]}
+                          onPress={() => setIngredientInputMode('primary')}
+                          activeOpacity={0.8}
+                        >
+                          <Ionicons
+                            name="star"
+                            size={13}
+                            color={ingredientInputMode === 'primary' ? '#FFFFFF' : colors.primary}
+                          />
+                          <Text
                             style={[
-                              styles.toggleBtn,
-                              ingredientInputMode === 'primary' && styles.toggleBtnActivePrimary,
+                              styles.inputModeTabText,
+                              ingredientInputMode === 'primary' && styles.inputModeTabTextActive,
                             ]}
-                            onPress={() => setIngredientInputMode('primary')}
-                            activeOpacity={0.8}
                           >
-                            <Ionicons
-                              name="star"
-                              size={12}
-                              color={ingredientInputMode === 'primary' ? '#FFFFFF' : colors.primary}
-                            />
-                            <Text
-                              style={[
-                                styles.toggleBtnText,
-                                ingredientInputMode === 'primary' && styles.toggleBtnTextActive,
-                              ]}
-                            >
-                              Obligatoire
-                            </Text>
-                          </TouchableOpacity>
+                            Obligatoire
+                          </Text>
+                        </TouchableOpacity>
 
-                          <TouchableOpacity
+                        <TouchableOpacity
+                          style={[
+                            styles.inputModeTab,
+                            ingredientInputMode === 'optional' && styles.inputModeTabActiveOptional,
+                          ]}
+                          onPress={() => setIngredientInputMode('optional')}
+                          activeOpacity={0.8}
+                        >
+                          <Ionicons
+                            name="add-circle-outline"
+                            size={14}
+                            color={
+                              ingredientInputMode === 'optional'
+                                ? '#FFFFFF'
+                                : colors.textSecondary
+                            }
+                          />
+                          <Text
                             style={[
-                              styles.toggleBtn,
-                              ingredientInputMode === 'optional' && styles.toggleBtnActiveOptional,
+                              styles.inputModeTabText,
+                              ingredientInputMode === 'optional' && styles.inputModeTabTextActive,
                             ]}
-                            onPress={() => setIngredientInputMode('optional')}
-                            activeOpacity={0.8}
                           >
-                            <Ionicons
-                              name="add-circle-outline"
-                              size={13}
-                              color={
-                                ingredientInputMode === 'optional'
-                                  ? '#FFFFFF'
-                                  : colors.textSecondary
-                              }
-                            />
-                            <Text
-                              style={[
-                                styles.toggleBtnText,
-                                ingredientInputMode === 'optional' && styles.toggleBtnTextActive,
-                              ]}
-                            >
-                              Optionnel
-                            </Text>
-                          </TouchableOpacity>
-                        </View>
+                            Optionnel
+                          </Text>
+                        </TouchableOpacity>
                       </View>
 
                       {/* Barre unique de recherche d'ingrédient */}
@@ -1917,45 +1917,44 @@ const styles = createDynamicStyles((colors, shadows) => ({
     borderBottomColor: colors.border,
     marginBottom: 14,
   },
-  composerHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 10,
+  composerHeader: {
+    marginBottom: 8,
   },
   composerSectionTitle: {
     fontSize: 14,
     fontWeight: '700',
     color: colors.textPrimary,
   },
-  toggleRow: {
+  inputModeSegmented: {
     flexDirection: 'row',
     backgroundColor: colors.surfaceAlt,
     borderRadius: 10,
-    padding: 2,
+    padding: 3,
     borderWidth: 1,
     borderColor: colors.border,
+    marginBottom: 10,
   },
-  toggleBtn: {
+  inputModeTab: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 9,
-    paddingVertical: 5,
+    justifyContent: 'center',
+    paddingVertical: 7,
     borderRadius: 8,
-    gap: 4,
+    gap: 6,
   },
-  toggleBtnActivePrimary: {
+  inputModeTabActivePrimary: {
     backgroundColor: colors.primary,
   },
-  toggleBtnActiveOptional: {
+  inputModeTabActiveOptional: {
     backgroundColor: colors.primaryDark || '#1B4332',
   },
-  toggleBtnText: {
-    fontSize: 12,
+  inputModeTabText: {
+    fontSize: 13,
     fontWeight: '600',
     color: colors.textSecondary,
   },
-  toggleBtnTextActive: {
+  inputModeTabTextActive: {
     color: '#FFFFFF',
   },
   inputComposerWrapper: {
