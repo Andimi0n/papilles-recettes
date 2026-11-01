@@ -4,12 +4,12 @@
 
 - [x] Task: Définition des types et interfaces pour les Prompts Favoris (2b68d57)
   - [ ] Définir l'interface `ChefFavoritePrompt` (`id`, `title`, `promptText`, `createdAt`) dans `src/types/`
-- [ ] Task: Tests unitaires de persistance dans StorageService (Red Phase)
+- [x] Task: Tests unitaires de persistance dans StorageService (Red Phase) (1ef30d3)
   - [ ] Créer le fichier de test unitaire pour la gestion des prompts favoris
   - [ ] Tester le chargement des 3 seeds par défaut lorsque le stockage est vide
   - [ ] Tester l'ajout, la persistance dans `settings` sous la clé `chef_favorite_prompts`, et la suppression unitaire
   - [ ] Valider que les tests échouent comme attendu
-- [ ] Task: Implémentation de la gestion des prompts favoris dans StorageService (Green Phase)
+- [~] Task: Implémentation de la gestion des prompts favoris dans StorageService (Green Phase)
   - [ ] Implémenter `getChefFavoritePrompts()`, `saveChefFavoritePrompt()` et `deleteChefFavoritePrompt()` dans `src/services/storageService.ts`
   - [ ] Vérifier le passage de l'ensemble des tests au vert
 - [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
