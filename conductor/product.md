@@ -28,6 +28,7 @@
 - Notation par étoiles (0.5 à 5.0).
 - Système de filtres multi-critères : catégories, temps de préparation, notation, régimes, faisabilité immédiate avec le stock.
 - Export et partage de recettes (PDF propre, lien de partage, QR code).
+- **Import & Fusion de Packs de Recettes (JSON & ZIP) :** Importation incrémentale de recettes depuis un fichier `.json` direct ou une archive `.zip` complète contenant les photos de couverture (`photos/`), avec déduplication par titre normalisé, préservation des identifiants existants, assainissement strict via `sanitizeStoredRecipe()` et isolation totale des stocks, courses et journal des repas.
 
 ### 3.2 Hub "Courses & Étagères"
 - **Mes Étagères (Stock Frigo & Placard) :**

@@ -119,7 +119,7 @@ Une application mobile moderne, soignée et intuitive pour gérer vos recettes, 
 - **Sécurisation permanente des photos (`expo-file-system`)** : les photos prises ou sélectionnées depuis votre galerie sont automatiquement enregistrées dans le stockage permanent de l'application (`documentDirectory/recipe_photos/`), vous protégeant ainsi de tout nettoyage de cache de votre téléphone.
 - **Confidentialité totale** : aucune donnée personnelle ou recette n'est transmise à des serveurs tiers.
 - Clé d'API sécurisée avec `expo-secure-store`.
-- **Sauvegarde & Restauration** : exportez toutes vos recettes et données au format JSON (via la feuille de partage de votre téléphone) et restaurez-les en un clic.
+- **Sauvegarde, Restauration & Import de Packs (JSON & ZIP)** : exportez votre collection en JSON ou importez des packs de recettes (.json ou archive .zip contenant un dossier photos/) avec fusion incrémentale sans écraser vos stocks ni vos courses, déduplication intelligente et persistance locale des visuels.
 - Réinitialisation possible avec le catalogue de recettes Marmiton de démonstration.
 
 ---
@@ -199,6 +199,7 @@ papilles-recettes/
     ├── services/               # Services métier & persistance
     │   ├── databaseService.ts  # Persistance relationnelle SQLite (papilles.db, WAL, indexes)
     │   ├── imageStorageService.ts # Stockage permanent des photos locales (expo-file-system)
+    │   ├── recipePackService.ts   # Extraction séquentielle de packs JSON et archives ZIP avec photos
     │   ├── storageService.ts   # Coordinateur métier, cache mémoire & SecureStore
     │   ├── recipeAiService.ts  # Service d'extraction Gemini multimodale
     │   └── marmitonService.ts  # Analyseur et extracteur d'URL Marmiton

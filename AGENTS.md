@@ -49,6 +49,7 @@
   - `storageService.ts` : Wrapper métier et coordinateur de persistance. Gère le cache mémoire `memoryCache`, les listeners réactifs, `sanitizeStoredRecipe()`, `sanitizeImageUrl()`, la cascade du lexique `handleVocabularyCascade()` et délègue à `DatabaseService` et `ImageStorageService`.
   - `databaseService.ts` : Couche de persistance relationnelle SQLite (`papilles.db` avec mode WAL et PRAGMA foreign_keys). Tables indexées : `recipes`, `fridge_items`, `shopping_items`, `weekly_plan`, `meal_logs`, `user_allergens`, `settings`. Gère la migration one-shot depuis AsyncStorage et le fallback automatique pour l'environnement de test Node.js.
   - `imageStorageService.ts` : Gestionnaire de persistance permanente des photos de recettes via `expo-file-system`. Déplace les images locales du cache temporaire de l'OS vers le dossier permanent sécurisé `documentDirectory/recipe_photos/` et nettoie les photos orphelines lors de la suppression de recettes.
+  - `recipePackService.ts` : Extraction et analyse séquentielle par petits lots (protection Zip Slip) de packs de recettes JSON et archives ZIP avec photos de couverture.
   - `vocabularyService.ts` : CRUD du lexique canonique, gestion des alias, rayons (`defaultAisle`), promotion de synonymes et propagation automatique (Observer pattern).
   - `unifiedIngredientService.ts` : Résolution unifiée d'ingrédients et suggestion de synonymes.
   - `recipeAiService.ts` : Appels REST Gemini (`v1beta`) avec cascade multi-modèles (`GEMINI_MODELS_CASCADE`: `gemini-3.8-flash` → `2.5-flash` → `2.0-flash` → `1.5-flash`), backoff exponentiel et auto-réparation JSON (`repairTruncatedJsonString`).
@@ -131,6 +132,8 @@ npm run test:stock         # Tests unitaires stockMatcher & résolution Lexique-
 npm run test:shopping      # Tests unitaires shoppingAggregator, conversions & placard
 npm run test:allergens     # Tests unitaires sécurité allergènes INCO & racines sémantiques
 npm run test:images        # Tests unitaires persistance et isolation ImageStorageService
+npm run test:pack          # Tests unitaires extraction JSON/ZIP RecipePackService
+npm run test:pack-merge    # Tests unitaires fusion incrémentale et déduplication StorageService
 
 # 4. Utilitaires de maintenance (si pertinent)
 npx expo-doctor            # Diagnostic santé Expo

@@ -16,6 +16,8 @@
 ## 3. Composants UI & Médias
 - **Listes haute performance :** `@shopify/flash-list` 2.3.2 (pour les listes de recettes et catalogues d'ingrédients)
 - **Gestion des images & Caméra :** `expo-image`, `expo-image-picker`, `expo-image-manipulator`, `expo-camera`
+- **Sélecteur de documents :** `expo-document-picker` ~58.0.0 (sélection de fichiers locaux `.json` et archives `.zip`)
+- **Décompression & Extraction :** `jszip` ^3.10.1 (extraction mémoire par lots avec protection Zip Slip)
 - **Typographie & Icônes :** `expo-font`, `@expo/vector-icons`
 - **Impression & Export :** `expo-print`, `expo-sharing`, `toqr`
 
