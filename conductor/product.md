@@ -57,8 +57,13 @@
 ### 3.5 IA Multimodale Google Gemini (BYOK) & Chef Anti-Gaspillage
 - **Scanner de Recettes :** Numérisation de recettes depuis photos (support recto/verso pour fiches repas), texte brut ou import de lien web.
 - **Chef IA Anti-Gaspillage en 2 étapes :**
-  1. Génération rapide (< 300 tokens) de 3 propositions sobres basées sur les restes du stock.
+  1. Génération rapide (< 300 tokens) de 3 propositions sobres et variées basées sur les ingrédients sélectionnés et le stock.
   2. Génération complète pas-à-pas de l'idée sélectionnée avec pré-remplissage du carnet.
+- **Composition Flexible & Ergonomie d'Inspiration :**
+  - Sélection unifiée distinguant les ingrédients obligatoires (étoilés) des ingrédients d'accompagnement optionnels, avec action rapide « Mettre tout mon stock en optionnel ».
+  - Gestionnaire de prompts favoris (sauvegarde, application instantanée en 1 tap et suppression) avec graines prédéfinies.
+  - Équilibre culinaire automatique : au moins 1 idée végétarienne garantie sur les 3 avec badge `🌿 Végétarien` (sauf viande expressément imposée).
+  - Navigation réversible sans perte d'état et mémoire des refus (historique FIFO de 15 idées rejetées lors de « Proposer 3 autres idées »).
 - **Résilience & Cascade multi-modèles :** `gemini-3.8-flash` -> `2.5-flash` -> `2.0-flash` -> `1.5-flash` avec backoff exponentiel et auto-réparation JSON.
 - **Conformité éditoriale sobre :** Interdiction des adjectifs superflus ou pompeux.
 

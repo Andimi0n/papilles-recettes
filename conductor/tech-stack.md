@@ -38,4 +38,6 @@
     - `test:shopping` (agrégation métrique O(1))
     - `test:allergens` (sécurité sanitaire des 14 allergènes INCO)
     - `test:images` (isolation et persistance locale des photos)
+    - `test:chef-prompts` (persistance des prompts favoris Chef IA)
+    - `test:ai-prompt` (génération équilibrée d'idées, arbitrage végétarien et mémoire des refus)
     - `test:cascade`, `test:unified-input`, `test:unit-converter`
