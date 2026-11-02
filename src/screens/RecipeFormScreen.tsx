@@ -85,6 +85,11 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
     initialRecipe &&
       (initialRecipe.title || (initialRecipe.ingredients && initialRecipe.ingredients.length > 0))
   );
+  const showCreationModeTabs =
+    !isEditing &&
+    !hasPreloadedData &&
+    !initialRecipe?.id?.startsWith('rec_ai_stock_') &&
+    !initialRecipe?.id?.startsWith('extracted_');
   const [creationMode, setCreationMode] = useState<'text' | 'manual'>('manual');
 
   const [rawTextInput, setRawTextInput] = useState('');
@@ -730,11 +735,15 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
           <Text style={styles.headerTitle}>
             {isEditing
               ? 'Modifier la recette'
-              : creationMode === 'text'
+              : initialRecipe?.id?.startsWith('rec_ai_stock_')
+              ? 'Recette Chef IA'
+              : initialRecipe?.id?.startsWith('extracted_')
+              ? 'Recette numérisée'
+              : creationMode === 'text' && showCreationModeTabs
               ? 'Ajouter une recette'
               : 'Nouvelle recette'}
           </Text>
-          {creationMode === 'manual' ? (
+          {creationMode === 'manual' || !showCreationModeTabs ? (
             <TouchableOpacity onPress={handleSubmit} style={styles.saveBtn} activeOpacity={0.8}>
               <Text style={styles.saveBtnText}>Enregistrer</Text>
             </TouchableOpacity>
@@ -761,7 +770,7 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
         </View>
 
         {/* Sélecteur de mode (Texte brut IA vs À la main) */}
-        {!isEditing && (
+        {showCreationModeTabs && (
           <View style={styles.segmentContainer}>
             <TouchableOpacity
               style={[styles.segmentBtn, creationMode === 'text' && styles.segmentBtnActive]}
@@ -805,7 +814,7 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
           </View>
         )}
 
-        {creationMode === 'text' ? (
+        {creationMode === 'text' && showCreationModeTabs ? (
           <ScrollView
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.textModeScroll}
