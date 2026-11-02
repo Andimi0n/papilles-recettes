@@ -110,4 +110,23 @@ if (!hasDestructuredProps) {
   process.exit(1);
 }
 
+// 4. Épuration du widget : suppression du sous-titre, aperçu et badge stock
+assert.strictEqual(
+  widgetContent.includes('headerSubtitle') || widgetContent.includes('previewRow'),
+  false,
+  'ChefAiWidget ne doit plus afficher de sous-titre ni d’aperçu des ingrédients'
+);
+assert.strictEqual(
+  widgetContent.includes('stockBadge'),
+  false,
+  'ChefAiWidget ne doit plus afficher le badge frigo de stock'
+);
+assert.ok(
+  widgetContent.includes('Trouver 3 idées de recette') &&
+    widgetContent.includes('Inspirations du Chef IA') &&
+    widgetContent.includes('sparkles'),
+  'ChefAiWidget doit conserver uniquement le logo, le titre et le bouton Trouver 3 idées de recette'
+);
+
+console.log('✅ Épuration du widget Chef IA (logo, titre, bouton seuls) validée.');
 console.log('🎉 Tous les tests de ChefAiWidget et HomeScreen sont passés avec succès !');
