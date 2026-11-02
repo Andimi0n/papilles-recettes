@@ -9,6 +9,7 @@ import {
   Alert,
   TextInput,
   Switch,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -29,6 +30,62 @@ import { generateUniqueId } from '../utils/helpers';
 import { ChefFavoritePromptsModal } from './ChefFavoritePromptsModal';
 import { UnifiedIngredientInput } from './UnifiedIngredientInput';
 
+export type IngredientSelectionState = 'primary' | 'optional' | 'inactive';
+
+export function cycleIngredientState(
+  currentState: IngredientSelectionState
+): IngredientSelectionState {
+  switch (currentState) {
+    case 'optional':
+      return 'primary';
+    case 'primary':
+      return 'inactive';
+    case 'inactive':
+    default:
+      return 'optional';
+  }
+}
+
+export function initializeStockIngredients(stockItems: FridgeItem[]): {
+  primaryIngredients: string[];
+  optionalIngredients: string[];
+  inactiveIngredients: string[];
+} {
+  if (!stockItems || stockItems.length === 0) {
+    return {
+      primaryIngredients: [],
+      optionalIngredients: [],
+      inactiveIngredients: [],
+    };
+  }
+  const names = stockItems
+    .map((item) => (item.name ? item.name.trim() : ''))
+    .filter(Boolean);
+  return {
+    primaryIngredients: [],
+    optionalIngredients: names,
+    inactiveIngredients: [],
+  };
+}
+
+export function organizeIngredientsForDisplay(
+  itemsWithState: { name: string; state: IngredientSelectionState }[]
+): { name: string; state: IngredientSelectionState }[] {
+  const primaries = itemsWithState.filter((i) => i.state === 'primary');
+  const optionals = itemsWithState.filter((i) => i.state === 'optional');
+  const inactives = itemsWithState.filter((i) => i.state === 'inactive');
+
+  return [...primaries, ...optionals, ...inactives];
+}
+
+export function getActiveIngredientsForAi(
+  itemsWithState: { name: string; state: IngredientSelectionState }[]
+): { primary: string[]; optional: string[] } {
+  return {
+    primary: itemsWithState.filter((i) => i.state === 'primary').map((i) => i.name),
+    optional: itemsWithState.filter((i) => i.state === 'optional').map((i) => i.name),
+  };
+}
 
 interface StockCookModalProps {
   visible: boolean;
@@ -73,10 +130,11 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
 }) => {
   const { colors } = useTheme();
 
-  // Ingrédients principaux (obligatoires) et optionnels pour l'IA
+  // Ingrédients principaux (⭐ indispensables), optionnels et inactifs
   const [primaryIngredients, setPrimaryIngredients] = useState<string[]>([]);
   const [optionalIngredients, setOptionalIngredients] = useState<string[]>([]);
-  const [ingredientInputMode, setIngredientInputMode] = useState<'primary' | 'optional'>('primary');
+  const [inactiveIngredients, setInactiveIngredients] = useState<string[]>([]);
+  const [isStockExpanded, setIsStockExpanded] = useState<boolean>(false);
   const [ingredientSearchText, setIngredientSearchText] = useState<string>('');
   const [rejectedIdeaTitles, setRejectedIdeaTitles] = useState<string[]>([]);
   const [isFavoritePromptsModalVisible, setIsFavoritePromptsModalVisible] = useState(false);
@@ -111,9 +169,11 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
     setPrevVisible(visible);
     if (visible) {
       if (!preserveSession) {
-        setPrimaryIngredients([]);
-        setOptionalIngredients([]);
-        setIngredientInputMode('primary');
+        const init = initializeStockIngredients(stockItems);
+        setPrimaryIngredients(init.primaryIngredients);
+        setOptionalIngredients(init.optionalIngredients);
+        setInactiveIngredients(init.inactiveIngredients);
+        setIsStockExpanded(false);
         setIngredientSearchText('');
         setRejectedIdeaTitles([]);
         setMealType('Plat');
@@ -187,24 +247,6 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
     };
   }, [aiFlowStep]);
 
-  // Nombre de recettes faisables globalement (réutilise doableCount déjà calculé par HomeScreen)
-  const effectiveDoableCount = useMemo(() => {
-    if (typeof doableCount === 'number') {
-      return doableCount;
-    }
-    if (stockItems.length === 0 || recipes.length === 0) {
-      return 0;
-    }
-    const map = evaluateRecipesWithStock(recipes, stockItems, {
-      assumePantryStaplesAvailable: true,
-    });
-    let count = 0;
-    map.forEach((ev) => {
-      if (ev.isDoable) count++;
-    });
-    return count;
-  }, [doableCount, recipes, stockItems]);
-
   // Recettes faisables avec le stock pour le type de repas choisi (Solution 1)
   const doableRecipesForCurrentType = useMemo(() => {
     if (stockItems.length === 0 || recipes.length === 0) return [];
@@ -214,56 +256,74 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
     return recipes.filter((r) => map.get(r.id)?.isDoable && r.category === mealType);
   }, [recipes, stockItems, mealType]);
 
+  const handleCycleIngredient = (name: string) => {
+    if (primaryIngredients.includes(name)) {
+      setPrimaryIngredients((prev) => prev.filter((i) => i !== name));
+      setInactiveIngredients((prev) => [...prev.filter((i) => i !== name), name]);
+      setRejectedIdeaTitles([]);
+    } else if (optionalIngredients.includes(name)) {
+      setOptionalIngredients((prev) => prev.filter((i) => i !== name));
+      setPrimaryIngredients((prev) => [...prev.filter((i) => i !== name), name]);
+      setRejectedIdeaTitles([]);
+    } else {
+      setInactiveIngredients((prev) => prev.filter((i) => i !== name));
+      setOptionalIngredients((prev) => [...prev.filter((i) => i !== name), name]);
+    }
+  };
+
   const handleAddIngredient = (name: string) => {
     const trimmed = name.trim();
     if (!trimmed) return;
     const trimmedLower = trimmed.toLowerCase();
 
-    if (ingredientInputMode === 'primary') {
-      setOptionalIngredients((prev) => prev.filter((i) => i.toLowerCase() !== trimmedLower));
-      setPrimaryIngredients((prev) => {
-        if (prev.some((i) => i.toLowerCase() === trimmedLower)) return prev;
-        return [...prev, trimmed];
-      });
-      setRejectedIdeaTitles([]);
-    } else {
-      setPrimaryIngredients((prev) => {
-        const filtered = prev.filter((i) => i.toLowerCase() !== trimmedLower);
-        if (filtered.length !== prev.length) {
-          setRejectedIdeaTitles([]);
-        }
-        return filtered;
-      });
-      setOptionalIngredients((prev) => {
-        if (prev.some((i) => i.toLowerCase() === trimmedLower)) return prev;
-        return [...prev, trimmed];
-      });
+    if (primaryIngredients.some((i) => i.toLowerCase() === trimmedLower)) {
+      setIngredientSearchText('');
+      return;
     }
 
+    if (optionalIngredients.some((i) => i.toLowerCase() === trimmedLower)) {
+      setOptionalIngredients((prev) => prev.filter((i) => i.toLowerCase() !== trimmedLower));
+      setPrimaryIngredients((prev) => [...prev, trimmed]);
+      setRejectedIdeaTitles([]);
+      setIngredientSearchText('');
+      return;
+    }
+
+    if (inactiveIngredients.some((i) => i.toLowerCase() === trimmedLower)) {
+      setInactiveIngredients((prev) => prev.filter((i) => i.toLowerCase() !== trimmedLower));
+      setPrimaryIngredients((prev) => [...prev, trimmed]);
+      setRejectedIdeaTitles([]);
+      setIngredientSearchText('');
+      return;
+    }
+
+    setPrimaryIngredients((prev) => [...prev, trimmed]);
+    setRejectedIdeaTitles([]);
     setIngredientSearchText('');
   };
 
-  const handleRemovePrimaryIngredient = (name: string) => {
-    setPrimaryIngredients((prev) => prev.filter((i) => i !== name));
+  const handleIncludeAll = () => {
+    setOptionalIngredients((prev) => [...prev, ...inactiveIngredients]);
+    setInactiveIngredients([]);
+  };
+
+  const handleExcludeAll = () => {
+    setInactiveIngredients((prev) => [...prev, ...primaryIngredients, ...optionalIngredients]);
+    setPrimaryIngredients([]);
+    setOptionalIngredients([]);
     setRejectedIdeaTitles([]);
   };
 
-  const handleRemoveOptionalIngredient = (name: string) => {
-    setOptionalIngredients((prev) => prev.filter((i) => i !== name));
-  };
+  const allItemsWithState = useMemo(() => {
+    const items: { name: string; state: IngredientSelectionState }[] = [
+      ...primaryIngredients.map((name) => ({ name, state: 'primary' as const })),
+      ...optionalIngredients.map((name) => ({ name, state: 'optional' as const })),
+      ...inactiveIngredients.map((name) => ({ name, state: 'inactive' as const })),
+    ];
+    return organizeIngredientsForDisplay(items);
+  }, [primaryIngredients, optionalIngredients, inactiveIngredients]);
 
-  const handleAllStockToOptional = () => {
-    const primaryLower = new Set(primaryIngredients.map((i) => i.toLowerCase()));
-    const validStockNames = stockItems
-      .map((item) => item.name.trim())
-      .filter((n) => Boolean(n) && !primaryLower.has(n.toLowerCase()));
-
-    setOptionalIngredients((prev) => {
-      const existingLower = new Set(prev.map((i) => i.toLowerCase()));
-      const toAdd = validStockNames.filter((n) => !existingLower.has(n.toLowerCase()));
-      return [...prev, ...toAdd];
-    });
-  };
+  const activeCount = primaryIngredients.length + optionalIngredients.length;
 
   // Étape 1 : Demande de 3 idées gourmandes au Chef IA
   const handleStartFetchIdeas = async () => {
@@ -545,12 +605,12 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
 
             <View style={styles.headerTitleContainer}>
               <Text style={styles.headerTitle}>
-                {aiFlowStep === 'ideas' ? 'Inspirations du Chef' : 'Cuisiner avec mon stock'}
+                {aiFlowStep === 'ideas' ? 'Inspirations du Chef' : 'Inspirations du Chef IA'}
               </Text>
               <Text style={styles.headerSubtitle}>
                 {aiFlowStep === 'ideas'
                   ? '3 idées imaginées pour vous'
-                  : 'Anti-gaspillage, carnet & inspirations IA'}
+                  : 'Création sur-mesure & anti-gaspillage'}
               </Text>
             </View>
 
@@ -1005,82 +1065,66 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
                         />
                       </View>
 
-                      {/* Information filtre anti-redondance ciblée (Solution 1) */}
-                      <View style={styles.doableFilterInfoBox}>
-                        <Ionicons
-                          name={
-                            doableRecipesForCurrentType.length > 0
-                              ? 'shield-checkmark-outline'
-                              : 'sparkles-outline'
-                          }
-                          size={15}
-                          color={colors.primary}
-                        />
-                        <Text style={styles.doableFilterInfoText}>
-                          {doableRecipesForCurrentType.length > 0
-                            ? `${doableRecipesForCurrentType.length} ${mealType.toLowerCase()}${doableRecipesForCurrentType.length > 1 ? 's' : ''} déjà faisable${doableRecipesForCurrentType.length > 1 ? 's' : ''} dans votre carnet sera évité${doableRecipesForCurrentType.length > 1 ? 's' : ''}`
-                            : `Aucune ${mealType.toLowerCase()} similaire en stock dans votre carnet : champ libre total pour le Chef IA`}
-                        </Text>
-                      </View>
+                      {/* Information filtre anti-redondance ciblée interactive */}
+                      {doableRecipesForCurrentType.length > 0 ? (
+                        <TouchableOpacity
+                          style={styles.doableFilterInfoBoxClickable}
+                          onPress={() => {
+                            onApplyDoableFilter(true);
+                            onClose();
+                          }}
+                          activeOpacity={0.8}
+                          accessibilityRole="button"
+                          accessibilityLabel="Voir les recettes faisables de votre carnet"
+                        >
+                          <Ionicons
+                            name="shield-checkmark-outline"
+                            size={15}
+                            color={colors.primary}
+                          />
+                          <Text style={styles.doableFilterInfoText}>
+                            Anti-doublon : {doableRecipesForCurrentType.length} {mealType.toLowerCase()}{doableRecipesForCurrentType.length > 1 ? 's' : ''} faisable{doableRecipesForCurrentType.length > 1 ? 's' : ''} dans votre carnet sera évité{doableRecipesForCurrentType.length > 1 ? 's' : ''}
+                          </Text>
+                          <Text style={styles.doableFilterInfoAction}>Voir ›</Text>
+                        </TouchableOpacity>
+                      ) : (
+                        <View style={styles.doableFilterInfoBox}>
+                          <Ionicons
+                            name="sparkles-outline"
+                            size={15}
+                            color={colors.primary}
+                          />
+                          <Text style={styles.doableFilterInfoText}>
+                            Aucune {mealType.toLowerCase()} similaire en stock dans votre carnet : champ libre total pour le Chef IA
+                          </Text>
+                        </View>
+                      )}
                     </View>
 
-                    {/* 2. Composition des ingrédients (Obligatoire / Optionnel) */}
+                    {/* 2. Composition tactile des ingrédients (Cycle 3 états) */}
                     <View style={styles.ingredientsComposerSection}>
                       <View style={styles.composerHeader}>
-                        <Text style={styles.composerSectionTitle}>Ingrédients à utiliser</Text>
-                      </View>
-
-                      {/* Bascule pleine largeur Obligatoire vs Optionnel */}
-                      <View style={styles.inputModeSegmented}>
-                        <TouchableOpacity
-                          style={[
-                            styles.inputModeTab,
-                            ingredientInputMode === 'primary' && styles.inputModeTabActivePrimary,
-                          ]}
-                          onPress={() => setIngredientInputMode('primary')}
-                          activeOpacity={0.8}
-                        >
-                          <Ionicons
-                            name="star"
-                            size={13}
-                            color={ingredientInputMode === 'primary' ? '#FFFFFF' : colors.primary}
-                          />
-                          <Text
-                            style={[
-                              styles.inputModeTabText,
-                              ingredientInputMode === 'primary' && styles.inputModeTabTextActive,
-                            ]}
-                          >
-                            Obligatoire
+                        <View style={styles.composerTitleRow}>
+                          <Ionicons name="nutrition-outline" size={16} color={colors.primary} />
+                          <Text style={styles.composerSectionTitle}>
+                            Ingrédients ({activeCount} actif{activeCount > 1 ? 's' : ''})
                           </Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                          style={[
-                            styles.inputModeTab,
-                            ingredientInputMode === 'optional' && styles.inputModeTabActiveOptional,
-                          ]}
-                          onPress={() => setIngredientInputMode('optional')}
-                          activeOpacity={0.8}
-                        >
-                          <Ionicons
-                            name="add-circle-outline"
-                            size={14}
-                            color={
-                              ingredientInputMode === 'optional'
-                                ? '#FFFFFF'
-                                : colors.textSecondary
-                            }
-                          />
-                          <Text
-                            style={[
-                              styles.inputModeTabText,
-                              ingredientInputMode === 'optional' && styles.inputModeTabTextActive,
-                            ]}
+                        </View>
+                        <View style={styles.quickActionsRow}>
+                          <TouchableOpacity
+                            onPress={handleIncludeAll}
+                            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                           >
-                            Optionnel
-                          </Text>
-                        </TouchableOpacity>
+                            <Text style={styles.quickActionText}>Tout inclure</Text>
+                          </TouchableOpacity>
+                          <Text style={styles.quickActionDivider}>•</Text>
+                          <TouchableOpacity
+                            onPress={handleExcludeAll}
+                            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                          >
+                            <Text style={styles.quickActionText}>Tout exclure</Text>
+                          </TouchableOpacity>
+                        </View>
                       </View>
 
                       {/* Barre unique de recherche d'ingrédient */}
@@ -1088,11 +1132,7 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
                         <UnifiedIngredientInput
                           value={ingredientSearchText}
                           onChangeText={setIngredientSearchText}
-                          placeholder={
-                            ingredientInputMode === 'primary'
-                              ? 'Ajouter un ingrédient obligatoire...'
-                              : 'Ajouter un ingrédient optionnel...'
-                          }
+                          placeholder="Rechercher ou ajouter un ingrédient..."
                           placeholderTextColor={colors.textMuted}
                           onSelectIngredient={(canonical) => {
                             handleAddIngredient(canonical.canonicalName);
@@ -1108,71 +1148,103 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
                         />
                       </View>
 
-                      {/* Action rapide : Tout mon stock en optionnel */}
-                      {stockItems.length > 0 && (
-                        <TouchableOpacity
-                          style={styles.allStockToOptionalBtn}
-                          onPress={handleAllStockToOptional}
-                          activeOpacity={0.7}
-                        >
-                          <Ionicons name="sparkles-outline" size={15} color={colors.primary} />
-                          <Text style={styles.allStockToOptionalBtnText}>
-                            Mettre tout mon stock en optionnel ({stockItems.length} aliment{stockItems.length > 1 ? 's' : ''})
-                          </Text>
-                        </TouchableOpacity>
-                      )}
-
-                      {/* Puces obligatoires */}
-                      {primaryIngredients.length > 0 && (
-                        <View style={styles.chipsSection}>
-                          <Text style={styles.chipsSectionHeader}>
-                            ⭐ Ingrédients obligatoires ({primaryIngredients.length}) :
-                          </Text>
-                          <View style={styles.chipsWrap}>
-                            {primaryIngredients.map((name) => (
-                              <TouchableOpacity
-                                key={`prim_${name}`}
-                                style={styles.primaryChip}
-                                onPress={() => handleRemovePrimaryIngredient(name)}
-                                activeOpacity={0.7}
-                              >
-                                <Ionicons name="star" size={11} color="#FFFFFF" />
-                                <Text style={styles.primaryChipText}>{name}</Text>
-                                <Ionicons name="close-circle" size={14} color="#FFFFFF" />
-                              </TouchableOpacity>
-                            ))}
-                          </View>
+                      {/* Légende interactive concise */}
+                      <View style={styles.legendRow}>
+                        <View style={styles.legendItem}>
+                          <Ionicons name="star" size={11} color={colors.primary} />
+                          <Text style={styles.legendText}>⭐ Indispensable</Text>
                         </View>
-                      )}
-
-                      {/* Puces optionnelles */}
-                      {optionalIngredients.length > 0 && (
-                        <View style={styles.chipsSection}>
-                          <Text style={styles.chipsSectionHeader}>
-                            Ingrédients optionnels ({optionalIngredients.length}) :
-                          </Text>
-                          <View style={styles.chipsWrap}>
-                            {optionalIngredients.map((name) => (
-                              <TouchableOpacity
-                                key={`opt_${name}`}
-                                style={styles.optionalChip}
-                                onPress={() => handleRemoveOptionalIngredient(name)}
-                                activeOpacity={0.7}
-                              >
-                                <Text style={styles.optionalChipText}>{name}</Text>
-                                <Ionicons name="close-circle" size={14} color={colors.textSecondary} />
-                              </TouchableOpacity>
-                            ))}
-                          </View>
+                        <View style={styles.legendItem}>
+                          <Ionicons name="checkmark-circle-outline" size={12} color={colors.primary} />
+                          <Text style={styles.legendText}>Optionnel</Text>
                         </View>
-                      )}
+                        <View style={styles.legendItem}>
+                          <Ionicons name="close-circle-outline" size={12} color={colors.textMuted} />
+                          <Text style={styles.legendText}>Exclu</Text>
+                        </View>
+                      </View>
 
-                      {/* Guide si vide */}
-                      {primaryIngredients.length === 0 && optionalIngredients.length === 0 && (
+                      {/* Nuage de puces interactives avec défilement interne et limitation de hauteur */}
+                      {allItemsWithState.length > 0 ? (
+                        <View style={styles.chipsOuterContainer}>
+                          <ScrollView
+                            style={[
+                              styles.chipsScrollView,
+                              !isStockExpanded && allItemsWithState.length > 10 && styles.chipsScrollViewCollapsed,
+                            ]}
+                            contentContainerStyle={styles.chipsWrap}
+                            nestedScrollEnabled={true}
+                            showsVerticalScrollIndicator={isStockExpanded}
+                          >
+                            {allItemsWithState.map(({ name, state }) => {
+                              const isPrimary = state === 'primary';
+                              const isOptional = state === 'optional';
+                              const isInactive = state === 'inactive';
+
+                              return (
+                                <TouchableOpacity
+                                  key={`chip_${name}`}
+                                  style={[
+                                    styles.stockChip,
+                                    isPrimary && styles.stockChipPrimary,
+                                    isOptional && styles.stockChipOptional,
+                                    isInactive && styles.stockChipInactive,
+                                  ]}
+                                  onPress={() => handleCycleIngredient(name)}
+                                  activeOpacity={0.7}
+                                  accessibilityRole="button"
+                                  accessibilityLabel={`${name}, état : ${isPrimary ? 'indispensable' : isOptional ? 'optionnel' : 'exclu'}. Touchez pour modifier.`}
+                                >
+                                  {isPrimary && <Ionicons name="star" size={11} color="#FFFFFF" />}
+                                  {isOptional && (
+                                    <Ionicons
+                                      name="checkmark-circle-outline"
+                                      size={12}
+                                      color={colors.primary}
+                                    />
+                                  )}
+                                  {isInactive && (
+                                    <Ionicons
+                                      name="close-circle-outline"
+                                      size={12}
+                                      color={colors.textMuted}
+                                    />
+                                  )}
+                                  <Text
+                                    style={[
+                                      styles.stockChipText,
+                                      isPrimary && styles.stockChipTextPrimary,
+                                      isOptional && styles.stockChipTextOptional,
+                                      isInactive && styles.stockChipTextInactive,
+                                    ]}
+                                  >
+                                    {name}
+                                  </Text>
+                                </TouchableOpacity>
+                              );
+                            })}
+                          </ScrollView>
+
+                          {/* Bouton d'expansion si stock volumineux */}
+                          {allItemsWithState.length > 10 && (
+                            <TouchableOpacity
+                              style={styles.expandStockBtn}
+                              onPress={() => setIsStockExpanded((prev) => !prev)}
+                              activeOpacity={0.7}
+                            >
+                              <Text style={styles.expandStockBtnText}>
+                                {isStockExpanded
+                                  ? 'Réduire l’affichage ▴'
+                                  : `Voir tout mon stock (${allItemsWithState.length} aliments) ▾`}
+                              </Text>
+                            </TouchableOpacity>
+                          )}
+                        </View>
+                      ) : (
                         <View style={styles.emptyIngredientsGuide}>
                           <Ionicons name="restaurant-outline" size={20} color={colors.textMuted} />
                           <Text style={styles.emptyIngredientsGuideText}>
-                            Ajoutez des ingrédients ci-dessus ou cliquez sur « Mettre tout mon stock en optionnel ».
+                            Ajoutez des ingrédients ci-dessus pour composer votre repas.
                           </Text>
                         </View>
                       )}
@@ -1182,94 +1254,17 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
                     <TouchableOpacity
                       style={[
                         styles.generateAiBtn,
-                        primaryIngredients.length === 0 &&
-                          optionalIngredients.length === 0 &&
-                          styles.generateAiBtnDisabled,
+                        activeCount === 0 && styles.generateAiBtnDisabled,
                       ]}
                       onPress={handleStartFetchIdeas}
-                      disabled={
-                        primaryIngredients.length === 0 && optionalIngredients.length === 0
-                      }
+                      disabled={activeCount === 0}
                       activeOpacity={0.8}
                     >
                       <Ionicons name="sparkles" size={18} color="#FFFFFF" />
                       <Text style={styles.generateAiBtnText}>
-                        💡 Trouver 3 idées de {mealType.toLowerCase()}
+                        💡 Trouver 3 idées de {mealType.toLowerCase()} ({activeCount} ingrédient{activeCount > 1 ? 's' : ''})
                       </Text>
                     </TouchableOpacity>
-                  </View>
-
-
-                  {/* SECTION 2 : VÉRIFICATION DU CARNET (Besoin 1) */}
-                  <View style={styles.card}>
-                    <View style={styles.cardHeaderRow}>
-                      <View style={styles.cardIconBox}>
-                        <Ionicons name="book-outline" size={18} color={colors.primary} />
-                      </View>
-                      <View style={styles.cardTitleCol}>
-                        <Text style={styles.cardTitle}>Dans votre carnet</Text>
-                        <Text style={styles.cardSubtitle}>
-                          Recettes réalisables immédiatement avec vos stocks
-                        </Text>
-                      </View>
-                    </View>
-
-                    <View style={styles.carnetStatusRow}>
-                      <View style={styles.carnetStatBox}>
-                        <Text style={styles.carnetStatNumber}>{effectiveDoableCount}</Text>
-                        <Text style={styles.carnetStatLabel}>
-                          {effectiveDoableCount > 1 ? 'recettes prêtes' : 'recette prête'}
-                        </Text>
-                      </View>
-
-                      <View style={styles.carnetStatDescCol}>
-                        {effectiveDoableCount > 0 ? (
-                          <Text style={styles.carnetStatDescText}>
-                            Vous avez 100% des ingrédients requis (hors sel, poivre et huile du
-                            placard) pour ces recettes !
-                          </Text>
-                        ) : (
-                          <Text style={styles.carnetStatDescText}>
-                            Aucune recette ne correspond à 100% à votre stock actuel. Le Chef IA
-                            ci-dessus vous permet d&apos;inventer des recettes sur-mesure !
-                          </Text>
-                        )}
-                      </View>
-                    </View>
-
-                    {effectiveDoableCount > 0 && (
-                      <View style={styles.carnetActionRow}>
-                        {isDoableFilterActive ? (
-                          <TouchableOpacity
-                            style={[styles.carnetBtn, styles.carnetBtnActive]}
-                            onPress={() => {
-                              onApplyDoableFilter(false);
-                              onClose();
-                            }}
-                            activeOpacity={0.8}
-                          >
-                            <Ionicons name="close-circle-outline" size={18} color={colors.danger} />
-                            <Text style={styles.carnetBtnTextActive}>
-                              Désactiver le filtre de stock
-                            </Text>
-                          </TouchableOpacity>
-                        ) : (
-                          <TouchableOpacity
-                            style={styles.carnetBtn}
-                            onPress={() => {
-                              onApplyDoableFilter(true);
-                              onClose();
-                            }}
-                            activeOpacity={0.8}
-                          >
-                            <Ionicons name="funnel" size={16} color="#FFFFFF" />
-                            <Text style={styles.carnetBtnText}>
-                              Voir mes {effectiveDoableCount} recette{effectiveDoableCount > 1 ? 's' : ''} faisable{effectiveDoableCount > 1 ? 's' : ''}
-                            </Text>
-                          </TouchableOpacity>
-                        )}
-                      </View>
-                    )}
                   </View>
                 </>
               )}
@@ -1293,6 +1288,16 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
                   Pour inventer des recettes avec vos restes, l&apos;application utilise l&apos;intelligence
                   artificielle gratuite Google Gemini (modèle BYOK).
                 </Text>
+                <TouchableOpacity
+                  style={styles.apiKeyStudioBtn}
+                  onPress={() => Linking.openURL('https://aistudio.google.com/app/apikey')}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="open-outline" size={15} color={colors.primary} />
+                  <Text style={styles.apiKeyStudioBtnText}>
+                    Obtenir ma clé gratuite (Google AI Studio)
+                  </Text>
+                </TouchableOpacity>
                 <TextInput
                   style={styles.apiKeyInput}
                   placeholder="Collez votre clé API Gemini (AIza...)"
@@ -1494,174 +1499,6 @@ const styles = createDynamicStyles((colors, shadows) => ({
     fontSize: 12,
     color: colors.textSecondary,
     marginTop: 1,
-  },
-
-  // Stat Carnet
-  carnetStatusRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: 14,
-    padding: 12,
-    marginBottom: 14,
-  },
-  carnetStatBox: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingRight: 14,
-    borderRightWidth: 1,
-    borderRightColor: colors.border,
-    minWidth: 70,
-  },
-  carnetStatNumber: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: colors.primary,
-  },
-  carnetStatLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  carnetStatDescCol: {
-    flex: 1,
-    paddingLeft: 12,
-  },
-  carnetStatDescText: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    lineHeight: 18,
-  },
-  carnetActionRow: {
-    marginTop: 2,
-  },
-  carnetBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.primary,
-    borderRadius: 12,
-    paddingVertical: 12,
-    gap: 8,
-  },
-  carnetBtnActive: {
-    backgroundColor: colors.surfaceAlt,
-    borderWidth: 1,
-    borderColor: colors.danger + '55',
-  },
-  carnetBtnText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  carnetBtnTextActive: {
-    color: colors.danger,
-    fontSize: 14,
-    fontWeight: '700',
-  },
-
-  // Sélection stock chips
-  stockSelectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-    marginTop: 4,
-  },
-  stockSelectionTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  stockSelectionActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  stockMiniLink: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-  stockMiniDivider: {
-    fontSize: 10,
-    color: colors.textMuted,
-  },
-  stockAislesContainer: {
-    gap: 10,
-    marginBottom: 12,
-  },
-  aisleGroupCard: {
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: 14,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  aisleGroupHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-    paddingBottom: 6,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border + '60',
-  },
-  aisleGroupTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
-  },
-  aisleIconBox: {
-    width: 24,
-    height: 24,
-    borderRadius: 6,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  aisleGroupTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  aisleGroupCount: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  aisleActionToggleText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  aisleChipsWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-  },
-  stockChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surfaceAlt,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 20,
-    gap: 6,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  stockChipSelected: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  stockChipText: {
-    fontSize: 13,
-    color: colors.textPrimary,
-    fontWeight: '500',
-  },
-  stockChipTextSelected: {
-    color: '#FFFFFF',
-    fontWeight: '600',
   },
 
   // Paramètres IA
@@ -2028,116 +1865,170 @@ const styles = createDynamicStyles((colors, shadows) => ({
     color: colors.textSecondary,
   },
 
-  // Composition des ingrédients
+  // Composition tactile des ingrédients
   ingredientsComposerSection: {
-    paddingVertical: 14,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
     marginBottom: 14,
   },
   composerHeader: {
-    marginBottom: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  composerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   composerSectionTitle: {
     fontSize: 14,
     fontWeight: '700',
     color: colors.textPrimary,
   },
-  inputModeSegmented: {
-    flexDirection: 'row',
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: 10,
-    padding: 3,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: 10,
-  },
-  inputModeTab: {
-    flex: 1,
+  quickActionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 7,
-    borderRadius: 8,
-    gap: 6,
+    gap: 8,
   },
-  inputModeTabActivePrimary: {
-    backgroundColor: colors.primary,
-  },
-  inputModeTabActiveOptional: {
-    backgroundColor: colors.primaryDark || '#1B4332',
-  },
-  inputModeTabText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  inputModeTabTextActive: {
-    color: '#FFFFFF',
-  },
-  inputComposerWrapper: {
-    zIndex: 100,
-    marginBottom: 8,
-  },
-  allStockToOptionalBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.primaryLight,
-    borderRadius: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    marginBottom: 12,
-    gap: 6,
-  },
-  allStockToOptionalBtnText: {
+  quickActionText: {
     fontSize: 12,
     fontWeight: '600',
     color: colors.primary,
   },
-  chipsSection: {
+  quickActionDivider: {
+    fontSize: 10,
+    color: colors.textMuted,
+  },
+  inputComposerWrapper: {
+    zIndex: 100,
     marginBottom: 10,
   },
-  chipsSectionHeader: {
-    fontSize: 12,
-    fontWeight: '600',
+  legendRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 10,
+    paddingHorizontal: 2,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  legendText: {
+    fontSize: 11,
     color: colors.textSecondary,
-    marginBottom: 6,
+    fontWeight: '500',
+  },
+  chipsOuterContainer: {
+    marginBottom: 10,
+  },
+  chipsScrollView: {
+    maxHeight: 280,
+  },
+  chipsScrollViewCollapsed: {
+    maxHeight: 125,
   },
   chipsWrap: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 6,
   },
-  primaryChip: {
+  stockChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.primary,
-    borderRadius: 8,
-    paddingHorizontal: 9,
-    paddingVertical: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
     gap: 5,
   },
-  primaryChipText: {
+  stockChipPrimary: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  stockChipOptional: {
+    backgroundColor: colors.primary + '18',
+    borderColor: colors.primary + '35',
+  },
+  stockChipInactive: {
+    backgroundColor: colors.surfaceAlt,
+    borderColor: colors.borderLight,
+    opacity: 0.6,
+  },
+  stockChipText: {
     fontSize: 12,
-    fontWeight: '600',
+  },
+  stockChipTextPrimary: {
+    fontWeight: '700',
     color: '#FFFFFF',
   },
-  optionalChip: {
+  stockChipTextOptional: {
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  stockChipTextInactive: {
+    fontWeight: '500',
+    color: colors.textMuted,
+    textDecorationLine: 'line-through',
+  },
+  expandStockBtn: {
+    alignSelf: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    marginTop: 8,
+    borderRadius: 12,
+    backgroundColor: colors.surfaceAlt,
+  },
+  expandStockBtnText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  doableFilterInfoBoxClickable: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surfaceAlt,
+    justifyContent: 'space-between',
+    backgroundColor: colors.primaryLight,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-    gap: 5,
+    borderColor: colors.primary + '30',
+    marginTop: 8,
   },
-  optionalChipText: {
+  doableFilterInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flex: 1,
+  },
+  doableFilterInfoAction: {
     fontSize: 12,
-    fontWeight: '500',
-    color: colors.textPrimary,
+    fontWeight: '700',
+    color: colors.primary,
+    marginLeft: 8,
+  },
+  apiKeyStudioBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    backgroundColor: colors.primary + '15',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.primary + '35',
+    marginBottom: 12,
+  },
+  apiKeyStudioBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.primary,
   },
   emptyIngredientsGuide: {
     flexDirection: 'row',
