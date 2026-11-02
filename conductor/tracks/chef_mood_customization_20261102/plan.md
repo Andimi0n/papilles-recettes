@@ -55,3 +55,10 @@
   - [x] Exécuter `npm test` pour s'assurer que tous les tests unitaires passent
   - [x] Exécuter `npx tsc --noEmit && npx expo lint` (zéro erreur tolérée)
 - [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) (911d237)
+
+---
+
+## Phase: Review Fixes
+
+- [x] Task: Apply review suggestions (4bbac60)
+
