@@ -25,6 +25,7 @@ import {
   FAST_GEMINI_MODELS_CASCADE,
   GEMINI_MODELS_CASCADE,
   CHEF_MOODS,
+  ChefMoodOption,
 } from '../services/recipeAiService';
 import { StorageService } from '../services/storageService';
 import { generateUniqueId } from '../utils/helpers';
@@ -189,6 +190,7 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
     isFallback: false,
   });
   const [chefMood, setChefMood] = useState<string>('quotidien');
+  const [availableMoods, setAvailableMoods] = useState<ChefMoodOption[]>(CHEF_MOODS);
 
   // Saisie clé API si absente
   const [isApiKeyModalVisible, setIsApiKeyModalVisible] = useState(false);
@@ -258,6 +260,26 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
     StorageService.getDefaultServings().then((val) => {
       if (isMounted && val && val >= 1) setServings(val);
     });
+    return () => {
+      isMounted = false;
+    };
+  }, [visible]);
+
+  // Charger les humeurs du Chef depuis le storage si configuré
+  useEffect(() => {
+    if (!visible) return;
+    let isMounted = true;
+    StorageService.getChefMoods()
+      .then((moods) => {
+        if (isMounted && moods && moods.length > 0) {
+          setAvailableMoods(moods);
+          setChefMood((current) => {
+            if (moods.some((m) => m.id === current)) return current;
+            return moods[0].id;
+          });
+        }
+      })
+      .catch(() => {});
     return () => {
       isMounted = false;
     };
@@ -558,6 +580,7 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
           rejectedIdeaTitles: customRejected || rejectedIdeaTitles,
           excludedAllergens,
           chefMood,
+          availableMoods,
           additionalPreferences: additionalPreferences.trim(),
           signal: abortController.signal,
           onModelAttempt: (model, isFallback) => {
@@ -656,6 +679,7 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
           excludedAllergens,
           additionalPreferences: additionalPreferences.trim(),
           chefMood: chefMood,
+          availableMoods,
           signal: abortController.signal,
           onModelAttempt: (model, isFallback) => {
             setActiveModelInfo({ model, isFallback });
@@ -1214,7 +1238,7 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
                       showsHorizontalScrollIndicator={false}
                       contentContainerStyle={styles.moodSelectorRow}
                     >
-                      {CHEF_MOODS.map((m) => {
+                      {availableMoods.map((m) => {
                         const isSelected = chefMood === m.id;
                         return (
                           <TouchableOpacity
@@ -1227,7 +1251,7 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
                             activeOpacity={0.7}
                           >
                             <Ionicons
-                              name={m.icon as any}
+                              name={(m.icon || 'sparkles-outline') as any}
                               size={13}
                               color={isSelected ? '#FFFFFF' : colors.textSecondary}
                             />
