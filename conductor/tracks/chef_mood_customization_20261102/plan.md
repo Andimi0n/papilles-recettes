@@ -1,6 +1,6 @@
 # Implementation Plan: Personnalisation des Humeurs & Prompts du Chef IA
 
-## Phase 1: Persistance & Logique Métier des Humeurs du Chef (TDD)
+## Phase 1: Persistance & Logique Métier des Humeurs du Chef (TDD) [checkpoint: 5c83550]
 
 - [x] Task: Écrire les tests unitaires pour la persistance et la gestion des humeurs du Chef (5cf9660)
   - [x] Créer le fichier de test `scripts/testChefMoods.js` et le script npm `test:chef-moods`
@@ -17,7 +17,7 @@
   - [x] Permettre à `generateRecipeIdeasFromStock` et `generateFullRecipeFromIdea` d'utiliser les humeurs configurées
   - [x] Garantir le repli de sécurité sur la première humeur par défaut en cas d'identifiant inconnu
   - [x] Vérifier l'intégrité avec les tests existants de l'IA
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) (5c83550)
 
 ---
 
