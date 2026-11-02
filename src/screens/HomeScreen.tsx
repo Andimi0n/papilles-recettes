@@ -73,7 +73,7 @@ interface HomeScreenProps {
   onStockModalReopened?: () => void;
 }
 
-export const HomeScreen: React.FC<HomeScreenProps> = ({
+const HomeScreenComponent: React.FC<HomeScreenProps> = ({
   recipes,
   onSelectRecipe,
   onAddNewRecipe,
@@ -1528,4 +1528,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     </SafeAreaView>
   );
 };
+
+HomeScreenComponent.displayName = 'HomeScreen';
+export const HomeScreen = React.memo(HomeScreenComponent);
 

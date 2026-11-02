@@ -32,9 +32,54 @@ SplashScreen.preventAutoHideAsync().catch(() => {});
 
 type AppScreen = 'home' | 'planner' | 'shopping' | 'settings' | 'detail' | 'form' | 'scan';
 
+interface TabPaneProps {
+  isActive: boolean;
+  hasBeenViewed: boolean;
+  children: () => React.ReactNode;
+}
+
+/**
+ * Conteneur d'onglet Keep-Alive à isolation de rendu native :
+ * - Montage paresseux (ne monte pas tant que l'onglet n'a pas été visité).
+ * - Gel total de la réconciliation React dès que l'onglet est masqué (0% CPU/re-rendu).
+ * - Dégel et rafraîchissement automatique dès que l'onglet redevient actif.
+ */
+const TabPane = React.memo<TabPaneProps>(
+  ({ isActive, hasBeenViewed, children }) => {
+    if (!hasBeenViewed) {
+      return null;
+    }
+    return (
+      <View style={[styles.tabContainer, !isActive && styles.tabHidden]}>
+        {children()}
+      </View>
+    );
+  },
+  (prevProps, nextProps) => {
+    // Si l'onglet n'a jamais été visité et ne devient pas actif : ignorer
+    if (!prevProps.hasBeenViewed && !nextProps.hasBeenViewed) {
+      return true;
+    }
+    // Si l'onglet était inactif et reste inactif : geler le sous-arbre (zéro re-rendu)
+    if (!prevProps.isActive && !nextProps.isActive && prevProps.hasBeenViewed === nextProps.hasBeenViewed) {
+      return true;
+    }
+    return false;
+  }
+);
+TabPane.displayName = 'TabPane';
+
 function AppContent() {
   const { isDark, colors, isLoaded: isThemeLoaded } = useTheme();
   const [currentScreen, setCurrentScreen] = useState<AppScreen>('home');
+  const [viewedTabs, setViewedTabs] = useState<Record<string, boolean>>({ home: true });
+
+  useEffect(() => {
+    if (['home', 'planner', 'shopping', 'settings'].includes(currentScreen)) {
+      setViewedTabs((prev) => (prev[currentScreen] ? prev : { ...prev, [currentScreen]: true }));
+    }
+  }, [currentScreen]);
+
   const [returnScreenAfterDetail, setReturnScreenAfterDetail] = useState<'home' | 'planner' | 'shopping' | 'settings'>('home');
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [selectedRecipeId, setSelectedRecipeId] = useState<string | null>(null);
@@ -347,51 +392,71 @@ function AppContent() {
   return (
     <View style={styles.container}>
       <StatusBar style={isDark ? 'light' : 'dark'} />
-        {/* Écrans Principaux avec Keep-Alive (onglets persistants en mémoire) */}
+        {/* Écrans Principaux avec Keep-Alive (onglets persistants en mémoire, isolés et gelés si inactifs) */}
         <View style={styles.mainContent}>
-          <View style={[styles.tabContainer, currentScreen !== 'home' && styles.tabHidden]}>
-            <HomeScreen
-              recipes={recipes}
-              onSelectRecipe={(r) => navigateToDetail(r, 'home')}
-              onAddNewRecipe={navigateToAddRecipe}
-              onScanRecipe={navigateToScan}
-              onImportRecipe={handleRecipeImportedFromHome}
-              onQuickRate={handleUpdateRating}
-              onOpenSettings={() => setCurrentScreen('settings')}
-              onNavigateToJournal={navigateToJournal}
-              onNavigateToStock={() => navigateToShopping('fridge')}
-              initialOnlyDoable={initialHomeDoableFilter}
-              isActive={currentScreen === 'home'}
-              reopenStockModal={reopenStockModal}
-              onStockModalReopened={() => setReopenStockModal(false)}
-            />
-          </View>
+          <TabPane
+            isActive={currentScreen === 'home'}
+            hasBeenViewed={Boolean(viewedTabs.home)}
+          >
+            {() => (
+              <HomeScreen
+                recipes={recipes}
+                onSelectRecipe={(r) => navigateToDetail(r, 'home')}
+                onAddNewRecipe={navigateToAddRecipe}
+                onScanRecipe={navigateToScan}
+                onImportRecipe={handleRecipeImportedFromHome}
+                onQuickRate={handleUpdateRating}
+                onOpenSettings={() => setCurrentScreen('settings')}
+                onNavigateToJournal={navigateToJournal}
+                onNavigateToStock={() => navigateToShopping('fridge')}
+                initialOnlyDoable={initialHomeDoableFilter}
+                isActive={currentScreen === 'home'}
+                reopenStockModal={reopenStockModal}
+                onStockModalReopened={() => setReopenStockModal(false)}
+              />
+            )}
+          </TabPane>
 
-          <View style={[styles.tabContainer, currentScreen !== 'planner' && styles.tabHidden]}>
-            <MealPlannerScreen
-              recipes={recipes}
-              onSelectRecipe={(r) => navigateToDetail(r, 'planner')}
-              onNavigateToShoppingList={() => navigateToShopping('shopping')}
-              initialTab={plannerInitialTab}
-              isActive={currentScreen === 'planner'}
-            />
-          </View>
+          <TabPane
+            isActive={currentScreen === 'planner'}
+            hasBeenViewed={Boolean(viewedTabs.planner)}
+          >
+            {() => (
+              <MealPlannerScreen
+                recipes={recipes}
+                onSelectRecipe={(r) => navigateToDetail(r, 'planner')}
+                onNavigateToShoppingList={() => navigateToShopping('shopping')}
+                initialTab={plannerInitialTab}
+                isActive={currentScreen === 'planner'}
+              />
+            )}
+          </TabPane>
 
-          <View style={[styles.tabContainer, currentScreen !== 'shopping' && styles.tabHidden]}>
-            <ShoppingListScreen
-              onNavigateToRecipes={navigateToHome}
-              onNavigateToPlanner={navigateToPlanner}
-              initialTab={shoppingInitialTab}
-              isActive={currentScreen === 'shopping'}
-            />
-          </View>
+          <TabPane
+            isActive={currentScreen === 'shopping'}
+            hasBeenViewed={Boolean(viewedTabs.shopping)}
+          >
+            {() => (
+              <ShoppingListScreen
+                onNavigateToRecipes={navigateToHome}
+                onNavigateToPlanner={navigateToPlanner}
+                initialTab={shoppingInitialTab}
+                isActive={currentScreen === 'shopping'}
+              />
+            )}
+          </TabPane>
 
-          <View style={[styles.tabContainer, currentScreen !== 'settings' && styles.tabHidden]}>
-            <SettingsScreen
-              recipes={recipes}
-              onRecipesReloadNeeded={reloadRecipes}
-            />
-          </View>
+          <TabPane
+            isActive={currentScreen === 'settings'}
+            hasBeenViewed={Boolean(viewedTabs.settings)}
+          >
+            {() => (
+              <SettingsScreen
+                recipes={recipes}
+                onRecipesReloadNeeded={reloadRecipes}
+              />
+            )}
+          </TabPane>
 
           {/* Écrans Secondaires (pleine page) */}
           {currentScreen === 'scan' && (

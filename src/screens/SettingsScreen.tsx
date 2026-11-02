@@ -52,7 +52,7 @@ export interface SettingsScreenProps {
   onRecipesReloadNeeded?: () => void;
 }
 
-export const SettingsScreen: React.FC<SettingsScreenProps> = ({
+const SettingsScreenComponent: React.FC<SettingsScreenProps> = ({
   recipes,
   onRecipesReloadNeeded,
 }) => {
@@ -1904,4 +1904,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
     </SafeAreaView>
   );
 };
+
+SettingsScreenComponent.displayName = 'SettingsScreen';
+export const SettingsScreen = React.memo(SettingsScreenComponent);
 

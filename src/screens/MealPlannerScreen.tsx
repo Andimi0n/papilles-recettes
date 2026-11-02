@@ -53,7 +53,7 @@ interface MealPlannerScreenProps {
   isActive?: boolean;
 }
 
-export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
+const MealPlannerScreenComponent: React.FC<MealPlannerScreenProps> = ({
   recipes,
   onSelectRecipe,
   onNavigateToShoppingList,
@@ -1816,4 +1816,7 @@ export const MealPlannerScreen: React.FC<MealPlannerScreenProps> = ({
     </SafeAreaView>
   );
 };
+
+MealPlannerScreenComponent.displayName = 'MealPlannerScreen';
+export const MealPlannerScreen = React.memo(MealPlannerScreenComponent);
 

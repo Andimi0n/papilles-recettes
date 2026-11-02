@@ -161,7 +161,7 @@ const ShoppingListItemRow = React.memo<ShoppingListItemRowProps>(
 
 ShoppingListItemRow.displayName = 'ShoppingListItemRow';
 
-export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
+const ShoppingListScreenComponent: React.FC<ShoppingListScreenProps> = ({
   onNavigateToRecipes,
   onNavigateToPlanner,
   initialTab = 'shopping',
@@ -1685,4 +1685,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({
     </SafeAreaView>
   );
 };
+
+ShoppingListScreenComponent.displayName = 'ShoppingListScreen';
+export const ShoppingListScreen = React.memo(ShoppingListScreenComponent);
 
