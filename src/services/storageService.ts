@@ -2300,6 +2300,7 @@ export const StorageService = {
     const isAllergenFilterEnabled = await this.getAllergenFilterEnabled();
     const isAiAllergenExclusionEnabled = await this.getAiAllergenExclusionEnabled();
     const plannerSettings = await this.getPlannerSettings();
+    const chefMoods = await this.getChefMoods();
     return JSON.stringify(
       {
         version: '1.2.0',
@@ -2313,6 +2314,7 @@ export const StorageService = {
         isAllergenFilterEnabled,
         isAiAllergenExclusionEnabled,
         plannerSettings,
+        chefMoods,
       },
       null,
       2

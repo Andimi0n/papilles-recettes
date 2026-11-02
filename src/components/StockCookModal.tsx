@@ -1260,6 +1260,8 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
                                 styles.moodChipText,
                                 isSelected && styles.moodChipTextSelected,
                               ]}
+                              numberOfLines={1}
+                              ellipsizeMode="tail"
                             >
                               {m.label}
                             </Text>
