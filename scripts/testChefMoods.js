@@ -56,7 +56,7 @@ async function main() {
 
   // Chargement du module StorageService compilé
   const { StorageService } = require(path.join(tmpDir, 'services/storageService.js'));
-  const { CHEF_MOODS } = require(path.join(tmpDir, 'services/recipeAiService.js'));
+  const { CHEF_MOODS, buildChefRecipeIdeasPrompt } = require(path.join(tmpDir, 'services/recipeAiService.js'));
 
   // 1. Test chargement initial (Repli sur CHEF_MOODS d'usine)
   console.log('  1. Vérification des humeurs par défaut d\'usine...');
@@ -129,6 +129,36 @@ async function main() {
   assert.strictEqual(afterReset.length, CHEF_MOODS.length, 'La liste doit retrouver le nombre d\'humeurs initial');
   assert.strictEqual(afterReset[0].id, 'quotidien');
   assert.strictEqual(afterReset[0].label, 'Quotidien', 'Le libellé de quotidien doit être restauré à son état d\'origine');
+
+  // 7. Test de buildChefRecipeIdeasPrompt avec humeur personnalisée et fallback
+  console.log('  7. Test de buildChefRecipeIdeasPrompt avec humeur personnalisée et fallback...');
+  const customMoodsList = [
+    {
+      id: 'mood_ninja',
+      label: 'Cuisine Ninja',
+      icon: 'flash-outline',
+      systemPersona: 'Tu es un maître ninja de la gastronomie clandestine.',
+      userDirective: 'Conçois 3 plats secrets dignes d\'un banquet ninja',
+      recipeExecutionPrompt: 'Rédige avec discrétion et précision chirurgicale.',
+      isCustom: true,
+    },
+  ];
+
+  const promptResult = buildChefRecipeIdeasPrompt({
+    primaryIngredients: ['Saumon', 'Riz'],
+    chefMood: 'mood_ninja',
+    availableMoods: customMoodsList,
+  });
+  assert(promptResult.systemPrompt.includes('maître ninja'), 'Le system prompt doit contenir le persona personnalisé');
+  assert(promptResult.userPayload.includes('banquet ninja'), 'Le user payload doit contenir la directive personnalisée');
+
+  // Test fallback quand l'humeur demandée n'existe pas
+  const fallbackResult = buildChefRecipeIdeasPrompt({
+    primaryIngredients: ['Saumon', 'Riz'],
+    chefMood: 'mood_inconnu_total',
+    availableMoods: customMoodsList,
+  });
+  assert(fallbackResult.systemPrompt.includes('maître ninja'), 'Doit se replier sur la première humeur disponible');
 
   console.log('✅ Tous les tests StorageService.chefMoods ont réussi avec succès !');
 }

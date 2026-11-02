@@ -1075,6 +1075,7 @@ export interface ChefRecipeIdeasPromptOptions {
   additionalPreferences?: string;
   excludedAllergens?: string[];
   chefMood?: string;
+  availableMoods?: ChefMoodOption[];
 }
 
 export interface BuiltChefRecipeIdeasPrompt {
@@ -1146,8 +1147,13 @@ export function buildChefRecipeIdeasPrompt(
       ? `ALLERGÈNES STRICTEMENT INTERDITS :\n${options.excludedAllergens.map((a) => `- ${escapeUntrustedDelimiters(a, 'untrusted_allergen')}`).join('\n')}\n`
       : '';
 
+  const availableMoods =
+    options.availableMoods && options.availableMoods.length > 0
+      ? options.availableMoods
+      : CHEF_MOODS;
+
   const moodConfig =
-    CHEF_MOODS.find((m) => m.id === options.chefMood) || CHEF_MOODS[0];
+    availableMoods.find((m) => m.id === options.chefMood) || availableMoods[0] || CHEF_MOODS[0];
 
   let dietaryRule = 'Respecte scrupuleusement l\'esprit et le style culinaire de ton rôle.';
   if (isStrictVege) {
@@ -1804,6 +1810,7 @@ ${sanitizedInput}
       additionalPreferences?: string;
       excludedAllergens?: string[];
       chefMood?: string;
+      availableMoods?: ChefMoodOption[];
       signal?: AbortSignal;
       onModelAttempt?: (modelName: string, isFallback: boolean) => void;
     },
@@ -1848,6 +1855,7 @@ ${sanitizedInput}
       additionalPreferences: options?.additionalPreferences,
       excludedAllergens: options?.excludedAllergens,
       chefMood: options?.chefMood,
+      availableMoods: options?.availableMoods,
     });
 
     // Journalisation explicite du prompt envoyé à l'IA pour les 3 idées de recettes
@@ -1949,6 +1957,7 @@ ${sanitizedInput}
       excludedAllergens?: string[];
       additionalPreferences?: string;
       chefMood?: string; // <-- AJOUT ICI
+      availableMoods?: ChefMoodOption[];
       signal?: AbortSignal;
       onModelAttempt?: (modelName: string, isFallback: boolean) => void;
     },
@@ -1967,8 +1976,12 @@ ${sanitizedInput}
     const isVege = options?.onlyVegetarian ?? false;
 
     // Récupération de la configuration du mood (repli sur "quotidien" par défaut)
+    const availableMoods =
+      options?.availableMoods && options.availableMoods.length > 0
+        ? options.availableMoods
+        : CHEF_MOODS;
     const moodConfig =
-      CHEF_MOODS.find((m) => m.id === options?.chefMood) || CHEF_MOODS[0];
+      availableMoods.find((m) => m.id === options?.chefMood) || availableMoods[0] || CHEF_MOODS[0];
 
     // Prioriser les ingrédients clés de l'idée en premier, complétés par le stock disponible
     const highlightSet = new Set((idea.highlightIngredients || []).map((h) => h.toLowerCase().trim()));
