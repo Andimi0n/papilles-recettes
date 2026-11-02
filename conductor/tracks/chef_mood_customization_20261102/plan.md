@@ -21,7 +21,7 @@
 
 ---
 
-## Phase 2: Composant Formulaire & Édition (`ChefMoodEditModal`)
+## Phase 2: Composant Formulaire & Édition (`ChefMoodEditModal`) [checkpoint: d43853a]
 
 - [x] Task: Créer le composant modal de création/édition d'humeur (d43853a)
   - [x] Développer `src/components/ChefMoodEditModal.tsx` avec gestion des états d'édition et de création
@@ -29,7 +29,7 @@
   - [x] Intégrer un sélecteur visuel d'icônes culinaires Ionicons
   - [x] Styliser avec `createDynamicStyles` et `useTheme()` pour le support clair/sombre/contraste
   - [x] Ajouter la validation des champs et le retour utilisateur
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) (d43853a)
 
 ---
 
