@@ -1354,15 +1354,6 @@ export const RecipeAiService = {
         if (secureStored && secureStored.trim().length > 0) {
           return cleanApiKey(secureStored);
         }
-
-        // Migration automatique et transparente si une clé existait dans l'ancien AsyncStorage
-        const legacyStored = await AsyncStorage.getItem(LEGACY_STORAGE_KEY);
-        if (legacyStored && legacyStored.trim().length > 0) {
-          const cleanKey = cleanApiKey(legacyStored);
-          await SecureStore.setItemAsync(GEMINI_API_KEY_STORAGE, cleanKey);
-          await AsyncStorage.removeItem(LEGACY_STORAGE_KEY);
-          return cleanKey;
-        }
       } else {
         const stored = await AsyncStorage.getItem(LEGACY_STORAGE_KEY);
         if (stored && stored.trim().length > 0) {

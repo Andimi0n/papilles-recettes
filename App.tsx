@@ -117,11 +117,6 @@ function AppContent() {
         setRecipes(loaded as Recipe[]);
         if (!onboarded) setShowOnboarding(true);
         if (savedViewMode) setInitialViewMode(savedViewMode);
-
-        // Migration canonique différée (non bloquante et exécutée quand l'UI est au repos)
-        setTimeout(() => {
-          StorageService.migrateRecipesToCanonicalV1().catch(() => {});
-        }, 5000);
       } catch (e) {
         console.error('Erreur chargement initial:', e);
       } finally {

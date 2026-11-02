@@ -41,7 +41,6 @@ export interface RecipePackMergeResult {
 
 // ─── Clés de settings SQLite (ex-AsyncStorage) ───────────────────────────────
 const SETTING_SCHEMA_VERSION = 'schema_version';
-const SETTING_CANONICAL_MIGRATED = 'canonical_vocabulary_migrated_v1';
 const CURRENT_SCHEMA_VERSION = 'v4';
 const SETTING_THEME_MODE = 'theme_mode_v1';
 const SETTING_RECIPE_VIEW_MODE = 'recipe_view_mode_v1';
@@ -283,53 +282,6 @@ async function getInitialRecipes(): Promise<Recipe[]> {
   return INITIAL_RECIPES;
 }
 
-const SETTING_IMAGE_MIGRATION_DONE = 'images_migrated_v1_done';
-let _migrationImagesDone = false;
-
-/**
- * Migration paresseuse en tâche de fond des photos de recettes résidant encore
- * dans le cache temporaire (file://) vers le stockage permanent (documentDirectory/recipe_photos/).
- */
-async function _migrateTemporaryImagesIfNeeded(recipes: Recipe[]): Promise<void> {
-  if (_migrationImagesDone) return;
-  _migrationImagesDone = true;
-
-  try {
-    const alreadyDone = await DatabaseService.getSetting(SETTING_IMAGE_MIGRATION_DONE);
-    if (alreadyDone === 'done') return;
-
-    const candidates = recipes.filter(
-      (r) => r.imageUrl && r.imageUrl.startsWith('file://') && !ImageStorageService.isPermanent(r.imageUrl)
-    );
-    if (candidates.length === 0) {
-      await DatabaseService.setSetting(SETTING_IMAGE_MIGRATION_DONE, 'done');
-      return;
-    }
-
-    for (const r of candidates) {
-      // Pause coopérative pour préserver une réactivité UI parfaite à 60fps
-      await new Promise((resolve) => setTimeout(resolve, 300));
-
-      const permanentUri = await ImageStorageService.persistImageLocally(r.imageUrl, { skipCompression: true });
-      if (permanentUri && permanentUri !== r.imageUrl) {
-        r.imageUrl = permanentUri;
-        await DatabaseService.saveRecipe(r);
-      } else if (permanentUri === r.imageUrl) {
-        // La persistance a renvoyé la même URI source (fichier temporaire introuvable ou illisible)
-        // Réinitialiser imageUrl pour éviter de relancer vainement la manipulation à chaque démarrage
-        r.imageUrl = '';
-        await DatabaseService.saveRecipe(r);
-      }
-    }
-
-    await DatabaseService.setSetting(SETTING_IMAGE_MIGRATION_DONE, 'done');
-  } catch (err) {
-    console.warn('[ImageStorage] Erreur lors de la migration des photos temporaires:', err);
-  }
-}
-
-let _canonicalMigrationDone = false;
-
 export const StorageService = {
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -361,12 +313,6 @@ export const StorageService = {
       // Validation défensive runtime
       const result = rows.map(sanitizeStoredRecipe);
       memoryCache.recipes = result;
-
-      // Migration opportuniste en arrière-plan des photos temporaires (différée à 15s post-démarrage pour fluidité totale)
-      setTimeout(() => {
-        _migrateTemporaryImagesIfNeeded(result).catch(() => {});
-      }, 15000);
-
       return result;
     } catch (error) {
       console.error('Erreur lors du chargement des recettes:', error);
@@ -597,157 +543,21 @@ export const StorageService = {
   },
 
   /**
-   * Migration ou harmonisation des données de l'utilisateur
-   * (recettes personnelles, liste de courses et étagères du placard/frigo)
-   * pour normaliser les ingrédients selon le lexique canonique strict.
-   * Si force=true, réexécute l'harmonisation même si elle a déjà été jouée.
+   * Stub de migration conservé pour compatibilité d'interface (0 opération).
    */
-  async runCanonicalVocabularyMigration(force: boolean = false): Promise<{
+  async runCanonicalVocabularyMigration(_force: boolean = false): Promise<{
     recipesUpdated: number;
     shoppingUpdated: number;
     fridgeUpdated: number;
   }> {
-    try {
-      if (!force) {
-        if (_canonicalMigrationDone) {
-          return { recipesUpdated: 0, shoppingUpdated: 0, fridgeUpdated: 0 };
-        }
-        const alreadyDone = await DatabaseService.getSetting(SETTING_CANONICAL_MIGRATED);
-        if (alreadyDone === 'done') {
-          _canonicalMigrationDone = true;
-          return { recipesUpdated: 0, shoppingUpdated: 0, fridgeUpdated: 0 };
-        }
-      }
-
-      let recipesUpdated = 0;
-      let shoppingUpdated = 0;
-      let fridgeUpdated = 0;
-
-      // 1. Migration des recettes existantes
-      try {
-        const recipes = await DatabaseService.getRecipes();
-        const recipeUpdates: { id: string; ingredients: any[]; updatedAt: string }[] = [];
-
-        for (const recipe of recipes) {
-          let hasChanges = false;
-          const updatedIngredients = (recipe.ingredients || []).map((ing) => {
-            const res = normalizeIngredient(ing);
-            if (
-              res.name !== ing.name ||
-              res.unit !== ing.unit ||
-              res.quantity !== ing.quantity ||
-              res.canonicalId !== ing.canonicalId
-            ) {
-              hasChanges = true;
-            }
-            return {
-              ...ing,
-              name: res.name || ing.name,
-              canonicalId: res.canonicalId || ing.canonicalId,
-              quantity: res.quantity !== undefined ? res.quantity : ing.quantity,
-              unit: res.unit !== undefined ? res.unit : ing.unit,
-              isPantryStaple: res.isPantryStaple !== undefined ? res.isPantryStaple : ing.isPantryStaple,
-              isOptional: res.isOptional !== undefined ? res.isOptional : ing.isOptional,
-            };
-          });
-
-          if (hasChanges) {
-            recipesUpdated++;
-            recipeUpdates.push({ id: recipe.id, ingredients: updatedIngredients, updatedAt: new Date().toISOString() });
-          }
-        }
-
-        if (recipeUpdates.length > 0) {
-          await DatabaseService.updateRecipesIngredientsBatch(recipeUpdates);
-          memoryCache.recipes = null;
-        }
-      } catch (e) {
-        console.error('Erreur migration recettes:', e);
-      }
-
-      // 2. Migration de la liste de courses
-      try {
-        const shoppingItems = await DatabaseService.getShoppingItems();
-        const vocabMapById = VocabularyService.getSyncMapById();
-        const updatedItems: ShoppingItem[] = [];
-        let hasShoppingChange = false;
-
-        for (const item of shoppingItems) {
-          const res = normalizeIngredient({ name: item.name, canonicalId: item.canonicalId });
-          const canonDef = res.canonicalId ? vocabMapById.get(res.canonicalId) : undefined;
-          const resolvedAisle = canonDef?.defaultAisle || item.aisle || classifyIngredientAisle(res.name || item.name);
-
-          if (res.name !== item.name || res.canonicalId !== item.canonicalId || resolvedAisle !== item.aisle) {
-            shoppingUpdated++;
-            hasShoppingChange = true;
-            updatedItems.push({
-              ...item,
-              name: res.name || item.name,
-              canonicalId: res.canonicalId || item.canonicalId,
-              quantity: item.quantity || res.quantity,
-              unit: item.unit || res.unit,
-              aisle: resolvedAisle,
-            });
-          } else {
-            updatedItems.push(item);
-          }
-        }
-
-        if (hasShoppingChange) {
-          await this.saveShoppingList(updatedItems);
-        }
-      } catch (e) {
-        console.error('Erreur migration courses:', e);
-      }
-
-      // 3. Migration des étagères (stock du frigo / placard)
-      try {
-        const fridgeItems = await DatabaseService.getFridgeItems();
-        const vocabMapById = VocabularyService.getSyncMapById();
-        const updatedFridge: FridgeItem[] = [];
-        let hasFridgeChange = false;
-
-        for (const item of fridgeItems) {
-          const res = normalizeIngredient({ name: item.name, canonicalId: item.canonicalId });
-          const canonDef = res.canonicalId ? vocabMapById.get(res.canonicalId) : undefined;
-          const resolvedAisle = canonDef?.defaultAisle || item.aisle || classifyIngredientAisle(res.name || item.name);
-
-          if (res.name !== item.name || res.canonicalId !== item.canonicalId || resolvedAisle !== item.aisle) {
-            fridgeUpdated++;
-            hasFridgeChange = true;
-            updatedFridge.push({
-              ...item,
-              name: res.name || item.name,
-              canonicalId: res.canonicalId || item.canonicalId,
-              aisle: resolvedAisle,
-            });
-          } else {
-            updatedFridge.push(item);
-          }
-        }
-
-        if (hasFridgeChange) {
-          await this.saveFridgeItems(updatedFridge);
-        }
-      } catch (e) {
-        console.error('Erreur migration étagères:', e);
-      }
-
-      // Marquer la migration comme effectuée avec succès
-      _canonicalMigrationDone = true;
-      await DatabaseService.setSetting(SETTING_CANONICAL_MIGRATED, 'done');
-      return { recipesUpdated, shoppingUpdated, fridgeUpdated };
-    } catch (err) {
-      console.error('Erreur globale migration canonique:', err);
-      return { recipesUpdated: 0, shoppingUpdated: 0, fridgeUpdated: 0 };
-    }
+    return { recipesUpdated: 0, shoppingUpdated: 0, fridgeUpdated: 0 };
   },
 
   /**
-   * Alias de démarrage pour la migration v1 vers les identifiants canoniques
+   * Stub de démarrage conservé pour compatibilité d'interface (0 opération).
    */
   async migrateRecipesToCanonicalV1(): Promise<{ recipesUpdated: number; shoppingUpdated: number; fridgeUpdated: number }> {
-    return this.runCanonicalVocabularyMigration(false);
+    return { recipesUpdated: 0, shoppingUpdated: 0, fridgeUpdated: 0 };
   },
 
   /**

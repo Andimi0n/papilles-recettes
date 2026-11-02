@@ -5,7 +5,7 @@
  * Remplace le blob monolithique AsyncStorage par une base relationnelle
  * native, sans limite de taille, avec lectures/écritures par ligne (O(1)).
  *
- * Migration one-shot depuis AsyncStorage au premier démarrage sur appareil natif.
+ * Initialisation directe du schéma natif SQLite.
  * Fallback transparent sur AsyncStorage en environnement sans SQLite (ex: Node.js tests, web).
  * API publique identique à l'ancien StorageService — aucun changement côté écrans.
  */
@@ -25,7 +25,7 @@ import {
 import { MealLogEntry, MealLogMap } from '../types/mealLog';
 import { UserAllergenItem, AllergenFamily } from '../types/vocabulary';
 
-// ─── Clés AsyncStorage (pour la migration one-shot & le fallback) ───────────
+// ─── Clés AsyncStorage (fallback Node.js test & web) ─────────────────────────
 const AS_RECIPES_KEY = '@papilles_recipes_v4';
 const AS_SHOPPING_KEY = '@papilles_shopping_list_v1';
 const AS_FRIDGE_KEY = '@papilles_fridge_items_v1';
@@ -33,19 +33,6 @@ const AS_WEEKLY_PLAN_KEY = '@papilles_weekly_plan_v1';
 const AS_MEAL_LOG_KEY = '@papilles_meal_log_v1';
 const AS_PLANNER_SETTINGS_KEY = '@papilles_planner_settings_v1';
 const AS_USER_ALLERGENS_KEY = '@papilles_user_allergens_v1';
-const AS_THEME_MODE_KEY = '@papilles_theme_mode_v1';
-const AS_RECIPE_VIEW_MODE_KEY = '@papilles_recipe_view_mode_v1';
-const AS_DEFAULT_SERVINGS_KEY = '@papilles_default_servings_v1';
-const AS_ALLERGEN_FILTER_KEY = '@papilles_filter_allergens_recipes_v1';
-const AS_ALLERGEN_EXCLUDE_AI_KEY = '@papilles_exclude_allergens_ai_v1';
-const AS_SCHEMA_VERSION_KEY = '@papilles_schema_version';
-const AS_CANONICAL_MIGRATION_KEY = '@papilles_canonical_vocabulary_migrated_v1';
-const AS_ONBOARDING_KEY = '@papilles_onboarded_v1';
-
-// ─── Clés de settings SQLite ─────────────────────────────────────────────────
-const SETTING_DB_MIGRATED = 'db_migrated_from_async_v1';
-const SETTING_SCHEMA_VERSION = 'schema_version';
-const CURRENT_SCHEMA_VERSION = 'v4';
 
 // ─── Détection et chargement sécurisé d'expo-sqlite ─────────────────────────
 let _sqliteModule: typeof import('expo-sqlite') | null = null;
@@ -168,7 +155,6 @@ async function _openAndInit(mod: typeof import('expo-sqlite')): Promise<SQLiteTy
       ? mod.openDatabaseSync('papilles.db')
       : await mod.openDatabaseAsync('papilles.db');
     await _createSchema(db);
-    await _runMigrationFromAsyncStorage(db);
     _db = db;
     return _db;
   } catch (err) {
@@ -367,231 +353,6 @@ async function _createSchema(db: SQLiteTypes.SQLiteDatabase): Promise<void> {
       value TEXT NOT NULL
     );
   `);
-}
-
-// ─── Migration one-shot depuis AsyncStorage ───────────────────────────────────
-async function _runMigrationFromAsyncStorage(db: SQLiteTypes.SQLiteDatabase): Promise<void> {
-  try {
-    const migrated = await _getSetting(db, SETTING_DB_MIGRATED);
-    if (migrated === '1') return; // Déjà migré
-
-    console.log('[DB] Migration depuis AsyncStorage → SQLite...');
-
-    // 1. Recettes
-    try {
-      const recipesData = await AsyncStorage.getItem(AS_RECIPES_KEY);
-      if (recipesData) {
-        const recipes: any[] = JSON.parse(recipesData);
-        if (Array.isArray(recipes) && recipes.length > 0) {
-          await transactionDb(db, (run) => {
-            for (const r of recipes) {
-              if (!r?.id) continue;
-              run(
-                `INSERT OR REPLACE INTO recipes
-                  (id, title, description, category, difficulty, prep_time_minutes,
-                   cook_time_minutes, servings, rating, user_note, image_url,
-                   available_images, is_favorite, is_vegetarian, tags, source_url,
-                   source_site, created_at, updated_at, ingredients, steps)
-                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-                [
-                  r.id,
-                  r.title || '',
-                  r.description || '',
-                  r.category || 'Plat',
-                  r.difficulty || 'Facile',
-                  r.prepTimeMinutes ?? 0,
-                  r.cookTimeMinutes ?? 0,
-                  r.servings ?? 4,
-                  r.rating ?? 0,
-                  r.userNote ?? null,
-                  r.imageUrl || '',
-                  JSON.stringify(r.availableImages ?? []),
-                  r.isFavorite ? 1 : 0,
-                  r.isVegetarian ? 1 : 0,
-                  JSON.stringify(r.tags ?? []),
-                  r.sourceUrl ?? null,
-                  r.sourceSite ?? null,
-                  r.createdAt || new Date().toISOString(),
-                  r.updatedAt || new Date().toISOString(),
-                  JSON.stringify(r.ingredients ?? []),
-                  JSON.stringify(r.steps ?? []),
-                ]
-              );
-            }
-          });
-          console.log(`[DB] ${recipes.length} recettes migrées.`);
-        }
-      }
-    } catch (e) {
-      console.error('[DB] Erreur migration recettes:', e);
-    }
-
-    // 2. Frigo
-    try {
-      const fridgeData = await AsyncStorage.getItem(AS_FRIDGE_KEY);
-      if (fridgeData) {
-        const items: any[] = JSON.parse(fridgeData);
-        if (Array.isArray(items) && items.length > 0) {
-          await transactionDb(db, (run) => {
-            for (const item of items) {
-              if (!item?.id) continue;
-              run(
-                `INSERT OR REPLACE INTO fridge_items (id, name, canonical_id, aisle, created_at)
-                 VALUES (?,?,?,?,?)`,
-                [item.id, item.name || '', item.canonicalId ?? null, item.aisle ?? null, item.createdAt || new Date().toISOString()]
-              );
-            }
-          });
-        }
-      }
-    } catch (e) {
-      console.error('[DB] Erreur migration frigo:', e);
-    }
-
-    // 3. Liste de courses
-    try {
-      const shoppingData = await AsyncStorage.getItem(AS_SHOPPING_KEY);
-      if (shoppingData) {
-        const items: any[] = JSON.parse(shoppingData);
-        if (Array.isArray(items) && items.length > 0) {
-          await transactionDb(db, (run) => {
-            for (const item of items) {
-              if (!item?.id) continue;
-              run(
-                `INSERT OR REPLACE INTO shopping_items
-                  (id, name, canonical_id, quantity, unit, is_checked, aisle, created_at, recipe_id, recipe_title)
-                 VALUES (?,?,?,?,?,?,?,?,?,?)`,
-                [
-                  item.id, item.name || '', item.canonicalId ?? null,
-                  item.quantity ?? null, item.unit ?? null,
-                  item.isChecked ? 1 : 0, item.aisle ?? null,
-                  item.createdAt || new Date().toISOString(),
-                  item.recipeId ?? null, item.recipeTitle ?? null,
-                ]
-              );
-            }
-          });
-        }
-      }
-    } catch (e) {
-      console.error('[DB] Erreur migration courses:', e);
-    }
-
-    // 4. Planning hebdomadaire
-    try {
-      const planData = await AsyncStorage.getItem(AS_WEEKLY_PLAN_KEY);
-      if (planData) {
-        const plan: Record<string, any> = JSON.parse(planData);
-        if (plan && typeof plan === 'object') {
-          const entries = Object.entries(plan);
-          if (entries.length > 0) {
-            await transactionDb(db, (run) => {
-              for (const [slotKey, meal] of entries) {
-                if (!meal) continue;
-                run(
-                  `INSERT OR REPLACE INTO weekly_plan
-                    (slot_key, recipe_id, recipe_title, recipe_image_url, servings, meal_time, updated_at)
-                   VALUES (?,?,?,?,?,?,?)`,
-                  [
-                    slotKey, meal.recipeId ?? null, meal.recipeTitle ?? null,
-                    meal.recipeImageUrl ?? null, meal.servings ?? null,
-                    meal.mealTime ?? null, new Date().toISOString(),
-                  ]
-                );
-              }
-            });
-          }
-        }
-      }
-    } catch (e) {
-      console.error('[DB] Erreur migration planning:', e);
-    }
-
-    // 5. Journal des repas
-    try {
-      const logsData = await AsyncStorage.getItem(AS_MEAL_LOG_KEY);
-      if (logsData) {
-        const logs: Record<string, any> = JSON.parse(logsData);
-        if (logs && typeof logs === 'object') {
-          const entries = Object.entries(logs);
-          if (entries.length > 0) {
-            await transactionDb(db, (run) => {
-              for (const [slotKey, entry] of entries) {
-                if (!entry?.id) continue;
-                run(
-                  `INSERT OR REPLACE INTO meal_logs
-                    (id, slot_key, date, meal_time, title, recipe_id, recipe_image_url, note, created_at, updated_at)
-                   VALUES (?,?,?,?,?,?,?,?,?,?)`,
-                  [
-                    entry.id, slotKey, entry.date || '', entry.mealTime || '',
-                    entry.title || '', entry.recipeId ?? null,
-                    entry.recipeImageUrl ?? null, entry.note ?? null,
-                    entry.createdAt || new Date().toISOString(),
-                    entry.updatedAt || new Date().toISOString(),
-                  ]
-                );
-              }
-            });
-          }
-        }
-      }
-    } catch (e) {
-      console.error('[DB] Erreur migration journal repas:', e);
-    }
-
-    // 6. Allergènes utilisateur
-    try {
-      const allergensData = await AsyncStorage.getItem(AS_USER_ALLERGENS_KEY);
-      if (allergensData) {
-        const allergens: any[] = JSON.parse(allergensData);
-        if (Array.isArray(allergens) && allergens.length > 0) {
-          await transactionDb(db, (run) => {
-            for (const item of allergens) {
-              if (!item?.id || !item?.name) continue;
-              run(
-                `INSERT OR REPLACE INTO user_allergens (id, name, canonical_id, allergen_family, added_at)
-                 VALUES (?,?,?,?,?)`,
-                [item.id, item.name, item.canonicalId ?? null, item.allergenFamily ?? null, item.addedAt || new Date().toISOString()]
-              );
-            }
-          });
-        }
-      }
-    } catch (e) {
-      console.error('[DB] Erreur migration allergènes:', e);
-    }
-
-    // 7. Settings (thème, portions, flags)
-    const settingsToMigrate: [string, string | null][] = [
-      [AS_THEME_MODE_KEY, null],
-      [AS_RECIPE_VIEW_MODE_KEY, null],
-      [AS_DEFAULT_SERVINGS_KEY, null],
-      [AS_ALLERGEN_FILTER_KEY, null],
-      [AS_ALLERGEN_EXCLUDE_AI_KEY, null],
-      [AS_SCHEMA_VERSION_KEY, null],
-      [AS_CANONICAL_MIGRATION_KEY, null],
-      [AS_ONBOARDING_KEY, null],
-      [AS_PLANNER_SETTINGS_KEY, null],
-    ];
-
-    for (const [asKey] of settingsToMigrate) {
-      try {
-        const val = await AsyncStorage.getItem(asKey);
-        if (val !== null) {
-          const dbKey = asKey.replace('@papilles_', '');
-          await _setSetting(db, dbKey, val);
-        }
-      } catch {
-        // Non bloquant
-      }
-    }
-
-    await _setSetting(db, SETTING_DB_MIGRATED, '1');
-    await _setSetting(db, SETTING_SCHEMA_VERSION, CURRENT_SCHEMA_VERSION);
-    console.log('[DB] Migration AsyncStorage → SQLite terminée avec succès.');
-  } catch (err) {
-    console.error('[DB] Erreur lors de la migration one-shot:', err);
-  }
 }
 
 // ─── Helpers settings ────────────────────────────────────────────────────────
@@ -1475,12 +1236,10 @@ export const DatabaseService = {
   // UTILITAIRES
   // ══════════════════════════════════════════════════════
 
-  /** Retourne true si la migration AsyncStorage→SQLite a déjà été effectuée */
+  /** Retourne true si SQLite est actif (false en fallback Node.js) */
   async isMigrated(): Promise<boolean> {
     const db = await getDb();
-    if (!db) return false;
-    const val = await _getSetting(db, SETTING_DB_MIGRATED);
-    return val === '1';
+    return db !== null;
   },
 
   /** Initialise explicitement la base (utile pour le démarrage de l'app) */
