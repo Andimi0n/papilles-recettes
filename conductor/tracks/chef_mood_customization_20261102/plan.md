@@ -51,7 +51,7 @@
   - [x] Remplacer la constante statique `CHEF_MOODS` par le chargement réactif des humeurs via `StorageService.getChefMoods()`
   - [x] Gérer le repli de sélection si l'humeur active a été supprimée des paramètres
   - [x] Passer la configuration dynamique aux fonctions du service IA
-- [ ] Task: Validation globale et tests de non-régression
-  - [ ] Exécuter `npm test` pour s'assurer que tous les tests unitaires passent
-  - [ ] Exécuter `npx tsc --noEmit && npx expo lint` (zéro erreur tolérée)
+- [x] Task: Validation globale et tests de non-régression (911d237)
+  - [x] Exécuter `npm test` pour s'assurer que tous les tests unitaires passent
+  - [x] Exécuter `npx tsc --noEmit && npx expo lint` (zéro erreur tolérée)
 - [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
