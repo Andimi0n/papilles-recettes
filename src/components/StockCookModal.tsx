@@ -22,8 +22,7 @@ import { AISLE_CONFIGS, ALL_AISLES, classifyIngredientAisle } from '../utils/ais
 import {
   RecipeAiService,
   formatAiModelName,
-  FAST_GEMINI_MODELS_CASCADE,
-  GEMINI_MODELS_CASCADE,
+  discoverGeminiModels,
   CHEF_MOODS,
   ChefMoodOption,
 } from '../services/recipeAiService';
@@ -186,7 +185,7 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
   const [selectedIdea, setSelectedIdea] = useState<RecipeIdea | null>(null);
   const [aiStepIndex, setAiStepIndex] = useState(0);
   const [activeModelInfo, setActiveModelInfo] = useState<{ model: string; isFallback: boolean }>({
-    model: FAST_GEMINI_MODELS_CASCADE[0],
+    model: '',
     isFallback: false,
   });
   const [chefMood, setChefMood] = useState<string>('quotidien');
@@ -203,6 +202,11 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
   if (prevVisible !== visible) {
     setPrevVisible(visible);
     if (visible) {
+      // Pré-chargement dynamique des modèles en arrière-plan (0 latence lors du clic)
+      RecipeAiService.getApiKey().then((k) => {
+        if (k) discoverGeminiModels(k).catch(() => {});
+      });
+
       if (!preserveSession) {
         const init = initializeStockIngredients(stockItems);
         setPrimaryIngredients(init.primaryIngredients);
@@ -550,7 +554,14 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
     activeAbortControllerRef.current = abortController;
     const opId = ++currentOperationIdRef.current;
 
-    setActiveModelInfo({ model: FAST_GEMINI_MODELS_CASCADE[0], isFallback: false });
+    const apiKeyForModels = key || (await RecipeAiService.getApiKey());
+    if (apiKeyForModels) {
+      discoverGeminiModels(apiKeyForModels)
+        .then((m) => {
+          setActiveModelInfo((prev) => (!prev.model ? { model: m.fast[0], isFallback: false } : prev));
+        })
+        .catch(() => {});
+    }
     setAiFlowStep('loading_ideas');
 
     try {
@@ -654,7 +665,14 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
     activeAbortControllerRef.current = abortController;
     const opId = ++currentOperationIdRef.current;
 
-    setActiveModelInfo({ model: GEMINI_MODELS_CASCADE[0], isFallback: false });
+    const apiKeyForModels = key || (await RecipeAiService.getApiKey());
+    if (apiKeyForModels) {
+      discoverGeminiModels(apiKeyForModels)
+        .then((m) => {
+          setActiveModelInfo((prev) => (!prev.model ? { model: m.all[0], isFallback: false } : prev));
+        })
+        .catch(() => {});
+    }
     setAiStepIndex(0);
     setAiFlowStep('generating_recipe');
 
@@ -869,8 +887,8 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
                     ]}
                   >
                     {activeModelInfo.isFallback
-                      ? `Repli de secours : ${formatAiModelName(activeModelInfo.model)}`
-                      : `Modèle : ${formatAiModelName(activeModelInfo.model)}`}
+                      ? `Repli de secours : ${formatAiModelName(activeModelInfo.model || 'Gemini Flash')}`
+                      : `Modèle : ${formatAiModelName(activeModelInfo.model || 'Gemini Flash')}`}
                   </Text>
                 </View>
                 <TouchableOpacity
@@ -921,8 +939,8 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
                     ]}
                   >
                     {activeModelInfo.isFallback
-                      ? `Repli de secours : ${formatAiModelName(activeModelInfo.model)}`
-                      : `Modèle : ${formatAiModelName(activeModelInfo.model)}`}
+                      ? `Repli de secours : ${formatAiModelName(activeModelInfo.model || 'Gemini Flash')}`
+                      : `Modèle : ${formatAiModelName(activeModelInfo.model || 'Gemini Flash')}`}
                   </Text>
                 </View>
                 <TouchableOpacity

@@ -52,6 +52,7 @@ async function main() {
     isModelDegraded,
     prioritizeHealthyModels,
     CHEF_MOODS,
+    discoverGeminiModels,
     RecipeAiService,
     cleanApiKey,
     getGeminiHeaders,
@@ -145,18 +146,18 @@ async function main() {
   console.log('\n--- Test 4 : Cascades de modèles Gemini & Circuit Breaker ---');
   assert.strictEqual(
     GEMINI_MODELS_CASCADE[0],
-    'gemini-3.5-flash-lite',
-    'GEMINI_MODELS_CASCADE doit avoir gemini-3.5-flash-lite comme premier modèle (vitesse & disponibilité)'
+    'gemini-3.6-flash',
+    'GEMINI_MODELS_CASCADE doit avoir le 2e meilleur modèle comme premier modèle (gemini-3.6-flash pour éviter surcharge)'
   );
   assert.strictEqual(
     FAST_GEMINI_MODELS_CASCADE[0],
     'gemini-3.5-flash-lite',
-    'FAST_GEMINI_MODELS_CASCADE doit avoir gemini-3.5-flash-lite comme premier modèle'
+    'FAST_GEMINI_MODELS_CASCADE doit avoir le meilleur modèle lite (gemini-3.5-flash-lite) comme premier modèle'
   );
   assert.strictEqual(
     FAST_GEMINI_MODELS_CASCADE[1],
-    'gemini-3.8-flash',
-    'FAST_GEMINI_MODELS_CASCADE doit avoir gemini-3.8-flash comme modèle de repli'
+    'gemini-3.6-flash',
+    'FAST_GEMINI_MODELS_CASCADE doit avoir gemini-3.6-flash comme modèle de repli'
   );
   assert.strictEqual(
     FAST_GEMINI_MODELS_CASCADE.includes('gemini-2.5-flash'),
@@ -174,6 +175,11 @@ async function main() {
     'FAST_GEMINI_MODELS_CASCADE ne doit plus contenir gemini-1.5-flash (404 / déprécié)'
   );
 
+  // Test du comportement de discoverGeminiModels avec clé vide (repli statique)
+  const emptyKeyModels = await discoverGeminiModels('');
+  assert.strictEqual(emptyKeyModels.all[0], 'gemini-3.6-flash');
+  assert.strictEqual(emptyKeyModels.fast[0], 'gemini-3.5-flash-lite');
+
   // Test du Circuit Breaker
   assert.strictEqual(isModelDegraded('gemini-3.8-flash'), false);
   markModelDegraded('gemini-3.8-flash');
@@ -181,7 +187,7 @@ async function main() {
   const prioritized = prioritizeHealthyModels(['gemini-3.8-flash', 'gemini-3.5-flash-lite']);
   assert.strictEqual(prioritized[0], 'gemini-3.5-flash-lite', 'Le modèle sain doit passer en tête de cascade');
   assert.strictEqual(prioritized[1], 'gemini-3.8-flash', 'Le modèle dégradé doit passer en fin de cascade');
-  console.log('✓ Cascades Gemini 3 actives et Circuit Breaker validés');
+  console.log('✓ Cascades Gemini 3 actives, découverte dynamique et Circuit Breaker validés');
 
   // =========================================================================
   // TEST SECTION 5 : adaptPayloadForModel (Thinking Level & Latence)

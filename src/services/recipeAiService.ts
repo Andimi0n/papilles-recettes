@@ -14,7 +14,6 @@ const GEMINI_API_KEY_STORAGE = 'papilles_gemini_api_key';
 const LEGACY_STORAGE_KEY = '@papilles_gemini_api_key';
 
 // Configuration Google Generative Language API
-const GEMINI_MODEL = 'gemini-3.5-flash-lite';
 const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta';
 
 /**
@@ -100,18 +99,22 @@ const RECIPE_IDEAS_SCHEMA = {
 
 /**
  * Cascade statique de secours — utilisée uniquement si la découverte dynamique échoue (offline, clé invalide, etc.).
- * Ordre : du plus léger au plus puissant pour une latence optimale au quotidien.
+ * Par défaut, utilise le 2e plus récent/meilleur modèle pour éviter la surcharge usuelle sur le meilleur modèle.
  */
 export const GEMINI_MODELS_CASCADE = [
-  'gemini-3.5-flash-lite',
-  'gemini-3.8-flash',
   'gemini-3.6-flash',
+  'gemini-3.8-flash',
+  'gemini-3.5-flash-lite',
 ];
 
+/**
+ * Cascade rapide statique pour les tâches basiques types 3 idées de plat.
+ * Utilise en priorité le meilleur modèle lite.
+ */
 export const FAST_GEMINI_MODELS_CASCADE = [
   'gemini-3.5-flash-lite',
-  'gemini-3.8-flash',
   'gemini-3.6-flash',
+  'gemini-3.8-flash',
 ];
 
 // ─── Dynamic Model Discovery ────────────────────────────────────────────────
@@ -139,19 +142,25 @@ function extractModelVersion(modelId: string): number {
  * Exclut les modèles Pro (trop lents/coûteux), les embeddings, TTS et vision-only.
  */
 function isFlashModel(modelId: string, supportedMethods: string[]): boolean {
-  if (!supportedMethods.includes('generateContent')) return false;
+  if (supportedMethods && supportedMethods.length > 0 && !supportedMethods.includes('generateContent')) {
+    return false;
+  }
   const id = modelId.toLowerCase();
   // On garde Flash et Flash-Lite, on exclut Pro, embedding, tts, imagen
-  if (id.includes('-pro') || id.includes('embedding') || id.includes('tts') || id.includes('imagen')) return false;
+  if (id.includes('-pro') || id.includes('embedding') || id.includes('tts') || id.includes('imagen')) {
+    return false;
+  }
   return id.includes('flash');
 }
 
 /**
- * Interroge l'API Gemini pour lister les modèles disponibles (endpoint GET /models, 0 quota consommé).
- * Filtre les modèles Flash qui supportent generateContent, les trie par version décroissante
- * (meilleur modèle en tête de cascade) et met le résultat en cache mémoire pendant 1h.
+ * Interroge l'API Gemini pour lister dynamiquement les modèles disponibles (endpoint GET /models, 0 quota consommé).
+ * Aucun modèle hardcodé n'est imposé :
+ * - Cascade générale (.all) : par défaut, le DEUXIÈME plus récent/meilleur modèle Flash est placé en tête
+ *   pour éviter la surcharge fréquente sur le meilleur modèle (flagship), suivi du 1er modèle et des modèles plus anciens en repli.
+ * - Cascade rapide (.fast) : pour les tâches basiques types 3 idées de plat, place le MEILLEUR modèle Flash Lite en tête.
  *
- * En cas d'échec (réseau indisponible, clé invalide), retourne silencieusement la cascade statique.
+ * En cas d'échec réseau, retourne silencieusement la cascade statique de secours.
  */
 export async function discoverGeminiModels(
   apiKey: string
@@ -172,7 +181,7 @@ export async function discoverGeminiModels(
 
   try {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 8000); // 8s max pour la découverte
+    const timer = setTimeout(() => controller.abort(), 4000); // 4s max pour la découverte dynamique
 
     const resp = await fetch(`${GEMINI_BASE_URL}/models`, {
       method: 'GET',
@@ -196,10 +205,9 @@ export async function discoverGeminiModels(
     const flashModels = rawModels
       .filter((m) => {
         const shortId = m.name.replace(/^models\//, '');
-        return isFlashModel(shortId, m.supportedGenerationMethods ?? []);
+        return isFlashModel(shortId, m.supportedGenerationMethods ?? ['generateContent']);
       })
-      .map((m) => m.name.replace(/^models\//, ''))
-      .sort((a, b) => extractModelVersion(b) - extractModelVersion(a)); // du plus récent au plus ancien
+      .map((m) => m.name.replace(/^models\//, ''));
 
     if (flashModels.length === 0) {
       if (__DEV__) {
@@ -208,30 +216,41 @@ export async function discoverGeminiModels(
       return { all: GEMINI_MODELS_CASCADE, fast: FAST_GEMINI_MODELS_CASCADE };
     }
 
-    // Les modèles Lite en tête de la cascade rapide (moins de latence pour les idées courtes)
-    const liteFirst = [
-      ...flashModels.filter((m) => m.includes('-lite')),
-      ...flashModels.filter((m) => !m.includes('-lite')),
-    ];
+    const isLite = (id: string) => id.includes('-lite') || id.includes('-8b');
+    const standardFlash = flashModels
+      .filter((m) => !isLite(m))
+      .sort((a, b) => (extractModelVersion(b) - extractModelVersion(a)) || a.localeCompare(b));
+    const liteFlash = flashModels
+      .filter((m) => isLite(m))
+      .sort((a, b) => (extractModelVersion(b) - extractModelVersion(a)) || a.localeCompare(b));
 
-    // Cascade principale : pour les Flash non-lite, on saute le 1er (index 0)
-    // et on démarre directement au 2e, avec le 3e en fallback.
-    const nonLiteModels = flashModels.filter((m) => !m.includes('-lite'));
-    const liteModels = flashModels.filter((m) => m.includes('-lite'));
-    const allCascade =
-      nonLiteModels.length > 1
-        ? [...nonLiteModels.slice(1), ...liteModels] // skip 1er Flash non-lite
-        : flashModels;
+    // Cascade générale (.all) : le DEUXIÈME plus récent/meilleur modèle Flash en tête par défaut
+    let allCascade: string[];
+    if (standardFlash.length > 1) {
+      allCascade = [standardFlash[1], standardFlash[0], ...standardFlash.slice(2), ...liteFlash];
+    } else if (standardFlash.length === 1) {
+      allCascade = [standardFlash[0], ...liteFlash];
+    } else {
+      allCascade = liteFlash;
+    }
+
+    // Cascade rapide (.fast) pour tâches basiques (3 idées de plat) : le MEILLEUR modèle lite en tête
+    let fastCascade: string[];
+    if (liteFlash.length > 0) {
+      fastCascade = [...liteFlash, ...allCascade];
+    } else {
+      fastCascade = allCascade;
+    }
 
     _cachedDynamicModels = allCascade;
-    _cachedDynamicFastModels = liteFirst;
+    _cachedDynamicFastModels = fastCascade;
     _modelCacheTimestamp = Date.now();
 
     if (__DEV__) {
-      console.log(`[discoverGeminiModels] ${flashModels.length} modèle(s) Flash découvert(s) :`, flashModels);
+      console.log(`[discoverGeminiModels] Modèles prêts: all=[${allCascade.join(', ')}] | fast=[${fastCascade.join(', ')}]`);
     }
 
-    return { all: allCascade, fast: liteFirst };
+    return { all: allCascade, fast: fastCascade };
   } catch (err) {
     if (__DEV__) {
       console.warn('[discoverGeminiModels] Erreur réseau — utilisation de la cascade statique.', err);
@@ -443,15 +462,8 @@ export function cleanApiKey(key: string): string {
  * Construit l'URL de génération de contenu sans exposer la clé API en paramètre d'URL (SEC-05).
  * L'authentification est déléguée aux en-têtes HTTP sécurisés x-goog-api-key.
  */
-const getGeminiGenerateUrl = (_apiKey?: string, modelName = GEMINI_MODEL): string => {
+const getGeminiGenerateUrl = (_apiKey?: string, modelName = GEMINI_MODELS_CASCADE[0]): string => {
   return `${GEMINI_BASE_URL}/models/${modelName}:generateContent`;
-};
-
-/**
- * URL de vérification de statut ultralégère (GET sur le modèle, <200ms, 0 quota consommé).
- */
-const getGeminiModelCheckUrl = (_apiKey?: string): string => {
-  return `${GEMINI_BASE_URL}/models/${GEMINI_MODEL}`;
 };
 
 /**
@@ -757,13 +769,15 @@ function parseJsonFromAiText(rawText: string): any {
 async function fetchGeminiJsonWithFallbackAndRetry(
   apiKey: string,
   payload: any,
-  models: string[] = GEMINI_MODELS_CASCADE,
+  models?: string[],
   onModelAttempt?: (modelName: string, isFallback: boolean) => void,
-  timeoutMs = 60000,
+  timeoutMs = 30000,
   signal?: AbortSignal
 ): Promise<{ parsed: any; usedModel: string }> {
   let lastError: any = null;
-  const candidateModels = prioritizeHealthyModels(models);
+  const effectiveModels =
+    models && models.length > 0 ? models : (await discoverGeminiModels(apiKey)).all;
+  const candidateModels = prioritizeHealthyModels(effectiveModels);
 
   for (let i = 0; i < candidateModels.length; i++) {
     if (signal?.aborted) {
@@ -1370,10 +1384,10 @@ export const RecipeAiService = {
 
     const controller = new AbortController();
     try {
-      const timeoutId = setTimeout(() => controller.abort(), 12000);
+      const timeoutId = setTimeout(() => controller.abort(), 6000);
 
-      // GET ultraléger sur les métadonnées du modèle Gemini 3.8 Flash
-      const checkUrl = getGeminiModelCheckUrl(apiKey);
+      // GET ultraléger sur le catalogue de modèles (ne consomme pas de quota d'inférence, <300ms)
+      const checkUrl = `${GEMINI_BASE_URL}/models`;
       let response = await fetch(checkUrl, {
         method: 'GET',
         headers: getGeminiHeaders(apiKey),
@@ -1383,7 +1397,7 @@ export const RecipeAiService = {
       // Repli par query param ?key= si un proxy réseau filtre l'en-tête (HTTP 403)
       if (response.status === 403) {
         try {
-          const fallbackUrl = `${GEMINI_BASE_URL}/models/${GEMINI_MODEL}?key=${encodeURIComponent(apiKey)}`;
+          const fallbackUrl = `${GEMINI_BASE_URL}/models?key=${encodeURIComponent(apiKey)}`;
           const retryResp = await fetch(fallbackUrl, {
             method: 'GET',
             headers: { 'Content-Type': 'application/json' },
@@ -1398,10 +1412,13 @@ export const RecipeAiService = {
       clearTimeout(timeoutId);
 
       if (response.ok) {
+        // Pré-chargement dynamique des modèles pour les appels ultérieurs (0 latence)
+        const models = await discoverGeminiModels(apiKey);
+        const defaultModel = models.all[0];
         return {
           ok: true,
           code: 'OK',
-          message: `IA connectée & prête (${formatAiModelName(GEMINI_MODEL)})`,
+          message: `IA connectée & prête (${formatAiModelName(defaultModel)})`,
         };
       }
 
@@ -1425,32 +1442,6 @@ export const RecipeAiService = {
           message:
             serverMsg ||
             'Clé API non reconnue ou invalide (vérifiez vos restrictions Google AI Studio)',
-        };
-      }
-
-      if (response.status === 404 || serverMsg.toLowerCase().includes('model')) {
-        // Tentative de diagnostic : vérifier si la clé fonctionne sur l'endpoint générique /models
-        try {
-          const fallbackResp = await fetch(
-            `${GEMINI_BASE_URL}/models`,
-            {
-              method: 'GET',
-              headers: getGeminiHeaders(apiKey),
-            }
-          );
-          if (fallbackResp.ok) {
-            return {
-              ok: false,
-              code: 'INVALID_MODEL',
-              message: `Clé API valide, mais le modèle ${formatAiModelName(GEMINI_MODEL)} n'est pas activé sur votre compte Google AI Studio.`,
-            };
-          }
-        } catch {}
-
-        return {
-          ok: false,
-          code: 'INVALID_MODEL',
-          message: `Modèle ${formatAiModelName(GEMINI_MODEL)} indisponible`,
         };
       }
 
@@ -1570,7 +1561,7 @@ Règles universelles :
       payload,
       (await discoverGeminiModels(apiKey)).all,
       onModelAttempt,
-      60000
+      30000
     );
     return sanitizeExtractedRecipe(parsed);
   },
@@ -1630,9 +1621,9 @@ ${sanitizedRecipe}
     const { parsed } = await fetchGeminiJsonWithFallbackAndRetry(
       apiKey,
       payload,
-      (await discoverGeminiModels(apiKey)).fast,
+      (await discoverGeminiModels(apiKey)).all,
       onModelAttempt,
-      60000
+      25000
     );
     return sanitizeExtractedRecipe(parsed);
   },
@@ -1698,9 +1689,9 @@ ${sanitizedInput}
     const { parsed } = await fetchGeminiJsonWithFallbackAndRetry(
       apiKey,
       payload,
-      (await discoverGeminiModels(apiKey)).fast,
+      (await discoverGeminiModels(apiKey)).all,
       onModelAttempt,
-      60000
+      25000
     );
     const sanitized = sanitizeExtractedRecipe(parsed);
 
@@ -1812,7 +1803,7 @@ ${sanitizedInput}
         response_mime_type: 'application/json',
         response_schema: RECIPE_IDEAS_SCHEMA,
         temperature: 0.5,
-        max_output_tokens: 2048,
+        max_output_tokens: 1024,
       },
     };
 
@@ -1821,7 +1812,7 @@ ${sanitizedInput}
       payload,
       (await discoverGeminiModels(apiKey)).fast,
       options?.onModelAttempt,
-      60000,
+      15000,
       options?.signal
     );
     const rawParsed = parsed;
@@ -1993,7 +1984,7 @@ ${sanitizedIngredients.join(', ')}
       payload,
       (await discoverGeminiModels(apiKey)).all,
       options?.onModelAttempt,
-      60000,
+      30000,
       options?.signal
     );
     const sanitized = sanitizeExtractedRecipe(parsed);
