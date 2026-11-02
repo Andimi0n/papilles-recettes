@@ -99,20 +99,23 @@ const RECIPE_IDEAS_SCHEMA = {
 
 /**
  * Cascade statique de secours — utilisée uniquement si la découverte dynamique échoue (offline, clé invalide, etc.).
- * Par défaut, utilise le 2e plus récent/meilleur modèle pour éviter la surcharge usuelle sur le meilleur modèle.
+ * Par défaut, utilise le 2e plus récent/meilleur modèle (ex: 3.7).
+ * En repli, bascule sur les modèles suivants (ex: 3.6) et JAMAIS directement sur le meilleur (3.8, saturé).
  */
 export const GEMINI_MODELS_CASCADE = [
+  'gemini-3.7-flash',
   'gemini-3.6-flash',
   'gemini-3.8-flash',
   'gemini-3.5-flash-lite',
 ];
 
 /**
- * Cascade rapide statique pour les tâches basiques types 3 idées de plat.
- * Utilise en priorité le meilleur modèle lite.
+ * Cascade rapide statique pour les tâches basiques ou génération rapide via Lite.
+ * Utilise en priorité le meilleur modèle lite, avec replis progressifs.
  */
 export const FAST_GEMINI_MODELS_CASCADE = [
   'gemini-3.5-flash-lite',
+  'gemini-3.7-flash',
   'gemini-3.6-flash',
   'gemini-3.8-flash',
 ];
@@ -224,10 +227,14 @@ export async function discoverGeminiModels(
       .filter((m) => isLite(m))
       .sort((a, b) => (extractModelVersion(b) - extractModelVersion(a)) || a.localeCompare(b));
 
-    // Cascade générale (.all) : le DEUXIÈME plus récent/meilleur modèle Flash en tête par défaut
+    // Cascade générale (.all) : le DEUXIÈME plus récent/meilleur modèle Flash en tête par défaut.
+    // En cas de repli, on bascule sur les modèles suivants (ex: 3.6 si 3.7 échoue) et NON sur le meilleur modèle (3.8)
+    // qui est usuellement surchargé et ne sert que d'ultime recours parmi les Flash standards.
     let allCascade: string[];
-    if (standardFlash.length > 1) {
-      allCascade = [standardFlash[1], standardFlash[0], ...standardFlash.slice(2), ...liteFlash];
+    if (standardFlash.length > 2) {
+      allCascade = [standardFlash[1], ...standardFlash.slice(2), standardFlash[0], ...liteFlash];
+    } else if (standardFlash.length === 2) {
+      allCascade = [standardFlash[1], standardFlash[0], ...liteFlash];
     } else if (standardFlash.length === 1) {
       allCascade = [standardFlash[0], ...liteFlash];
     } else {
@@ -424,10 +431,12 @@ export function formatAiModelName(modelId: string): string {
   switch (modelId) {
     case 'gemini-3.8-flash':
       return 'Gemini 3.8 Flash';
-    case 'gemini-3.5-flash-lite':
-      return 'Gemini 3.5 Flash-Lite';
+    case 'gemini-3.7-flash':
+      return 'Gemini 3.7 Flash';
     case 'gemini-3.6-flash':
       return 'Gemini 3.6 Flash';
+    case 'gemini-3.5-flash-lite':
+      return 'Gemini 3.5 Flash-Lite';
     default: {
       // Pour les nouveaux modèles Gemini non encore référencés : transformation automatique du nom
       // "gemini-4.0-flash-lite" → "Gemini 4.0 Flash Lite"
@@ -1982,9 +1991,9 @@ ${sanitizedIngredients.join(', ')}
     const { parsed } = await fetchGeminiJsonWithFallbackAndRetry(
       apiKey,
       payload,
-      (await discoverGeminiModels(apiKey)).all,
+      (await discoverGeminiModels(apiKey)).fast,
       options?.onModelAttempt,
-      30000,
+      20000,
       options?.signal
     );
     const sanitized = sanitizeExtractedRecipe(parsed);

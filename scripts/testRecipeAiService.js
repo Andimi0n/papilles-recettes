@@ -146,8 +146,18 @@ async function main() {
   console.log('\n--- Test 4 : Cascades de modèles Gemini & Circuit Breaker ---');
   assert.strictEqual(
     GEMINI_MODELS_CASCADE[0],
+    'gemini-3.7-flash',
+    'GEMINI_MODELS_CASCADE doit avoir le 2e meilleur modèle comme premier modèle (gemini-3.7-flash pour éviter surcharge)'
+  );
+  assert.strictEqual(
+    GEMINI_MODELS_CASCADE[1],
     'gemini-3.6-flash',
-    'GEMINI_MODELS_CASCADE doit avoir le 2e meilleur modèle comme premier modèle (gemini-3.6-flash pour éviter surcharge)'
+    'GEMINI_MODELS_CASCADE doit basculer sur gemini-3.6-flash en repli 1 (et NON sur 3.8 qui est saturé)'
+  );
+  assert.strictEqual(
+    GEMINI_MODELS_CASCADE[2],
+    'gemini-3.8-flash',
+    'GEMINI_MODELS_CASCADE doit garder gemini-3.8-flash en dernier repli standard'
   );
   assert.strictEqual(
     FAST_GEMINI_MODELS_CASCADE[0],
@@ -156,8 +166,8 @@ async function main() {
   );
   assert.strictEqual(
     FAST_GEMINI_MODELS_CASCADE[1],
-    'gemini-3.6-flash',
-    'FAST_GEMINI_MODELS_CASCADE doit avoir gemini-3.6-flash comme modèle de repli'
+    'gemini-3.7-flash',
+    'FAST_GEMINI_MODELS_CASCADE doit avoir gemini-3.7-flash comme modèle de repli'
   );
   assert.strictEqual(
     FAST_GEMINI_MODELS_CASCADE.includes('gemini-2.5-flash'),
@@ -177,7 +187,8 @@ async function main() {
 
   // Test du comportement de discoverGeminiModels avec clé vide (repli statique)
   const emptyKeyModels = await discoverGeminiModels('');
-  assert.strictEqual(emptyKeyModels.all[0], 'gemini-3.6-flash');
+  assert.strictEqual(emptyKeyModels.all[0], 'gemini-3.7-flash');
+  assert.strictEqual(emptyKeyModels.all[1], 'gemini-3.6-flash');
   assert.strictEqual(emptyKeyModels.fast[0], 'gemini-3.5-flash-lite');
 
   // Test du Circuit Breaker
