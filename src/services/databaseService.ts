@@ -51,10 +51,53 @@ const CURRENT_SCHEMA_VERSION = 'v4';
 let _sqliteModule: typeof import('expo-sqlite') | null = null;
 let _sqliteChecked = false;
 
+/**
+ * Vérifie de manière non intrusive la présence du module natif ExpoSQLite
+ * sans exécuter `require('expo-sqlite')` à l'aveugle.
+ * Cela évite que le chargeur de modules de Metro (guardedLoadModule) n'intercepte
+ * l'exception au require et la déclare comme erreur fatale (ErrorUtils.reportFatalError)
+ * en environnement Expo Go ou dev client sans SQLite.
+ */
+function hasNativeSQLite(): boolean {
+  try {
+    // 1. Détection via requireOptionalNativeModule de l'API Expo (ne throw jamais)
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { requireOptionalNativeModule } = require('expo');
+    if (typeof requireOptionalNativeModule === 'function') {
+      const nativeMod = requireOptionalNativeModule('ExpoSQLite');
+      if (nativeMod) return true;
+    }
+  } catch {
+    // Environnement sans runtime Expo (ex: Node.js tests)
+  }
+
+  try {
+    // 2. Détection défensive sur les registres globaux React Native / TurboModules
+    const g = globalThis as {
+      expo?: { modules?: Record<string, unknown> };
+      nativeModuleProxy?: Record<string, unknown>;
+      RN$TurboModuleRegistry?: { get?: (name: string) => unknown };
+    };
+    if (g.expo?.modules?.ExpoSQLite) return true;
+    if (g.nativeModuleProxy?.ExpoSQLite) return true;
+    if (typeof g.RN$TurboModuleRegistry?.get === 'function' && g.RN$TurboModuleRegistry.get('ExpoSQLite')) return true;
+  } catch {
+    // Ignorer
+  }
+
+  return false;
+}
+
 function getSQLiteModule(): typeof import('expo-sqlite') | null {
   if (_sqliteChecked) return _sqliteModule;
   _sqliteChecked = true;
   try {
+    // Si le binaire natif ExpoSQLite n'est pas présent sur l'appareil (ex: Expo Go ou dev build non reconstruit),
+    // on ne tente PAS require('expo-sqlite') pour éviter le crash fatal de Metro.
+    if (!hasNativeSQLite()) {
+      _sqliteModule = null;
+      return null;
+    }
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const mod = require('expo-sqlite');
     if (mod && typeof mod.openDatabaseAsync === 'function') {
@@ -89,7 +132,7 @@ async function _openAndInit(mod: typeof import('expo-sqlite')): Promise<void> {
     await _createSchema(_db);
     await _runMigrationFromAsyncStorage(_db);
   } catch (err) {
-    console.error('[DB] Erreur initialisation SQLite, passage en fallback:', err);
+    console.warn('[DB] Erreur initialisation SQLite, passage en fallback:', err);
     _db = null;
   }
 }
