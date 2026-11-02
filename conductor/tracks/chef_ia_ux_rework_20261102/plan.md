@@ -73,3 +73,8 @@
   - [x] Vérifier le rendu sur les 3 thèmes (Jardin Botanique, Table Nocturne, Contraste Élevé)
   - [x] Vérifier les contrastes visuels des 3 états de puces et des boutons d'action
 - [x] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+
+---
+
+## Phase: Review Fixes
+- [x] Task: Apply review suggestions [ab18e6f]
