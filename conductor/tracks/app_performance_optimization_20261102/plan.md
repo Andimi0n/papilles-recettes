@@ -5,10 +5,10 @@
 - [x] Task: Corriger la clé d'invalidation dans stockMatcher.ts (recalcul garanti lors de l'édition d'une recette) [a1e325d]
 - [x] Task: Implémenter la mise à jour in-memory dans StorageService.saveRecipe() et éliminer le double reload dans App.tsx [f7373b8]
 - [x] Task: Configurer estimatedItemSize sur FlashList (HomeScreen.tsx) et découpler l'état isFilterBarVisible pour fluidifier le scroll [3bf2529]
-- [~] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) [a23c853]
 
 ## Phase 2 : Optimisation Mémoire, Photos HD & Isolation de Saisie
-- [ ] Task: Écrire les tests unitaires pour la compression/redimensionnement des photos dans ImageStorageService
+- [~] Task: Écrire les tests unitaires pour la compression/redimensionnement des photos dans ImageStorageService
 - [ ] Task: Implémenter le redimensionnement automatique (max 1200px) et compression JPEG (0.8) dans ImageStorageService.persistImageLocally
 - [ ] Task: Isoler la barre de saisie de FridgeStockView.tsx pour éliminer les re-rendus de la SectionList à chaque frappe clavier
 - [ ] Task: Raccorder expo-splash-screen (preventAutoHideAsync / hideAsync) dans App.tsx pour supprimer le clignotement de chargement au démarrage
