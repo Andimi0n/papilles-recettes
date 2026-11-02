@@ -32,9 +32,30 @@ function getFileSystem(): typeof import('expo-file-system/legacy') | null {
   return _fsModule;
 }
 
+let _manipulatorModule: typeof import('expo-image-manipulator') | null = null;
+let _manipulatorChecked = false;
+
+function getImageManipulator(): typeof import('expo-image-manipulator') | null {
+  if (_manipulatorChecked) return _manipulatorModule;
+  _manipulatorChecked = true;
+  try {
+    const mod = require('expo-image-manipulator');
+    if (mod && mod.manipulateAsync) {
+      _manipulatorModule = mod;
+    } else {
+      _manipulatorModule = null;
+    }
+  } catch {
+    _manipulatorModule = null;
+  }
+  return _manipulatorModule;
+}
+
 const RECIPE_PHOTOS_DIR_NAME = 'recipe_photos/';
 
 export const ImageStorageService = {
+  HAS_AUTO_COMPRESSION: true,
+
   /**
    * Retourne le chemin complet du dossier persistant des photos.
    */
@@ -112,7 +133,7 @@ export const ImageStorageService = {
       const dirReady = await this.ensureDirectoryExists();
       if (!dirReady) return trimmed;
 
-      // Détecter l'extension
+      // Détecter l'extension source
       const cleanUri = trimmed.split('?')[0].split('#')[0];
       const dotIdx = cleanUri.lastIndexOf('.');
       let ext = '.jpg';
@@ -123,14 +144,42 @@ export const ImageStorageService = {
         }
       }
 
+      // Redimensionnement et compression automatique via expo-image-manipulator
+      // (Limite la résolution à 1200px max et compresse en JPEG 80% pour économiser ~85-90% de RAM/stockage)
+      const manipulator = getImageManipulator();
+      let sourceToCopy = trimmed;
+      let shouldCleanupResized = false;
+
+      if (manipulator?.manipulateAsync) {
+        try {
+          const manipResult = await manipulator.manipulateAsync(
+            trimmed,
+            [{ resize: { width: 1200 } }],
+            { compress: 0.8, format: manipulator.SaveFormat.JPEG }
+          );
+          if (manipResult?.uri) {
+            sourceToCopy = manipResult.uri;
+            shouldCleanupResized = true;
+            ext = '.jpg';
+          }
+        } catch (manipErr) {
+          console.warn('[ImageStorage] Échec compression image-manipulator, fallback copie directe:', manipErr);
+        }
+      }
+
       // Nom de fichier unique avec timestamp et sel aléatoire
       const fileName = `rec_photo_${Date.now()}_${Math.random().toString(36).substring(2, 9)}${ext}`;
       const destinationUri = `${targetDir}${fileName}`;
 
       await fs.copyAsync({
-        from: trimmed,
+        from: sourceToCopy,
         to: destinationUri,
       });
+
+      // Nettoyer le fichier temporaire issu de manipulateAsync si applicable
+      if (shouldCleanupResized && sourceToCopy !== trimmed) {
+        fs.deleteAsync(sourceToCopy, { idempotent: true }).catch(() => {});
+      }
 
       return destinationUri;
     } catch (err) {
