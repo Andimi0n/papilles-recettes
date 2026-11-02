@@ -380,11 +380,17 @@ const FridgeStockViewComponent: React.FC<FridgeStockViewProps> = ({
     const raw = (nameToAdd || '').trim();
     if (!raw) return;
 
+    let targetName = raw;
+    let targetAisle = aisleToAdd;
+    let targetCanonicalId = canonicalIdToAdd;
+
     // Si aucun ID canonique n'est fourni, on vérifie via le service unifié
-    if (!canonicalIdToAdd) {
+    if (!targetCanonicalId) {
       const resolution = UnifiedIngredientService.resolveRecognizedIngredient(raw);
       if (resolution.isRecognized && resolution.canonical) {
-        return handleAddItem(resolution.canonical.canonicalName, resolution.canonical.defaultAisle, resolution.canonical.id);
+        targetName = resolution.canonical.canonicalName;
+        targetAisle = resolution.canonical.defaultAisle;
+        targetCanonicalId = resolution.canonical.id;
       } else {
         setPendingUnrecognizedName(raw);
         setIsQualifyModalVisible(true);
@@ -393,11 +399,11 @@ const FridgeStockViewComponent: React.FC<FridgeStockViewProps> = ({
     }
 
     // Normalisation de l'ingrédient
-    const normalized = normalizeIngredient({ name: raw, canonicalId: canonicalIdToAdd });
-    const resolvedCanonicalId = canonicalIdToAdd || normalized.canonicalId;
-    const name = normalized.name || (raw.charAt(0).toUpperCase() + raw.slice(1));
+    const normalized = normalizeIngredient({ name: targetName, canonicalId: targetCanonicalId });
+    const resolvedCanonicalId = targetCanonicalId || normalized.canonicalId;
+    const name = normalized.name || (targetName.charAt(0).toUpperCase() + targetName.slice(1));
     const resolvedAisle =
-      aisleToAdd ||
+      targetAisle ||
       (resolvedCanonicalId
         ? canonicalVocabulary.find((c) => c.id === resolvedCanonicalId)?.defaultAisle
         : undefined) ||

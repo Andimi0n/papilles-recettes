@@ -26,6 +26,9 @@ import { RecipeShareService } from './src/services/recipeShareService';
 import { OnboardingScreen } from './src/screens/OnboardingScreen';
 import { createDynamicStyles } from './src/theme/colors';
 import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
+import * as SplashScreen from 'expo-splash-screen';
+
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 type AppScreen = 'home' | 'planner' | 'shopping' | 'settings' | 'detail' | 'form' | 'scan';
 
@@ -54,16 +57,16 @@ function AppContent() {
     }
   }, []);
 
-  // Chargement initial des recettes
+  // Chargement initial des recettes avec parallélisation maximale
   useEffect(() => {
     const loadInitialData = async () => {
       try {
-        await StorageService.migrateRecipesToCanonicalV1().catch(() => {});
-        // Vérification onboarding en parallèle du chargement des recettes
+        // Chargement parallèle des recettes, onboarding, stock et migration canonique
         const [loaded, onboarded] = await Promise.all([
           StorageService.getRecipes().catch(() => [] as Recipe[]),
           StorageService.hasCompletedOnboarding().catch(() => false),
           StorageService.getFridgeItems().catch(() => {}), // préchauffage cache
+          StorageService.migrateRecipesToCanonicalV1().catch(() => {}),
         ]);
         setRecipes(loaded as Recipe[]);
         if (!onboarded) setShowOnboarding(true);
@@ -75,6 +78,13 @@ function AppContent() {
     };
     loadInitialData();
   }, []);
+
+  // Déverrouillage fluide du splash screen natif dès que les données et le thème sont prêts
+  useEffect(() => {
+    if (!isLoading && isThemeLoaded) {
+      SplashScreen.hideAsync().catch(() => {});
+    }
+  }, [isLoading, isThemeLoaded]);
 
   // Écoute et décodage des liens profonds de partage (papilles://import?r=...)
   const handleIncomingUrl = useCallback((url: string | null | undefined) => {
