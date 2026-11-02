@@ -1,9 +1,9 @@
 {
   "id": "chef_mood_customization_20261102",
   "type": "feature",
-  "status": "new",
+  "status": "completed",
   "title": "Personnalisation des humeurs et prompts du Chef IA",
   "description": "Permettre la personnalisation, l'ajout, la modification et la suppression des humeurs du Chef IA depuis les paramètres de l'application.",
   "created_at": "2026-11-02T14:05:00+01:00",
-  "updated_at": "2026-11-02T14:05:00+01:00"
+  "updated_at": "2026-11-02T17:11:00+01:00"
 }
