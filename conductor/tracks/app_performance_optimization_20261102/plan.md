@@ -9,8 +9,8 @@
 
 ## Phase 2 : Optimisation Mémoire, Photos HD & Isolation de Saisie
 - [x] Task: Écrire les tests unitaires pour la compression/redimensionnement des photos dans ImageStorageService [cb0fe33]
-- [~] Task: Implémenter le redimensionnement automatique (max 1200px) et compression JPEG (0.8) dans ImageStorageService.persistImageLocally
-- [ ] Task: Isoler la barre de saisie de FridgeStockView.tsx pour éliminer les re-rendus de la SectionList à chaque frappe clavier
+- [x] Task: Implémenter le redimensionnement automatique (max 1200px) et compression JPEG (0.8) dans ImageStorageService.persistImageLocally [eec9169]
+- [~] Task: Isoler la barre de saisie de FridgeStockView.tsx pour éliminer les re-rendus de la SectionList à chaque frappe clavier
 - [ ] Task: Raccorder expo-splash-screen (preventAutoHideAsync / hideAsync) dans App.tsx pour supprimer le clignotement de chargement au démarrage
 - [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
 
