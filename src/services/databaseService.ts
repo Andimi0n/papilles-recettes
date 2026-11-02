@@ -818,10 +818,19 @@ export const DatabaseService = {
       return;
     }
     await db.withExclusiveTransactionAsync(async (txn) => {
-      await txn.runAsync('DELETE FROM fridge_items');
+      if (items.length === 0) {
+        await txn.runAsync('DELETE FROM fridge_items');
+        return;
+      }
+      // Suppression ciblée des éléments retirés (évite un DROP/DELETE complet)
+      const placeholders = items.map(() => '?').join(',');
+      const ids = items.map((i) => i.id);
+      await txn.runAsync(`DELETE FROM fridge_items WHERE id NOT IN (${placeholders})`, ids);
+
+      // Insertion ou mise à jour in-place des éléments
       for (const item of items) {
         await txn.runAsync(
-          'INSERT INTO fridge_items (id, name, canonical_id, aisle, created_at) VALUES (?,?,?,?,?)',
+          'INSERT OR REPLACE INTO fridge_items (id, name, canonical_id, aisle, created_at) VALUES (?,?,?,?,?)',
           [item.id, item.name, item.canonicalId ?? null, item.aisle ?? null, item.createdAt]
         );
       }
@@ -913,10 +922,19 @@ export const DatabaseService = {
       return;
     }
     await db.withExclusiveTransactionAsync(async (txn) => {
-      await txn.runAsync('DELETE FROM shopping_items');
+      if (items.length === 0) {
+        await txn.runAsync('DELETE FROM shopping_items');
+        return;
+      }
+      // Suppression ciblée des articles supprimés
+      const placeholders = items.map(() => '?').join(',');
+      const ids = items.map((i) => i.id);
+      await txn.runAsync(`DELETE FROM shopping_items WHERE id NOT IN (${placeholders})`, ids);
+
+      // Insertion ou mise à jour ciblée
       for (const item of items) {
         await txn.runAsync(
-          `INSERT INTO shopping_items
+          `INSERT OR REPLACE INTO shopping_items
             (id, name, canonical_id, quantity, unit, is_checked, aisle, created_at, recipe_id, recipe_title)
            VALUES (?,?,?,?,?,?,?,?,?,?)`,
           [
