@@ -13,7 +13,7 @@ import {
 import { Image } from 'expo-image';
 import { FlashList, FlashListRef } from '@shopify/flash-list';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { Recipe, Category, SortOption, Difficulty, TimeFilterMode, RecipeViewMode } from '../types/recipe';
 import { MealLogEntry } from '../types/mealLog';
 import { MealTime } from '../types/planner';
@@ -779,27 +779,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           onOpenChefAi={openFreshStockModal}
           onNavigateToStock={onNavigateToStock}
         />
-
-        {/* Bandeau filtre Stock actif (recettes 100% faisables) */}
-        {onlyDoableWithStock && (
-          <View style={styles.stockActiveBanner}>
-            <View style={styles.stockActiveLeft}>
-              <MaterialCommunityIcons name="fridge" size={17} color={colors.primary} />
-              <Text style={styles.stockActiveText} numberOfLines={1}>
-                {doableCount > 1
-                  ? `${doableCount} recettes prêtes avec votre stock`
-                  : `${doableCount} recette prête avec votre stock`}
-              </Text>
-            </View>
-            <TouchableOpacity
-              onPress={() => setOnlyDoableWithStock(false)}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              accessibilityLabel="Désactiver le filtre de stock"
-            >
-              <Ionicons name="close-circle" size={18} color={colors.textSecondary} />
-            </TouchableOpacity>
-          </View>
-        )}
 
         {/* Bandeau filtres avancés actifs (Temps, Note, Difficulté, Ingrédients) */}
         {(targetTotalTime !== null ||

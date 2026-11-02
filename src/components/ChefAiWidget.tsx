@@ -13,8 +13,33 @@ interface ChefAiWidgetProps {
   onNavigateToStock?: () => void;
 }
 
+export function formatStockPreview(stockItems?: { name: string }[], maxItems = 3): string {
+  if (!stockItems || stockItems.length === 0) return '';
+  const names = stockItems
+    .slice(0, maxItems)
+    .map((item) => (item.name ? item.name.toLowerCase().trim() : ''))
+    .filter(Boolean);
+  if (names.length === 0) return '';
+  const preview = names.join(', ');
+  return stockItems.length > maxItems ? `Avec : ${preview}...` : `Avec : ${preview}`;
+}
+
+export function getChefAiSubtitle(stockCount: number, doableCount = 0): string {
+  if (stockCount === 0) {
+    return 'Sur-mesure avec ce que vous avez';
+  }
+  if (doableCount > 0) {
+    return doableCount > 1
+      ? `${doableCount} recettes prêtes ou inventez du sur-mesure`
+      : `1 recette prête ou inventez du sur-mesure`;
+  }
+  return 'Inventions sur-mesure anti-gaspillage';
+}
+
 export const ChefAiWidget: React.FC<ChefAiWidgetProps> = ({
   stockCount,
+  stockItems,
+  doableCount = 0,
   onOpenChefAi,
   onNavigateToStock,
 }) => {
@@ -27,6 +52,9 @@ export const ChefAiWidget: React.FC<ChefAiWidgetProps> = ({
       onOpenChefAi();
     }
   };
+
+  const previewText = formatStockPreview(stockItems, 3);
+  const subtitle = getChefAiSubtitle(stockCount, doableCount);
 
   return (
     <TouchableOpacity
@@ -44,7 +72,9 @@ export const ChefAiWidget: React.FC<ChefAiWidgetProps> = ({
           </View>
           <View style={styles.titleCol}>
             <Text style={styles.headerTitle}>Inspirations du Chef IA</Text>
-            <Text style={styles.headerSubtitle}>Sur-mesure avec ce que vous avez</Text>
+            <Text style={styles.headerSubtitle} numberOfLines={1}>
+              {subtitle}
+            </Text>
           </View>
         </View>
 
@@ -64,12 +94,22 @@ export const ChefAiWidget: React.FC<ChefAiWidgetProps> = ({
         )}
       </View>
 
-      {/* Contenu : Bouton d'action épuré */}
+      {/* Contenu : Aperçu des ingrédients & Bouton d'action épuré */}
       {stockCount > 0 ? (
-        <View style={styles.actionBtn}>
-          <Ionicons name="bulb-outline" size={15} color="#FFFFFF" />
-          <Text style={styles.actionBtnText}>Trouver 3 idées de recettes</Text>
-          <Ionicons name="chevron-forward" size={14} color="#FFFFFF" />
+        <View style={styles.contentBody}>
+          {previewText ? (
+            <View style={styles.previewRow}>
+              <MaterialCommunityIcons name="shaker-outline" size={13} color={colors.textSecondary} />
+              <Text style={styles.previewText} numberOfLines={1}>
+                {previewText}
+              </Text>
+            </View>
+          ) : null}
+          <View style={styles.actionBtn}>
+            <Ionicons name="bulb-outline" size={15} color="#FFFFFF" />
+            <Text style={styles.actionBtnText}>Trouver 3 idées de recettes</Text>
+            <Ionicons name="chevron-forward" size={14} color="#FFFFFF" />
+          </View>
         </View>
       ) : (
         <View style={styles.emptyContainer}>
@@ -101,7 +141,7 @@ const styles = createDynamicStyles((colors, shadows) => ({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 8,
   },
   titleRow: {
     flexDirection: 'row',
@@ -118,6 +158,7 @@ const styles = createDynamicStyles((colors, shadows) => ({
   },
   titleCol: {
     flex: 1,
+    marginRight: 8,
   },
   headerTitle: {
     fontSize: 14,
@@ -153,6 +194,21 @@ const styles = createDynamicStyles((colors, shadows) => ({
     fontSize: 11,
     fontWeight: '500',
     color: colors.textMuted,
+  },
+  contentBody: {
+    gap: 8,
+  },
+  previewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 2,
+  },
+  previewText: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    flex: 1,
+    fontStyle: 'italic',
   },
   actionBtn: {
     flexDirection: 'row',
