@@ -13,10 +13,10 @@
   - [x] Ajouter la constante de configuration `chef_moods_v1` dans `DatabaseService` / `StorageService`
   - [x] Implémenter `getChefMoods`, `saveChefMood`, `deleteChefMood` et `resetChefMoods` dans `StorageService`
   - [x] Vérifier le passage au vert des tests unitaires (Green Phase)
-- [ ] Task: Adapter `recipeAiService` pour la prise en charge des humeurs personnalisées
-  - [ ] Permettre à `generateRecipeIdeasFromStock` et `generateFullRecipeFromIdea` d'utiliser les humeurs configurées
-  - [ ] Garantir le repli de sécurité sur la première humeur par défaut en cas d'identifiant inconnu
-  - [ ] Vérifier l'intégrité avec les tests existants de l'IA
+- [x] Task: Adapter `recipeAiService` pour la prise en charge des humeurs personnalisées (5c83550)
+  - [x] Permettre à `generateRecipeIdeasFromStock` et `generateFullRecipeFromIdea` d'utiliser les humeurs configurées
+  - [x] Garantir le repli de sécurité sur la première humeur par défaut en cas d'identifiant inconnu
+  - [x] Vérifier l'intégrité avec les tests existants de l'IA
 - [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
 
 ---
