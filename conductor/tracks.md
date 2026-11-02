@@ -7,7 +7,7 @@
   *Link: [./tracks/quitoque_pdf_converter_20261101/index.md](./tracks/quitoque_pdf_converter_20261101/index.md)*
 
 ---
-- [~] **Track: Optimisation des performances globales de l'application (React 19, FlashList, Cache mémoire SQLite, Compression Photos HD, StockMatcher, Splash Screen)**
+- [x] **Track: Optimisation des performances globales de l'application (React 19, FlashList, Cache mémoire SQLite, Compression Photos HD, StockMatcher, Splash Screen)**
   *Link: [./tracks/app_performance_optimization_20261102/index.md](./tracks/app_performance_optimization_20261102/index.md)*
 
 
