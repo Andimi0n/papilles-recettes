@@ -3,14 +3,14 @@
 ## Phase 1: Protection du Formulaire de Recette (`RecipeFormScreen`)
 *Sécurisation de l'affichage pour les recettes issues du Chef IA (`rec_ai_stock_`) ou contenant des données préchargées afin d'éviter tout écrasement accidentel.*
 
-- [ ] Task: Tests unitaires de la protection des données préchargées (TDD - Red Phase)
-  - [ ] Écrire les tests vérifiant le masquage strict du sélecteur d'onglets `[Texte brut (IA)] | [À la main]` lorsque `initialRecipe.id` commence par `rec_ai_stock_` ou quand `hasPreloadedData` est vrai
-  - [ ] Vérifier l'échec initial des tests (Red)
-- [ ] Task: Implémentation de la protection anti-écrasement dans `RecipeFormScreen.tsx` (Green Phase)
-  - [ ] Ajuster la condition d'affichage du sélecteur de mode de création (L764) pour masquer les onglets dès que des données sont préchargées ou qu'il s'agit d'une recette IA
-  - [ ] Forcer `creationMode` sur `'manual'` pour préserver l'intégrité de la recette
-  - [ ] Valider le passage au vert des tests (Green)
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: Tests unitaires de la protection des données préchargées (TDD - Red Phase) [af03b62]
+  - [x] Écrire les tests vérifiant le masquage strict du sélecteur d'onglets `[Texte brut (IA)] | [À la main]` lorsque `initialRecipe.id` commence par `rec_ai_stock_` ou quand `hasPreloadedData` est vrai
+  - [x] Vérifier l'échec initial des tests (Red)
+- [x] Task: Implémentation de la protection anti-écrasement dans `RecipeFormScreen.tsx` (Green Phase) [af03b62]
+  - [x] Ajuster la condition d'affichage du sélecteur de mode de création (L764) pour masquer les onglets dès que des données sont préchargées ou qu'il s'agit d'une recette IA
+  - [x] Forcer `creationMode` sur `'manual'` pour préserver l'intégrité de la recette
+  - [x] Valider le passage au vert des tests (Green)
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md)
 
 ---
 
