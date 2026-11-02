@@ -60,7 +60,10 @@
   1. Génération rapide (< 300 tokens) de 3 propositions sobres et variées basées sur les ingrédients sélectionnés et le stock.
   2. Génération complète pas-à-pas de l'idée sélectionnée avec pré-remplissage du carnet.
 - **Composition Flexible & Ergonomie d'Inspiration :**
-  - Sélection unifiée distinguant les ingrédients obligatoires (étoilés) des ingrédients d'accompagnement optionnels, avec action rapide « Mettre tout mon stock en optionnel ».
+  - Sélection tactile directe par puces avec cycle interactif à 3 états (Optionnel ➔ ⭐ Indispensable ➔ Inactif), pré-sélection intégrale du stock à l'ouverture (zéro effet page blanche, CTA immédiat) et épinglage prioritaire des ingrédients phares en tête de liste.
+  - Affichage progressif adapté aux stocks volumineux (50+ aliments) avec limitation d'encombrement et actions rapides (« Tout inclure » / « Tout exclure »).
+  - Découplage strict entre Inspirations IA et carnet local, avec passerelle interactive anti-doublon en 1 tap.
+  - Widget d'accueil enrichi avec aperçu dynamique textuel des étagères et intégration épurée sans superposition de bandeau redondant.
   - Gestionnaire de prompts favoris (sauvegarde, application instantanée en 1 tap et suppression) avec graines prédéfinies.
   - Équilibre culinaire automatique : au moins 1 idée végétarienne garantie sur les 3 avec badge `🌿 Végétarien` (sauf viande expressément imposée).
   - Navigation réversible sans perte d'état et mémoire des refus (historique FIFO de 15 idées rejetées lors de « Proposer 3 autres idées »).
