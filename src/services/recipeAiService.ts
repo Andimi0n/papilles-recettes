@@ -2001,7 +2001,10 @@ ${sanitizedInput}
         ? `INSTRUCTIONS LIBRES DE L'UTILISATEUR :\n- ${escapeUntrustedDelimiters(options.additionalPreferences.trim().slice(0, 150), 'untrusted_preferences')}\n`
         : '';
 
-    const systemPrompt = `${moodConfig.recipeExecutionPrompt}
+    const systemPrompt = `${moodConfig.systemPersona}
+
+Directives de rédaction :
+${moodConfig.recipeExecutionPrompt}
 
 Ta mission : rédiger la fiche recette complète pour "${escapeUntrustedDelimiters(idea.title, 'idea')}" (${targetType}, ${servings} personnes, temps cible : ~${escapeUntrustedDelimiters(idea.estimatedTime || '25 min', 'idea')}).
 Concept validé : "${escapeUntrustedDelimiters(idea.description, 'idea')}"

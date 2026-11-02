@@ -64,6 +64,7 @@ const ChefMoodForm: React.FC<ChefMoodFormProps> = ({
   const [systemPersona, setSystemPersona] = useState(mood?.systemPersona || '');
   const [userDirective, setUserDirective] = useState(mood?.userDirective || '');
   const [recipeExecutionPrompt, setRecipeExecutionPrompt] = useState(mood?.recipeExecutionPrompt || '');
+  const [showPromptStructure, setShowPromptStructure] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   const isEditing = mood !== null;
@@ -79,15 +80,24 @@ const ChefMoodForm: React.FC<ChefMoodFormProps> = ({
       return;
     }
     if (!trimmedPersona) {
-      Alert.alert('Philosophie requise', "Veuillez détailler l'identité et la philosophie du Chef (Étape 1).");
+      Alert.alert(
+        'Identité requise',
+        "Veuillez détailler l'identité et la philosophie commune du Chef (Étapes 1 & 2)."
+      );
       return;
     }
     if (!trimmedDirective) {
-      Alert.alert('Directive requise', "Veuillez formuler la demande pour les 3 idées de plats (Étape 1).");
+      Alert.alert(
+        'Directive requise',
+        "Veuillez formuler la consigne de suggestion pour les 3 idées (Étape 1)."
+      );
       return;
     }
     if (!trimmedExecution) {
-      Alert.alert('Consignes requises', "Veuillez renseigner les consignes de rédaction pour la recette complète (Étape 2).");
+      Alert.alert(
+        'Consignes requises',
+        "Veuillez renseigner les consignes de rédaction pour la recette complète (Étape 2)."
+      );
       return;
     }
 
@@ -146,6 +156,57 @@ const ChefMoodForm: React.FC<ChefMoodFormProps> = ({
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
+        {/* Encadré d'information : Architecture des Prompts */}
+        <View style={styles.infoAccordionBox}>
+          <TouchableOpacity
+            style={styles.infoAccordionHeader}
+            onPress={() => setShowPromptStructure(!showPromptStructure)}
+            activeOpacity={0.7}
+          >
+            <View style={styles.infoAccordionHeaderLeft}>
+              <Ionicons name="information-circle-outline" size={18} color={colors.primary} />
+              <Text style={styles.infoAccordionTitle}>
+                Structure des prompts finaux (Étapes 1 &amp; 2)
+              </Text>
+            </View>
+            <Ionicons
+              name={showPromptStructure ? 'chevron-up' : 'chevron-down'}
+              size={18}
+              color={colors.textSecondary}
+            />
+          </TouchableOpacity>
+
+          {showPromptStructure && (
+            <View style={styles.infoAccordionContent}>
+              <View style={styles.promptStepItem}>
+                <Text style={styles.promptStepHeader}>
+                  Étape 1 : 3 Idées de recettes
+                </Text>
+                <Text style={styles.promptStepDetail}>
+                  • <Text style={styles.promptStepBold}>Prompt Système :</Text> Identité commune du Chef + Contraintes diététiques &amp; anti-redondance.
+                </Text>
+                <Text style={styles.promptStepDetail}>
+                  • <Text style={styles.promptStepBold}>Prompt Utilisateur :</Text> Directives de suggestion + Ingrédients du frigo sélectionnés.
+                </Text>
+              </View>
+
+              <View style={styles.promptStepDivider} />
+
+              <View style={styles.promptStepItem}>
+                <Text style={styles.promptStepHeader}>
+                  Étape 2 : Recette complète détaillée
+                </Text>
+                <Text style={styles.promptStepDetail}>
+                  • <Text style={styles.promptStepBold}>Prompt Système :</Text> Identité commune du Chef + Directives de rédaction de la recette + Titre de l&apos;idée validée.
+                </Text>
+                <Text style={styles.promptStepDetail}>
+                  • <Text style={styles.promptStepBold}>Prompt Utilisateur :</Text> &quot;Rédige cette recette (mode &apos;...&apos;)&quot; + Ingrédients clés et fonds de placard.
+                </Text>
+              </View>
+            </View>
+          )}
+        </View>
+
         {/* 1. Nom de l'humeur */}
         <View style={styles.formGroup}>
           <Text style={styles.label}>Nom de l&apos;humeur *</Text>
@@ -190,68 +251,69 @@ const ChefMoodForm: React.FC<ChefMoodFormProps> = ({
           </ScrollView>
         </View>
 
-        {/* 3. Philosophie & Identité (Étape 1 - 3 idées) */}
+        {/* 3. Identité du Chef (Commune Étapes 1 & 2) */}
         <View style={styles.formGroup}>
           <View style={styles.labelWithBadgeRow}>
-            <Text style={styles.label}>1. Identité du Chef (Étape 1 - 3 idées) *</Text>
-            <View style={styles.stepBadge}>
-              <Text style={styles.stepBadgeText}>3 Idées</Text>
+            <Text style={styles.label}>1. Identité du Chef (Commune Étapes 1 &amp; 2) *</Text>
+            <View style={styles.stepBadgeCommon}>
+              <Text style={styles.stepBadgeCommonText}>Commune 1 &amp; 2</Text>
             </View>
           </View>
           <Text style={styles.helperText}>
-            Définissez la personnalité, la philosophie culinaire et le ton du Chef IA.
+            Définit qui est le chef, sa philosophie culinaire, ses valeurs et son ton. Injecté comme socle au début des étapes 1 et 2.
           </Text>
           <TextInput
-            style={[styles.input, styles.textAreaLarge]}
+            style={[styles.input, styles.textAreaAuto]}
             value={systemPersona}
             onChangeText={setSystemPersona}
-            placeholder="Ex: Tu es un chef spécialisé dans les cuissons au barbecue, les marinades intenses et la cuisine en plein air..."
+            placeholder="Ex: Tu es un chef spécialisé dans les cuissons au barbecue, les marinades intenses et la cuisine en plein air. Ta philosophie : sublimer les produits bruts avec la maîtrise du feu..."
             placeholderTextColor={colors.textMuted}
             multiline
-            numberOfLines={4}
+            scrollEnabled={false}
           />
         </View>
 
-        {/* 4. Directive Utilisateur (Étape 1 - 3 idées) */}
+        {/* 4. Directives de suggestion (Étape 1 - 3 idées) */}
         <View style={styles.formGroup}>
           <View style={styles.labelWithBadgeRow}>
-            <Text style={styles.label}>2. Directive de suggestion (Étape 1) *</Text>
+            <Text style={styles.label}>2. Directives de suggestion (Étape 1) *</Text>
             <View style={styles.stepBadge}>
-              <Text style={styles.stepBadgeText}>3 Idées</Text>
+              <Text style={styles.stepBadgeText}>Étape 1 (3 idées)</Text>
             </View>
           </View>
           <Text style={styles.helperText}>
-            La consigne directe de recherche de plats passée au modèle.
+            Consigne concise guidant la recherche et l&apos;orientation des 3 idées de plats.
           </Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, styles.textAreaAuto]}
             value={userDirective}
             onChangeText={setUserDirective}
-            placeholder="Ex: Conçois 3 idées de grillades et marinades ultra-savoureuses"
+            placeholder="Ex: Conçois 3 idées de grillades et marinades ultra-savoureuses, faciles à réaliser en extérieur"
             placeholderTextColor={colors.textMuted}
-            maxLength={120}
+            multiline
+            scrollEnabled={false}
           />
         </View>
 
-        {/* 5. Consignes de Rédaction (Étape 2 - Recette complète) */}
+        {/* 5. Directives de rédaction (Étape 2 - Fiche recette) */}
         <View style={styles.formGroup}>
           <View style={styles.labelWithBadgeRow}>
-            <Text style={styles.label}>3. Consignes de rédaction (Étape 2 - Fiche recette) *</Text>
+            <Text style={styles.label}>3. Directives de rédaction (Étape 2) *</Text>
             <View style={styles.stepBadge}>
-              <Text style={styles.stepBadgeText}>Recette complète</Text>
+              <Text style={styles.stepBadgeText}>Étape 2 (Recette)</Text>
             </View>
           </View>
           <Text style={styles.helperText}>
-            Règles de style, exigences techniques et conseil du chef (&apos;userNote&apos;) pour la recette détaillée.
+            Consignes courtes sur le style, la précision des découpes/cuissons et l&apos;astuce du chef (&apos;userNote&apos;) pour la fiche complète.
           </Text>
           <TextInput
-            style={[styles.input, styles.textAreaLarge]}
+            style={[styles.input, styles.textAreaAuto]}
             value={recipeExecutionPrompt}
             onChangeText={setRecipeExecutionPrompt}
-            placeholder={`Ex: Tu es un maître du feu et des cuissons braisées.\n- Style : étapes détaillant les températures et le temps de repos.\n- Astuce ('userNote') : donne un secret pour réussir la sauce ou la croûte.`}
+            placeholder={`Ex: - Style de rédaction : étapes précises détaillant les températures et le temps de repos de la viande.\n- Technique : explique la caramélisation des sucs.\n- Astuce ('userNote') : donne un secret pour réussir la sauce ou la croûte.`}
             placeholderTextColor={colors.textMuted}
             multiline
-            numberOfLines={5}
+            scrollEnabled={false}
           />
         </View>
 
@@ -358,6 +420,60 @@ const styles = createDynamicStyles((colors, shadows) => ({
     paddingTop: 16,
     paddingBottom: 24,
   },
+  infoAccordionBox: {
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    padding: 12,
+    marginBottom: 16,
+  },
+  infoAccordionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  infoAccordionHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  infoAccordionTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  infoAccordionContent: {
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderLight,
+  },
+  promptStepItem: {
+    marginBottom: 6,
+  },
+  promptStepHeader: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: 3,
+  },
+  promptStepDetail: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    lineHeight: 16,
+    marginBottom: 2,
+  },
+  promptStepBold: {
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  promptStepDivider: {
+    height: 1,
+    backgroundColor: colors.borderLight,
+    marginVertical: 6,
+  },
   formGroup: {
     marginBottom: 18,
   },
@@ -373,6 +489,17 @@ const styles = createDynamicStyles((colors, shadows) => ({
     justifyContent: 'space-between',
     marginBottom: 4,
   },
+  stepBadgeCommon: {
+    backgroundColor: colors.primaryLight,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  stepBadgeCommonText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.primary,
+  },
   stepBadge: {
     backgroundColor: colors.surfaceAlt,
     paddingHorizontal: 7,
@@ -384,7 +511,7 @@ const styles = createDynamicStyles((colors, shadows) => ({
   stepBadgeText: {
     fontSize: 11,
     fontWeight: '600',
-    color: colors.primary,
+    color: colors.textSecondary,
   },
   helperText: {
     fontSize: 12,
@@ -402,10 +529,12 @@ const styles = createDynamicStyles((colors, shadows) => ({
     fontSize: 14,
     color: colors.textPrimary,
   },
-  textAreaLarge: {
-    minHeight: 88,
+  textAreaAuto: {
+    minHeight: 90,
     textAlignVertical: 'top',
     lineHeight: 20,
+    paddingTop: 10,
+    paddingBottom: 10,
   },
   iconListRow: {
     flexDirection: 'row',
