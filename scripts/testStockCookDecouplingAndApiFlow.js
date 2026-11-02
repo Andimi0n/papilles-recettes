@@ -67,7 +67,23 @@ assert.ok(
   'L’ouverture de l’URL doit utiliser Linking.openURL'
 );
 
+// 5. Liste déroulante "Format du repas" avec 5 options (Entrée, Plat, Dessert, Apéritif, Boisson)
+assert.strictEqual(
+  content.includes('mealTypeCompactContainer'),
+  false,
+  'Les 3 boutons fixes mealTypeCompactContainer doivent être remplacés par la liste déroulante'
+);
+assert.ok(
+  content.includes('mealTypeDropdownTrigger') && content.includes('mealTypeDropdownMenu'),
+  'Le déclencheur et le menu de liste déroulante doivent être présents dans StockCookModal.tsx'
+);
+assert.ok(
+  content.includes("'Apéritif'") && content.includes("'Boisson'"),
+  'Les formats Apéritif et Boisson doivent être présents dans AllowedMealType et MEAL_TYPES'
+);
+
 console.log('✅ Découplage du carnet validé.');
 console.log('✅ Passerelle interactive anti-doublon validée.');
 console.log('✅ Issue rapide Clé API Google AI Studio validée.');
+console.log('✅ Liste déroulante Format du repas (5 options) validée.');
 console.log('🎉 Tous les tests de découplage et flux Clé API ont réussi !');

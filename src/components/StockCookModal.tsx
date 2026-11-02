@@ -115,13 +115,32 @@ const AI_STEPS = [
   'Finalisation des secrets de cuisson...',
 ];
 
-export type AllowedMealType = 'Plat' | 'Entrée' | 'Dessert';
+export type AllowedMealType = 'Entrée' | 'Plat' | 'Dessert' | 'Apéritif' | 'Boisson';
 
 const MEAL_TYPES: { id: AllowedMealType; label: string; iconName: string }[] = [
   { id: 'Entrée', label: 'Entrée', iconName: 'leaf-outline' },
   { id: 'Plat', label: 'Plat', iconName: 'restaurant-outline' },
   { id: 'Dessert', label: 'Dessert', iconName: 'ice-cream-outline' },
+  { id: 'Apéritif', label: 'Apéritif', iconName: 'wine-outline' },
+  { id: 'Boisson', label: 'Boisson', iconName: 'cafe-outline' },
 ];
+
+function formatMealTypeGenitive(type: AllowedMealType): string {
+  switch (type) {
+    case 'Entrée':
+      return "d'entrée";
+    case 'Plat':
+      return 'de plat';
+    case 'Dessert':
+      return 'de dessert';
+    case 'Apéritif':
+      return "d'apéritif";
+    case 'Boisson':
+      return 'de boisson';
+    default:
+      return `de ${(type as string).toLowerCase()}`;
+  }
+}
 
 export const StockCookModal: React.FC<StockCookModalProps> = ({
   visible,
@@ -148,7 +167,13 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
   const [servings, setServings] = useState<number>(4);
   const [isVegetarian, setIsVegetarian] = useState<boolean>(false);
   const [mealType, setMealType] = useState<AllowedMealType>('Plat');
+  const [isMealTypeDropdownOpen, setIsMealTypeDropdownOpen] = useState<boolean>(false);
   const [additionalPreferences, setAdditionalPreferences] = useState<string>('');
+
+  const currentMealTypeObj = useMemo(
+    () => MEAL_TYPES.find((t) => t.id === mealType) || MEAL_TYPES[1],
+    [mealType]
+  );
 
   // Flow d'invention IA en 2 étapes (Solution 4)
   const [aiFlowStep, setAiFlowStep] = useState<
@@ -182,6 +207,7 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
         setIngredientSearchText('');
         setRejectedIdeaTitles([]);
         setMealType('Plat');
+        setIsMealTypeDropdownOpen(false);
         setAiFlowStep('config');
         setIdeas([]);
         setSelectedIdea(null);
@@ -211,6 +237,7 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
 
   const handleCloseModal = useCallback(() => {
     cancelCurrentAiOperation();
+    setIsMealTypeDropdownOpen(false);
     onClose();
   }, [cancelCurrentAiOperation, onClose]);
 
@@ -744,7 +771,7 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
                 />
                 <Text style={styles.aiLoadingHint}>
                   {doableRecipesForCurrentType.length > 0
-                    ? `Anti-doublon : ${doableRecipesForCurrentType.length} ${mealType.toLowerCase()}${doableRecipesForCurrentType.length > 1 ? 's' : ''} faisable${doableRecipesForCurrentType.length > 1 ? 's' : ''} dans votre carnet sera évité${doableRecipesForCurrentType.length > 1 ? 's' : ''}`
+                    ? `Anti-doublon : ${doableRecipesForCurrentType.length} ${mealType.toLowerCase()}${doableRecipesForCurrentType.length > 1 ? 's' : ''} faisable${doableRecipesForCurrentType.length > 1 ? 's' : ''} dans votre carnet ${doableRecipesForCurrentType.length > 1 ? (mealType === 'Entrée' || mealType === 'Boisson' ? 'seront évitées' : 'seront évités') : (mealType === 'Entrée' || mealType === 'Boisson' ? 'sera évitée' : 'sera évité')}`
                     : 'Génération originale adaptée à vos denrées en stock'}
                 </Text>
                 <View
@@ -904,6 +931,11 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
                 contentContainerStyle={styles.contentContainer}
                 showsVerticalScrollIndicator={false}
                 keyboardShouldPersistTaps="handled"
+                onScrollBeginDrag={() => {
+                  if (isMealTypeDropdownOpen) {
+                    setIsMealTypeDropdownOpen(false);
+                  }
+                }}
               >
                 {/* 1. CARTE 1 : FORMAT DU REPAS */}
                 <View style={styles.sectionCard}>
@@ -912,43 +944,36 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
                     <Text style={styles.sectionCardTitle}>1. FORMAT DU REPAS</Text>
                   </View>
                   <View style={styles.formatRow}>
-                    {/* Sélecteur Entrée / Plat / Dessert */}
-                    <View style={styles.mealTypeCompactContainer}>
-                      {MEAL_TYPES.map((t) => {
-                        const isSelected = mealType === t.id;
-                        return (
-                          <TouchableOpacity
-                            key={t.id}
-                            style={[
-                              styles.mealTypeCompactBtn,
-                              isSelected && styles.mealTypeCompactBtnSelected,
-                            ]}
-                            onPress={() => {
-                              setMealType(t.id);
-                              setRejectedIdeaTitles([]);
-                            }}
-                            activeOpacity={0.7}
-                            accessibilityRole="button"
-                            accessibilityLabel={`Type de repas : ${t.label}`}
-                          >
-                            <Ionicons
-                              name={t.iconName as any}
-                              size={13}
-                              color={isSelected ? '#FFFFFF' : colors.textSecondary}
-                            />
-                            <Text
-                              style={[
-                                styles.mealTypeCompactText,
-                                isSelected && styles.mealTypeCompactTextSelected,
-                              ]}
-                              numberOfLines={1}
-                            >
-                              {t.label}
-                            </Text>
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </View>
+                    {/* Liste déroulante Format de repas */}
+                    <TouchableOpacity
+                      style={[
+                        styles.mealTypeDropdownTrigger,
+                        isMealTypeDropdownOpen && styles.mealTypeDropdownTriggerActive,
+                      ]}
+                      onPress={() => setIsMealTypeDropdownOpen((prev) => !prev)}
+                      activeOpacity={0.7}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Format du repas : ${currentMealTypeObj.label}. Toucher pour changer.`}
+                    >
+                      <View style={styles.mealTypeDropdownTriggerContent}>
+                        <Ionicons
+                          name={currentMealTypeObj.iconName as any}
+                          size={15}
+                          color={colors.primary}
+                        />
+                        <Text
+                          style={styles.mealTypeDropdownTriggerText}
+                          numberOfLines={1}
+                        >
+                          {currentMealTypeObj.label}
+                        </Text>
+                      </View>
+                      <Ionicons
+                        name={isMealTypeDropdownOpen ? 'chevron-up' : 'chevron-down'}
+                        size={14}
+                        color={isMealTypeDropdownOpen ? colors.primary : colors.textSecondary}
+                      />
+                    </TouchableOpacity>
 
                     {/* Portions stepper */}
                     <View style={styles.servingsCompactContainer}>
@@ -1009,6 +1034,64 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
                       />
                     </TouchableOpacity>
                   </View>
+
+                  {/* Menu déroulant dépliable */}
+                  {isMealTypeDropdownOpen && (
+                    <View style={styles.mealTypeDropdownMenu}>
+                      {MEAL_TYPES.map((t, index) => {
+                        const isSelected = mealType === t.id;
+                        const isLast = index === MEAL_TYPES.length - 1;
+                        return (
+                          <TouchableOpacity
+                            key={t.id}
+                            style={[
+                              styles.mealTypeDropdownItem,
+                              isSelected && styles.mealTypeDropdownItemActive,
+                              isLast && styles.mealTypeDropdownItemLast,
+                            ]}
+                            onPress={() => {
+                              setMealType(t.id);
+                              setIsMealTypeDropdownOpen(false);
+                              setRejectedIdeaTitles([]);
+                            }}
+                            activeOpacity={0.7}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Choisir le format ${t.label}`}
+                          >
+                            <View style={styles.mealTypeDropdownItemLeft}>
+                              <View
+                                style={[
+                                  styles.mealTypeDropdownIconBox,
+                                  isSelected && styles.mealTypeDropdownIconBoxActive,
+                                ]}
+                              >
+                                <Ionicons
+                                  name={t.iconName as any}
+                                  size={15}
+                                  color={isSelected ? '#FFFFFF' : colors.primary}
+                                />
+                              </View>
+                              <Text
+                                style={[
+                                  styles.mealTypeDropdownItemText,
+                                  isSelected && styles.mealTypeDropdownItemTextActive,
+                                ]}
+                              >
+                                {t.label}
+                              </Text>
+                            </View>
+                            {isSelected && (
+                              <Ionicons
+                                name="checkmark-circle"
+                                size={18}
+                                color={colors.primary}
+                              />
+                            )}
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  )}
                 </View>
 
                 {/* 2. CARTE 2 : STYLE & ENVIES DU MOMENT */}
@@ -1249,7 +1332,7 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
                 >
                   <Ionicons name="sparkles" size={18} color="#FFFFFF" />
                   <Text style={styles.generateAiBtnText}>
-                    💡 Trouver 3 idées de {mealType.toLowerCase()} ({activeCount} ingrédient{activeCount > 1 ? 's' : ''})
+                    💡 Trouver 3 idées {formatMealTypeGenitive(mealType)} ({activeCount} ingrédient{activeCount > 1 ? 's' : ''})
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -1494,35 +1577,82 @@ const styles = createDynamicStyles((colors, shadows) => ({
     alignItems: 'center',
     gap: 8,
   },
-  mealTypeCompactContainer: {
+  mealTypeDropdownTrigger: {
     flex: 1.3,
     flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     backgroundColor: colors.surfaceAlt,
     borderRadius: 10,
-    padding: 2,
-    gap: 2,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderWidth: 1,
+    borderColor: colors.border,
+    minHeight: 36,
   },
-  mealTypeCompactBtn: {
-    flex: 1,
+  mealTypeDropdownTriggerActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.cardBackground,
+  },
+  mealTypeDropdownTriggerContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 7,
-    paddingHorizontal: 2,
-    borderRadius: 8,
-    gap: 4,
+    gap: 6,
+    flexShrink: 1,
+    marginRight: 4,
   },
-  mealTypeCompactBtnSelected: {
+  mealTypeDropdownTriggerText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  mealTypeDropdownMenu: {
+    marginTop: 10,
+    backgroundColor: colors.cardBackground,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: 'hidden',
+  },
+  mealTypeDropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  mealTypeDropdownItemLast: {
+    borderBottomWidth: 0,
+  },
+  mealTypeDropdownItemActive: {
+    backgroundColor: colors.primaryLight,
+  },
+  mealTypeDropdownItemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  mealTypeDropdownIconBox: {
+    width: 26,
+    height: 26,
+    borderRadius: 6,
+    backgroundColor: colors.surfaceAlt,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  mealTypeDropdownIconBoxActive: {
     backgroundColor: colors.primary,
   },
-  mealTypeCompactText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textSecondary,
+  mealTypeDropdownItemText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: colors.textPrimary,
   },
-  mealTypeCompactTextSelected: {
-    color: '#FFFFFF',
+  mealTypeDropdownItemTextActive: {
     fontWeight: '700',
+    color: colors.primary,
   },
   servingsCompactContainer: {
     flexDirection: 'row',
