@@ -18,5 +18,5 @@
 - [x] Task: Écrire les tests unitaires pour les écritures ciblées / deltas dans DatabaseService [43b27c1]
 - [x] Task: Optimiser saveShoppingItems et saveFridgeItems dans DatabaseService.ts pour éviter les DELETE ALL systématiques [f65923f]
 - [x] Task: Mémoïser les 4 conteneurs d'onglets (HomeScreen, MealPlannerScreen, ShoppingListScreen, SettingsScreen) dans App.tsx pour stopper la réconciliation d'onglets masqués [6b9d9ff]
-- [~] Task: Exécuter la validation globale de santé (npx tsc, expo lint, npm test complet)
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: Exécuter la validation globale de santé (npx tsc, expo lint, npm test complet) [520d1bd]
+- [~] Task: Phase Verification & Checkpoint (Refer to workflow.md)
