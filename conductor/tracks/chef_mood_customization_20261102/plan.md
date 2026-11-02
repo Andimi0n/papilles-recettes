@@ -9,10 +9,10 @@
   - [x] Écrire le test d'interdiction de suppression de la dernière humeur restante
   - [x] Écrire le test de réinitialisation aux valeurs d'usine (`resetChefMoods`)
   - [x] Exécuter le test et vérifier son échec (Red Phase)
-- [ ] Task: Implémenter la persistance dans DatabaseService et StorageService
-  - [ ] Ajouter la constante de configuration `chef_moods_v1` dans `DatabaseService`
-  - [ ] Implémenter `getChefMoods`, `saveChefMood`, `deleteChefMood` et `resetChefMoods` dans `StorageService`
-  - [ ] Vérifier le passage au vert des tests unitaires (Green Phase)
+- [x] Task: Implémenter la persistance dans DatabaseService et StorageService (7288a29)
+  - [x] Ajouter la constante de configuration `chef_moods_v1` dans `DatabaseService` / `StorageService`
+  - [x] Implémenter `getChefMoods`, `saveChefMood`, `deleteChefMood` et `resetChefMoods` dans `StorageService`
+  - [x] Vérifier le passage au vert des tests unitaires (Green Phase)
 - [ ] Task: Adapter `recipeAiService` pour la prise en charge des humeurs personnalisées
   - [ ] Permettre à `generateRecipeIdeasFromStock` et `generateFullRecipeFromIdea` d'utiliser les humeurs configurées
   - [ ] Garantir le repli de sécurité sur la première humeur par défaut en cas d'identifiant inconnu
