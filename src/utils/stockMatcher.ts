@@ -296,6 +296,43 @@ let cachedEvaluationKey = '';
 let cachedEvaluationMap: Map<string, RecipeStockEvaluation> = new Map();
 
 /**
+ * Réinitialise le cache d'évaluation du stock.
+ */
+export function clearStockMatcherCache(): void {
+  cachedEvaluationKey = '';
+  cachedEvaluationMap = new Map();
+}
+
+/**
+ * Calcule une empreinte numérique 32-bit ultra-rapide (DJB2) sans allocation d'array.
+ */
+function computeRecipesFingerprint(recipes: Recipe[]): string {
+  let hash = 5381;
+  const len = recipes.length;
+  for (let i = 0; i < len; i++) {
+    const r = recipes[i];
+    const str = r.id + (r.updatedAt || '');
+    for (let j = 0; j < str.length; j++) {
+      hash = ((hash << 5) + hash) ^ str.charCodeAt(j);
+    }
+  }
+  return `${len}_${hash >>> 0}`;
+}
+
+function computeStockFingerprint(stockItems: FridgeItem[]): string {
+  let hash = 5381;
+  const len = stockItems.length;
+  for (let i = 0; i < len; i++) {
+    const s = stockItems[i];
+    const str = s.id + s.name + (s.canonicalId || '');
+    for (let j = 0; j < str.length; j++) {
+      hash = ((hash << 5) + hash) ^ str.charCodeAt(j);
+    }
+  }
+  return `${len}_${hash >>> 0}`;
+}
+
+/**
  * Évalue une liste complète de recettes par rapport au stock avec mémoïsation ultra-rapide (< 2ms).
  */
 export function evaluateRecipesWithStock(
@@ -307,9 +344,9 @@ export function evaluateRecipesWithStock(
     return new Map<string, RecipeStockEvaluation>();
   }
 
-  // Clé d'invalidation rapide basée sur le nombre de recettes et la liste des stocks
-  const stockFingerprint = stockItems.map((s) => s.id + s.name).join('_');
-  const recipesFingerprint = recipes.length + '_' + (recipes[0]?.updatedAt || '');
+  // Clé d'invalidation numérique rapide et sans allocation intermédiaire
+  const stockFingerprint = computeStockFingerprint(stockItems);
+  const recipesFingerprint = computeRecipesFingerprint(recipes);
   const key = `${stockFingerprint}::${recipesFingerprint}::${options?.assumePantryStaplesAvailable ?? true}`;
 
   if (key === cachedEvaluationKey && cachedEvaluationMap.size > 0) {
