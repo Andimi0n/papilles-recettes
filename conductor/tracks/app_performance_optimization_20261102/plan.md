@@ -12,10 +12,10 @@
 - [x] Task: Implémenter le redimensionnement automatique (max 1200px) et compression JPEG (0.8) dans ImageStorageService.persistImageLocally [eec9169]
 - [x] Task: Isoler la barre de saisie de FridgeStockView.tsx pour éliminer les re-rendus de la SectionList à chaque frappe clavier [77ea48c]
 - [x] Task: Raccorder expo-splash-screen (preventAutoHideAsync / hideAsync) dans App.tsx pour supprimer le clignotement de chargement au démarrage [029e32f]
-- [~] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) [e2b201d]
 
 ## Phase 3 : Isolation de Rendu React 19 & Requêtes SQLite Deltas
-- [ ] Task: Écrire les tests unitaires pour les écritures ciblées / deltas dans DatabaseService
+- [~] Task: Écrire les tests unitaires pour les écritures ciblées / deltas dans DatabaseService
 - [ ] Task: Optimiser saveShoppingItems et saveFridgeItems dans DatabaseService.ts pour éviter les DELETE ALL systématiques
 - [ ] Task: Mémoïser les 4 conteneurs d'onglets (HomeScreen, MealPlannerScreen, ShoppingListScreen, SettingsScreen) dans App.tsx pour stopper la réconciliation d'onglets masqués
 - [ ] Task: Exécuter la validation globale de santé (npx tsc, expo lint, npm test complet)
