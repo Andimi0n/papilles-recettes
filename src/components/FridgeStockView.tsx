@@ -95,6 +95,65 @@ const StockListItemRow = React.memo<StockListItemRowProps>(
 
 StockListItemRow.displayName = 'StockListItemRow';
 
+interface FridgeQuickAddBarProps {
+  onAddItem: (name?: string, aisle?: ShoppingAisle, canonicalId?: string) => void;
+  onRequestQualify: (name: string) => void;
+  textMutedColor: string;
+}
+
+const FridgeQuickAddBar = React.memo<FridgeQuickAddBarProps>(({
+  onAddItem,
+  onRequestQualify,
+  textMutedColor,
+}) => {
+  const [text, setText] = useState('');
+
+  const handleAdd = useCallback(() => {
+    const raw = text.trim();
+    if (!raw) return;
+    setText('');
+    onAddItem(raw);
+  }, [text, onAddItem]);
+
+  return (
+    <View style={styles.fixedQuickAddContainer}>
+      <View style={styles.quickAddCard}>
+        <View style={styles.quickAddMainRow}>
+          <UnifiedIngredientInput
+            containerStyle={{ flex: 1, zIndex: 1002, overflow: 'visible' }}
+            style={styles.nameInput}
+            placeholder="Ajouter un aliment (placards, frigo, épices...)"
+            placeholderTextColor={textMutedColor}
+            value={text}
+            onChangeText={setText}
+            clearOnSelect
+            keepFocusOnSelect
+            returnKeyType="done"
+            context="stock"
+            onRequestQualify={onRequestQualify}
+            onSubmitEditing={handleAdd}
+            onSelectIngredient={(ing) => {
+              setText('');
+              onAddItem(ing.canonicalName, ing.defaultAisle, ing.id);
+            }}
+          />
+
+          <TouchableOpacity
+            style={[styles.addButton, !text.trim() && styles.addButtonDisabled]}
+            onPress={handleAdd}
+            disabled={!text.trim()}
+            accessibilityLabel="Ajouter à mes étagères"
+          >
+            <Ionicons name="add" size={24} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
+      </View>
+    </View>
+  );
+});
+
+FridgeQuickAddBar.displayName = 'FridgeQuickAddBar';
+
 const FridgeStockViewComponent: React.FC<FridgeStockViewProps> = ({
   onNavigateToShopping,
   onItemCopiedToShopping,
@@ -128,12 +187,16 @@ const FridgeStockViewComponent: React.FC<FridgeStockViewProps> = ({
     itemsRef.current = items;
   }, [items]);
 
-  const [newItemName, setNewItemName] = useState('');
   const [isQualifyModalVisible, setIsQualifyModalVisible] = useState(false);
   const [pendingUnrecognizedName, setPendingUnrecognizedName] = useState('');
   const [canonicalVocabulary, setCanonicalVocabulary] = useState<CanonicalIngredient[]>(() =>
     VocabularyService.getSyncList()
   );
+
+  const handleRequestQualify = useCallback((name: string) => {
+    setPendingUnrecognizedName(name);
+    setIsQualifyModalVisible(true);
+  }, []);
 
   const onFridgeCountChangeRef = useRef(onFridgeCountChange);
   useEffect(() => {
@@ -313,8 +376,8 @@ const FridgeStockViewComponent: React.FC<FridgeStockViewProps> = ({
   }, [items, canonicalVocabulary]);
 
   // Actions utilisateur
-  const handleAddItem = async (nameToAdd?: string, aisleToAdd?: ShoppingAisle, canonicalIdToAdd?: string) => {
-    const raw = (nameToAdd || newItemName).trim();
+  const handleAddItem = useCallback(async (nameToAdd?: string, aisleToAdd?: ShoppingAisle, canonicalIdToAdd?: string) => {
+    const raw = (nameToAdd || '').trim();
     if (!raw) return;
 
     // Si aucun ID canonique n'est fourni, on vérifie via le service unifié
@@ -365,7 +428,6 @@ const FridgeStockViewComponent: React.FC<FridgeStockViewProps> = ({
     const optimisticList = [optimisticItem, ...currentItems];
     setItems(optimisticList);
     onFridgeCountChangeRef.current?.(optimisticList.length);
-    setNewItemName('');
 
     // Persistance en arrière-plan
     try {
@@ -380,7 +442,7 @@ const FridgeStockViewComponent: React.FC<FridgeStockViewProps> = ({
       onFridgeCountChangeRef.current?.(currentItems.length);
       Alert.alert('Erreur', "Impossible d'ajouter cet aliment à vos étagères.");
     }
-  };
+  }, [canonicalVocabulary]);
 
   const handleDeleteItem = useCallback(async (
     id: string,
@@ -667,46 +729,13 @@ const FridgeStockViewComponent: React.FC<FridgeStockViewProps> = ({
 
       {/* Contenu défilant : Liste des aliments */}
       <View style={styles.bodyWrapper}>
-        {/* Barre d'ajout fixe au sommet (ne disparaît jamais au scroll) */}
+        {/* Barre d'ajout fixe au sommet (isolée dans son sous-composant mémoïsé sans re-rendu de la liste) */}
         {!isSearching && (
-          <View style={styles.fixedQuickAddContainer}>
-            <View style={styles.quickAddCard}>
-              <View style={styles.quickAddMainRow}>
-                <UnifiedIngredientInput
-                  containerStyle={{ flex: 1, zIndex: 1002, overflow: 'visible' }}
-                  style={styles.nameInput}
-                  placeholder="Ajouter un aliment (placards, frigo, épices...)"
-                  placeholderTextColor={colors.textMuted}
-                  value={newItemName}
-                  onChangeText={(text) => setNewItemName(text)}
-                  clearOnSelect
-                  keepFocusOnSelect
-                  returnKeyType="done"
-                  context="stock"
-                  onRequestQualify={(name) => {
-                    setPendingUnrecognizedName(name);
-                    setIsQualifyModalVisible(true);
-                  }}
-                  onSubmitEditing={() => handleAddItem()}
-                  onSelectIngredient={(ing) => {
-                    handleAddItem(ing.canonicalName, ing.defaultAisle, ing.id);
-                  }}
-                />
-
-                <TouchableOpacity
-                  style={[
-                    styles.addButton,
-                    !newItemName.trim() && styles.addButtonDisabled,
-                  ]}
-                  onPress={() => handleAddItem()}
-                  disabled={!newItemName.trim()}
-                  accessibilityLabel="Ajouter à mes étagères"
-                >
-                  <Ionicons name="add" size={24} color="#FFFFFF" />
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
+          <FridgeQuickAddBar
+            onAddItem={handleAddItem}
+            onRequestQualify={handleRequestQualify}
+            textMutedColor={colors.textMuted}
+          />
         )}
 
         {/* Zone de contenu principale (SectionList + Suggestions en en-tête) */}
@@ -856,19 +885,16 @@ const FridgeStockViewComponent: React.FC<FridgeStockViewProps> = ({
             handleAddItem(canonical.canonicalName, canonical.defaultAisle, canonical.id);
             setIsQualifyModalVisible(false);
             setPendingUnrecognizedName('');
-            setNewItemName('');
           }}
           onAttachAsSynonym={(canonical) => {
             handleAddItem(canonical.canonicalName, canonical.defaultAisle, canonical.id);
             setIsQualifyModalVisible(false);
             setPendingUnrecognizedName('');
-            setNewItemName('');
           }}
           onCreateCanonical={(created) => {
             handleAddItem(created.canonicalName, created.defaultAisle, created.id);
             setIsQualifyModalVisible(false);
             setPendingUnrecognizedName('');
-            setNewItemName('');
           }}
         />
       )}
