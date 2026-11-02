@@ -16,13 +16,12 @@ console.log('🧪 Lancement des tests de ChefAiWidget et de HomeScreen...');
 // 1. Test unitaire des fonctions logiques d'aide à la présentation
 function formatStockPreview(stockItems, maxItems = 3) {
   if (!stockItems || stockItems.length === 0) return '';
-  const names = stockItems
-    .slice(0, maxItems)
+  const validNames = stockItems
     .map((item) => (item.name ? item.name.toLowerCase().trim() : ''))
     .filter(Boolean);
-  if (names.length === 0) return '';
-  const preview = names.join(', ');
-  return stockItems.length > maxItems ? `Avec : ${preview}...` : `Avec : ${preview}`;
+  if (validNames.length === 0) return '';
+  const preview = validNames.slice(0, maxItems).join(', ');
+  return validNames.length > maxItems ? `Avec : ${preview}...` : `Avec : ${preview}`;
 }
 
 function getChefAiSubtitle(stockCount, doableCount = 0) {
@@ -53,6 +52,16 @@ assert.strictEqual(
   ]),
   'Avec : carotte, oeuf, parmesan...',
   'Plus de 3 items -> tronqué avec points de suspension'
+);
+assert.strictEqual(
+  formatStockPreview([
+    { name: '   ' },
+    { name: 'Carotte' },
+    { name: 'Oeuf' },
+    { name: 'Parmesan' },
+  ]),
+  'Avec : carotte, oeuf, parmesan',
+  'Les items vides sont filtrés en amont pour toujours présenter 3 items valides'
 );
 
 assert.strictEqual(

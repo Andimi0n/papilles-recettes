@@ -75,11 +75,15 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
   availableRecipes = [],
 }) => {
   const { isDark, colors } = useTheme();
+  const isExistingRecipe = Boolean(
+    initialRecipe?.id && availableRecipes.some((r) => r.id === initialRecipe.id)
+  );
   const isEditing = Boolean(
-    initialRecipe &&
-      initialRecipe.id &&
-      !initialRecipe.id.startsWith('extracted_') &&
-      !initialRecipe.id.startsWith('rec_ai_stock_')
+    isExistingRecipe ||
+      (initialRecipe &&
+        initialRecipe.id &&
+        !initialRecipe.id.startsWith('extracted_') &&
+        !initialRecipe.id.startsWith('rec_ai_stock_'))
   );
   const hasPreloadedData = Boolean(
     initialRecipe &&

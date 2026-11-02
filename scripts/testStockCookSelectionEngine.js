@@ -36,9 +36,17 @@ function initializeStockIngredients(stockItems) {
       inactiveIngredients: [],
     };
   }
-  const names = stockItems
-    .map((item) => (item.name ? item.name.trim() : ''))
-    .filter(Boolean);
+  const seen = new Set();
+  const names = [];
+  for (const item of stockItems) {
+    const trimmed = item.name ? item.name.trim() : '';
+    if (!trimmed) continue;
+    const lower = trimmed.toLowerCase();
+    if (!seen.has(lower)) {
+      seen.add(lower);
+      names.push(trimmed);
+    }
+  }
   return {
     primaryIngredients: [],
     optionalIngredients: names,
@@ -68,12 +76,12 @@ assert.strictEqual(cycleIngredientState('primary'), 'inactive', 'Indispensable �
 assert.strictEqual(cycleIngredientState('inactive'), 'optional', 'Inactif ➔ Optionnel');
 
 // Tests d'initialisation à l'ouverture
-const mockStock = [{ name: 'Carotte' }, { name: 'Oeuf' }, { name: 'Courgette' }];
+const mockStock = [{ name: 'Carotte' }, { name: 'Oeuf' }, { name: 'Courgette' }, { name: 'carotte' }];
 const initialSelection = initializeStockIngredients(mockStock);
 assert.deepStrictEqual(
   initialSelection.optionalIngredients,
   ['Carotte', 'Oeuf', 'Courgette'],
-  'Tout le stock doit être en Optionnel par défaut'
+  'Tout le stock doit être en Optionnel par défaut et dédupliqué sans distinction de casse'
 );
 assert.strictEqual(initialSelection.primaryIngredients.length, 0);
 assert.strictEqual(initialSelection.inactiveIngredients.length, 0);

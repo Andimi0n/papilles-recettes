@@ -13,20 +13,29 @@ const path = require('path');
 console.log('🧪 Lancement des tests de protection anti-écrasement de RecipeFormScreen...');
 
 // 1. Test de la logique fonctionnelle shouldShowCreationModeTabs
-function shouldShowCreationModeTabs(initialRecipe) {
-  if (!initialRecipe) return true;
-  const isAiStock = Boolean(initialRecipe.id && initialRecipe.id.startsWith('rec_ai_stock_'));
-  const isExtracted = Boolean(initialRecipe.id && initialRecipe.id.startsWith('extracted_'));
-  const isEditing = Boolean(initialRecipe.id && !isExtracted && !isAiStock);
-  if (isEditing) return false;
-  if (isAiStock || isExtracted) return false;
+function checkRecipeEditingState(initialRecipe, availableRecipes = []) {
+  const isExistingRecipe = Boolean(
+    initialRecipe?.id && availableRecipes.some((r) => r.id === initialRecipe.id)
+  );
+  const isAiStock = Boolean(initialRecipe?.id && initialRecipe.id.startsWith('rec_ai_stock_'));
+  const isExtracted = Boolean(initialRecipe?.id && initialRecipe.id.startsWith('extracted_'));
+  const isEditing = Boolean(isExistingRecipe || (initialRecipe?.id && !isExtracted && !isAiStock));
 
   const hasPreloadedData = Boolean(
-    initialRecipe.title || (initialRecipe.ingredients && initialRecipe.ingredients.length > 0)
+    initialRecipe && (initialRecipe.title || (initialRecipe.ingredients && initialRecipe.ingredients.length > 0))
   );
-  if (hasPreloadedData) return false;
 
-  return true;
+  const showCreationModeTabs =
+    !isEditing &&
+    !hasPreloadedData &&
+    !initialRecipe?.id?.startsWith('rec_ai_stock_') &&
+    !initialRecipe?.id?.startsWith('extracted_');
+
+  return { isEditing, showCreationModeTabs };
+}
+
+function shouldShowCreationModeTabs(initialRecipe, availableRecipes = []) {
+  return checkRecipeEditingState(initialRecipe, availableRecipes).showCreationModeTabs;
 }
 
 // Tests unitaires de la fonction logique
@@ -99,6 +108,24 @@ assert.strictEqual(
   }),
   false,
   'Des données préchargées (ingrédients) doivent masquer les onglets'
+);
+
+// Cas Recette IA déjà enregistrée dans le carnet ré-ouverte en édition
+const savedAiRecipe = {
+  id: 'rec_ai_stock_1730541234',
+  title: 'Poêlée d’automne enregistrée',
+  ingredients: [{ name: 'Carotte' }],
+};
+const editingState = checkRecipeEditingState(savedAiRecipe, [savedAiRecipe]);
+assert.strictEqual(
+  editingState.isEditing,
+  true,
+  'Une recette Chef IA déjà enregistrée dans availableRecipes doit être reconnue en mode édition (isEditing = true)'
+);
+assert.strictEqual(
+  editingState.showCreationModeTabs,
+  false,
+  'Une recette Chef IA en cours de modification ne doit pas afficher les onglets de création'
 );
 
 console.log('✅ Logique fonctionnelle validée avec succès.');

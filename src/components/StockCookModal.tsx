@@ -58,9 +58,17 @@ export function initializeStockIngredients(stockItems: FridgeItem[]): {
       inactiveIngredients: [],
     };
   }
-  const names = stockItems
-    .map((item) => (item.name ? item.name.trim() : ''))
-    .filter(Boolean);
+  const seen = new Set<string>();
+  const names: string[] = [];
+  for (const item of stockItems) {
+    const trimmed = item.name ? item.name.trim() : '';
+    if (!trimmed) continue;
+    const lower = trimmed.toLowerCase();
+    if (!seen.has(lower)) {
+      seen.add(lower);
+      names.push(trimmed);
+    }
+  }
   return {
     primaryIngredients: [],
     optionalIngredients: names,
@@ -1290,7 +1298,14 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
                 </Text>
                 <TouchableOpacity
                   style={styles.apiKeyStudioBtn}
-                  onPress={() => Linking.openURL('https://aistudio.google.com/app/apikey')}
+                  onPress={() =>
+                    Linking.openURL('https://aistudio.google.com/app/apikey').catch(() => {
+                      Alert.alert(
+                        'Navigateur indisponible',
+                        'Impossible d’ouvrir automatiquement la page Google AI Studio.'
+                      );
+                    })
+                  }
                   activeOpacity={0.8}
                 >
                   <Ionicons name="open-outline" size={15} color={colors.primary} />

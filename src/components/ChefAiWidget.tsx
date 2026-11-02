@@ -15,13 +15,12 @@ interface ChefAiWidgetProps {
 
 export function formatStockPreview(stockItems?: { name: string }[], maxItems = 3): string {
   if (!stockItems || stockItems.length === 0) return '';
-  const names = stockItems
-    .slice(0, maxItems)
+  const validNames = stockItems
     .map((item) => (item.name ? item.name.toLowerCase().trim() : ''))
     .filter(Boolean);
-  if (names.length === 0) return '';
-  const preview = names.join(', ');
-  return stockItems.length > maxItems ? `Avec : ${preview}...` : `Avec : ${preview}`;
+  if (validNames.length === 0) return '';
+  const preview = validNames.slice(0, maxItems).join(', ');
+  return validNames.length > maxItems ? `Avec : ${preview}...` : `Avec : ${preview}`;
 }
 
 export function getChefAiSubtitle(stockCount: number, doableCount = 0): string {
