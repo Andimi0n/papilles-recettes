@@ -47,10 +47,10 @@
 
 ## Phase 4: Intégration dans `StockCookModal` & Validation Globale
 
-- [ ] Task: Dynamiser la sélection des humeurs dans `StockCookModal.tsx`
-  - [ ] Remplacer la constante statique `CHEF_MOODS` par le chargement réactif des humeurs via `StorageService.getChefMoods()`
-  - [ ] Gérer le repli de sélection si l'humeur active a été supprimée des paramètres
-  - [ ] Passer la configuration dynamique aux fonctions du service IA
+- [x] Task: Dynamiser la sélection des humeurs dans `StockCookModal.tsx` (911d237)
+  - [x] Remplacer la constante statique `CHEF_MOODS` par le chargement réactif des humeurs via `StorageService.getChefMoods()`
+  - [x] Gérer le repli de sélection si l'humeur active a été supprimée des paramètres
+  - [x] Passer la configuration dynamique aux fonctions du service IA
 - [ ] Task: Validation globale et tests de non-régression
   - [ ] Exécuter `npm test` pour s'assurer que tous les tests unitaires passent
   - [ ] Exécuter `npx tsc --noEmit && npx expo lint` (zéro erreur tolérée)
