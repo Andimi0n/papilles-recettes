@@ -17,14 +17,14 @@
 ## Phase 2: Valorisation de `ChefAiWidget` & Nettoyage de `HomeScreen`
 *Suppression du bandeau vert redondant et valorisation des données d'étagères dans la carte du Chef IA.*
 
-- [ ] Task: Tests unitaires du widget Chef IA et de l'en-tête d'accueil (TDD - Red Phase)
-  - [ ] Rédiger les tests validant l'affichage dynamique de l'aperçu du stock et l'absence de bandeau redondant sur l'écran d'accueil
-  - [ ] Vérifier l'échec initial des tests (Red)
-- [ ] Task: Suppression du bandeau de stock et enrichissement de `ChefAiWidget` (Green Phase)
-  - [ ] Supprimer le bandeau `stockActiveBanner` dans `src/screens/HomeScreen.tsx`
-  - [ ] Exploiter activement `stockItems` et `doableCount` dans `src/components/ChefAiWidget.tsx` : aperçu dynamique textuel des ingrédients disponibles et libellé contextuel adaptatif
-  - [ ] Valider le passage au vert des tests (Green)
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: Tests unitaires du widget Chef IA et de l'en-tête d'accueil (TDD - Red Phase) [e6033e6]
+  - [x] Rédiger les tests validant l'affichage dynamique de l'aperçu du stock et l'absence de bandeau redondant sur l'écran d'accueil
+  - [x] Vérifier l'échec initial des tests (Red)
+- [x] Task: Suppression du bandeau de stock et enrichissement de `ChefAiWidget` (Green Phase) [e6033e6]
+  - [x] Supprimer le bandeau `stockActiveBanner` dans `src/screens/HomeScreen.tsx`
+  - [x] Exploiter activement `stockItems` et `doableCount` dans `src/components/ChefAiWidget.tsx` : aperçu dynamique textuel des ingrédients disponibles et libellé contextuel adaptatif
+  - [x] Valider le passage au vert des tests (Green)
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md)
 
 ---
 
