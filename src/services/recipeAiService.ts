@@ -494,6 +494,15 @@ export function adaptPayloadForModel(basePayload: any, modelName: string): any {
   return payload;
 }
 
+function createAbortError(): Error {
+  if (typeof DOMException !== 'undefined') {
+    return new DOMException('This operation was aborted', 'AbortError');
+  }
+  const err = new Error('This operation was aborted');
+  err.name = 'AbortError';
+  return err;
+}
+
 /**
  * Exécute un appel POST vers Gemini avec timeout par tentative et retry automatique exponentiel
  * en cas de surcharge temporaire des serveurs (HTTP 503 "Model overloaded" ou 429 "Too many requests").
@@ -502,13 +511,22 @@ async function fetchGeminiWithRetry(
   url: string,
   options: any,
   maxRetries = 1,
-  timeoutMs = 60000
+  timeoutMs = 60000,
+  signal?: AbortSignal
 ): Promise<Response> {
   let attempt = 0;
   while (true) {
+    if (signal?.aborted) {
+      throw createAbortError();
+    }
     attempt++;
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+    const onAbort = () => controller.abort();
+    if (signal) {
+      signal.addEventListener('abort', onAbort, { once: true });
+    }
 
     try {
       const response = await fetch(url, {
@@ -525,11 +543,21 @@ async function fetchGeminiWithRetry(
         return response;
       }
     } catch (err: any) {
+      if (signal?.aborted) {
+        throw createAbortError();
+      }
       if (attempt > maxRetries) {
         throw err;
       }
     } finally {
       clearTimeout(timer);
+      if (signal) {
+        signal.removeEventListener('abort', onAbort);
+      }
+    }
+
+    if (signal?.aborted) {
+      throw createAbortError();
     }
 
     // Attente progressive avec backoff : 1.5s
@@ -729,12 +757,16 @@ async function fetchGeminiJsonWithFallbackAndRetry(
   payload: any,
   models: string[] = GEMINI_MODELS_CASCADE,
   onModelAttempt?: (modelName: string, isFallback: boolean) => void,
-  timeoutMs = 60000
+  timeoutMs = 60000,
+  signal?: AbortSignal
 ): Promise<{ parsed: any; usedModel: string }> {
   let lastError: any = null;
   const candidateModels = prioritizeHealthyModels(models);
 
   for (let i = 0; i < candidateModels.length; i++) {
+    if (signal?.aborted) {
+      throw createAbortError();
+    }
     const model = candidateModels[i];
     const isFallback = i > 0;
     if (onModelAttempt) {
@@ -776,7 +808,8 @@ async function fetchGeminiJsonWithFallbackAndRetry(
           body: JSON.stringify(modelPayload),
         },
         hasNextFallback ? 0 : 1,
-        timeoutMs
+        timeoutMs,
+        signal
       );
 
       // Si le réseau ou un reverse-proxy mobile filtre les en-têtes personnalisés (HTTP 403),
@@ -791,7 +824,8 @@ async function fetchGeminiJsonWithFallbackAndRetry(
             body: JSON.stringify(modelPayload),
           },
           0,
-          timeoutMs
+          timeoutMs,
+          signal
         ).catch(() => null);
         if (retryResp && retryResp.ok) {
           response = retryResp;
@@ -836,6 +870,9 @@ async function fetchGeminiJsonWithFallbackAndRetry(
         continue;
       }
     } catch (err: any) {
+      if (signal?.aborted || err?.name === 'AbortError') {
+        throw err;
+      }
       if (
         err?.message?.includes('Clé API non reconnue') ||
         err?.message?.includes('401') ||
@@ -1765,6 +1802,7 @@ ${sanitizedInput}
       additionalPreferences?: string;
       excludedAllergens?: string[];
       chefMood?: string;
+      signal?: AbortSignal;
       onModelAttempt?: (modelName: string, isFallback: boolean) => void;
     },
     providedKey?: string
@@ -1843,7 +1881,8 @@ ${sanitizedInput}
       payload,
       (await discoverGeminiModels(apiKey)).fast,
       options?.onModelAttempt,
-      60000
+      60000,
+      options?.signal
     );
     const rawParsed = parsed;
 
@@ -1908,6 +1947,7 @@ ${sanitizedInput}
       excludedAllergens?: string[];
       additionalPreferences?: string;
       chefMood?: string; // <-- AJOUT ICI
+      signal?: AbortSignal;
       onModelAttempt?: (modelName: string, isFallback: boolean) => void;
     },
     providedKey?: string
@@ -2005,7 +2045,8 @@ ${sanitizedIngredients.join(', ')}
       payload,
       (await discoverGeminiModels(apiKey)).all,
       options?.onModelAttempt,
-      60000
+      60000,
+      options?.signal
     );
     const sanitized = sanitizeExtractedRecipe(parsed);
     console.log(

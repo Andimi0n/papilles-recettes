@@ -61,7 +61,7 @@ interface HomeScreenProps {
   onSelectRecipe: (recipe: Recipe) => void;
   onAddNewRecipe: () => void;
   onScanRecipe: (initialMode?: 'text' | 'photo' | 'url') => void;
-  onImportRecipe?: (recipe: Recipe) => void;
+  onImportRecipe?: (recipe: Recipe, source?: 'stock_ai' | 'scan') => void;
   onToggleFavorite?: (id: string) => void;
   onQuickRate: (id: string, rating: number) => void;
   onOpenSettings?: () => void;
@@ -69,6 +69,8 @@ interface HomeScreenProps {
   onNavigateToStock?: () => void;
   initialOnlyDoable?: boolean;
   isActive?: boolean;
+  reopenStockModal?: boolean;
+  onStockModalReopened?: () => void;
 }
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({
@@ -83,6 +85,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   onNavigateToStock,
   initialOnlyDoable = false,
   isActive = true,
+  reopenStockModal = false,
+  onStockModalReopened,
 }) => {
   const { isDark, colors, themeId } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
@@ -147,8 +151,18 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   }
   const [stockItems, setStockItems] = useState<FridgeItem[]>([]);
   const [isStockModalVisible, setIsStockModalVisible] = useState(false);
+  const [preserveStockSession, setPreserveStockSession] = useState(false);
   const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
   const [isAddMenuVisible, setIsAddMenuVisible] = useState(false);
+
+  const [prevReopenStockModal, setPrevReopenStockModal] = useState(reopenStockModal);
+  if (prevReopenStockModal !== reopenStockModal) {
+    setPrevReopenStockModal(reopenStockModal);
+    if (reopenStockModal) {
+      setPreserveStockSession(true);
+      setIsStockModalVisible(true);
+    }
+  }
 
   // Double bandeau de filtres rétractable au défilement (haute performance, 60fps via useNativeDriver)
   const FILTER_BAR_HEIGHT = 88;
@@ -293,6 +307,18 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       console.error('Erreur chargement stock étagères:', e);
     }
   }, []);
+
+  const openFreshStockModal = useCallback(() => {
+    loadStockItems().catch(() => {});
+    setPreserveStockSession(false);
+    setIsStockModalVisible(true);
+  }, [loadStockItems]);
+
+  useEffect(() => {
+    if (reopenStockModal) {
+      onStockModalReopened?.();
+    }
+  }, [reopenStockModal, onStockModalReopened]);
 
   // État des allergènes et filtrage automatique
   const [userAllergens, setUserAllergens] = useState<UserAllergenItem[]>([]);
@@ -440,8 +466,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           {
             text: 'Inspirer le Chef IA ✨',
             onPress: () => {
-              loadStockItems();
-              setIsStockModalVisible(true);
+              openFreshStockModal();
             },
           },
         ]
@@ -751,10 +776,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           stockCount={stockItems.length}
           stockItems={stockItems}
           doableCount={doableCount}
-          onOpenChefAi={() => {
-            loadStockItems().catch(() => {});
-            setIsStockModalVisible(true);
-          }}
+          onOpenChefAi={openFreshStockModal}
           onNavigateToStock={onNavigateToStock}
         />
 
@@ -1163,20 +1185,14 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   title="Aucune recette 100% en stock"
                   description="Aucune recette de votre carnet ne correspond exactement aux ingrédients actuellement enregistrés dans vos étagères."
                   actionLabel="✨ Inventer avec le Chef IA"
-                  onAction={() => {
-                    loadStockItems();
-                    setIsStockModalVisible(true);
-                  }}
+                  onAction={openFreshStockModal}
                 />
               ) : selectedIngredients.length > 0 ? (
                 <EmptyState
                   title="Aucune recette avec ces restes"
                   description={`Votre carnet ne contient pas de recette avec : ${selectedIngredients.join(', ')}.\nDemandez au Chef IA d'inventer une recette originale avec exactement ces ingrédients !`}
                   actionLabel="✨ Inventer avec le Chef IA"
-                  onAction={() => {
-                    loadStockItems();
-                    setIsStockModalVisible(true);
-                  }}
+                  onAction={openFreshStockModal}
                 />
               ) : (
                 <EmptyState
@@ -1497,24 +1513,27 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         )}
 
         {/* Modal Cuisiner avec mon stock & suggestions Chef IA */}
-        {isStockModalVisible && (
-          <StockCookModal
-            visible={isStockModalVisible}
-            recipes={recipes}
-            stockItems={stockItems}
-            doableCount={doableCount}
-            isDoableFilterActive={onlyDoableWithStock}
-            onApplyDoableFilter={(active) => setOnlyDoableWithStock(active)}
-            onRecipeGenerated={(recipe) => {
-              setIsStockModalVisible(false);
-              if (onImportRecipe) {
-                onImportRecipe(recipe as Recipe);
-              }
-            }}
-            onNavigateToStock={onNavigateToStock}
-            onClose={() => setIsStockModalVisible(false)}
-          />
-        )}
+        <StockCookModal
+          visible={isStockModalVisible}
+          preserveSession={preserveStockSession}
+          recipes={recipes}
+          stockItems={stockItems}
+          doableCount={doableCount}
+          isDoableFilterActive={onlyDoableWithStock}
+          onApplyDoableFilter={(active) => setOnlyDoableWithStock(active)}
+          onRecipeGenerated={(recipe) => {
+            setPreserveStockSession(true);
+            setIsStockModalVisible(false);
+            if (onImportRecipe) {
+              onImportRecipe(recipe as Recipe, 'stock_ai');
+            }
+          }}
+          onNavigateToStock={onNavigateToStock}
+          onClose={() => {
+            setPreserveStockSession(false);
+            setIsStockModalVisible(false);
+          }}
+        />
 
         {/* Modal Saisie Rapide Libre pour le suivi des repas du jour */}
         {quickLogModal.visible && (

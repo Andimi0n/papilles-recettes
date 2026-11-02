@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import {
   Modal,
   View,
@@ -32,6 +32,7 @@ import { UnifiedIngredientInput } from './UnifiedIngredientInput';
 
 interface StockCookModalProps {
   visible: boolean;
+  preserveSession?: boolean;
   recipes: Recipe[];
   stockItems: FridgeItem[];
   doableCount?: number;
@@ -60,6 +61,7 @@ const MEAL_TYPES: { id: AllowedMealType; label: string; iconName: string }[] = [
 
 export const StockCookModal: React.FC<StockCookModalProps> = ({
   visible,
+  preserveSession = false,
   recipes,
   stockItems,
   doableCount,
@@ -102,27 +104,57 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
   const [tempApiKeyInput, setTempApiKeyInput] = useState('');
 
   const stepIntervalRef = useRef<any>(null);
-  const prevVisibleRef = useRef(visible);
-  const prevStockCountRef = useRef(stockItems.length);
-
-  // Synchronisation lors de l'ouverture (listes vides au départ)
-  useEffect(() => {
-    const justOpened = visible && !prevVisibleRef.current;
-
-    if (justOpened) {
-      setPrimaryIngredients([]);
-      setOptionalIngredients([]);
-      setIngredientInputMode('primary');
-      setIngredientSearchText('');
-      setRejectedIdeaTitles([]);
-      setMealType('Plat');
-      setAiFlowStep('config');
-      setIdeas([]);
-      setSelectedIdea(null);
+  const activeAbortControllerRef = useRef<AbortController | null>(null);
+  const currentOperationIdRef = useRef<number>(0);
+  const [prevVisible, setPrevVisible] = useState(visible);
+  if (prevVisible !== visible) {
+    setPrevVisible(visible);
+    if (visible) {
+      if (!preserveSession) {
+        setPrimaryIngredients([]);
+        setOptionalIngredients([]);
+        setIngredientInputMode('primary');
+        setIngredientSearchText('');
+        setRejectedIdeaTitles([]);
+        setMealType('Plat');
+        setAiFlowStep('config');
+        setIdeas([]);
+        setSelectedIdea(null);
+      } else {
+        // En cas de réouverture avec session préservée (ex: annulation depuis la fiche de recette générée)
+        // on garantit que l'écran affiche directement les 3 idées si elles existent
+        if (ideas.length > 0) {
+          setAiFlowStep('ideas');
+        }
+      }
     }
-    prevVisibleRef.current = visible;
-    prevStockCountRef.current = stockItems.length;
-  }, [visible, stockItems]);
+  }
+
+  const cancelCurrentAiOperation = useCallback((targetStep?: 'config' | 'ideas') => {
+    if (activeAbortControllerRef.current) {
+      activeAbortControllerRef.current.abort();
+      activeAbortControllerRef.current = null;
+    }
+    currentOperationIdRef.current += 1;
+    if (stepIntervalRef.current) {
+      clearInterval(stepIntervalRef.current);
+    }
+    if (targetStep) {
+      setAiFlowStep(targetStep);
+    }
+  }, []);
+
+  const handleCloseModal = useCallback(() => {
+    cancelCurrentAiOperation();
+    onClose();
+  }, [cancelCurrentAiOperation, onClose]);
+
+  // Nettoyage au démontage pour ne jamais laisser d'opération ou timer orphelin
+  useEffect(() => {
+    return () => {
+      cancelCurrentAiOperation();
+    };
+  }, [cancelCurrentAiOperation]);
 
 
   // Charger les portions par défaut depuis le storage si configuré
@@ -253,6 +285,11 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
   };
 
   const executeFetchIdeas = async (key?: string, customRejected?: string[]) => {
+    cancelCurrentAiOperation();
+    const abortController = new AbortController();
+    activeAbortControllerRef.current = abortController;
+    const opId = ++currentOperationIdRef.current;
+
     setActiveModelInfo({ model: FAST_GEMINI_MODELS_CASCADE[0], isFallback: false });
     setAiFlowStep('loading_ideas');
 
@@ -284,12 +321,18 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
           excludedAllergens,
           chefMood,
           additionalPreferences: additionalPreferences.trim(),
+          signal: abortController.signal,
           onModelAttempt: (model, isFallback) => {
             setActiveModelInfo({ model, isFallback });
           },
         },
         key
       );
+
+      // Si annulé ou périmé entre-temps, on ignore silencieusement
+      if (opId !== currentOperationIdRef.current || abortController.signal.aborted) {
+        return;
+      }
 
       if (!generatedIdeas || generatedIdeas.length === 0) {
         throw new Error("Le Chef IA n'a pas pu proposer d'idées. Réessayez.");
@@ -298,12 +341,24 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
       setIdeas(generatedIdeas);
       setAiFlowStep('ideas');
     } catch (err: any) {
+      // Si annulé par l'utilisateur, ne pas afficher d'alerte et ne rien modifier
+      if (
+        opId !== currentOperationIdRef.current ||
+        abortController.signal.aborted ||
+        err?.name === 'AbortError'
+      ) {
+        return;
+      }
       setAiFlowStep('config');
       Alert.alert(
         'Erreur Chef IA',
         err?.message ||
           "Impossible de générer les idées du Chef. Vérifiez votre clé API Gemini et votre connexion."
       );
+    } finally {
+      if (activeAbortControllerRef.current === abortController) {
+        activeAbortControllerRef.current = null;
+      }
     }
   };
 
@@ -333,6 +388,11 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
   };
 
   const executeGenerateRecipeFromIdea = async (idea: RecipeIdea, key?: string) => {
+    cancelCurrentAiOperation();
+    const abortController = new AbortController();
+    activeAbortControllerRef.current = abortController;
+    const opId = ++currentOperationIdRef.current;
+
     setActiveModelInfo({ model: GEMINI_MODELS_CASCADE[0], isFallback: false });
     setAiStepIndex(0);
     setAiFlowStep('generating_recipe');
@@ -358,12 +418,18 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
           excludedAllergens,
           additionalPreferences: additionalPreferences.trim(),
           chefMood: chefMood,
+          signal: abortController.signal,
           onModelAttempt: (model, isFallback) => {
             setActiveModelInfo({ model, isFallback });
           },
         },
         key
       );
+
+      // Si annulé ou périmé entre-temps, on ignore silencieusement
+      if (opId !== currentOperationIdRef.current || abortController.signal.aborted) {
+        return;
+      }
 
       const partialRecipe: Partial<Recipe> = {
         id: generateUniqueId('rec_ai_stock'),
@@ -399,19 +465,32 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
         updatedAt: new Date().toISOString(),
       };
 
-      setAiFlowStep('config');
+      // Important : on conserve aiFlowStep à 'ideas' pour que si l'utilisateur annule
+      // l'édition dans RecipeFormScreen, la réouverture réaffiche directement les 3 idées de plats
+      setAiFlowStep('ideas');
       onClose();
 
       if (onRecipeGenerated) {
         onRecipeGenerated(partialRecipe);
       }
     } catch (err: any) {
+      if (
+        opId !== currentOperationIdRef.current ||
+        abortController.signal.aborted ||
+        err?.name === 'AbortError'
+      ) {
+        return;
+      }
       setAiFlowStep('ideas');
       Alert.alert(
         'Erreur Chef IA',
         err?.message ||
           "Impossible de finaliser la recette. Veuillez réessayer."
       );
+    } finally {
+      if (activeAbortControllerRef.current === abortController) {
+        activeAbortControllerRef.current = null;
+      }
     }
   };
 
@@ -438,41 +517,71 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
       visible={visible}
       animationType="slide"
       presentationStyle="pageSheet"
-      onRequestClose={onClose}
+      onRequestClose={handleCloseModal}
     >
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
         <View style={styles.container}>
           {/* Header */}
           <View style={styles.header}>
-            <TouchableOpacity
-              onPress={onClose}
-              style={styles.closeBtn}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              accessibilityLabel="Fermer"
-            >
-              <Ionicons name="close" size={24} color={colors.textPrimary} />
-            </TouchableOpacity>
+            {aiFlowStep === 'ideas' ? (
+              <TouchableOpacity
+                onPress={() => setAiFlowStep('config')}
+                style={styles.closeBtn}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityLabel="Retour aux critères"
+              >
+                <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                onPress={handleCloseModal}
+                style={styles.closeBtn}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityLabel="Fermer"
+              >
+                <Ionicons name="close" size={24} color={colors.textPrimary} />
+              </TouchableOpacity>
+            )}
 
             <View style={styles.headerTitleContainer}>
-              <Text style={styles.headerTitle}>Cuisiner avec mon stock</Text>
+              <Text style={styles.headerTitle}>
+                {aiFlowStep === 'ideas' ? 'Inspirations du Chef' : 'Cuisiner avec mon stock'}
+              </Text>
               <Text style={styles.headerSubtitle}>
-                Anti-gaspillage, carnet & inspirations IA
+                {aiFlowStep === 'ideas'
+                  ? '3 idées imaginées pour vous'
+                  : 'Anti-gaspillage, carnet & inspirations IA'}
               </Text>
             </View>
 
-            {onNavigateToStock && (
-              <TouchableOpacity
-                onPress={() => {
-                  onClose();
-                  onNavigateToStock();
-                }}
-                style={styles.manageStockBtn}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <MaterialCommunityIcons name="fridge-outline" size={16} color={colors.primary} />
-                <Text style={styles.manageStockBtnText}>Étagères</Text>
-              </TouchableOpacity>
-            )}
+            <View style={styles.headerRightActions}>
+              {onNavigateToStock && (
+                <TouchableOpacity
+                  onPress={() => {
+                    handleCloseModal();
+                    onNavigateToStock();
+                  }}
+                  style={styles.manageStockBtn}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <MaterialCommunityIcons name="fridge-outline" size={16} color={colors.primary} />
+                  <Text style={styles.manageStockBtnText}>Étagères</Text>
+                </TouchableOpacity>
+              )}
+
+              {aiFlowStep === 'ideas' ? (
+                <TouchableOpacity
+                  onPress={handleCloseModal}
+                  style={styles.closeBtn}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  accessibilityLabel="Fermer"
+                >
+                  <Ionicons name="close" size={22} color={colors.textSecondary} />
+                </TouchableOpacity>
+              ) : !onNavigateToStock ? (
+                <View style={styles.headerSpacer} />
+              ) : null}
+            </View>
           </View>
 
           {/* ÉCRAN 1 : Loader animé si génération complète de la recette choisie */}
@@ -518,7 +627,7 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
                 </View>
                 <TouchableOpacity
                   style={styles.cancelLoadingBtn}
-                  onPress={() => setAiFlowStep('ideas')}
+                  onPress={() => cancelCurrentAiOperation('ideas')}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
                   <Text style={styles.cancelLoadingBtnText}>Annuler</Text>
@@ -570,7 +679,7 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
                 </View>
                 <TouchableOpacity
                   style={styles.cancelLoadingBtn}
-                  onPress={() => setAiFlowStep('config')}
+                  onPress={() => cancelCurrentAiOperation('config')}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
                   <Text style={styles.cancelLoadingBtnText}>Annuler</Text>
@@ -691,7 +800,7 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
                   activeOpacity={0.8}
                 >
                   <Ionicons name="options-outline" size={16} color={colors.textSecondary} />
-                  <Text style={styles.changeConfigBtnText}>Modifier mes ingrédients</Text>
+                  <Text style={styles.changeConfigBtnText}>Modifier mes critères & prompt</Text>
                 </TouchableOpacity>
               </View>
             </ScrollView>
@@ -1281,6 +1390,15 @@ const styles = createDynamicStyles((colors, shadows) => ({
     fontSize: 12,
     fontWeight: '600',
     color: colors.primary,
+  },
+  headerRightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  headerSpacer: {
+    width: 36,
+    height: 36,
   },
   content: {
     flex: 1,

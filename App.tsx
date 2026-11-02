@@ -187,7 +187,11 @@ function AppContent() {
     return () => sub.remove();
   }, [currentScreen, recipeDetailStack, returnScreenAfterDetail]);
 
+  const [recipeCreationSource, setRecipeCreationSource] = useState<'stock_ai' | 'scan' | 'manual' | null>(null);
+  const [reopenStockModal, setReopenStockModal] = useState(false);
+
   const navigateToCreate = () => {
+    setRecipeCreationSource('manual');
     setEditingRecipe(null);
     setCurrentScreen('form');
   };
@@ -195,21 +199,35 @@ function AppContent() {
   const [scanInitialMode, setScanInitialMode] = useState<'text' | 'photo' | 'url'>('photo');
 
   const navigateToAddRecipe = () => {
+    setRecipeCreationSource('manual');
     setEditingRecipe(null);
     setCurrentScreen('form');
   };
 
   const navigateToScan = (initialMode: 'text' | 'photo' | 'url' = 'photo') => {
+    setRecipeCreationSource('scan');
     setScanInitialMode(initialMode);
     setCurrentScreen('scan');
   };
 
-  const handleRecipeExtracted = (partialRecipe: Partial<Recipe>) => {
-    setEditingRecipe(partialRecipe as Recipe);
+  const handleRecipeExtractedFromScan = (partialRecipe: Partial<Recipe>, coverImageUri?: string) => {
+    setRecipeCreationSource('scan');
+    const recipeToEdit = { ...partialRecipe };
+    if (coverImageUri && !recipeToEdit.imageUrl) {
+      recipeToEdit.imageUrl = coverImageUri;
+    }
+    setEditingRecipe(recipeToEdit as Recipe);
+    setCurrentScreen('form');
+  };
+
+  const handleRecipeImportedFromHome = (recipe: Recipe, source?: 'stock_ai' | 'scan') => {
+    setRecipeCreationSource(source || 'stock_ai');
+    setEditingRecipe(recipe);
     setCurrentScreen('form');
   };
 
   const navigateToEdit = (recipe: Recipe) => {
+    setRecipeCreationSource(null);
     setEditingRecipe(recipe);
     setCurrentScreen('form');
   };
@@ -221,6 +239,8 @@ function AppContent() {
     setSelectedRecipeId(null);
     setRecipeDetailStack([]);
     setEditingRecipe(null);
+    setRecipeCreationSource(null);
+    setReopenStockModal(false);
     setInitialHomeDoableFilter(Boolean(options?.onlyDoable));
   };
 
@@ -256,6 +276,8 @@ function AppContent() {
       setRecipeDetailStack((prev) =>
         prev.length > 0 ? [...prev.slice(0, -1), savedRecipe.id] : [savedRecipe.id]
       );
+      setRecipeCreationSource(null);
+      setReopenStockModal(false);
       setCurrentScreen('detail');
     } catch (e) {
       Alert.alert('Erreur', "Impossible d'enregistrer la recette.");
@@ -323,13 +345,15 @@ function AppContent() {
               onSelectRecipe={(r) => navigateToDetail(r, 'home')}
               onAddNewRecipe={navigateToAddRecipe}
               onScanRecipe={navigateToScan}
-              onImportRecipe={handleRecipeExtracted}
+              onImportRecipe={handleRecipeImportedFromHome}
               onQuickRate={handleUpdateRating}
               onOpenSettings={() => setCurrentScreen('settings')}
               onNavigateToJournal={navigateToJournal}
               onNavigateToStock={() => navigateToShopping('fridge')}
               initialOnlyDoable={initialHomeDoableFilter}
               isActive={currentScreen === 'home'}
+              reopenStockModal={reopenStockModal}
+              onStockModalReopened={() => setReopenStockModal(false)}
             />
           </View>
 
@@ -365,7 +389,7 @@ function AppContent() {
               key={scanInitialMode}
               initialMode={scanInitialMode}
               onBack={() => navigateToHome()}
-              onRecipeExtracted={handleRecipeExtracted}
+              onRecipeExtracted={handleRecipeExtractedFromScan}
               onRecipeReceived={handleRecipeReceivedFromScan}
               onManualCreate={navigateToAddRecipe}
             />
@@ -394,7 +418,14 @@ function AppContent() {
               onCancel={() => {
                 if (selectedRecipeId) {
                   setCurrentScreen('detail');
+                } else if (recipeCreationSource === 'stock_ai') {
+                  // Revenir immédiatement aux 3 idées de plats dans le modal Chef IA
+                  setEditingRecipe(null);
+                  setRecipeCreationSource(null);
+                  setCurrentScreen('home');
+                  setReopenStockModal(true);
                 } else {
+                  setRecipeCreationSource(null);
                   navigateToHome();
                 }
               }}
