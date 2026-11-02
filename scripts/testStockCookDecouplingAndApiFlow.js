@@ -40,14 +40,21 @@ assert.strictEqual(
   'Les styles carnetStatusRow doivent être supprimés'
 );
 
-// 3. Passerelle anti-doublon cliquable
-assert.ok(
+// 3. Découplage strict, suppression du bandeau anti-doublon en Zone 2 & Rework en 3 cartes avec Sticky Footer
+assert.strictEqual(
   content.includes('doableFilterInfoBoxClickable'),
-  'Le bandeau anti-doublon doit proposer un style cliquable'
+  false,
+  'Le bandeau anti-doublon doit être retiré de la Zone 2'
 );
 assert.ok(
-  content.includes('onApplyDoableFilter(true)'),
-  'Cliquer sur le bandeau anti-doublon doit déclencher onApplyDoableFilter(true)'
+  content.includes('stickyFooterContainer'),
+  'Le bouton d’action principal doit être ancré dans une sticky bottom bar'
+);
+assert.ok(
+  content.includes('1. FORMAT DU REPAS') &&
+    content.includes('2. STYLE & ENVIES DU MOMENT') &&
+    content.includes('3. INGRÉDIENTS'),
+  'Les 3 cartes visuelles distinctes doivent être présentes dans StockCookModal.tsx'
 );
 
 // 4. Issue rapide Clé API Gemini (Google AI Studio)
