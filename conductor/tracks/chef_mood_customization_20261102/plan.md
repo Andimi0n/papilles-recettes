@@ -23,12 +23,12 @@
 
 ## Phase 2: Composant Formulaire & Édition (`ChefMoodEditModal`)
 
-- [ ] Task: Créer le composant modal de création/édition d'humeur
-  - [ ] Développer `src/components/ChefMoodEditModal.tsx` avec gestion des états d'édition et de création
-  - [ ] Intégrer les champs obligatoires (libellé, persona Étape 1, directive Étape 1, consigne Étape 2)
-  - [ ] Intégrer un sélecteur visuel d'icônes culinaires Ionicons
-  - [ ] Styliser avec `createDynamicStyles` et `useTheme()` pour le support clair/sombre/contraste
-  - [ ] Ajouter la validation des champs et le retour utilisateur
+- [x] Task: Créer le composant modal de création/édition d'humeur (d43853a)
+  - [x] Développer `src/components/ChefMoodEditModal.tsx` avec gestion des états d'édition et de création
+  - [x] Intégrer les champs obligatoires (libellé, persona Étape 1, directive Étape 1, consigne Étape 2)
+  - [x] Intégrer un sélecteur visuel d'icônes culinaires Ionicons
+  - [x] Styliser avec `createDynamicStyles` et `useTheme()` pour le support clair/sombre/contraste
+  - [x] Ajouter la validation des champs et le retour utilisateur
 - [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
 
 ---
