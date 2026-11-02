@@ -131,4 +131,35 @@ if (hasOldEmptyStockReset || !hasDirectCycleSupport) {
   process.exit(1);
 }
 
+// 3. Vérification de la Section 3 : Barre d'ajout en haut, Groupement par rayon, Absence d'étoiles
+const section3Index = modalContent.indexOf('3. INGRÉDIENTS');
+const inputWrapperIndex = modalContent.indexOf('inputComposerWrapper', section3Index);
+const activeGuideIndex = modalContent.indexOf('Retenus pour la recette', section3Index);
+
+assert.ok(
+  section3Index !== -1 && inputWrapperIndex !== -1 && activeGuideIndex !== -1,
+  'La section 3, la barre d’ajout et la sous-section Retenus pour la recette doivent exister'
+);
+assert.ok(
+  inputWrapperIndex < activeGuideIndex,
+  'La barre d’ajout d’ingrédients doit être positionnée avant le listing des ingrédients dans la section 3'
+);
+
+assert.strictEqual(
+  modalContent.includes('name="star"') || modalContent.includes('name="star-outline"'),
+  false,
+  'Les étoiles pour les ingrédients doivent être totalement retirées de StockCookModal.tsx'
+);
+
+assert.ok(
+  modalContent.includes('groupedActiveIngredients') && modalContent.includes('aisleHeaderRow'),
+  'Les ingrédients doivent être regroupés par rayon (aisle) avec en-tête d’allée'
+);
+
+assert.ok(
+  modalContent.includes('stockChipBody') && modalContent.includes('stockChipCloseBtn'),
+  'Le tap sur l’ingrédient doit passer en vedette/normal et le clic sur la croix doit mettre de côté'
+);
+
+console.log('✅ Structure Section 3 (Barre en haut, Rayons alphabétiques, Tap vedette & ✕ exclusion) validée.');
 console.log('🎉 Tous les tests du moteur de sélection tactile ont réussi !');

@@ -14,9 +14,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Recipe, Category, RecipeIdea } from '../types/recipe';
 import { FridgeItem } from '../types/fridge';
+import { ShoppingAisle } from '../types/shopping';
 import { createDynamicStyles } from '../theme/colors';
 import { useTheme } from '../theme/ThemeContext';
 import { evaluateRecipesWithStock } from '../utils/stockMatcher';
+import { AISLE_CONFIGS, ALL_AISLES, classifyIngredientAisle } from '../utils/aisleClassifier';
 import {
   RecipeAiService,
   formatAiModelName,
@@ -154,7 +156,7 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
   onNavigateToStock,
   onClose,
 }) => {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
 
   // Ingrédients principaux (⭐ indispensables), optionnels et inactifs
   const [primaryIngredients, setPrimaryIngredients] = useState<string[]>([]);
@@ -395,6 +397,109 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
     ];
     return organizeIngredientsForDisplay(items);
   }, [primaryIngredients, optionalIngredients, inactiveIngredients]);
+
+  const getIngredientAisle = useCallback(
+    (name: string): ShoppingAisle => {
+      const trimmed = name.trim().toLowerCase();
+      const stockMatch = stockItems.find((s) => s.name?.trim().toLowerCase() === trimmed);
+      if (stockMatch?.aisle) {
+        return stockMatch.aisle;
+      }
+      return classifyIngredientAisle(name);
+    },
+    [stockItems]
+  );
+
+  const groupedActiveIngredients = useMemo<{
+    aisle: ShoppingAisle;
+    items: { name: string; isPrimary: boolean }[];
+  }[]>(() => {
+    const activeMap = new Map<string, { name: string; isPrimary: boolean }>();
+
+    primaryIngredients.forEach((name) => {
+      const trimmed = name.trim();
+      if (trimmed) {
+        activeMap.set(trimmed.toLowerCase(), { name: trimmed, isPrimary: true });
+      }
+    });
+
+    optionalIngredients.forEach((name) => {
+      const trimmed = name.trim();
+      if (trimmed && !activeMap.has(trimmed.toLowerCase())) {
+        activeMap.set(trimmed.toLowerCase(), { name: trimmed, isPrimary: false });
+      }
+    });
+
+    const aisleMap = new Map<ShoppingAisle, { name: string; isPrimary: boolean }[]>();
+    activeMap.forEach((item) => {
+      const aisle = getIngredientAisle(item.name);
+      const list = aisleMap.get(aisle) || [];
+      list.push(item);
+      aisleMap.set(aisle, list);
+    });
+
+    const groups: {
+      aisle: ShoppingAisle;
+      items: { name: string; isPrimary: boolean }[];
+    }[] = [];
+
+    ALL_AISLES.forEach((aisle) => {
+      const list = aisleMap.get(aisle);
+      if (list && list.length > 0) {
+        list.sort((a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }));
+        groups.push({ aisle, items: list });
+      }
+    });
+
+    aisleMap.forEach((list, aisle) => {
+      if (!ALL_AISLES.includes(aisle) && list.length > 0) {
+        list.sort((a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }));
+        groups.push({ aisle, items: list });
+      }
+    });
+
+    return groups;
+  }, [primaryIngredients, optionalIngredients, getIngredientAisle]);
+
+  const groupedInactiveIngredients = useMemo<{
+    aisle: ShoppingAisle;
+    items: string[];
+  }[]>(() => {
+    if (inactiveIngredients.length === 0) return [];
+
+    const aisleMap = new Map<ShoppingAisle, string[]>();
+    const seen = new Set<string>();
+
+    inactiveIngredients.forEach((name) => {
+      const trimmed = name.trim();
+      const lower = trimmed.toLowerCase();
+      if (trimmed && !seen.has(lower)) {
+        seen.add(lower);
+        const aisle = getIngredientAisle(trimmed);
+        const list = aisleMap.get(aisle) || [];
+        list.push(trimmed);
+        aisleMap.set(aisle, list);
+      }
+    });
+
+    const groups: { aisle: ShoppingAisle; items: string[] }[] = [];
+    ALL_AISLES.forEach((aisle) => {
+      const list = aisleMap.get(aisle);
+      if (list && list.length > 0) {
+        list.sort((a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base' }));
+        groups.push({ aisle, items: list });
+      }
+    });
+
+    aisleMap.forEach((list, aisle) => {
+      if (!ALL_AISLES.includes(aisle) && list.length > 0) {
+        list.sort((a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base' }));
+        groups.push({ aisle, items: list });
+      }
+    });
+
+    return groups;
+  }, [inactiveIngredients, getIngredientAisle]);
 
   const activeCount = primaryIngredients.length + optionalIngredients.length;
 
@@ -1189,81 +1294,7 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
                     <Text style={styles.sectionCardTitle}>3. INGRÉDIENTS</Text>
                   </View>
 
-                  {/* Retenus pour la recette */}
-                  <View style={styles.ingredientsSubHeader}>
-                    <Text style={styles.ingredientsSubTitle}>
-                      Retenus pour la recette ({activeCount})
-                    </Text>
-                    {activeCount > 0 && (
-                      <TouchableOpacity
-                        onPress={handleExcludeAll}
-                        hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                      >
-                        <Text style={styles.quickActionText}>Tout exclure</Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
-
-                  {activeCount === 0 ? (
-                    <View style={styles.emptyActiveGuide}>
-                      <Ionicons name="restaurant-outline" size={18} color={colors.textMuted} />
-                      <Text style={styles.emptyActiveGuideText}>
-                        Aucun ingrédient retenu. Ajoutez-en ci-dessous pour inspirer le Chef IA.
-                      </Text>
-                    </View>
-                  ) : (
-                    <View style={styles.chipsWrap}>
-                      {primaryIngredients.map((name) => (
-                        <View key={`primary_${name}`} style={[styles.stockChip, styles.stockChipPrimary]}>
-                          <TouchableOpacity
-                            onPress={() => handleToggleStar(name)}
-                            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                            accessibilityLabel={`Désélectionner ${name} comme indispensable`}
-                          >
-                            <Ionicons name="star" size={13} color="#FFFFFF" />
-                          </TouchableOpacity>
-                          <Text style={[styles.stockChipText, styles.stockChipTextPrimary]}>{name}</Text>
-                          <TouchableOpacity
-                            onPress={() => handleExcludeIngredient(name)}
-                            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                            accessibilityLabel={`Mettre ${name} de côté`}
-                          >
-                            <Ionicons name="close" size={14} color="#FFFFFF" />
-                          </TouchableOpacity>
-                        </View>
-                      ))}
-
-                      {optionalIngredients.map((name) => (
-                        <View key={`optional_${name}`} style={[styles.stockChip, styles.stockChipOptional]}>
-                          <TouchableOpacity
-                            onPress={() => handleToggleStar(name)}
-                            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                            accessibilityLabel={`Désigner ${name} comme indispensable`}
-                          >
-                            <Ionicons name="star-outline" size={13} color={colors.primary} />
-                          </TouchableOpacity>
-                          <Text style={[styles.stockChipText, styles.stockChipTextOptional]}>{name}</Text>
-                          <TouchableOpacity
-                            onPress={() => handleExcludeIngredient(name)}
-                            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                            accessibilityLabel={`Mettre ${name} de côté`}
-                          >
-                            <Ionicons name="close" size={14} color={colors.primary} />
-                          </TouchableOpacity>
-                        </View>
-                      ))}
-                    </View>
-                  )}
-
-                  {/* Astuce tactile */}
-                  <View style={styles.tipRow}>
-                    <Ionicons name="bulb-outline" size={13} color={colors.amber} />
-                    <Text style={styles.tipText}>
-                      Touchez l&apos;étoile ⭐ pour désigner l&apos;aliment vedette.
-                    </Text>
-                  </View>
-
-                  {/* Barre d'ajout rapide */}
+                  {/* Barre d'ajout rapide (placée en haut de la section 3) */}
                   <View style={styles.inputComposerWrapper}>
                     <UnifiedIngredientInput
                       value={ingredientSearchText}
@@ -1284,6 +1315,117 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
                     />
                   </View>
 
+                  {/* Astuce tactile */}
+                  <View style={styles.tipRow}>
+                    <Ionicons name="bulb-outline" size={13} color={colors.amber} />
+                    <Text style={styles.tipText}>
+                      Touchez un ingrédient pour l&apos;alterner en vedette ou en normal. ✕ le met de côté.
+                    </Text>
+                  </View>
+
+                  {/* Retenus pour la recette */}
+                  <View style={styles.ingredientsSubHeader}>
+                    <Text style={styles.ingredientsSubTitle}>
+                      Retenus pour la recette ({activeCount})
+                    </Text>
+                    {activeCount > 0 && (
+                      <TouchableOpacity
+                        onPress={handleExcludeAll}
+                        hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                      >
+                        <Text style={styles.quickActionText}>Tout exclure</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+
+                  {activeCount === 0 ? (
+                    <View style={styles.emptyActiveGuide}>
+                      <Ionicons name="restaurant-outline" size={18} color={colors.textMuted} />
+                      <Text style={styles.emptyActiveGuideText}>
+                        Aucun ingrédient retenu. Ajoutez-en ci-dessus pour inspirer le Chef IA.
+                      </Text>
+                    </View>
+                  ) : (
+                    groupedActiveIngredients.map(({ aisle, items }) => {
+                      const aisleConfig = AISLE_CONFIGS[aisle] || AISLE_CONFIGS['Autre'];
+                      return (
+                        <View key={`active_aisle_${aisle}`} style={styles.aisleGroup}>
+                          <View style={styles.aisleHeaderRow}>
+                            <View
+                              style={[
+                                styles.aisleIconBox,
+                                {
+                                  backgroundColor: isDark
+                                    ? aisleConfig.color + '26'
+                                    : aisleConfig.bgColor,
+                                },
+                              ]}
+                            >
+                              <Ionicons
+                                name={aisleConfig.iconName as any}
+                                size={12}
+                                color={aisleConfig.color}
+                              />
+                            </View>
+                            <Text style={[styles.aisleTitle, { color: aisleConfig.color }]}>
+                              {aisle}
+                            </Text>
+                            <View style={styles.aisleCountBadge}>
+                              <Text style={styles.aisleCountText}>{items.length}</Text>
+                            </View>
+                          </View>
+                          <View style={styles.chipsWrap}>
+                            {items.map(({ name, isPrimary }) => (
+                              <View
+                                key={`active_${name}`}
+                                style={[
+                                  styles.stockChip,
+                                  isPrimary ? styles.stockChipPrimary : styles.stockChipOptional,
+                                ]}
+                              >
+                                <TouchableOpacity
+                                  style={styles.stockChipBody}
+                                  onPress={() => handleToggleStar(name)}
+                                  activeOpacity={0.7}
+                                  accessibilityRole="button"
+                                  accessibilityLabel={
+                                    isPrimary
+                                      ? `${name}, en vedette. Toucher pour repasser en normal`
+                                      : `${name}, normal. Toucher pour passer en vedette`
+                                  }
+                                >
+                                  <Text
+                                    style={[
+                                      styles.stockChipText,
+                                      isPrimary
+                                        ? styles.stockChipTextPrimary
+                                        : styles.stockChipTextOptional,
+                                    ]}
+                                  >
+                                    {name}
+                                  </Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                  style={styles.stockChipCloseBtn}
+                                  onPress={() => handleExcludeIngredient(name)}
+                                  hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+                                  accessibilityRole="button"
+                                  accessibilityLabel={`Mettre ${name} de côté`}
+                                >
+                                  <Ionicons
+                                    name="close"
+                                    size={14}
+                                    color={isPrimary ? '#FFFFFF' : colors.primary}
+                                  />
+                                </TouchableOpacity>
+                              </View>
+                            ))}
+                          </View>
+                        </View>
+                      );
+                    })
+                  )}
+
                   {/* Mis de côté */}
                   {inactiveIngredients.length > 0 && (
                     <View style={styles.inactiveSection}>
@@ -1298,22 +1440,53 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
                           <Text style={styles.quickActionText}>Tout inclure</Text>
                         </TouchableOpacity>
                       </View>
-                      <View style={styles.chipsWrap}>
-                        {inactiveIngredients.map((name) => (
-                          <TouchableOpacity
-                            key={`inactive_${name}`}
-                            style={[styles.stockChip, styles.stockChipInactive]}
-                            onPress={() => handleIncludeIngredient(name)}
-                            activeOpacity={0.7}
-                            accessibilityLabel={`Réintégrer ${name}`}
-                          >
-                            <Ionicons name="add" size={13} color={colors.textSecondary} />
-                            <Text style={[styles.stockChipText, styles.stockChipTextInactive]}>
-                              {name}
-                            </Text>
-                          </TouchableOpacity>
-                        ))}
-                      </View>
+                      {groupedInactiveIngredients.map(({ aisle, items }) => {
+                        const aisleConfig = AISLE_CONFIGS[aisle] || AISLE_CONFIGS['Autre'];
+                        return (
+                          <View key={`inactive_aisle_${aisle}`} style={styles.aisleGroup}>
+                            <View style={styles.aisleHeaderRow}>
+                              <View
+                                style={[
+                                  styles.aisleIconBox,
+                                  {
+                                    backgroundColor: isDark
+                                      ? aisleConfig.color + '26'
+                                      : aisleConfig.bgColor,
+                                  },
+                                ]}
+                              >
+                                <Ionicons
+                                  name={aisleConfig.iconName as any}
+                                  size={12}
+                                  color={aisleConfig.color}
+                                />
+                              </View>
+                              <Text style={[styles.aisleTitle, { color: aisleConfig.color }]}>
+                                {aisle}
+                              </Text>
+                              <View style={styles.aisleCountBadge}>
+                                <Text style={styles.aisleCountText}>{items.length}</Text>
+                              </View>
+                            </View>
+                            <View style={styles.chipsWrap}>
+                              {items.map((name) => (
+                                <TouchableOpacity
+                                  key={`inactive_${name}`}
+                                  style={[styles.stockChip, styles.stockChipInactive]}
+                                  onPress={() => handleIncludeIngredient(name)}
+                                  activeOpacity={0.7}
+                                  accessibilityLabel={`Réintégrer ${name}`}
+                                >
+                                  <Ionicons name="add" size={13} color={colors.textSecondary} />
+                                  <Text style={[styles.stockChipText, styles.stockChipTextInactive]}>
+                                    {name}
+                                  </Text>
+                                </TouchableOpacity>
+                              ))}
+                            </View>
+                          </View>
+                        );
+                      })}
                     </View>
                   )}
                 </View>
@@ -1973,6 +2146,41 @@ const styles = createDynamicStyles((colors, shadows) => ({
     color: colors.textSecondary,
   },
 
+  // Rayons d'ingrédients (Section 3)
+  aisleGroup: {
+    marginBottom: 10,
+  },
+  aisleHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 6,
+    marginTop: 2,
+  },
+  aisleIconBox: {
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  aisleTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    flex: 1,
+  },
+  aisleCountBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 8,
+    backgroundColor: colors.surfaceAlt,
+  },
+  aisleCountText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+
   // Carte 3 : Ingrédients
   ingredientsSubHeader: {
     flexDirection: 'row',
@@ -2009,16 +2217,14 @@ const styles = createDynamicStyles((colors, shadows) => ({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 6,
-    marginBottom: 10,
+    marginBottom: 8,
   },
   stockChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
     borderRadius: 16,
     borderWidth: 1,
-    gap: 6,
+    overflow: 'hidden',
   },
   stockChipPrimary: {
     backgroundColor: colors.primary,
@@ -2029,9 +2235,29 @@ const styles = createDynamicStyles((colors, shadows) => ({
     borderColor: colors.primary + '35',
   },
   stockChipInactive: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: colors.surfaceAlt,
     borderColor: colors.borderLight,
-    opacity: 0.65,
+    borderWidth: 1,
+    borderRadius: 16,
+    opacity: 0.7,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    gap: 6,
+  },
+  stockChipBody: {
+    paddingLeft: 10,
+    paddingRight: 4,
+    paddingVertical: 6,
+    justifyContent: 'center',
+  },
+  stockChipCloseBtn: {
+    paddingLeft: 3,
+    paddingRight: 8,
+    paddingVertical: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   stockChipText: {
     fontSize: 12,
@@ -2063,10 +2289,10 @@ const styles = createDynamicStyles((colors, shadows) => ({
   },
   inputComposerWrapper: {
     zIndex: 100,
-    marginBottom: 12,
+    marginBottom: 10,
   },
   inactiveSection: {
-    marginTop: 4,
+    marginTop: 6,
     borderTopWidth: 1,
     borderTopColor: colors.border,
     paddingTop: 10,
