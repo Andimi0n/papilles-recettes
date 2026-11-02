@@ -31,18 +31,18 @@
 ## Phase 3: Sélection Tactile Directe du Stock (`StockCookModal`)
 *Suppression de l'effet page blanche, cycle tactile à 3 états et gestion fluide des stocks volumineux.*
 
-- [ ] Task: Tests unitaires du moteur de sélection d'ingrédients (TDD - Red Phase)
-  - [ ] Créer les tests validant le cycle d'états tactile (Optionnel ➔ ⭐ Indispensable ➔ Inactif ➔ Optionnel)
-  - [ ] Valider l'épinglage prioritaire des ingrédients ⭐ Indispensables en tête de liste
-  - [ ] Valider la pré-sélection intégrale du stock en Optionnel à l'ouverture (CTA actif immédiatement)
-  - [ ] Vérifier l'échec initial des tests (Red)
-- [ ] Task: Implémentation des puces tactiles et de l'affichage progressif dans `StockCookModal.tsx` (Green Phase)
-  - [ ] Initialiser `optionalIngredients` avec l'ensemble du stock à l'ouverture de la modale
-  - [ ] Remplacer la gestion actuelle par des puces interactives à 3 états (visuel différencié, étoile sur les indispensables)
-  - [ ] Mettre en place le défilement interne plafonné à 2-3 lignes avec bouton d'expansion/réduction *« Voir tout mon stock (X) »*
-  - [ ] Ajouter l'action d'en-tête *« Tout inclure »* / *« Tout exclure »*
-  - [ ] Valider le passage au vert des tests (Green)
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: Tests unitaires du moteur de sélection d'ingrédients (TDD - Red Phase) [df98cd2]
+  - [x] Créer les tests validant le cycle d'états tactile (Optionnel ➔ ⭐ Indispensable ➔ Inactif ➔ Optionnel)
+  - [x] Valider l'épinglage prioritaire des ingrédients ⭐ Indispensables en tête de liste
+  - [x] Valider la pré-sélection intégrale du stock en Optionnel à l'ouverture (CTA actif immédiatement)
+  - [x] Vérifier l'échec initial des tests (Red)
+- [x] Task: Implémentation des puces tactiles et de l'affichage progressif dans `StockCookModal.tsx` (Green Phase) [df98cd2]
+  - [x] Initialiser `optionalIngredients` avec l'ensemble du stock à l'ouverture de la modale
+  - [x] Remplacer la gestion actuelle par des puces interactives à 3 états (visuel différencié, étoile sur les indispensables)
+  - [x] Mettre en place le défilement interne plafonné à 2-3 lignes avec bouton d'expansion/réduction *« Voir tout mon stock (X) »*
+  - [x] Ajouter l'action d'en-tête *« Tout inclure »* / *« Tout exclure »*
+  - [x] Valider le passage au vert des tests (Green)
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md)
 
 ---
 
