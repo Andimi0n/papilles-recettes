@@ -88,7 +88,8 @@
     "test:pack-merge": "node scripts/testRecipePackMerge.js",
     "test:chef-prompts": "node scripts/testChefFavoritePrompts.js",
     "test:chef-moods": "node scripts/testChefMoods.js",
-    "test:ai-prompt": "node scripts/testRecipeAiIdeasPrompt.js"
+    "test:ai-prompt": "node scripts/testRecipeAiIdeasPrompt.js",
+    "test:perf-phase1": "node scripts/testAppPerformancePhase1.js"
 
   },
   "overrides": {
