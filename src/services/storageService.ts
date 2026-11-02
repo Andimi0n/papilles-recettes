@@ -283,6 +283,7 @@ async function getInitialRecipes(): Promise<Recipe[]> {
   return INITIAL_RECIPES;
 }
 
+const SETTING_IMAGE_MIGRATION_DONE = 'images_migrated_v1_done';
 let _migrationImagesDone = false;
 
 /**
@@ -294,13 +295,22 @@ async function _migrateTemporaryImagesIfNeeded(recipes: Recipe[]): Promise<void>
   _migrationImagesDone = true;
 
   try {
+    const alreadyDone = await DatabaseService.getSetting(SETTING_IMAGE_MIGRATION_DONE);
+    if (alreadyDone === 'done') return;
+
     const candidates = recipes.filter(
       (r) => r.imageUrl && r.imageUrl.startsWith('file://') && !ImageStorageService.isPermanent(r.imageUrl)
     );
-    if (candidates.length === 0) return;
+    if (candidates.length === 0) {
+      await DatabaseService.setSetting(SETTING_IMAGE_MIGRATION_DONE, 'done');
+      return;
+    }
 
     for (const r of candidates) {
-      const permanentUri = await ImageStorageService.persistImageLocally(r.imageUrl);
+      // Pause coopérative pour préserver une réactivité UI parfaite à 60fps
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
+      const permanentUri = await ImageStorageService.persistImageLocally(r.imageUrl, { skipCompression: true });
       if (permanentUri && permanentUri !== r.imageUrl) {
         r.imageUrl = permanentUri;
         await DatabaseService.saveRecipe(r);
@@ -311,10 +321,14 @@ async function _migrateTemporaryImagesIfNeeded(recipes: Recipe[]): Promise<void>
         await DatabaseService.saveRecipe(r);
       }
     }
+
+    await DatabaseService.setSetting(SETTING_IMAGE_MIGRATION_DONE, 'done');
   } catch (err) {
     console.warn('[ImageStorage] Erreur lors de la migration des photos temporaires:', err);
   }
 }
+
+let _canonicalMigrationDone = false;
 
 export const StorageService = {
 
@@ -348,10 +362,10 @@ export const StorageService = {
       const result = rows.map(sanitizeStoredRecipe);
       memoryCache.recipes = result;
 
-      // Migration opportuniste en arrière-plan des photos temporaires (différée après le démarrage pour fluidifier l'UI)
+      // Migration opportuniste en arrière-plan des photos temporaires (différée à 15s post-démarrage pour fluidité totale)
       setTimeout(() => {
         _migrateTemporaryImagesIfNeeded(result).catch(() => {});
-      }, 3500);
+      }, 15000);
 
       return result;
     } catch (error) {
@@ -595,8 +609,12 @@ export const StorageService = {
   }> {
     try {
       if (!force) {
+        if (_canonicalMigrationDone) {
+          return { recipesUpdated: 0, shoppingUpdated: 0, fridgeUpdated: 0 };
+        }
         const alreadyDone = await DatabaseService.getSetting(SETTING_CANONICAL_MIGRATED);
         if (alreadyDone === 'done') {
+          _canonicalMigrationDone = true;
           return { recipesUpdated: 0, shoppingUpdated: 0, fridgeUpdated: 0 };
         }
       }
@@ -716,6 +734,7 @@ export const StorageService = {
       }
 
       // Marquer la migration comme effectuée avec succès
+      _canonicalMigrationDone = true;
       await DatabaseService.setSetting(SETTING_CANONICAL_MIGRATED, 'done');
       return { recipesUpdated, shoppingUpdated, fridgeUpdated };
     } catch (err) {

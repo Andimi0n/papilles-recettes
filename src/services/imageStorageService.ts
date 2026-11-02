@@ -102,7 +102,10 @@ export const ImageStorageService = {
    * - Si l'image est un fichier local (file://), elle est copiée vers documentDirectory/recipe_photos/
    *   avec un nom unique indélébile.
    */
-  async persistImageLocally(sourceUri: string | null | undefined): Promise<string> {
+  async persistImageLocally(
+    sourceUri: string | null | undefined,
+    options?: { skipCompression?: boolean }
+  ): Promise<string> {
     if (!sourceUri || typeof sourceUri !== 'string') return '';
     const trimmed = sourceUri.trim();
     if (!trimmed) return '';
@@ -163,7 +166,7 @@ export const ImageStorageService = {
       let sourceToCopy = trimmed;
       let shouldCleanupResized = false;
 
-      if (manipulator?.manipulateAsync) {
+      if (!options?.skipCompression && manipulator?.manipulateAsync) {
         try {
           const manipResult = await manipulator.manipulateAsync(
             trimmed,

@@ -339,6 +339,8 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
     }
   }, []);
 
+  const isFirstMountRef = useRef(true);
+
   useEffect(() => {
     let isMounted = true;
     const fetchInitialHomeScreenData = async () => {
@@ -366,7 +368,12 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
   }, []);
 
   // Rafraîchissement réactif lorsque l'écran redevient actif (Keep-Alive onglets persistants)
+  // Ignoré lors du premier montage pour éviter un double appel SQLite concurrent au démarrage
   useEffect(() => {
+    if (isFirstMountRef.current) {
+      isFirstMountRef.current = false;
+      return;
+    }
     if (isActive) {
       void (async () => {
         await loadTodayMeals();
