@@ -6,12 +6,12 @@
 - [ ] **Track: Pipeline CLI de conversion PDF Quitoque vers Pack ZIP Papilles**
   *Link: [./tracks/quitoque_pdf_converter_20261101/index.md](./tracks/quitoque_pdf_converter_20261101/index.md)*
 
----
-- [x] **Track: Personnalisation des humeurs et prompts du Chef IA**
-  *Link: [./tracks/chef_mood_customization_20261102/index.md](./tracks/chef_mood_customization_20261102/index.md)*
-
 
 ## Archived Tracks
+
+---
+- [x] **Track: Personnalisation des humeurs et prompts du Chef IA**
+  *Link: [./archive/chef_mood_customization_20261102/index.md](./archive/chef_mood_customization_20261102/index.md)*
 
 ---
 - [x] **Track: Refonte UI/UX des Inspirations du Chef IA & Sélection Tactile du Stock**
