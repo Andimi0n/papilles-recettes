@@ -19,7 +19,7 @@ import {
   getDayOfWeekFromDateString,
   normalizeString,
 } from '../utils/helpers';
-import { isRecipeVegetarian } from './recipeAiService';
+import { isRecipeVegetarian, ChefMoodOption, CHEF_MOODS } from './recipeAiService';
 import { createShoppingItemFromIngredient, mergeShoppingItems } from '../utils/shoppingAggregator';
 import { parseShoppingInput } from '../utils/shoppingInputParser';
 import { classifyIngredientAisle } from '../utils/aisleClassifier';
@@ -49,6 +49,7 @@ const SETTING_DEFAULT_SERVINGS = 'default_servings_v1';
 const SETTING_ALLERGEN_FILTER = 'filter_allergens_recipes_v1';
 const SETTING_ALLERGEN_EXCLUDE_AI = 'exclude_allergens_ai_v1';
 const SETTING_CHEF_FAVORITE_PROMPTS = 'chef_favorite_prompts';
+const SETTING_CHEF_MOODS = 'chef_moods_v1';
 const SETTING_ONBOARDING = 'onboarded_v1';
 
 export const DEFAULT_CHEF_FAVORITE_PROMPTS: ChefFavoritePrompt[] = [
@@ -2215,6 +2216,70 @@ export const StorageService = {
       console.error('Erreur suppression prompt favori Chef IA:', e);
       throw e;
     }
+  },
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // HUMEURS DU CHEF IA (StockCookModal & RecipeAiService)
+  // ══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Récupère la liste des humeurs du Chef IA.
+   * Retourne la liste personnalisée stockée, ou une copie de CHEF_MOODS par défaut.
+   */
+  async getChefMoods(): Promise<ChefMoodOption[]> {
+    try {
+      const stored = await DatabaseService.getSetting(SETTING_CHEF_MOODS);
+      if (!stored) {
+        return [...CHEF_MOODS];
+      }
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+      return [...CHEF_MOODS];
+    } catch (e) {
+      console.warn('⚠️ Erreur lecture des humeurs Chef IA, repli sur CHEF_MOODS:', e);
+      return [...CHEF_MOODS];
+    }
+  },
+
+  /**
+   * Enregistre ou met à jour une humeur du Chef IA.
+   */
+  async saveChefMood(mood: ChefMoodOption): Promise<ChefMoodOption[]> {
+    const currentList = await this.getChefMoods();
+    const index = currentList.findIndex((m) => m.id === mood.id);
+    let updatedList: ChefMoodOption[];
+    if (index >= 0) {
+      updatedList = [...currentList];
+      updatedList[index] = { ...mood };
+    } else {
+      updatedList = [...currentList, { ...mood }];
+    }
+    await DatabaseService.setSetting(SETTING_CHEF_MOODS, JSON.stringify(updatedList));
+    return updatedList;
+  },
+
+  /**
+   * Supprime une humeur du Chef IA.
+   * Interdit la suppression si c'est la seule humeur restante (sécurité).
+   */
+  async deleteChefMood(moodId: string): Promise<ChefMoodOption[]> {
+    const currentList = await this.getChefMoods();
+    if (currentList.length <= 1) {
+      throw new Error('Impossible de supprimer la dernière humeur du Chef IA (au moins 1 humeur requise).');
+    }
+    const updatedList = currentList.filter((m) => m.id !== moodId);
+    await DatabaseService.setSetting(SETTING_CHEF_MOODS, JSON.stringify(updatedList));
+    return updatedList;
+  },
+
+  /**
+   * Réinitialise les humeurs du Chef IA à la liste d'origine d'usine (CHEF_MOODS).
+   */
+  async resetChefMoods(): Promise<ChefMoodOption[]> {
+    await DatabaseService.removeSetting(SETTING_CHEF_MOODS);
+    return [...CHEF_MOODS];
   },
 
 

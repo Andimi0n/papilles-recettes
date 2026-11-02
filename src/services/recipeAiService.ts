@@ -259,6 +259,8 @@ export interface ChefMoodOption {
   userDirective: string;
   /** Consignes techniques et de style pour la rédaction de la recette complète (Étape 2) */
   recipeExecutionPrompt: string;
+  /** Indique si cette humeur a été créée sur-mesure par l'utilisateur */
+  isCustom?: boolean;
 }
 
 export const CHEF_MOODS: ChefMoodOption[] = [
