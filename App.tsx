@@ -102,19 +102,21 @@ function AppContent() {
     }
   }, []);
 
-  // Chargement initial des recettes avec parallélisation maximale
+  // Chargement initial des recettes
   useEffect(() => {
     const loadInitialData = async () => {
       try {
-        // Chargement parallèle des recettes, onboarding, stock et migration canonique
+        // Chargement parallèle des recettes, onboarding et stock
         const [loaded, onboarded] = await Promise.all([
           StorageService.getRecipes().catch(() => [] as Recipe[]),
           StorageService.hasCompletedOnboarding().catch(() => false),
           StorageService.getFridgeItems().catch(() => {}), // préchauffage cache
-          StorageService.migrateRecipesToCanonicalV1().catch(() => {}),
         ]);
         setRecipes(loaded as Recipe[]);
         if (!onboarded) setShowOnboarding(true);
+
+        // Migration canonique en arrière-plan (non bloquante pour l'affichage initial)
+        StorageService.migrateRecipesToCanonicalV1().catch(() => {});
       } catch (e) {
         console.error('Erreur chargement initial:', e);
       } finally {
@@ -130,6 +132,14 @@ function AppContent() {
       SplashScreen.hideAsync().catch(() => {});
     }
   }, [isLoading, isThemeLoaded]);
+
+  // Filet de sécurité splash screen (masquage garanti après 2.5s max même si anomalie native)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      SplashScreen.hideAsync().catch(() => {});
+    }, 2500);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Écoute et décodage des liens profonds de partage (papilles://import?r=...)
   const handleIncomingUrl = useCallback((url: string | null | undefined) => {

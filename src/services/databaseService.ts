@@ -113,7 +113,7 @@ function getSQLiteModule(): typeof import('expo-sqlite') | null {
 
 // ─── Singleton base de données ───────────────────────────────────────────────
 let _db: SQLiteTypes.SQLiteDatabase | null = null;
-let _initPromise: Promise<void> | null = null;
+let _initPromise: Promise<SQLiteTypes.SQLiteDatabase | null> | null = null;
 
 async function getDb(): Promise<SQLiteTypes.SQLiteDatabase | null> {
   const mod = getSQLiteModule();
@@ -122,24 +122,85 @@ async function getDb(): Promise<SQLiteTypes.SQLiteDatabase | null> {
   if (!_initPromise) {
     _initPromise = _openAndInit(mod);
   }
-  await _initPromise;
-  return _db;
+  return await _initPromise;
 }
 
-async function _openAndInit(mod: typeof import('expo-sqlite')): Promise<void> {
+async function _openAndInit(mod: typeof import('expo-sqlite')): Promise<SQLiteTypes.SQLiteDatabase | null> {
   try {
-    _db = await mod.openDatabaseAsync('papilles.db');
-    await _createSchema(_db);
-    await _runMigrationFromAsyncStorage(_db);
+    const db = typeof mod.openDatabaseSync === 'function'
+      ? mod.openDatabaseSync('papilles.db')
+      : await mod.openDatabaseAsync('papilles.db');
+    await _createSchema(db);
+    await _runMigrationFromAsyncStorage(db);
+    _db = db;
+    return _db;
   } catch (err) {
     console.warn('[DB] Erreur initialisation SQLite, passage en fallback:', err);
     _db = null;
+    return null;
   }
+}
+
+// ─── Primitives d'exécution JSI synchrones (ou fallback async) ────────────────
+// Privilégie les méthodes Sync (*Sync) de expo-sqlite qui passent directement par JSI
+// sans coroutines Kotlin suspend fun (évite les erreurs "no async context" sur Expo Go).
+
+async function execDb(db: SQLiteTypes.SQLiteDatabase, sql: string): Promise<void> {
+  if (typeof db.execSync === 'function') {
+    db.execSync(sql);
+    return;
+  }
+  await db.execAsync(sql);
+}
+
+async function runDb(db: SQLiteTypes.SQLiteDatabase, sql: string, params: any[] = []): Promise<void> {
+  if (typeof db.runSync === 'function') {
+    db.runSync(sql, params);
+    return;
+  }
+  await db.runAsync(sql, params);
+}
+
+async function getAllDb<T>(db: SQLiteTypes.SQLiteDatabase, sql: string, params: any[] = []): Promise<T[]> {
+  if (typeof db.getAllSync === 'function') {
+    return db.getAllSync<T>(sql, params);
+  }
+  return await db.getAllAsync<T>(sql, params);
+}
+
+async function getFirstDb<T>(db: SQLiteTypes.SQLiteDatabase, sql: string, params: any[] = []): Promise<T | null> {
+  if (typeof db.getFirstSync === 'function') {
+    return db.getFirstSync<T>(sql, params);
+  }
+  return await db.getFirstAsync<T>(sql, params);
+}
+
+async function transactionDb(
+  db: SQLiteTypes.SQLiteDatabase,
+  task: (run: (sql: string, params?: any[]) => void) => void
+): Promise<void> {
+  if (typeof db.withTransactionSync === 'function') {
+    db.withTransactionSync(() => {
+      task((sql, params = []) => {
+        if (typeof db.runSync === 'function') {
+          db.runSync(sql, params);
+        } else {
+          void db.runAsync(sql, params);
+        }
+      });
+    });
+    return;
+  }
+  await db.withExclusiveTransactionAsync(async (txn) => {
+    task((sql, params = []) => {
+      void txn.runAsync(sql, params);
+    });
+  });
 }
 
 // ─── Création du schéma ───────────────────────────────────────────────────────
 async function _createSchema(db: SQLiteTypes.SQLiteDatabase): Promise<void> {
-  await db.execAsync(`
+  await execDb(db, `
     PRAGMA journal_mode = WAL;
     PRAGMA foreign_keys = ON;
 
@@ -248,10 +309,10 @@ async function _runMigrationFromAsyncStorage(db: SQLiteTypes.SQLiteDatabase): Pr
       if (recipesData) {
         const recipes: any[] = JSON.parse(recipesData);
         if (Array.isArray(recipes) && recipes.length > 0) {
-          await db.withExclusiveTransactionAsync(async (txn) => {
+          await transactionDb(db, (run) => {
             for (const r of recipes) {
               if (!r?.id) continue;
-              await txn.runAsync(
+              run(
                 `INSERT OR REPLACE INTO recipes
                   (id, title, description, category, difficulty, prep_time_minutes,
                    cook_time_minutes, servings, rating, user_note, image_url,
@@ -297,10 +358,10 @@ async function _runMigrationFromAsyncStorage(db: SQLiteTypes.SQLiteDatabase): Pr
       if (fridgeData) {
         const items: any[] = JSON.parse(fridgeData);
         if (Array.isArray(items) && items.length > 0) {
-          await db.withExclusiveTransactionAsync(async (txn) => {
+          await transactionDb(db, (run) => {
             for (const item of items) {
               if (!item?.id) continue;
-              await txn.runAsync(
+              run(
                 `INSERT OR REPLACE INTO fridge_items (id, name, canonical_id, aisle, created_at)
                  VALUES (?,?,?,?,?)`,
                 [item.id, item.name || '', item.canonicalId ?? null, item.aisle ?? null, item.createdAt || new Date().toISOString()]
@@ -319,10 +380,10 @@ async function _runMigrationFromAsyncStorage(db: SQLiteTypes.SQLiteDatabase): Pr
       if (shoppingData) {
         const items: any[] = JSON.parse(shoppingData);
         if (Array.isArray(items) && items.length > 0) {
-          await db.withExclusiveTransactionAsync(async (txn) => {
+          await transactionDb(db, (run) => {
             for (const item of items) {
               if (!item?.id) continue;
-              await txn.runAsync(
+              run(
                 `INSERT OR REPLACE INTO shopping_items
                   (id, name, canonical_id, quantity, unit, is_checked, aisle, created_at, recipe_id, recipe_title)
                  VALUES (?,?,?,?,?,?,?,?,?,?)`,
@@ -350,10 +411,10 @@ async function _runMigrationFromAsyncStorage(db: SQLiteTypes.SQLiteDatabase): Pr
         if (plan && typeof plan === 'object') {
           const entries = Object.entries(plan);
           if (entries.length > 0) {
-            await db.withExclusiveTransactionAsync(async (txn) => {
+            await transactionDb(db, (run) => {
               for (const [slotKey, meal] of entries) {
                 if (!meal) continue;
-                await txn.runAsync(
+                run(
                   `INSERT OR REPLACE INTO weekly_plan
                     (slot_key, recipe_id, recipe_title, recipe_image_url, servings, meal_time, updated_at)
                    VALUES (?,?,?,?,?,?,?)`,
@@ -380,10 +441,10 @@ async function _runMigrationFromAsyncStorage(db: SQLiteTypes.SQLiteDatabase): Pr
         if (logs && typeof logs === 'object') {
           const entries = Object.entries(logs);
           if (entries.length > 0) {
-            await db.withExclusiveTransactionAsync(async (txn) => {
+            await transactionDb(db, (run) => {
               for (const [slotKey, entry] of entries) {
                 if (!entry?.id) continue;
-                await txn.runAsync(
+                run(
                   `INSERT OR REPLACE INTO meal_logs
                     (id, slot_key, date, meal_time, title, recipe_id, recipe_image_url, note, created_at, updated_at)
                    VALUES (?,?,?,?,?,?,?,?,?,?)`,
@@ -410,10 +471,10 @@ async function _runMigrationFromAsyncStorage(db: SQLiteTypes.SQLiteDatabase): Pr
       if (allergensData) {
         const allergens: any[] = JSON.parse(allergensData);
         if (Array.isArray(allergens) && allergens.length > 0) {
-          await db.withExclusiveTransactionAsync(async (txn) => {
+          await transactionDb(db, (run) => {
             for (const item of allergens) {
               if (!item?.id || !item?.name) continue;
-              await txn.runAsync(
+              run(
                 `INSERT OR REPLACE INTO user_allergens (id, name, canonical_id, allergen_family, added_at)
                  VALUES (?,?,?,?,?)`,
                 [item.id, item.name, item.canonicalId ?? null, item.allergenFamily ?? null, item.addedAt || new Date().toISOString()]
@@ -461,12 +522,12 @@ async function _runMigrationFromAsyncStorage(db: SQLiteTypes.SQLiteDatabase): Pr
 
 // ─── Helpers settings ────────────────────────────────────────────────────────
 async function _getSetting(db: SQLiteTypes.SQLiteDatabase, key: string): Promise<string | null> {
-  const row = await db.getFirstAsync<{ value: string }>('SELECT value FROM settings WHERE key = ?', [key]);
+  const row = await getFirstDb<{ value: string }>(db, 'SELECT value FROM settings WHERE key = ?', [key]);
   return row?.value ?? null;
 }
 
 async function _setSetting(db: SQLiteTypes.SQLiteDatabase, key: string, value: string): Promise<void> {
-  await db.runAsync('INSERT OR REPLACE INTO settings (key, value) VALUES (?,?)', [key, value]);
+  await runDb(db, 'INSERT OR REPLACE INTO settings (key, value) VALUES (?,?)', [key, value]);
 }
 
 // ─── Conversions SQLite row → objets métier ──────────────────────────────────
@@ -560,7 +621,7 @@ export const DatabaseService = {
         return [];
       }
     }
-    const rows = await db.getAllAsync<any>('SELECT * FROM recipes ORDER BY created_at DESC');
+    const rows = await getAllDb<any>(db, 'SELECT * FROM recipes ORDER BY created_at DESC');
     return rows.map(_rowToRecipe);
   },
 
@@ -570,7 +631,7 @@ export const DatabaseService = {
       const recipes = await this.getRecipes();
       return recipes.find((r) => r.id === id) || null;
     }
-    const row = await db.getFirstAsync<any>('SELECT * FROM recipes WHERE id = ?', [id]);
+    const row = await getFirstDb<any>(db, 'SELECT * FROM recipes WHERE id = ?', [id]);
     return row ? _rowToRecipe(row) : null;
   },
 
@@ -589,7 +650,8 @@ export const DatabaseService = {
       await AsyncStorage.setItem(AS_RECIPES_KEY, JSON.stringify(updated));
       return;
     }
-    await db.runAsync(
+    await runDb(
+      db,
       `INSERT OR REPLACE INTO recipes
         (id, title, description, category, difficulty, prep_time_minutes,
          cook_time_minutes, servings, rating, user_note, image_url,
@@ -628,10 +690,10 @@ export const DatabaseService = {
       await AsyncStorage.setItem(AS_RECIPES_KEY, JSON.stringify(recipes));
       return;
     }
-    await db.withExclusiveTransactionAsync(async (txn) => {
-      await txn.runAsync('DELETE FROM recipes');
+    await transactionDb(db, (run) => {
+      run('DELETE FROM recipes');
       for (const recipe of recipes) {
-        await txn.runAsync(
+        run(
           `INSERT INTO recipes
             (id, title, description, category, difficulty, prep_time_minutes,
              cook_time_minutes, servings, rating, user_note, image_url,
@@ -679,12 +741,14 @@ export const DatabaseService = {
       return;
     }
     if (userNote !== undefined) {
-      await db.runAsync(
+      await runDb(
+        db,
         'UPDATE recipes SET rating = ?, user_note = ?, updated_at = ? WHERE id = ?',
         [rating, userNote, new Date().toISOString(), id]
       );
     } else {
-      await db.runAsync(
+      await runDb(
+        db,
         'UPDATE recipes SET rating = ?, updated_at = ? WHERE id = ?',
         [rating, new Date().toISOString(), id]
       );
@@ -701,7 +765,8 @@ export const DatabaseService = {
       await AsyncStorage.setItem(AS_RECIPES_KEY, JSON.stringify(updated));
       return;
     }
-    await db.runAsync(
+    await runDb(
+      db,
       'UPDATE recipes SET tags = ?, updated_at = ? WHERE id = ?',
       [JSON.stringify(tags), new Date().toISOString(), id]
     );
@@ -717,7 +782,8 @@ export const DatabaseService = {
       await AsyncStorage.setItem(AS_RECIPES_KEY, JSON.stringify(updated));
       return;
     }
-    await db.runAsync(
+    await runDb(
+      db,
       'UPDATE recipes SET is_favorite = CASE WHEN is_favorite = 1 THEN 0 ELSE 1 END, updated_at = ? WHERE id = ?',
       [new Date().toISOString(), id]
     );
@@ -730,7 +796,7 @@ export const DatabaseService = {
       await AsyncStorage.setItem(AS_RECIPES_KEY, JSON.stringify(recipes.filter((r) => r.id !== id)));
       return;
     }
-    await db.runAsync('DELETE FROM recipes WHERE id = ?', [id]);
+    await runDb(db, 'DELETE FROM recipes WHERE id = ?', [id]);
   },
 
   async deleteRecipesByPrefix(prefix: string): Promise<void> {
@@ -740,7 +806,7 @@ export const DatabaseService = {
       await AsyncStorage.setItem(AS_RECIPES_KEY, JSON.stringify(recipes.filter((r) => !r.id.startsWith(prefix))));
       return;
     }
-    await db.runAsync('DELETE FROM recipes WHERE id LIKE ?', [`${prefix}%`]);
+    await runDb(db, 'DELETE FROM recipes WHERE id LIKE ?', [`${prefix}%`]);
   },
 
   async getAllTags(): Promise<string[]> {
@@ -755,7 +821,7 @@ export const DatabaseService = {
       });
       return Array.from(tagSet).sort((a, b) => a.localeCompare(b, 'fr'));
     }
-    const rows = await db.getAllAsync<{ tags: string }>('SELECT tags FROM recipes WHERE tags IS NOT NULL AND tags != "[]"');
+    const rows = await getAllDb<{ tags: string }>(db, 'SELECT tags FROM recipes WHERE tags IS NOT NULL AND tags != "[]"');
     const tagSet = new Set<string>();
     for (const row of rows) {
       const arr = _parseJsonArray(row.tags);
@@ -781,9 +847,9 @@ export const DatabaseService = {
       await AsyncStorage.setItem(AS_RECIPES_KEY, JSON.stringify(updated));
       return;
     }
-    await db.withExclusiveTransactionAsync(async (txn) => {
+    await transactionDb(db, (run) => {
       for (const u of updates) {
-        await txn.runAsync(
+        run(
           'UPDATE recipes SET ingredients = ?, updated_at = ? WHERE id = ?',
           [JSON.stringify(u.ingredients), u.updatedAt, u.id]
         );
@@ -807,7 +873,7 @@ export const DatabaseService = {
         return [];
       }
     }
-    const rows = await db.getAllAsync<any>('SELECT * FROM fridge_items ORDER BY created_at DESC');
+    const rows = await getAllDb<any>(db, 'SELECT * FROM fridge_items ORDER BY created_at DESC');
     return rows.map(_rowToFridgeItem);
   },
 
@@ -817,19 +883,19 @@ export const DatabaseService = {
       await AsyncStorage.setItem(AS_FRIDGE_KEY, JSON.stringify(items));
       return;
     }
-    await db.withExclusiveTransactionAsync(async (txn) => {
+    await transactionDb(db, (run) => {
       if (items.length === 0) {
-        await txn.runAsync('DELETE FROM fridge_items');
+        run('DELETE FROM fridge_items');
         return;
       }
       // Suppression ciblée des éléments retirés (évite un DROP/DELETE complet)
       const placeholders = items.map(() => '?').join(',');
       const ids = items.map((i) => i.id);
-      await txn.runAsync(`DELETE FROM fridge_items WHERE id NOT IN (${placeholders})`, ids);
+      run(`DELETE FROM fridge_items WHERE id NOT IN (${placeholders})`, ids);
 
       // Insertion ou mise à jour in-place des éléments
       for (const item of items) {
-        await txn.runAsync(
+        run(
           'INSERT OR REPLACE INTO fridge_items (id, name, canonical_id, aisle, created_at) VALUES (?,?,?,?,?)',
           [item.id, item.name, item.canonicalId ?? null, item.aisle ?? null, item.createdAt]
         );
@@ -845,7 +911,8 @@ export const DatabaseService = {
       await this.saveFridgeItems([item, ...filtered]);
       return;
     }
-    await db.runAsync(
+    await runDb(
+      db,
       'INSERT OR REPLACE INTO fridge_items (id, name, canonical_id, aisle, created_at) VALUES (?,?,?,?,?)',
       [item.id, item.name, item.canonicalId ?? null, item.aisle ?? null, item.createdAt]
     );
@@ -858,7 +925,7 @@ export const DatabaseService = {
       await this.saveFridgeItems(items.filter((i) => i.id !== id));
       return;
     }
-    await db.runAsync('DELETE FROM fridge_items WHERE id = ?', [id]);
+    await runDb(db, 'DELETE FROM fridge_items WHERE id = ?', [id]);
   },
 
   async clearFridge(): Promise<void> {
@@ -867,7 +934,7 @@ export const DatabaseService = {
       await AsyncStorage.setItem(AS_FRIDGE_KEY, JSON.stringify([]));
       return;
     }
-    await db.runAsync('DELETE FROM fridge_items');
+    await runDb(db, 'DELETE FROM fridge_items');
   },
 
   async updateFridgeItemsBatch(
@@ -885,9 +952,9 @@ export const DatabaseService = {
       await this.saveFridgeItems(updated);
       return;
     }
-    await db.withExclusiveTransactionAsync(async (txn) => {
+    await transactionDb(db, (run) => {
       for (const u of updates) {
-        await txn.runAsync(
+        run(
           'UPDATE fridge_items SET canonical_id = ?, aisle = ? WHERE id = ?',
           [u.canonicalId ?? null, u.aisle ?? null, u.id]
         );
@@ -911,7 +978,7 @@ export const DatabaseService = {
         return [];
       }
     }
-    const rows = await db.getAllAsync<any>('SELECT * FROM shopping_items ORDER BY created_at ASC');
+    const rows = await getAllDb<any>(db, 'SELECT * FROM shopping_items ORDER BY created_at ASC');
     return rows.map(_rowToShoppingItem);
   },
 
@@ -921,19 +988,19 @@ export const DatabaseService = {
       await AsyncStorage.setItem(AS_SHOPPING_KEY, JSON.stringify(items));
       return;
     }
-    await db.withExclusiveTransactionAsync(async (txn) => {
+    await transactionDb(db, (run) => {
       if (items.length === 0) {
-        await txn.runAsync('DELETE FROM shopping_items');
+        run('DELETE FROM shopping_items');
         return;
       }
       // Suppression ciblée des articles supprimés
       const placeholders = items.map(() => '?').join(',');
       const ids = items.map((i) => i.id);
-      await txn.runAsync(`DELETE FROM shopping_items WHERE id NOT IN (${placeholders})`, ids);
+      run(`DELETE FROM shopping_items WHERE id NOT IN (${placeholders})`, ids);
 
       // Insertion ou mise à jour ciblée
       for (const item of items) {
-        await txn.runAsync(
+        run(
           `INSERT OR REPLACE INTO shopping_items
             (id, name, canonical_id, quantity, unit, is_checked, aisle, created_at, recipe_id, recipe_title)
            VALUES (?,?,?,?,?,?,?,?,?,?)`,
@@ -956,7 +1023,8 @@ export const DatabaseService = {
       await this.saveShoppingItems([...filtered, item]);
       return;
     }
-    await db.runAsync(
+    await runDb(
+      db,
       `INSERT OR REPLACE INTO shopping_items
         (id, name, canonical_id, quantity, unit, is_checked, aisle, created_at, recipe_id, recipe_title)
        VALUES (?,?,?,?,?,?,?,?,?,?)`,
@@ -978,7 +1046,8 @@ export const DatabaseService = {
       );
       return;
     }
-    await db.runAsync(
+    await runDb(
+      db,
       'UPDATE shopping_items SET is_checked = CASE WHEN is_checked = 1 THEN 0 ELSE 1 END WHERE id = ?',
       [id]
     );
@@ -991,7 +1060,8 @@ export const DatabaseService = {
       await this.saveShoppingItems(items.map((i) => (i.id === item.id ? item : i)));
       return;
     }
-    await db.runAsync(
+    await runDb(
+      db,
       `UPDATE shopping_items SET name=?, canonical_id=?, quantity=?, unit=?, is_checked=?, aisle=?, recipe_id=?, recipe_title=?
        WHERE id=?`,
       [
@@ -1009,7 +1079,7 @@ export const DatabaseService = {
       await this.saveShoppingItems(items.filter((i) => i.id !== id));
       return;
     }
-    await db.runAsync('DELETE FROM shopping_items WHERE id = ?', [id]);
+    await runDb(db, 'DELETE FROM shopping_items WHERE id = ?', [id]);
   },
 
   async clearCheckedShoppingItems(): Promise<void> {
@@ -1019,7 +1089,7 @@ export const DatabaseService = {
       await this.saveShoppingItems(items.filter((i) => !i.isChecked));
       return;
     }
-    await db.runAsync('DELETE FROM shopping_items WHERE is_checked = 1');
+    await runDb(db, 'DELETE FROM shopping_items WHERE is_checked = 1');
   },
 
   async clearAllShoppingItems(): Promise<void> {
@@ -1028,7 +1098,7 @@ export const DatabaseService = {
       await this.saveShoppingItems([]);
       return;
     }
-    await db.runAsync('DELETE FROM shopping_items');
+    await runDb(db, 'DELETE FROM shopping_items');
   },
 
   async updateShoppingItemsBatch(
@@ -1053,9 +1123,9 @@ export const DatabaseService = {
       await this.saveShoppingItems(updated);
       return;
     }
-    await db.withExclusiveTransactionAsync(async (txn) => {
+    await transactionDb(db, (run) => {
       for (const u of updates) {
-        await txn.runAsync(
+        run(
           'UPDATE shopping_items SET name = COALESCE(?,name), canonical_id = ?, aisle = COALESCE(?,aisle) WHERE id = ?',
           [u.name ?? null, u.canonicalId ?? null, u.aisle ?? null, u.id]
         );
@@ -1079,7 +1149,7 @@ export const DatabaseService = {
         return {};
       }
     }
-    const rows = await db.getAllAsync<any>('SELECT * FROM weekly_plan');
+    const rows = await getAllDb<any>(db, 'SELECT * FROM weekly_plan');
     const plan: WeeklyPlanMap = {};
     for (const row of rows) {
       if (!row.recipe_id) continue;
@@ -1106,13 +1176,14 @@ export const DatabaseService = {
       return;
     }
     if (meal) {
-      await db.runAsync(
+      await runDb(
+        db,
         `INSERT OR REPLACE INTO weekly_plan (slot_key, recipe_id, recipe_title, recipe_image_url, servings, meal_time, updated_at)
          VALUES (?,?,?,?,?,?,?)`,
         [slotKey, meal.recipeId ?? null, meal.recipeTitle ?? null, meal.recipeImageUrl ?? null, meal.servings ?? null, meal.mealTime ?? null, new Date().toISOString()]
       );
     } else {
-      await db.runAsync('DELETE FROM weekly_plan WHERE slot_key = ?', [slotKey]);
+      await runDb(db, 'DELETE FROM weekly_plan WHERE slot_key = ?', [slotKey]);
     }
   },
 
@@ -1129,11 +1200,11 @@ export const DatabaseService = {
       return;
     }
     if (!slotKeysToClear || slotKeysToClear.length === 0) {
-      await db.runAsync('DELETE FROM weekly_plan');
+      await runDb(db, 'DELETE FROM weekly_plan');
     } else {
-      await db.withExclusiveTransactionAsync(async (txn) => {
+      await transactionDb(db, (run) => {
         for (const key of slotKeysToClear) {
-          await txn.runAsync('DELETE FROM weekly_plan WHERE slot_key = ?', [key]);
+          run('DELETE FROM weekly_plan WHERE slot_key = ?', [key]);
         }
       });
     }
@@ -1155,7 +1226,7 @@ export const DatabaseService = {
         return {};
       }
     }
-    const rows = await db.getAllAsync<any>('SELECT * FROM meal_logs ORDER BY date DESC');
+    const rows = await getAllDb<any>(db, 'SELECT * FROM meal_logs ORDER BY date DESC');
     const map: MealLogMap = {};
     for (const row of rows) {
       map[row.slot_key] = _rowToMealLogEntry(row);
@@ -1172,7 +1243,8 @@ export const DatabaseService = {
       return;
     }
     if (entry) {
-      await db.runAsync(
+      await runDb(
+        db,
         `INSERT OR REPLACE INTO meal_logs
           (id, slot_key, date, meal_time, title, recipe_id, recipe_image_url, note, created_at, updated_at)
          VALUES (?,?,?,?,?,?,?,?,?,?)`,
@@ -1183,7 +1255,7 @@ export const DatabaseService = {
         ]
       );
     } else {
-      await db.runAsync('DELETE FROM meal_logs WHERE slot_key = ?', [slotKey]);
+      await runDb(db, 'DELETE FROM meal_logs WHERE slot_key = ?', [slotKey]);
     }
   },
 
@@ -1193,11 +1265,11 @@ export const DatabaseService = {
       await AsyncStorage.setItem(AS_MEAL_LOG_KEY, JSON.stringify(logs));
       return;
     }
-    await db.withExclusiveTransactionAsync(async (txn) => {
-      await txn.runAsync('DELETE FROM meal_logs');
+    await transactionDb(db, (run) => {
+      run('DELETE FROM meal_logs');
       for (const [slotKey, entry] of Object.entries(logs)) {
         if (!entry) continue;
-        await txn.runAsync(
+        run(
           `INSERT INTO meal_logs
             (id, slot_key, date, meal_time, title, recipe_id, recipe_image_url, note, created_at, updated_at)
            VALUES (?,?,?,?,?,?,?,?,?,?)`,
@@ -1227,7 +1299,7 @@ export const DatabaseService = {
         return [];
       }
     }
-    const rows = await db.getAllAsync<any>('SELECT * FROM user_allergens ORDER BY added_at ASC');
+    const rows = await getAllDb<any>(db, 'SELECT * FROM user_allergens ORDER BY added_at ASC');
     return rows.map((row) => ({
       id: row.id,
       name: row.name,
@@ -1243,10 +1315,10 @@ export const DatabaseService = {
       await AsyncStorage.setItem(AS_USER_ALLERGENS_KEY, JSON.stringify(items));
       return;
     }
-    await db.withExclusiveTransactionAsync(async (txn) => {
-      await txn.runAsync('DELETE FROM user_allergens');
+    await transactionDb(db, (run) => {
+      run('DELETE FROM user_allergens');
       for (const item of items) {
-        await txn.runAsync(
+        run(
           'INSERT INTO user_allergens (id, name, canonical_id, allergen_family, added_at) VALUES (?,?,?,?,?)',
           [item.id, item.name, item.canonicalId ?? null, item.allergenFamily ?? null, item.addedAt]
         );
@@ -1281,7 +1353,7 @@ export const DatabaseService = {
       await AsyncStorage.removeItem(`@papilles_${key}`);
       return;
     }
-    await db.runAsync('DELETE FROM settings WHERE key = ?', [key]);
+    await runDb(db, 'DELETE FROM settings WHERE key = ?', [key]);
   },
 
   // ══════════════════════════════════════════════════════
