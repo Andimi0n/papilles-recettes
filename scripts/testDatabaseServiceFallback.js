@@ -92,6 +92,20 @@ async function main() {
   assert.strictEqual(fridgeItems[0].name, 'Carottes');
   console.log('✓ Gestion des étagères fonctionnelle en fallback');
 
+  console.log('\n--- Test 4 : Réglages et requêtes concurrentes ---');
+  await DatabaseService.setSetting('recipe_view_mode_v1', 'compact');
+  const viewMode = await DatabaseService.getSetting('recipe_view_mode_v1');
+  assert.strictEqual(viewMode, 'compact', 'Le mode compact doit être lu correctement');
+
+  await Promise.all([
+    DatabaseService.getWeeklyPlan(),
+    DatabaseService.getMealLogs(),
+    DatabaseService.getUserAllergens(),
+    DatabaseService.getShoppingItems(),
+    DatabaseService.getFridgeItems(),
+  ]);
+  console.log('✓ Requêtes concurrentes exécutées avec succès sans collision');
+
   // Nettoyage
   try {
     fs.rmSync(tmpDir, { recursive: true, force: true });

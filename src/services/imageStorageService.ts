@@ -133,6 +133,19 @@ export const ImageStorageService = {
       const dirReady = await this.ensureDirectoryExists();
       if (!dirReady) return trimmed;
 
+      // Vérifier que le fichier source existe bien avant de tenter manipulation ou copie
+      if (typeof fs.getInfoAsync === 'function') {
+        try {
+          const fileInfo = await fs.getInfoAsync(trimmed);
+          if (!fileInfo.exists) {
+            console.warn('[ImageStorage] Fichier source temporaire introuvable, abandon persistance:', trimmed);
+            return trimmed;
+          }
+        } catch {
+          // Si getInfoAsync échoue ou n'est pas supporté, tenter la suite
+        }
+      }
+
       // Détecter l'extension source
       const cleanUri = trimmed.split('?')[0].split('#')[0];
       const dotIdx = cleanUri.lastIndexOf('.');

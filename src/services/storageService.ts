@@ -87,6 +87,7 @@ let memoryCache = {
   recipes: null as Recipe[] | null,
   fridgeItems: null as FridgeItem[] | null,
   shoppingList: null as ShoppingItem[] | null,
+  recipeViewMode: null as RecipeViewMode | null,
 };
 
 // ─── Analytics helpers ────────────────────────────────────────────────────────
@@ -303,6 +304,11 @@ async function _migrateTemporaryImagesIfNeeded(recipes: Recipe[]): Promise<void>
       if (permanentUri && permanentUri !== r.imageUrl) {
         r.imageUrl = permanentUri;
         await DatabaseService.saveRecipe(r);
+      } else if (permanentUri === r.imageUrl) {
+        // La persistance a renvoyé la même URI source (fichier temporaire introuvable ou illisible)
+        // Réinitialiser imageUrl pour éviter de relancer vainement la manipulation à chaque démarrage
+        r.imageUrl = '';
+        await DatabaseService.saveRecipe(r);
       }
     }
   } catch (err) {
@@ -342,8 +348,10 @@ export const StorageService = {
       const result = rows.map(sanitizeStoredRecipe);
       memoryCache.recipes = result;
 
-      // Migration opportuniste en arrière-plan des photos encore temporaires
-      _migrateTemporaryImagesIfNeeded(result).catch(() => {});
+      // Migration opportuniste en arrière-plan des photos temporaires (différée après le démarrage pour fluidifier l'UI)
+      setTimeout(() => {
+        _migrateTemporaryImagesIfNeeded(result).catch(() => {});
+      }, 3500);
 
       return result;
     } catch (error) {
@@ -1976,11 +1984,16 @@ export const StorageService = {
    * Récupère le mode d'affichage des recettes sauvegardé ('detailed' | 'compact' | 'grid')
    */
   async getRecipeViewMode(): Promise<RecipeViewMode> {
+    if (memoryCache.recipeViewMode) {
+      return memoryCache.recipeViewMode;
+    }
     try {
       const mode = await DatabaseService.getSetting(SETTING_RECIPE_VIEW_MODE);
       if (mode === 'compact' || mode === 'detailed' || mode === 'grid') {
+        memoryCache.recipeViewMode = mode as RecipeViewMode;
         return mode as RecipeViewMode;
       }
+      memoryCache.recipeViewMode = 'detailed';
       return 'detailed';
     } catch {
       return 'detailed';
@@ -1991,6 +2004,7 @@ export const StorageService = {
    * Sauvegarde le mode d'affichage des recettes
    */
   async saveRecipeViewMode(mode: RecipeViewMode): Promise<void> {
+    memoryCache.recipeViewMode = mode;
     try {
       await DatabaseService.setSetting(SETTING_RECIPE_VIEW_MODE, mode);
     } catch (e) {

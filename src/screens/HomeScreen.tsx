@@ -68,6 +68,7 @@ interface HomeScreenProps {
   onNavigateToJournal?: () => void;
   onNavigateToStock?: () => void;
   initialOnlyDoable?: boolean;
+  initialViewMode?: RecipeViewMode;
   isActive?: boolean;
   reopenStockModal?: boolean;
   onStockModalReopened?: () => void;
@@ -84,6 +85,7 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
   onNavigateToJournal,
   onNavigateToStock,
   initialOnlyDoable = false,
+  initialViewMode = 'detailed',
   isActive = true,
   reopenStockModal = false,
   onStockModalReopened,
@@ -118,7 +120,12 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
   const [minRatingFilter, setMinRatingFilter] = useState<number>(0);
   const [onlyVegetarian, setOnlyVegetarian] = useState(false);
   const [onlyDoableWithStock, setOnlyDoableWithStock] = useState(initialOnlyDoable);
-  const [viewMode, setViewMode] = useState<RecipeViewMode>('detailed');
+  const [viewMode, setViewMode] = useState<RecipeViewMode>(initialViewMode);
+  const [prevInitialViewMode, setPrevInitialViewMode] = useState(initialViewMode);
+  if (prevInitialViewMode !== initialViewMode) {
+    setPrevInitialViewMode(initialViewMode);
+    setViewMode(initialViewMode);
+  }
 
   useEffect(() => {
     StorageService.getRecipeViewMode().then((saved) => {

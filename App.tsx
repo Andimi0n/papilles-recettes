@@ -12,7 +12,7 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { Recipe } from './src/types/recipe';
+import { Recipe, RecipeViewMode } from './src/types/recipe';
 import { StorageService } from './src/services/storageService';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { RecipeDetailScreen } from './src/screens/RecipeDetailScreen';
@@ -87,6 +87,7 @@ function AppContent() {
   const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [initialViewMode, setInitialViewMode] = useState<RecipeViewMode>('detailed');
 
   // Recette reçue en partage (via Deep Link ou scan QR code)
   const [receivedSharedRecipe, setReceivedSharedRecipe] = useState<Recipe | null>(null);
@@ -106,14 +107,16 @@ function AppContent() {
   useEffect(() => {
     const loadInitialData = async () => {
       try {
-        // Chargement parallèle des recettes, onboarding et stock
-        const [loaded, onboarded] = await Promise.all([
+        // Chargement parallèle des recettes, onboarding, mode d'affichage et stock
+        const [loaded, onboarded, savedViewMode] = await Promise.all([
           StorageService.getRecipes().catch(() => [] as Recipe[]),
           StorageService.hasCompletedOnboarding().catch(() => false),
+          StorageService.getRecipeViewMode().catch(() => 'detailed' as RecipeViewMode),
           StorageService.getFridgeItems().catch(() => {}), // préchauffage cache
         ]);
         setRecipes(loaded as Recipe[]);
         if (!onboarded) setShowOnboarding(true);
+        if (savedViewMode) setInitialViewMode(savedViewMode);
 
         // Migration canonique en arrière-plan (non bloquante pour l'affichage initial)
         StorageService.migrateRecipesToCanonicalV1().catch(() => {});
@@ -420,6 +423,7 @@ function AppContent() {
                 onNavigateToJournal={navigateToJournal}
                 onNavigateToStock={() => navigateToShopping('fridge')}
                 initialOnlyDoable={initialHomeDoableFilter}
+                initialViewMode={initialViewMode}
                 isActive={currentScreen === 'home'}
                 reopenStockModal={reopenStockModal}
                 onStockModalReopened={() => setReopenStockModal(false)}

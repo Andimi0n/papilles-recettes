@@ -112,15 +112,52 @@ function getSQLiteModule(): typeof import('expo-sqlite') | null {
 }
 
 // ─── Singleton base de données ───────────────────────────────────────────────
+// ─── Singleton base de données & Détection de déconnexion ────────────────────
 let _db: SQLiteTypes.SQLiteDatabase | null = null;
 let _initPromise: Promise<SQLiteTypes.SQLiteDatabase | null> | null = null;
+let _transactionMutex: Promise<any> = Promise.resolve();
+
+function isDbClosedError(err: any): boolean {
+  if (!err) return false;
+  const msg = String(err?.message || '');
+  const name = String(err?.name || '');
+  return (
+    msg.includes('closed resource') ||
+    msg.includes('closed') ||
+    name === 'AccessClosedResourceException' ||
+    name === 'DatabaseClosedException'
+  );
+}
+
+function isDbAlive(db: SQLiteTypes.SQLiteDatabase | null): boolean {
+  if (!db) return false;
+  try {
+    if (typeof db.getFirstSync === 'function') {
+      db.getFirstSync('SELECT 1');
+      return true;
+    }
+    if (typeof db.isInTransactionSync === 'function') {
+      db.isInTransactionSync();
+      return true;
+    }
+  } catch (err) {
+    if (isDbClosedError(err)) return false;
+  }
+  return true;
+}
 
 async function getDb(): Promise<SQLiteTypes.SQLiteDatabase | null> {
   const mod = getSQLiteModule();
   if (!mod) return null;
-  if (_db) return _db;
+  if (_db && isDbAlive(_db)) {
+    return _db;
+  }
+  // Réinitialisation si la connexion native a été fermée (Fast Refresh / reload Expo Go)
+  _db = null;
   if (!_initPromise) {
-    _initPromise = _openAndInit(mod);
+    _initPromise = _openAndInit(mod).finally(() => {
+      _initPromise = null;
+    });
   }
   return await _initPromise;
 }
@@ -141,60 +178,97 @@ async function _openAndInit(mod: typeof import('expo-sqlite')): Promise<SQLiteTy
   }
 }
 
-// ─── Primitives d'exécution JSI synchrones (ou fallback async) ────────────────
-// Privilégie les méthodes Sync (*Sync) de expo-sqlite qui passent directement par JSI
-// sans coroutines Kotlin suspend fun (évite les erreurs "no async context" sur Expo Go).
+// ─── Primitives d'exécution JSI synchrones auto-réparatrices ───────────────────
+// En cas de coupure native (ex: Fast Refresh Metro invalidant le handle natif),
+// withDbRetry réinitialise la connexion et réessaye automatiquement avec succès transparent.
+
+async function withDbRetry<T>(
+  preferredDb: SQLiteTypes.SQLiteDatabase,
+  action: (activeDb: SQLiteTypes.SQLiteDatabase) => Promise<T> | T
+): Promise<T> {
+  try {
+    return await action(preferredDb);
+  } catch (err) {
+    if (isDbClosedError(err)) {
+      console.warn('[DB] Détection ressource SQLite fermée, réouverture automatique et réessai...');
+      _db = null;
+      _initPromise = null;
+      const freshDb = await getDb();
+      if (freshDb) {
+        return await action(freshDb);
+      }
+    }
+    throw err;
+  }
+}
 
 async function execDb(db: SQLiteTypes.SQLiteDatabase, sql: string): Promise<void> {
-  if (typeof db.execSync === 'function') {
-    db.execSync(sql);
-    return;
-  }
-  await db.execAsync(sql);
+  await withDbRetry(db, async (activeDb) => {
+    if (typeof activeDb.execSync === 'function') {
+      activeDb.execSync(sql);
+      return;
+    }
+    await activeDb.execAsync(sql);
+  });
 }
 
 async function runDb(db: SQLiteTypes.SQLiteDatabase, sql: string, params: any[] = []): Promise<void> {
-  if (typeof db.runSync === 'function') {
-    db.runSync(sql, params);
-    return;
-  }
-  await db.runAsync(sql, params);
+  await withDbRetry(db, async (activeDb) => {
+    if (typeof activeDb.runSync === 'function') {
+      activeDb.runSync(sql, params);
+      return;
+    }
+    await activeDb.runAsync(sql, params);
+  });
 }
 
 async function getAllDb<T>(db: SQLiteTypes.SQLiteDatabase, sql: string, params: any[] = []): Promise<T[]> {
-  if (typeof db.getAllSync === 'function') {
-    return db.getAllSync<T>(sql, params);
-  }
-  return await db.getAllAsync<T>(sql, params);
+  return withDbRetry(db, (activeDb) => {
+    if (typeof activeDb.getAllSync === 'function') {
+      return activeDb.getAllSync<T>(sql, params);
+    }
+    return activeDb.getAllAsync<T>(sql, params);
+  });
 }
 
 async function getFirstDb<T>(db: SQLiteTypes.SQLiteDatabase, sql: string, params: any[] = []): Promise<T | null> {
-  if (typeof db.getFirstSync === 'function') {
-    return db.getFirstSync<T>(sql, params);
-  }
-  return await db.getFirstAsync<T>(sql, params);
+  return withDbRetry(db, (activeDb) => {
+    if (typeof activeDb.getFirstSync === 'function') {
+      return activeDb.getFirstSync<T>(sql, params);
+    }
+    return activeDb.getFirstAsync<T>(sql, params);
+  });
 }
 
 async function transactionDb(
   db: SQLiteTypes.SQLiteDatabase,
   task: (run: (sql: string, params?: any[]) => void) => void
 ): Promise<void> {
-  if (typeof db.withTransactionSync === 'function') {
-    db.withTransactionSync(() => {
-      task((sql, params = []) => {
-        if (typeof db.runSync === 'function') {
-          db.runSync(sql, params);
-        } else {
-          void db.runAsync(sql, params);
-        }
-      });
-    });
-    return;
-  }
-  await db.withExclusiveTransactionAsync(async (txn) => {
-    task((sql, params = []) => {
-      void txn.runAsync(sql, params);
-    });
+  return new Promise<void>((resolve, reject) => {
+    _transactionMutex = _transactionMutex
+      .then(async () => {
+        await withDbRetry(db, (activeDb) => {
+          if (typeof activeDb.withTransactionSync === 'function') {
+            activeDb.withTransactionSync(() => {
+              task((sql, params = []) => {
+                if (typeof activeDb.runSync === 'function') {
+                  activeDb.runSync(sql, params);
+                } else {
+                  void activeDb.runAsync(sql, params);
+                }
+              });
+            });
+            return;
+          }
+          return activeDb.withExclusiveTransactionAsync(async (txn) => {
+            task((sql, params = []) => {
+              void txn.runAsync(sql, params);
+            });
+          });
+        });
+      })
+      .then(resolve)
+      .catch(reject);
   });
 }
 
