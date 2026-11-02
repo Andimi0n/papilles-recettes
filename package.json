@@ -89,7 +89,8 @@
     "test:chef-prompts": "node scripts/testChefFavoritePrompts.js",
     "test:chef-moods": "node scripts/testChefMoods.js",
     "test:ai-prompt": "node scripts/testRecipeAiIdeasPrompt.js",
-    "test:perf-phase1": "node scripts/testAppPerformancePhase1.js"
+    "test:perf-phase1": "node scripts/testAppPerformancePhase1.js",
+    "test:perf-phase3": "node scripts/testAppPerformancePhase3.js"
 
   },
   "overrides": {
