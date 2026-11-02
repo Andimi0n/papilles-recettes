@@ -45,7 +45,7 @@
 
 ---
 
-## Phase 4: Intégration dans `StockCookModal` & Validation Globale
+## Phase 4: Intégration dans `StockCookModal` & Validation Globale [checkpoint: 911d237]
 
 - [x] Task: Dynamiser la sélection des humeurs dans `StockCookModal.tsx` (911d237)
   - [x] Remplacer la constante statique `CHEF_MOODS` par le chargement réactif des humeurs via `StorageService.getChefMoods()`
@@ -54,4 +54,4 @@
 - [x] Task: Validation globale et tests de non-régression (911d237)
   - [x] Exécuter `npm test` pour s'assurer que tous les tests unitaires passent
   - [x] Exécuter `npx tsc --noEmit && npx expo lint` (zéro erreur tolérée)
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) (911d237)
