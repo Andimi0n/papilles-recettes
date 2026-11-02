@@ -52,8 +52,6 @@ async function main() {
     isModelDegraded,
     prioritizeHealthyModels,
     CHEF_MOODS,
-    RECIPE_PIMP_SCHEMA,
-    RECIPE_SOS_SCHEMA,
     RecipeAiService,
     cleanApiKey,
     getGeminiHeaders,
@@ -248,56 +246,9 @@ async function main() {
   console.log('✓ Catalogue des styles & moods du Chef validé');
 
   // =========================================================================
-  // TEST SECTION 8 : Pimp & SOS Features Integrity
+  // TEST SECTION 8 : Sécurisation & Assainissement des Clés API (BYOK)
   // =========================================================================
-  console.log('\n--- Test 8 : Pimp & SOS Features ---');
-  assert.strictEqual(RECIPE_PIMP_SCHEMA.type, 'OBJECT');
-  assert.ok(RECIPE_PIMP_SCHEMA.required.includes('suggestions'));
-  assert.ok(RECIPE_PIMP_SCHEMA.required.includes('chefNote'));
-  assert.strictEqual(RECIPE_SOS_SCHEMA.type, 'OBJECT');
-  assert.ok(RECIPE_SOS_SCHEMA.required.includes('suggestions'));
-  assert.ok(RECIPE_SOS_SCHEMA.required.includes('chefNote'));
-  console.log('✓ Schémas JSON RECIPE_PIMP_SCHEMA et RECIPE_SOS_SCHEMA conformes');
-
-  // Validation rejets stock vide
-  await assert.rejects(
-    async () => {
-      await RecipeAiService.pimpRecipeWithStock({ title: 'Test', ingredients: [] }, [], 'fake-key');
-    },
-    /Votre frigo est vide/,
-    'pimpRecipeWithStock doit rejeter si stock vide'
-  );
-
-  await assert.rejects(
-    async () => {
-      await RecipeAiService.suggestSubstituteWithStock('Poivre', [], 'fake-key');
-    },
-    /Votre frigo est vide/,
-    'suggestSubstituteWithStock doit rejeter si stock vide'
-  );
-
-  // Validation rejets clé API manquante
-  await assert.rejects(
-    async () => {
-      await RecipeAiService.pimpRecipeWithStock({ title: 'Test', ingredients: [] }, ['Carotte'], '');
-    },
-    /Clé API Gemini non configurée/,
-    'pimpRecipeWithStock doit rejeter si clé API absente'
-  );
-
-  await assert.rejects(
-    async () => {
-      await RecipeAiService.suggestSubstituteWithStock('Poivre', ['Carotte'], '');
-    },
-    /Clé API Gemini non configurée/,
-    'suggestSubstituteWithStock doit rejeter si clé API absente'
-  );
-  console.log('✓ Validation défensive et gestion des erreurs pimpRecipeWithStock & suggestSubstituteWithStock validées');
-
-  // =========================================================================
-  // TEST SECTION 9 : Sécurisation & Assainissement des Clés API (BYOK)
-  // =========================================================================
-  console.log('\n--- Test 9 : cleanApiKey & getGeminiHeaders ---');
+  console.log('\n--- Test 8 : cleanApiKey & getGeminiHeaders ---');
   assert.strictEqual(cleanApiKey('  AIzaSy12345  '), 'AIzaSy12345', 'cleanApiKey doit retirer les espaces de bordure');
   assert.strictEqual(cleanApiKey('"AIzaSy12345"'), 'AIzaSy12345', 'cleanApiKey doit retirer les guillemets doubles');
   assert.strictEqual(cleanApiKey("'AIzaSy12345'"), 'AIzaSy12345', 'cleanApiKey doit retirer les guillemets simples');

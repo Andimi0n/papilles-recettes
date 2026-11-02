@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { Recipe, Ingredient } from '../../types/recipe';
@@ -42,8 +42,6 @@ export interface RecipeIngredientsListProps {
   linkedPreparations: { ingredient: Ingredient; linkedRecipe: Recipe }[];
   linkedRecipesMap: Map<string, Recipe>;
   onOpenLinkedRecipe?: (recipeId: string) => void;
-  onSosRequest?: (ingredientName: string) => void;
-  sosLoadingIngredient?: string | null;
 }
 
 export const RecipeIngredientsList: React.FC<RecipeIngredientsListProps> = ({
@@ -63,8 +61,6 @@ export const RecipeIngredientsList: React.FC<RecipeIngredientsListProps> = ({
   linkedPreparations,
   linkedRecipesMap,
   onOpenLinkedRecipe,
-  onSosRequest,
-  sosLoadingIngredient,
 }) => {
   const { colors } = useTheme();
 
@@ -258,43 +254,6 @@ export const RecipeIngredientsList: React.FC<RecipeIngredientsListProps> = ({
           })}
         </View>
       ))}
-
-      {/* Remplacement SOS discret si des ingrédients manquent dans le stock */}
-      {stockEvaluation && stockEvaluation.missingIngredients.length > 0 && onSosRequest && (
-        <View style={styles.sosDiscreetContainer}>
-          <View style={styles.sosDiscreetHeader}>
-            <Ionicons name="help-buoy-outline" size={13} color={colors.textSecondary} />
-            <Text style={styles.sosDiscreetTitle}>
-              Besoin d’un substitut avec votre stock ?
-            </Text>
-          </View>
-          <View style={styles.sosDiscreetChipsRow}>
-            {stockEvaluation.missingIngredients.map((missingIng) => (
-              <TouchableOpacity
-                key={`sos_missing_${missingIng.id}`}
-                style={styles.sosDiscreetChip}
-                onPress={() => onSosRequest(missingIng.name)}
-                disabled={!!sosLoadingIngredient}
-                activeOpacity={0.75}
-                accessibilityLabel={`Demander un remplacement SOS pour ${missingIng.name}`}
-              >
-                {sosLoadingIngredient === missingIng.name ? (
-                  <ActivityIndicator
-                    size="small"
-                    color={colors.primary}
-                    style={{ transform: [{ scale: 0.65 }], marginHorizontal: 2 }}
-                  />
-                ) : (
-                  <>
-                    <Ionicons name="sparkles-outline" size={12} color={colors.primary} />
-                    <Text style={styles.sosDiscreetChipText}>{missingIng.name}</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-      )}
     </View>
   );
 };
