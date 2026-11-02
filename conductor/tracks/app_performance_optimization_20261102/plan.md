@@ -15,8 +15,8 @@
 - [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) [e2b201d]
 
 ## Phase 3 : Isolation de Rendu React 19 & Requêtes SQLite Deltas
-- [~] Task: Écrire les tests unitaires pour les écritures ciblées / deltas dans DatabaseService
-- [ ] Task: Optimiser saveShoppingItems et saveFridgeItems dans DatabaseService.ts pour éviter les DELETE ALL systématiques
+- [x] Task: Écrire les tests unitaires pour les écritures ciblées / deltas dans DatabaseService [43b27c1]
+- [~] Task: Optimiser saveShoppingItems et saveFridgeItems dans DatabaseService.ts pour éviter les DELETE ALL systématiques
 - [ ] Task: Mémoïser les 4 conteneurs d'onglets (HomeScreen, MealPlannerScreen, ShoppingListScreen, SettingsScreen) dans App.tsx pour stopper la réconciliation d'onglets masqués
 - [ ] Task: Exécuter la validation globale de santé (npx tsc, expo lint, npm test complet)
 - [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
