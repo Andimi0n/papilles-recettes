@@ -66,10 +66,10 @@
 ## Phase 5: Validation Globale du Système & Intégration Finale
 *Audit d'intégrité TypeScript, linting, tests de non-régression et cohérence thématique.*
 
-- [ ] Task: Validation de la suite de tests et conformité statique
-  - [ ] Exécuter `npx tsc --noEmit` et `npx expo lint` (0 erreur requise)
-  - [ ] Exécuter l'intégralité de la suite de tests (`npm test`)
-- [ ] Task: Revue d'accessibilité et cohérence des thèmes
-  - [ ] Vérifier le rendu sur les 3 thèmes (Jardin Botanique, Table Nocturne, Contraste Élevé)
-  - [ ] Vérifier les contrastes visuels des 3 états de puces et des boutons d'action
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: Validation de la suite de tests et conformité statique [c986bc8]
+  - [x] Exécuter `npx tsc --noEmit` et `npx expo lint` (0 erreur requise)
+  - [x] Exécuter l'intégralité de la suite de tests (`npm test`)
+- [x] Task: Revue d'accessibilité et cohérence des thèmes [c986bc8]
+  - [x] Vérifier le rendu sur les 3 thèmes (Jardin Botanique, Table Nocturne, Contraste Élevé)
+  - [x] Vérifier les contrastes visuels des 3 états de puces et des boutons d'action
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md)
