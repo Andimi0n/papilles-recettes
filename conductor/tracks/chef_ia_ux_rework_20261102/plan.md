@@ -49,17 +49,17 @@
 ## Phase 4: Découplage Sémantique, Issue Clé API & Finitions UI (`StockCookModal`)
 *Recentrage exclusif sur l'Inspiration IA, passerelle anti-doublon cliquable et issue rapide pour la clé API.*
 
-- [ ] Task: Tests unitaires du découplage et de la passerelle anti-doublon (TDD - Red Phase)
-  - [ ] Écrire les tests vérifiant le déclenchement du filtre de stock de l'écran d'accueil via le bandeau anti-doublon
-  - [ ] Vérifier l'absence de régression lors du lancement de la génération sans la Section 2
-  - [ ] Vérifier l'échec initial des tests (Red)
-- [ ] Task: Refonte de la modale `StockCookModal.tsx` (Green Phase)
-  - [ ] Harmoniser le titre : *« Inspirations du Chef IA »* (Sous-titre : *« Création sur-mesure & anti-gaspillage »*)
-  - [ ] Supprimer définitivement le bloc Section 2 *« Dans votre carnet »*
-  - [ ] Rendre le bandeau informatif anti-doublon interactif (*« X recettes prêtes dans votre carnet seront évitées • Voir › »*)
-  - [ ] Enrichir la modale de clé API Gemini : bouton direct d'ouverture du navigateur vers Google AI Studio et bouton « Coller »
-  - [ ] Valider le passage au vert des tests (Green)
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: Tests unitaires du découplage et de la passerelle anti-doublon (TDD - Red Phase) [c986bc8]
+  - [x] Écrire les tests vérifiant le déclenchement du filtre de stock de l'écran d'accueil via le bandeau anti-doublon
+  - [x] Vérifier l'absence de régression lors du lancement de la génération sans la Section 2
+  - [x] Vérifier l'échec initial des tests (Red)
+- [x] Task: Refonte de la modale `StockCookModal.tsx` (Green Phase) [c986bc8]
+  - [x] Harmoniser le titre : *« Inspirations du Chef IA »* (Sous-titre : *« Création sur-mesure & anti-gaspillage »*)
+  - [x] Supprimer définitivement le bloc Section 2 *« Dans votre carnet »*
+  - [x] Rendre le bandeau informatif anti-doublon interactif (*« X recettes prêtes dans votre carnet seront évitées • Voir › »*)
+  - [x] Enrichir la modale de clé API Gemini : bouton direct d'ouverture du navigateur vers Google AI Studio et bouton « Coller »
+  - [x] Valider le passage au vert des tests (Green)
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md)
 
 ---
 
