@@ -64,6 +64,14 @@ try {
     await ImageStorageService.cleanupRecipePhoto(null);
     console.log('✓ cleanupRecipePhoto ignore en toute sécurité les fichiers non gérés');
 
+    // Test 5 : Compression et redimensionnement automatique des photos locales HD
+    console.log('\n--- Test 5 : Compression et redimensionnement automatique des photos locales ---');
+    assert.strictEqual(
+      ImageStorageService.HAS_AUTO_COMPRESSION,
+      true,
+      'ImageStorageService doit déclarer HAS_AUTO_COMPRESSION = true (Red Phase)'
+    );
+
     console.log('\n🎉 TOUS LES TESTS DE IMAGE STORAGE SERVICE SONT PASSÉS AVEC SUCCÈS !');
   }).catch((err) => {
     console.error('❌ Échec des tests:', err);
