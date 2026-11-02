@@ -33,7 +33,7 @@
 
 ---
 
-## Phase 3: Section Accordéon & Gestion dans `SettingsScreen`
+## Phase 3: Section Accordéon & Gestion dans `SettingsScreen` [checkpoint: 62b3af3]
 
 - [x] Task: Intégrer la section accordéon dans `SettingsScreen.tsx` (d38955d)
   - [x] Ajouter la carte dépliable "Humeurs & Personnalité du Chef IA" avec en-tête animé et badge de comptage
@@ -41,7 +41,7 @@
   - [x] Connecter le modal `ChefMoodEditModal` pour la création et la modification d'humeur
   - [x] Ajouter le bouton de réinitialisation aux valeurs par défaut avec alerte de confirmation
   - [x] Bloquer la suppression si une seule humeur subsiste
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) (62b3af3)
 
 ---
 
