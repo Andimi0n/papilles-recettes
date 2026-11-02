@@ -372,7 +372,10 @@ export const StorageService = {
       }
 
       const now = new Date().toISOString();
-      const existing = await DatabaseService.getRecipeById(safeRecipe.id);
+      // Lookup en mémoire prioritaire O(1) pour éviter un appel I/O si le cache est chaud
+      const existing =
+        memoryCache.recipes?.find((r) => r.id === safeRecipe.id) ||
+        (await DatabaseService.getRecipeById(safeRecipe.id));
 
       // Nettoyage de l'ancienne photo permanente si elle a été remplacée
       if (existing?.imageUrl && existing.imageUrl !== safeRecipe.imageUrl) {
@@ -385,8 +388,21 @@ export const StorageService = {
 
       await DatabaseService.saveRecipe(finalRecipe);
 
-      // Invalide le cache pour forcer rechargement
-      memoryCache.recipes = null;
+      // Mise à jour ciblée du cache mémoire en place (évite un rechargement SQLite complet et des centaines de JSON.parse)
+      if (memoryCache.recipes) {
+        const existingIdx = memoryCache.recipes.findIndex((r) => r.id === finalRecipe.id);
+        if (existingIdx >= 0) {
+          memoryCache.recipes = [
+            ...memoryCache.recipes.slice(0, existingIdx),
+            finalRecipe,
+            ...memoryCache.recipes.slice(existingIdx + 1),
+          ];
+        } else {
+          memoryCache.recipes = [finalRecipe, ...memoryCache.recipes];
+        }
+        return memoryCache.recipes;
+      }
+
       return this.getRecipes();
     } catch (error) {
       console.error('Erreur lors de la sauvegarde de la recette:', error);

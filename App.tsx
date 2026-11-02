@@ -116,8 +116,8 @@ function AppContent() {
   // Traitement de l'import d'une recette partagée
   const handleConfirmImportSharedRecipe = async (sharedRecipe: Recipe) => {
     try {
-      await StorageService.saveRecipe(sharedRecipe);
-      await reloadRecipes();
+      const updated = await StorageService.saveRecipe(sharedRecipe);
+      setRecipes(updated);
       setIsImportModalVisible(false);
       setReceivedSharedRecipe(null);
       navigateToDetail(sharedRecipe, 'home');

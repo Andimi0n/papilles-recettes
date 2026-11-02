@@ -123,12 +123,12 @@ async function main() {
   const cachedBefore = await StorageService.getRecipes();
   assert.strictEqual(cachedBefore.length, 2);
 
-  // Espionner DatabaseService.getRecipes pour s'assurer qu'il n'est PAS appelé pendant saveRecipe
+  // Espionner StorageService.getRecipes pour s'assurer qu'il n'est PAS appelé pendant saveRecipe
   let getRecipesCallCount = 0;
-  const originalDbGetRecipes = DatabaseService.getRecipes;
-  DatabaseService.getRecipes = async function () {
+  const originalStorageGetRecipes = StorageService.getRecipes;
+  StorageService.getRecipes = async function () {
     getRecipesCallCount++;
-    return originalDbGetRecipes.apply(this, arguments);
+    return originalStorageGetRecipes.apply(this, arguments);
   };
 
   try {
@@ -144,15 +144,15 @@ async function main() {
     assert.strictEqual(
       getRecipesCallCount,
       0,
-      `DatabaseService.getRecipes ne doit pas être appelé lors d'un saveRecipe (appelé ${getRecipesCallCount} fois) !`
+      `StorageService.getRecipes ne doit pas être appelé lors d'un saveRecipe (appelé ${getRecipesCallCount} fois) !`
     );
 
     const savedInList = resultRecipes.find((r) => r.id === 'r1');
     assert.strictEqual(savedInList?.title, 'Carottes râpées', 'Le titre doit être mis à jour dans le cache');
     assert.strictEqual(savedInList?.description, 'Délicieuse entrée fraîche');
-    console.log('✓ StorageService.saveRecipe a mis à jour le cache en mémoire sans relecture globale SQLite');
+    console.log('✓ StorageService.saveRecipe a mis à jour le cache en mémoire sans appel redondant à getRecipes()');
   } finally {
-    DatabaseService.getRecipes = originalDbGetRecipes;
+    StorageService.getRecipes = originalStorageGetRecipes;
   }
 
   console.log('\n🎉 TOUS LES TESTS DE LA PHASE 1 ONT RÉUSSI !');
