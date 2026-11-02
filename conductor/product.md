@@ -65,6 +65,7 @@
   - Découplage strict entre Inspirations IA et carnet local, avec passerelle interactive anti-doublon en 1 tap.
   - Widget d'accueil enrichi avec aperçu dynamique textuel des étagères et intégration épurée sans superposition de bandeau redondant.
   - Gestionnaire de prompts favoris (sauvegarde, application instantanée en 1 tap et suppression) avec graines prédéfinies.
+  - **Personnalisation & Gestion des Humeurs du Chef IA :** Configuration complète des styles culinaires depuis les Paramètres (CRUD complet, personnalisation de l'identité commune, directives de suggestion Étape 1 et consignes de rédaction Étape 2, sélecteur d'icônes, réinitialisation d'usine et verrou de sécurité).
   - Équilibre culinaire automatique : au moins 1 idée végétarienne garantie sur les 3 avec badge `🌿 Végétarien` (sauf viande expressément imposée).
   - Navigation réversible sans perte d'état et mémoire des refus (historique FIFO de 15 idées rejetées lors de « Proposer 3 autres idées »).
 - **Résilience & Cascade multi-modèles :** `gemini-3.8-flash` -> `2.5-flash` -> `2.0-flash` -> `1.5-flash` avec backoff exponentiel et auto-réparation JSON.
