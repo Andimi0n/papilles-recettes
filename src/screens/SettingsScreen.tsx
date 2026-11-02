@@ -24,11 +24,12 @@ import { styles } from './SettingsScreen.styles';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { StorageService } from '../services/storageService';
-import { RecipeAiService } from '../services/recipeAiService';
+import { RecipeAiService, ChefMoodOption } from '../services/recipeAiService';
 import { RecipePackService, ExtractedRecipePack } from '../services/recipePackService';
 import { VocabularyService } from '../services/vocabularyService';
 import { VocabularyManagerModal } from '../components/VocabularyManagerModal';
 import { AllergenFamilyPickerModal } from '../components/AllergenFamilyPickerModal';
+import { ChefMoodEditModal } from '../components/ChefMoodEditModal';
 import { UnifiedIngredientInput } from '../components/UnifiedIngredientInput';
 import { Recipe } from '../types/recipe';
 import {
@@ -145,6 +146,12 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   const [isVocabModalVisible, setIsVocabModalVisible] = useState(false);
   const [vocabCount, setVocabCount] = useState(0);
 
+  // Humeurs du Chef IA
+  const [chefMoods, setChefMoods] = useState<ChefMoodOption[]>([]);
+  const [isChefMoodsExpanded, setIsChefMoodsExpanded] = useState(false);
+  const [isMoodModalVisible, setIsMoodModalVisible] = useState(false);
+  const [selectedMoodForEdit, setSelectedMoodForEdit] = useState<ChefMoodOption | null>(null);
+
   // Import JSON Modal/State
   const [isImportModalVisible, setIsImportModalVisible] = useState(false);
   const [importJsonText, setImportJsonText] = useState('');
@@ -178,6 +185,9 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
 
       const planSettings = await StorageService.getPlannerSettings();
       setPlannerSettings(planSettings);
+
+      const moods = await StorageService.getChefMoods();
+      setChefMoods(moods);
     } catch (e) {
       console.error('Erreur chargement réglages:', e);
     }
@@ -205,13 +215,14 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
     let isMounted = true;
     const initSettings = async () => {
       try {
-        const [key, servings, allergens, filterEnabled, excludeAi, pSettings] = await Promise.all([
+        const [key, servings, allergens, filterEnabled, excludeAi, pSettings, moods] = await Promise.all([
           RecipeAiService.getApiKey(),
           StorageService.getDefaultServings(),
           StorageService.getUserAllergens(),
           StorageService.getAllergenFilterEnabled(),
           StorageService.getAiAllergenExclusionEnabled(),
           StorageService.getPlannerSettings(),
+          StorageService.getChefMoods(),
         ]);
         if (isMounted) {
           setApiKey(key || '');
@@ -220,6 +231,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           setIsAllergenFilterEnabled(filterEnabled);
           setIsAiAllergenExclusionEnabled(excludeAi);
           setPlannerSettings(pSettings);
+          setChefMoods(moods);
         }
       } catch (e) {
         console.error('Erreur chargement paramètres initiaux:', e);
@@ -265,6 +277,83 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
         message: err?.message || 'Erreur inconnue lors du test.',
       });
     }
+  };
+
+  // --- Gestion des Humeurs du Chef IA ---
+
+  const handleOpenCreateMood = () => {
+    setSelectedMoodForEdit(null);
+    setIsMoodModalVisible(true);
+  };
+
+  const handleOpenEditMood = (mood: ChefMoodOption) => {
+    setSelectedMoodForEdit(mood);
+    setIsMoodModalVisible(true);
+  };
+
+  const handleSaveMood = async (savedMood: ChefMoodOption) => {
+    try {
+      const updated = await StorageService.saveChefMood(savedMood);
+      setChefMoods(updated);
+    } catch (e) {
+      console.error('Erreur sauvegarde humeur Chef IA:', e);
+      Alert.alert('Erreur', "Impossible d'enregistrer l'humeur.");
+    }
+  };
+
+  const handleDeleteMood = (mood: ChefMoodOption) => {
+    if (chefMoods.length <= 1) {
+      Alert.alert(
+        'Action impossible',
+        'Vous devez conserver au moins une humeur active pour le Chef IA.'
+      );
+      return;
+    }
+
+    Alert.alert(
+      "Supprimer l'humeur",
+      `Voulez-vous vraiment supprimer l'humeur "${mood.label}" ?`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Supprimer',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const updated = await StorageService.deleteChefMood(mood.id);
+              setChefMoods(updated);
+            } catch (e) {
+              console.error('Erreur suppression humeur:', e);
+              Alert.alert('Erreur', "Impossible de supprimer l'humeur.");
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleResetChefMoods = () => {
+    Alert.alert(
+      'Réinitialiser les humeurs',
+      "Voulez-vous restaurer les 7 humeurs d'origine du Chef IA ? Vos personnalisations seront effacées.",
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Réinitialiser',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const reset = await StorageService.resetChefMoods();
+              setChefMoods(reset);
+              Alert.alert('Succès', 'Les humeurs du Chef ont été réinitialisées.');
+            } catch (e) {
+              console.error('Erreur réinitialisation humeurs:', e);
+              Alert.alert('Erreur', 'Impossible de réinitialiser les humeurs.');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleSelectServings = async (servings: number) => {
@@ -917,6 +1006,111 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                 . Aucun moyen de paiement n&apos;est nécessaire.
               </Text>
             </View>
+          </View>
+
+          {/* SECTION : HUMEURS DU CHEF IA (ACCORDÉON) */}
+          <View style={styles.sectionCard}>
+            <TouchableOpacity
+              style={styles.accordionHeader}
+              onPress={() => setIsChefMoodsExpanded(!isChefMoodsExpanded)}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Afficher ou masquer les humeurs du Chef IA"
+            >
+              <View style={styles.accordionLeft}>
+                <Ionicons name="happy-outline" size={20} color={colors.primary} />
+                <Text style={styles.sectionTitle}>Humeurs du Chef IA</Text>
+                <View style={styles.moodCountBadge}>
+                  <Text style={styles.moodCountText}>{chefMoods.length}</Text>
+                </View>
+              </View>
+              <Ionicons
+                name={isChefMoodsExpanded ? 'chevron-up' : 'chevron-down'}
+                size={20}
+                color={colors.textSecondary}
+              />
+            </TouchableOpacity>
+
+            {!isChefMoodsExpanded && (
+              <Text style={styles.sectionSubtitle}>
+                Personnalisez les directives, la créativité et les consignes du Chef IA.
+              </Text>
+            )}
+
+            {isChefMoodsExpanded && (
+              <View style={styles.accordionBody}>
+                <Text style={styles.accordionSubtitle}>
+                  Ces humeurs définissent la personnalité, la philosophie et le style de rédaction des recettes dans la boîte à idées.
+                </Text>
+
+                <View style={styles.moodActionRow}>
+                  <TouchableOpacity
+                    style={styles.addMoodBtn}
+                    onPress={handleOpenCreateMood}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="add-circle-outline" size={16} color="#FFFFFF" />
+                    <Text style={styles.addMoodBtnText}>Ajouter une humeur</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.resetMoodsBtn}
+                    onPress={handleResetChefMoods}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="refresh-outline" size={15} color={colors.textSecondary} />
+                    <Text style={styles.resetMoodsBtnText}>Réinitialiser</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {chefMoods.map((m) => (
+                  <View key={m.id} style={styles.moodCard}>
+                    <View style={styles.moodCardLeft}>
+                      <View style={styles.moodIconBox}>
+                        <Ionicons
+                          name={(m.icon || 'sparkles-outline') as any}
+                          size={18}
+                          color={colors.primary}
+                        />
+                      </View>
+                      <View style={styles.moodInfo}>
+                        <View style={styles.moodTitleRow}>
+                          <Text style={styles.moodLabel}>{m.label}</Text>
+                          {m.isCustom && (
+                            <View style={styles.customBadge}>
+                              <Text style={styles.customBadgeText}>Perso</Text>
+                            </View>
+                          )}
+                        </View>
+                        <Text style={styles.moodSubtitle} numberOfLines={1}>
+                          {m.userDirective || m.systemPersona}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.moodButtonsRow}>
+                      <TouchableOpacity
+                        style={styles.moodIconButton}
+                        onPress={() => handleOpenEditMood(m)}
+                        activeOpacity={0.7}
+                        accessibilityLabel={`Modifier l'humeur ${m.label}`}
+                      >
+                        <Ionicons name="create-outline" size={16} color={colors.primary} />
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={styles.moodIconButton}
+                        onPress={() => handleDeleteMood(m)}
+                        activeOpacity={0.7}
+                        accessibilityLabel={`Supprimer l'humeur ${m.label}`}
+                      >
+                        <Ionicons name="trash-outline" size={16} color={colors.danger} />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
           </View>
 
           {/* SECTION 3 : PRÉFÉRENCES DE CUISINE */}
@@ -1696,6 +1890,17 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           }}
         />
       )}
+
+      {/* Modal de création et édition des humeurs du Chef IA */}
+      <ChefMoodEditModal
+        visible={isMoodModalVisible}
+        mood={selectedMoodForEdit}
+        onSave={handleSaveMood}
+        onClose={() => {
+          setIsMoodModalVisible(false);
+          setSelectedMoodForEdit(null);
+        }}
+      />
     </SafeAreaView>
   );
 };
