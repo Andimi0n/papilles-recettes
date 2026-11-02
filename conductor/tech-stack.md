@@ -15,7 +15,8 @@
 
 ## 3. Composants UI & Médias
 - **Listes haute performance :** `@shopify/flash-list` 2.3.2 (pour les listes de recettes et catalogues d'ingrédients)
-- **Gestion des images & Caméra :** `expo-image`, `expo-image-picker`, `expo-image-manipulator`, `expo-camera`
+- **Gestion des images & Caméra :** `expo-image`, `expo-image-picker`, `expo-image-manipulator` (compression automatique HD max 1200px / JPEG 0.8), `expo-camera`
+- **Démarrage & Affichage :** `expo-splash-screen` (masquage contrôlé après chargement complet des données SQLite)
 - **Sélecteur de documents :** `expo-document-picker` ~58.0.0 (sélection de fichiers locaux `.json` et archives `.zip`)
 - **Décompression & Extraction :** `jszip` ^3.10.1 (extraction mémoire par lots avec protection Zip Slip)
 - **Typographie & Icônes :** `expo-font`, `@expo/vector-icons`
@@ -41,4 +42,6 @@
     - `test:chef-prompts` (persistance des prompts favoris Chef IA)
     - `test:chef-moods` (persistance et gestion dynamique des humeurs du Chef IA)
     - `test:ai-prompt` (génération équilibrée d'idées, arbitrage végétarien et mémoire des refus)
+    - `test:perf-phase1` (invalidation stockMatcher et cache in-memory saveRecipe)
+    - `test:perf-phase3` (écritures SQLite ciblées deltas/upserts sur stock et courses)
     - `test:cascade`, `test:unified-input`, `test:unit-converter`
