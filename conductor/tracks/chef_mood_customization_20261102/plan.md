@@ -2,13 +2,13 @@
 
 ## Phase 1: Persistance & Logique Métier des Humeurs du Chef (TDD)
 
-- [ ] Task: Écrire les tests unitaires pour la persistance et la gestion des humeurs du Chef
-  - [ ] Créer le fichier de test `tests/chefMoods.test.ts`
-  - [ ] Écrire les tests pour le chargement des humeurs par défaut (repli sur `CHEF_MOODS`)
-  - [ ] Écrire les tests pour l'ajout, la modification et la suppression d'une humeur
-  - [ ] Écrire le test d'interdiction de suppression de la dernière humeur restante
-  - [ ] Écrire le test de réinitialisation aux valeurs d'usine (`resetChefMoods`)
-  - [ ] Exécuter le test et vérifier son échec (Red Phase)
+- [x] Task: Écrire les tests unitaires pour la persistance et la gestion des humeurs du Chef (5cf9660)
+  - [x] Créer le fichier de test `scripts/testChefMoods.js` et le script npm `test:chef-moods`
+  - [x] Écrire les tests pour le chargement des humeurs par défaut (repli sur `CHEF_MOODS`)
+  - [x] Écrire les tests pour l'ajout, la modification et la suppression d'une humeur
+  - [x] Écrire le test d'interdiction de suppression de la dernière humeur restante
+  - [x] Écrire le test de réinitialisation aux valeurs d'usine (`resetChefMoods`)
+  - [x] Exécuter le test et vérifier son échec (Red Phase)
 - [ ] Task: Implémenter la persistance dans DatabaseService et StorageService
   - [ ] Ajouter la constante de configuration `chef_moods_v1` dans `DatabaseService`
   - [ ] Implémenter `getChefMoods`, `saveChefMood`, `deleteChefMood` et `resetChefMoods` dans `StorageService`
