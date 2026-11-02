@@ -7,7 +7,7 @@
   *Link: [./tracks/quitoque_pdf_converter_20261101/index.md](./tracks/quitoque_pdf_converter_20261101/index.md)*
 
 ---
-- [ ] **Track: Personnalisation des humeurs et prompts du Chef IA**
+- [~] **Track: Personnalisation des humeurs et prompts du Chef IA**
   *Link: [./tracks/chef_mood_customization_20261102/index.md](./tracks/chef_mood_customization_20261102/index.md)*
 
 
