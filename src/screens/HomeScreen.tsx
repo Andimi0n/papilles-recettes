@@ -168,8 +168,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const FILTER_BAR_HEIGHT = 88;
   const [filterBarAnim] = useState(() => new Animated.Value(1));
   const isFilterBarVisibleRef = useRef(true);
-  const [isFilterBarVisible, setIsFilterBarVisible] = useState(true);
-
   const isAnimatingRef = useRef(false);
   const prevScrollY = useRef(0);
   const scrollDeltaAcc = useRef(0);
@@ -177,7 +175,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const showFilterBar = useCallback(() => {
     if (!isFilterBarVisibleRef.current && !isAnimatingRef.current) {
       isFilterBarVisibleRef.current = true;
-      setIsFilterBarVisible(true);
       isAnimatingRef.current = true;
       Animated.timing(filterBarAnim, {
         toValue: 1,
@@ -192,7 +189,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
   const forceShowFilterBar = useCallback(() => {
     isFilterBarVisibleRef.current = true;
-    setIsFilterBarVisible(true);
     isAnimatingRef.current = false;
     filterBarAnim.stopAnimation();
     Animated.timing(filterBarAnim, {
@@ -215,7 +211,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         useNativeDriver: true,
       }).start(() => {
         isAnimatingRef.current = false;
-        setIsFilterBarVisible(false);
         scrollDeltaAcc.current = 0;
       });
     }
@@ -1146,6 +1141,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             extraData={`${themeId}_${viewMode}`}
             keyExtractor={(item) => item.id}
             numColumns={viewMode === 'grid' ? 2 : 1}
+            getItemType={() => viewMode}
             ListHeaderComponent={listHeaderElement}
             ListFooterComponent={listFooterElement}
             contentContainerStyle={[
@@ -1203,7 +1199,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 }),
               },
             ]}
-            pointerEvents={isFilterBarVisible ? 'auto' : 'none'}
           >
             {/* Bandeau 1 : Catégories (Tous, Entrées, Plats, Desserts...) */}
             <CategoryPills
