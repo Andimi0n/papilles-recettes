@@ -2,8 +2,8 @@
 
 ## Phase 1 : Quick Wins — Cache Persistance, Algorithmes & Virtualisation FlashList
 - [x] Task: Écrire les tests unitaires pour la clé d'évaluation stock (stockMatcher) et la mise à jour en place du cache recettes (StorageService) [8ca8a1e]
-- [~] Task: Corriger la clé d'invalidation dans stockMatcher.ts (recalcul garanti lors de l'édition d'une recette)
-- [ ] Task: Implémenter la mise à jour in-memory dans StorageService.saveRecipe() et éliminer le double reload dans App.tsx
+- [x] Task: Corriger la clé d'invalidation dans stockMatcher.ts (recalcul garanti lors de l'édition d'une recette) [a1e325d]
+- [~] Task: Implémenter la mise à jour in-memory dans StorageService.saveRecipe() et éliminer le double reload dans App.tsx
 - [ ] Task: Configurer estimatedItemSize sur FlashList (HomeScreen.tsx) et découpler l'état isFilterBarVisible pour fluidifier le scroll
 - [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
 
