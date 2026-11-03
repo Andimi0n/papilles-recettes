@@ -108,15 +108,20 @@ function AppContent() {
   // Chargement initial des recettes
   useEffect(() => {
     const loadInitialData = async () => {
+      const startTime = Date.now();
       try {
-        // Chargement parallèle des recettes, onboarding, mode d'affichage, stock et police locale Ionicons
+        // Chargement parallèle des recettes, onboarding, mode d'affichage, stock et police locale Ionicons (bornée à 150ms max)
         const [loaded, onboarded, savedViewMode, fridge] = await Promise.all([
           StorageService.getRecipes().catch(() => [] as Recipe[]),
           StorageService.hasCompletedOnboarding().catch(() => false),
           StorageService.getRecipeViewMode().catch(() => 'detailed' as RecipeViewMode),
           StorageService.getFridgeItems().catch(() => [] as FridgeItem[]),
-          Ionicons.loadFont().catch(() => {}),
+          Promise.race([
+            Ionicons.loadFont(),
+            new Promise((resolve) => setTimeout(resolve, 150)),
+          ]).catch(() => {}),
         ]);
+        console.log(`⚡ [Papilles Startup] Chargement initial résolu en ${Date.now() - startTime}ms`);
         setRecipes(loaded as Recipe[]);
         if (!onboarded) setShowOnboarding(true);
         if (savedViewMode) setInitialViewMode(savedViewMode);
@@ -137,11 +142,11 @@ function AppContent() {
     }
   }, [isLoading, isThemeLoaded]);
 
-  // Filet de sécurité splash screen (masquage garanti après 2.5s max même si anomalie native)
+  // Filet de sécurité splash screen (masquage garanti après 1.5s max même si anomalie native)
   useEffect(() => {
     const timer = setTimeout(() => {
       SplashScreen.hideAsync().catch(() => {});
-    }, 2500);
+    }, 1500);
     return () => clearTimeout(timer);
   }, []);
 
