@@ -37,13 +37,16 @@ const ThemeContext = createContext<ThemeContextType>({
   toggleTheme: async () => {},
 });
 
-export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const ThemeProvider: React.FC<{ children: React.ReactNode; initialThemeMode?: ThemeMode }> = ({
+  children,
+  initialThemeMode,
+}) => {
   const deviceColorScheme = useColorScheme();
   const [systemColorScheme, setSystemColorScheme] = useState<'light' | 'dark'>(
     (deviceColorScheme || Appearance.getColorScheme()) === 'dark' ? 'dark' : 'light'
   );
-  const [themeMode, setThemeModeState] = useState<ThemeMode>('system');
-  const [isLoaded, setIsLoaded] = useState(false);
+  const [themeMode, setThemeModeState] = useState<ThemeMode>(initialThemeMode || 'system');
+  const [isLoaded, setIsLoaded] = useState(Boolean(initialThemeMode));
 
   // Écoute dynamique les changements d'apparence système via Appearance (quand l'utilisateur bascule son OS)
   useEffect(() => {

@@ -25,7 +25,7 @@ import { SettingsScreen } from './src/screens/SettingsScreen';
 import { ImportRecipeModal } from './src/components/ImportRecipeModal';
 import { RecipeShareService } from './src/services/recipeShareService';
 import { OnboardingScreen } from './src/screens/OnboardingScreen';
-import { createDynamicStyles } from './src/theme/colors';
+import { createDynamicStyles, ThemeMode } from './src/theme/colors';
 import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
 import * as SplashScreen from 'expo-splash-screen';
 
@@ -70,7 +70,19 @@ const TabPane = React.memo<TabPaneProps>(
 );
 TabPane.displayName = 'TabPane';
 
-function AppContent() {
+interface InitialAppData {
+  recipes: Recipe[];
+  onboarded: boolean;
+  viewMode: RecipeViewMode;
+  stock: FridgeItem[];
+  themeMode: ThemeMode;
+}
+
+interface AppContentProps {
+  initialData?: InitialAppData | null;
+}
+
+function AppContent({ initialData }: AppContentProps) {
   const { isDark, colors, isLoaded: isThemeLoaded } = useTheme();
   const [currentScreen, setCurrentScreen] = useState<AppScreen>('home');
   const [viewedTabs, setViewedTabs] = useState<Record<string, boolean>>({ home: true });
@@ -82,14 +94,14 @@ function AppContent() {
   }, [currentScreen]);
 
   const [returnScreenAfterDetail, setReturnScreenAfterDetail] = useState<'home' | 'planner' | 'shopping' | 'settings'>('home');
-  const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [recipes, setRecipes] = useState<Recipe[]>(initialData?.recipes || []);
   const [selectedRecipeId, setSelectedRecipeId] = useState<string | null>(null);
   const [recipeDetailStack, setRecipeDetailStack] = useState<string[]>([]);
   const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [showOnboarding, setShowOnboarding] = useState(false);
-  const [initialViewMode, setInitialViewMode] = useState<RecipeViewMode>('detailed');
-  const [initialStockItems, setInitialStockItems] = useState<FridgeItem[]>([]);
+  const [isLoading, setIsLoading] = useState(!initialData);
+  const [showOnboarding, setShowOnboarding] = useState(initialData ? !initialData.onboarded : false);
+  const [initialViewMode, setInitialViewMode] = useState<RecipeViewMode>(initialData?.viewMode || 'detailed');
+  const [initialStockItems, setInitialStockItems] = useState<FridgeItem[]>(initialData?.stock || []);
 
   // Recette reçue en partage (via Deep Link ou scan QR code)
   const [receivedSharedRecipe, setReceivedSharedRecipe] = useState<Recipe | null>(null);
@@ -105,50 +117,29 @@ function AppContent() {
     }
   }, []);
 
-  // Chargement initial des recettes
+  // Fallback si initialData n'était pas injecté (sécurité défensive)
   useEffect(() => {
-    const loadInitialData = async () => {
-      const startTime = Date.now();
+    if (initialData) return;
+    const loadFallbackData = async () => {
       try {
-        // Chargement parallèle des recettes, onboarding, mode d'affichage, stock et police locale Ionicons (bornée à 150ms max)
         const [loaded, onboarded, savedViewMode, fridge] = await Promise.all([
           StorageService.getRecipes().catch(() => [] as Recipe[]),
           StorageService.hasCompletedOnboarding().catch(() => false),
           StorageService.getRecipeViewMode().catch(() => 'detailed' as RecipeViewMode),
           StorageService.getFridgeItems().catch(() => [] as FridgeItem[]),
-          Promise.race([
-            Ionicons.loadFont(),
-            new Promise((resolve) => setTimeout(resolve, 150)),
-          ]).catch(() => {}),
         ]);
-        console.log(`⚡ [Papilles Startup] Chargement initial résolu en ${Date.now() - startTime}ms`);
         setRecipes(loaded as Recipe[]);
         if (!onboarded) setShowOnboarding(true);
         if (savedViewMode) setInitialViewMode(savedViewMode);
         if (Array.isArray(fridge)) setInitialStockItems(fridge);
       } catch (e) {
-        console.error('Erreur chargement initial:', e);
+        console.error('Erreur chargement fallback:', e);
       } finally {
         setIsLoading(false);
       }
     };
-    loadInitialData();
-  }, []);
-
-  // Déverrouillage fluide du splash screen natif dès que les données et le thème sont prêts
-  useEffect(() => {
-    if (!isLoading && isThemeLoaded) {
-      SplashScreen.hideAsync().catch(() => {});
-    }
-  }, [isLoading, isThemeLoaded]);
-
-  // Filet de sécurité splash screen (masquage garanti après 1.5s max même si anomalie native)
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      SplashScreen.hideAsync().catch(() => {});
-    }, 1500);
-    return () => clearTimeout(timer);
-  }, []);
+    loadFallbackData();
+  }, [initialData]);
 
   // Écoute et décodage des liens profonds de partage (papilles://import?r=...)
   const handleIncomingUrl = useCallback((url: string | null | undefined) => {
@@ -388,7 +379,7 @@ function AppContent() {
     }
   };
 
-  if (isLoading || !isThemeLoaded) {
+  if (isLoading || (!isThemeLoaded && !initialData)) {
     return (
       <View style={styles.loadingContainer}>
         <StatusBar style={isDark ? 'light' : 'dark'} />
@@ -636,12 +627,92 @@ function AppContent() {
 }
 
 export default function App() {
+  const [appIsReady, setAppIsReady] = useState(false);
+  const [initialData, setInitialData] = useState<InitialAppData | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    const loadInitialData = async () => {
+      const startTime = Date.now();
+      try {
+        const [loaded, onboarded, savedViewMode, fridge, theme] = await Promise.all([
+          StorageService.getRecipes().catch(() => [] as Recipe[]),
+          StorageService.hasCompletedOnboarding().catch(() => false),
+          StorageService.getRecipeViewMode().catch(() => 'detailed' as RecipeViewMode),
+          StorageService.getFridgeItems().catch(() => [] as FridgeItem[]),
+          StorageService.getThemeMode().catch(() => 'system' as ThemeMode),
+          Promise.race([
+            Ionicons.loadFont(),
+            new Promise((resolve) => setTimeout(resolve, 300)),
+          ]).catch(() => {}),
+        ]);
+        console.log(`⚡ [Papilles Startup] Données initiales et police résolues en ${Date.now() - startTime}ms`);
+        if (isMounted) {
+          setInitialData({
+            recipes: loaded as Recipe[],
+            onboarded: Boolean(onboarded),
+            viewMode: (savedViewMode || 'detailed') as RecipeViewMode,
+            stock: Array.isArray(fridge) ? fridge : [],
+            themeMode: (theme || 'system') as ThemeMode,
+          });
+          setAppIsReady(true);
+        }
+      } catch (e) {
+        console.error('Erreur chargement initial:', e);
+        if (isMounted) setAppIsReady(true);
+      }
+    };
+
+    loadInitialData();
+
+    // Filet de sécurité splash screen (masquage garanti après 1.2s max même si anomalie native)
+    const safetyTimer = setTimeout(() => {
+      if (isMounted) {
+        console.warn('⚠️ [Papilles Startup] Filet de sécurité 1.2s déclenché pour débloquer le splash screen');
+        setAppIsReady(true);
+      }
+    }, 1200);
+
+    return () => {
+      isMounted = false;
+      clearTimeout(safetyTimer);
+    };
+  }, []);
+
+  const onLayoutRootView = useCallback(async () => {
+    if (appIsReady) {
+      console.log('⚡ [Papilles Startup] onLayoutRootView appelé -> Masquage du splash screen');
+      try {
+        await SplashScreen.hideAsync();
+        console.log('⚡ [Papilles Startup] Splash screen masqué avec succès');
+      } catch (e) {
+        console.warn('⚡ [Papilles Startup] Info masquage splash screen:', e);
+      }
+    }
+  }, [appIsReady]);
+
+  // Filet de sécurité secondaire : si onLayout n'est pas appelé sous 300ms après appIsReady
+  useEffect(() => {
+    if (appIsReady) {
+      const fallbackHideTimer = setTimeout(() => {
+        SplashScreen.hideAsync().catch(() => {});
+      }, 300);
+      return () => clearTimeout(fallbackHideTimer);
+    }
+  }, [appIsReady]);
+
+  if (!appIsReady) {
+    return null;
+  }
+
   return (
-    <SafeAreaProvider>
-      <ThemeProvider>
-        <AppContent />
-      </ThemeProvider>
-    </SafeAreaProvider>
+    <View style={{ flex: 1 }} onLayout={onLayoutRootView}>
+      <SafeAreaProvider>
+        <ThemeProvider initialThemeMode={initialData?.themeMode}>
+          <AppContent initialData={initialData} />
+        </ThemeProvider>
+      </SafeAreaProvider>
+    </View>
   );
 }
 
