@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,7 @@ import {
   Linking,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Recipe, RecipeViewMode } from './src/types/recipe';
 import { FridgeItem } from './src/types/fridge';
@@ -626,12 +626,15 @@ function AppContent({ initialData }: AppContentProps) {
   );
 }
 
-export default function App() {
+function AppRoot() {
   const [appIsReady, setAppIsReady] = useState(false);
   const [initialData, setInitialData] = useState<InitialAppData | null>(null);
+  const isSplashHiddenRef = useRef(false);
 
   useEffect(() => {
     let isMounted = true;
+    let safetyTimer: ReturnType<typeof setTimeout> | null = null;
+
     const loadInitialData = async () => {
       const startTime = Date.now();
       try {
@@ -647,6 +650,10 @@ export default function App() {
           ]).catch(() => {}),
         ]);
         console.log(`⚡ [Papilles Startup] Données initiales et police résolues en ${Date.now() - startTime}ms`);
+        if (safetyTimer) {
+          clearTimeout(safetyTimer);
+          safetyTimer = null;
+        }
         if (isMounted) {
           setInitialData({
             recipes: loaded as Recipe[],
@@ -659,14 +666,18 @@ export default function App() {
         }
       } catch (e) {
         console.error('Erreur chargement initial:', e);
+        if (safetyTimer) {
+          clearTimeout(safetyTimer);
+          safetyTimer = null;
+        }
         if (isMounted) setAppIsReady(true);
       }
     };
 
     loadInitialData();
 
-    // Filet de sécurité splash screen (masquage garanti après 1.2s max même si anomalie native)
-    const safetyTimer = setTimeout(() => {
+    // Filet de sécurité splash screen (masquage garanti après 1.2s max si anomalie persistante)
+    safetyTimer = setTimeout(() => {
       if (isMounted) {
         console.warn('⚠️ [Papilles Startup] Filet de sécurité 1.2s déclenché pour débloquer le splash screen');
         setAppIsReady(true);
@@ -675,12 +686,13 @@ export default function App() {
 
     return () => {
       isMounted = false;
-      clearTimeout(safetyTimer);
+      if (safetyTimer) clearTimeout(safetyTimer);
     };
   }, []);
 
   const onLayoutRootView = useCallback(async () => {
-    if (appIsReady) {
+    if (appIsReady && !isSplashHiddenRef.current) {
+      isSplashHiddenRef.current = true;
       console.log('⚡ [Papilles Startup] onLayoutRootView appelé -> Masquage du splash screen');
       try {
         await SplashScreen.hideAsync();
@@ -691,12 +703,15 @@ export default function App() {
     }
   }, [appIsReady]);
 
-  // Filet de sécurité secondaire : si onLayout n'est pas appelé sous 300ms après appIsReady
+  // Filet de sécurité secondaire : si onLayout n'est pas appelé sous 350ms après appIsReady
   useEffect(() => {
     if (appIsReady) {
       const fallbackHideTimer = setTimeout(() => {
-        SplashScreen.hideAsync().catch(() => {});
-      }, 300);
+        if (!isSplashHiddenRef.current) {
+          isSplashHiddenRef.current = true;
+          SplashScreen.hideAsync().catch(() => {});
+        }
+      }, 350);
       return () => clearTimeout(fallbackHideTimer);
     }
   }, [appIsReady]);
@@ -706,17 +721,26 @@ export default function App() {
   }
 
   return (
-    <View style={{ flex: 1 }} onLayout={onLayoutRootView}>
-      <SafeAreaProvider>
-        <ThemeProvider initialThemeMode={initialData?.themeMode}>
-          <AppContent initialData={initialData} />
-        </ThemeProvider>
-      </SafeAreaProvider>
-    </View>
+    <ThemeProvider initialThemeMode={initialData?.themeMode}>
+      <View style={styles.rootLayout} onLayout={onLayoutRootView}>
+        <AppContent initialData={initialData} />
+      </View>
+    </ThemeProvider>
+  );
+}
+
+export default function App() {
+  return (
+    <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+      <AppRoot />
+    </SafeAreaProvider>
   );
 }
 
 const styles = createDynamicStyles((colors, shadows) => ({
+  rootLayout: {
+    flex: 1,
+  },
   container: {
     flex: 1,
     backgroundColor: colors.background,
