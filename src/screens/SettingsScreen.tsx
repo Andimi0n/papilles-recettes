@@ -23,6 +23,7 @@ import {
 import { styles } from './SettingsScreen.styles';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 import { StorageService } from '../services/storageService';
 import { RecipeAiService, ChefMoodOption } from '../services/recipeAiService';
 import { RecipePackService, ExtractedRecipePack } from '../services/recipePackService';
@@ -152,10 +153,11 @@ const SettingsScreenComponent: React.FC<SettingsScreenProps> = ({
   const [isMoodModalVisible, setIsMoodModalVisible] = useState(false);
   const [selectedMoodForEdit, setSelectedMoodForEdit] = useState<ChefMoodOption | null>(null);
 
-  // Import JSON Modal/State
+  // Import & Export JSON Modal/State
   const [isImportModalVisible, setIsImportModalVisible] = useState(false);
   const [importJsonText, setImportJsonText] = useState('');
   const [isImporting, setIsImporting] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [importStatusMessage, setImportStatusMessage] = useState('');
   const [isResetting, setIsResetting] = useState(false);
 
@@ -543,14 +545,44 @@ const SettingsScreenComponent: React.FC<SettingsScreenProps> = ({
   };
 
   const handleExportData = async () => {
+    if (isExporting) return;
+    setIsExporting(true);
     try {
       const json = await StorageService.exportAllData();
+      const dateStr = new Date().toISOString().slice(0, 10);
+      const fileName = `papilles_sauvegarde_${dateStr}.json`;
+      const baseDir = FileSystem.cacheDirectory || FileSystem.documentDirectory;
+
+      if (baseDir) {
+        const fileUri = `${baseDir}${fileName}`;
+        await FileSystem.writeAsStringAsync(fileUri, json, {
+          encoding: FileSystem.EncodingType.UTF8,
+        });
+
+        const isSharingAvailable = await Sharing.isAvailableAsync();
+        if (isSharingAvailable) {
+          await Sharing.shareAsync(fileUri, {
+            mimeType: 'application/json',
+            dialogTitle: 'Sauvegarde Recettes Papilles',
+            UTI: 'public.json',
+          });
+          return;
+        }
+      }
+
+      // Repli sur le partage de texte si le système de fichiers ou Sharing n'est pas disponible
       await Share.share({
         title: 'Sauvegarde Recettes Papilles',
         message: json,
       });
-    } catch (e) {
+    } catch (e: any) {
       console.error('Erreur export données:', e);
+      Alert.alert(
+        'Erreur d\'export',
+        'Impossible de partager le fichier de sauvegarde. Veuillez vérifier les autorisations de partage.'
+      );
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -1695,13 +1727,20 @@ const SettingsScreenComponent: React.FC<SettingsScreenProps> = ({
             {/* Boutons d'export / import */}
             <View style={styles.dataActionsColumn}>
               <TouchableOpacity
-                style={styles.dataActionBtn}
+                style={[styles.dataActionBtn, isExporting && { opacity: 0.6 }]}
                 onPress={handleExportData}
+                disabled={isExporting}
                 activeOpacity={0.7}
               >
-                <Ionicons name="share-outline" size={18} color={colors.textPrimary} />
+                {isExporting ? (
+                  <ActivityIndicator size="small" color={colors.primary} />
+                ) : (
+                  <Ionicons name="share-outline" size={18} color={colors.textPrimary} />
+                )}
                 <View style={styles.dataActionInfo}>
-                  <Text style={styles.dataActionTitle}>Exporter ma collection</Text>
+                  <Text style={styles.dataActionTitle}>
+                    {isExporting ? 'Préparation de la sauvegarde...' : 'Exporter ma collection'}
+                  </Text>
                   <Text style={styles.dataActionDesc}>Sauvegarde complète au format JSON</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
