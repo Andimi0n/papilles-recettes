@@ -1,4 +1,4 @@
-import { Recipe, RecipeViewMode, ChefFavoritePrompt } from '../types/recipe';
+import { Recipe, RecipeViewMode, ChefFavoritePrompt, Category, Difficulty } from '../types/recipe';
 import { ShoppingItem, ShoppingAisle } from '../types/shopping';
 import { FridgeItem } from '../types/fridge';
 import {
@@ -168,66 +168,190 @@ export function sanitizeImageUrl(url: any): string {
  * et applique des plafonds stricts pour immuniser SQLite contre les attaques DoS (SEC-06).
  */
 export function sanitizeStoredRecipe(r: any): Recipe {
+  const id = typeof r.id === 'string' && r.id ? r.id.slice(0, 100) : generateUniqueId('rec');
+  const title = typeof r.title === 'string' && r.title ? r.title.slice(0, 200) : 'Recette sans titre';
+  const description = typeof r.description === 'string' ? r.description.slice(0, 2000) : '';
+
+  // Catégorie robuste
+  const rawCat = typeof r.category === 'string' ? r.category.trim().toLowerCase() : '';
+  let category: Category = 'Plat';
+  if (
+    rawCat === 'petit-déjeuner' ||
+    rawCat === 'petit-dejeuner' ||
+    rawCat === 'petit dejeuner' ||
+    rawCat.includes('dessert') ||
+    rawCat.includes('sucre') ||
+    rawCat.includes('pâtisserie') ||
+    rawCat.includes('patisserie')
+  ) {
+    category = 'Dessert';
+  } else if (rawCat.includes('entree') || rawCat.includes('entrée')) {
+    category = 'Entrée';
+  } else if (rawCat.includes('apero') || rawCat.includes('apéritif') || rawCat.includes('aperitif')) {
+    category = 'Apéritif';
+  } else if (rawCat.includes('boisson') || rawCat.includes('cocktail') || rawCat.includes('smoothie')) {
+    category = 'Boisson';
+  } else if (rawCat.includes('plat')) {
+    category = 'Plat';
+  } else if (['Entrée', 'Plat', 'Dessert', 'Apéritif', 'Boisson'].includes(r.category)) {
+    category = r.category;
+  }
+
+  // Difficulté robuste
+  const rawDiff = typeof r.difficulty === 'string' ? r.difficulty.trim().toLowerCase() : '';
+  let difficulty: Difficulty = 'Moyen';
+  if (rawDiff.includes('facil') || rawDiff === 'easy') {
+    difficulty = 'Facile';
+  } else if (rawDiff.includes('difficil') || rawDiff === 'hard') {
+    difficulty = 'Difficile';
+  }
+
+  // Temps de préparation (min: 0, max: 1440, défaut: 15)
+  const rawPrep = r.prepTimeMinutes ?? r.prepTime ?? r.prep_time ?? r.prep_time_minutes ?? r.tempsPreparation;
+  const numPrep = typeof rawPrep === 'number' ? rawPrep : (typeof rawPrep === 'string' ? parseInt(rawPrep, 10) : NaN);
+  const prepTimeMinutes = !isNaN(numPrep) && numPrep >= 0 ? Math.min(1440, numPrep) : 15;
+
+  // Temps de cuisson (min: 0, max: 1440, défaut: 0)
+  const rawCook = r.cookTimeMinutes ?? r.cookTime ?? r.cook_time ?? r.cook_time_minutes ?? r.tempsCuisson;
+  const numCook = typeof rawCook === 'number' ? rawCook : (typeof rawCook === 'string' ? parseInt(rawCook, 10) : NaN);
+  const cookTimeMinutes = !isNaN(numCook) && numCook >= 0 ? Math.min(1440, numCook) : 0;
+
+  // Portions / Convives (min: 1, max: 100, défaut: 4)
+  const rawServings = r.servings ?? r.portions ?? r.personnes ?? r.persons ?? r.yield;
+  const numServings = typeof rawServings === 'number' ? rawServings : (typeof rawServings === 'string' ? parseInt(rawServings, 10) : NaN);
+  const servings = !isNaN(numServings) && numServings > 0 ? Math.min(100, numServings) : 4;
+
+  // Note / Rating (0 à 5)
+  const rawRating = r.rating ?? r.score ?? r.stars ?? (typeof r.note === 'number' ? r.note : undefined);
+  const numRating = typeof rawRating === 'number' ? rawRating : (typeof rawRating === 'string' ? parseFloat(rawRating) : NaN);
+  const rating = !isNaN(numRating) && numRating >= 0 ? Math.min(5, Math.max(0, numRating)) : 0;
+
+  // Astuce / Note personnelle (userNote)
+  const noteVal = r.userNote ?? (typeof r.note === 'string' ? r.note : undefined) ?? r.notes ?? r.astuce ?? r.chefTip ?? r.tip;
+  const userNote = typeof noteVal === 'string' && noteVal.trim() ? noteVal.trim().slice(0, 1500) : undefined;
+
+  // Image URL
+  const rawImg = r.imageUrl || r.image || r.photo || r.coverImage;
+  const imageUrl = sanitizeImageUrl(rawImg);
+
+  const availableImages = Array.isArray(r.availableImages)
+    ? r.availableImages.map(sanitizeImageUrl).filter(Boolean).slice(0, 10)
+    : undefined;
+
+  const isFavorite = Boolean(r.isFavorite ?? r.favorite ?? r.favori);
+
+  // Ingrédients avec support de chaînes brutes et résolution Lexique-First
+  const rawIngredients = Array.isArray(r.ingredients) ? r.ingredients : [];
+  const ingredients = rawIngredients.slice(0, 100).map((ing: any, idx: number) => {
+    let name = '';
+    let quantity = '';
+    let unit = '';
+    let isPantryStaple: boolean | undefined = undefined;
+    let isOptional: boolean | undefined = undefined;
+    let canonicalId: string | undefined = undefined;
+    let linkedRecipeId: string | undefined = undefined;
+
+    if (typeof ing === 'string') {
+      const parsed = parseShoppingInput(ing);
+      name = parsed.name || ing;
+      quantity = parsed.quantity || '';
+      unit = parsed.unit || '';
+      canonicalId = parsed.canonicalId;
+    } else if (ing && typeof ing === 'object') {
+      name = typeof ing.name === 'string' ? ing.name : (typeof ing.ingredient === 'string' ? ing.ingredient : '');
+      quantity = ing.quantity !== undefined && ing.quantity !== null ? String(ing.quantity).slice(0, 50) : (ing.amount !== undefined ? String(ing.amount).slice(0, 50) : '');
+      unit = typeof ing.unit === 'string' ? ing.unit.slice(0, 50) : (typeof ing.measure === 'string' ? ing.measure.slice(0, 50) : '');
+      canonicalId = typeof ing.canonicalId === 'string' && ing.canonicalId ? ing.canonicalId.slice(0, 100) : undefined;
+      if (typeof ing.isPantryStaple === 'boolean') isPantryStaple = ing.isPantryStaple;
+      if (typeof ing.isOptional === 'boolean') isOptional = ing.isOptional;
+      if (typeof ing.linkedRecipeId === 'string' && ing.linkedRecipeId) linkedRecipeId = ing.linkedRecipeId.slice(0, 100);
+    }
+
+    name = name.slice(0, 150);
+
+    // Lexique-First: auto-résolution du canonicalId et fond de placard si absent
+    if (name) {
+      const norm = normalizeIngredient({ name, canonicalId, quantity, unit, isPantryStaple, isOptional });
+      if (!canonicalId && norm.canonicalId) canonicalId = norm.canonicalId;
+      if (isPantryStaple === undefined) isPantryStaple = norm.isPantryStaple ?? (isKnownDefaultPantryStaple(name) ? true : undefined);
+      if (isOptional === undefined && norm.isOptional !== undefined) isOptional = norm.isOptional;
+    }
+
+    return {
+      id: typeof ing?.id === 'string' ? ing.id.slice(0, 80) : generateUniqueId(`ing_${idx}`),
+      name,
+      canonicalId,
+      quantity,
+      unit,
+      isPantryStaple,
+      isOptional,
+      linkedRecipeId,
+    };
+  });
+
+  // Étapes (accepte chaîne brute ou objet instruction/step/text)
+  const rawSteps = Array.isArray(r.steps) ? r.steps : [];
+  const steps = rawSteps.slice(0, 50).map((st: any, idx: number) => {
+    const instruction = typeof st === 'string'
+      ? st.slice(0, 2500)
+      : typeof st?.instruction === 'string'
+      ? st.instruction.slice(0, 2500)
+      : typeof st?.step === 'string'
+      ? st.step.slice(0, 2500)
+      : typeof st?.text === 'string'
+      ? st.text.slice(0, 2500)
+      : '';
+    return {
+      id: typeof st?.id === 'string' ? st.id.slice(0, 80) : generateUniqueId(`stp_${idx}`),
+      order: typeof st?.order === 'number' ? st.order : idx + 1,
+      instruction,
+    };
+  });
+
+  // Végétarien
+  let isVegetarian: boolean;
+  if (typeof r.isVegetarian === 'boolean') isVegetarian = r.isVegetarian;
+  else if (typeof r.vegetarian === 'boolean') isVegetarian = r.vegetarian;
+  else if (typeof r.vege === 'boolean') isVegetarian = r.vege;
+  else if (typeof r.is_vegetarian === 'boolean') isVegetarian = r.is_vegetarian;
+  else isVegetarian = isRecipeVegetarian(ingredients, title, description);
+
+  // Tags
+  let rawTagsList: any[] = [];
+  if (Array.isArray(r.tags)) rawTagsList = r.tags;
+  else if (typeof r.tags === 'string') rawTagsList = r.tags.split(',').map((t: string) => t.trim());
+  else if (Array.isArray(r.keywords)) rawTagsList = r.keywords;
+
+  const tags = Array.from(
+    new Set(
+      rawTagsList
+        .filter((t): t is string => typeof t === 'string' && t.trim().length > 0)
+        .map((t) => t.trim().slice(0, 50))
+    )
+  ).slice(0, 30);
+
   return {
-    id: typeof r.id === 'string' && r.id ? r.id.slice(0, 100) : generateUniqueId('rec'),
-    title: typeof r.title === 'string' && r.title ? r.title.slice(0, 200) : 'Recette sans titre',
-    description: typeof r.description === 'string' ? r.description.slice(0, 2000) : '',
-    category: r.category === 'Petit-déjeuner' ? 'Dessert' : (r.category || 'Plat'),
-    difficulty: r.difficulty || 'Moyen',
-    prepTimeMinutes: typeof r.prepTimeMinutes === 'number' && r.prepTimeMinutes >= 0 ? Math.min(1440, r.prepTimeMinutes) : 15,
-    cookTimeMinutes: typeof r.cookTimeMinutes === 'number' && r.cookTimeMinutes >= 0 ? Math.min(1440, r.cookTimeMinutes) : 0,
-    servings: typeof r.servings === 'number' && r.servings > 0 ? Math.min(100, r.servings) : 4,
-    rating: typeof r.rating === 'number' && r.rating >= 0 ? Math.min(5, Math.max(0, r.rating)) : 0,
-    userNote: typeof r.userNote === 'string' ? r.userNote.slice(0, 1500) : undefined,
-    imageUrl: sanitizeImageUrl(r.imageUrl),
-    availableImages: Array.isArray(r.availableImages)
-      ? r.availableImages.map(sanitizeImageUrl).filter(Boolean).slice(0, 10)
-      : undefined,
-    isFavorite: Boolean(r.isFavorite),
-    isVegetarian:
-      typeof r.isVegetarian === 'boolean'
-        ? r.isVegetarian
-        : isRecipeVegetarian(r.ingredients || [], r.title || '', r.description || ''),
-    tags: Array.isArray(r.tags)
-      ? Array.from(
-          new Set(
-            (r.tags as unknown[])
-              .filter((t): t is string => typeof t === 'string' && t.trim().length > 0)
-              .map((t) => t.trim().slice(0, 50))
-          )
-        ).slice(0, 30)
-      : undefined,
+    id,
+    title,
+    description,
+    category,
+    difficulty,
+    prepTimeMinutes,
+    cookTimeMinutes,
+    servings,
+    rating,
+    userNote,
+    imageUrl,
+    availableImages,
+    isFavorite,
+    isVegetarian,
+    tags: tags.length > 0 ? tags : undefined,
     sourceUrl: typeof r.sourceUrl === 'string' && r.sourceUrl ? r.sourceUrl.slice(0, 500) : undefined,
     sourceSite: typeof r.sourceSite === 'string' && r.sourceSite ? r.sourceSite.slice(0, 100) : undefined,
     createdAt: typeof r.createdAt === 'string' ? r.createdAt : new Date().toISOString(),
     updatedAt: typeof r.updatedAt === 'string' ? r.updatedAt : new Date().toISOString(),
-    ingredients: Array.isArray(r.ingredients)
-      ? r.ingredients.slice(0, 100).map((ing: any, idx: number) => ({
-          id: typeof ing.id === 'string' ? ing.id.slice(0, 80) : generateUniqueId(`ing_${idx}`),
-          name: typeof ing.name === 'string' ? ing.name.slice(0, 150) : '',
-          canonicalId: typeof ing.canonicalId === 'string' && ing.canonicalId ? ing.canonicalId.slice(0, 100) : undefined,
-          quantity: ing.quantity ? String(ing.quantity).slice(0, 50) : '',
-          unit: ing.unit ? String(ing.unit).slice(0, 50) : '',
-          isPantryStaple:
-            typeof ing.isPantryStaple === 'boolean'
-              ? ing.isPantryStaple
-              : isKnownDefaultPantryStaple(ing.name)
-              ? true
-              : undefined,
-          isOptional: typeof ing.isOptional === 'boolean' ? ing.isOptional : undefined,
-          linkedRecipeId:
-            typeof ing.linkedRecipeId === 'string' && ing.linkedRecipeId
-              ? ing.linkedRecipeId.slice(0, 100)
-              : undefined,
-        }))
-      : [],
-    steps: Array.isArray(r.steps)
-      ? r.steps.slice(0, 50).map((st: any, idx: number) => ({
-          id: typeof st.id === 'string' ? st.id.slice(0, 80) : generateUniqueId(`stp_${idx}`),
-          order: typeof st.order === 'number' ? st.order : idx + 1,
-          instruction: typeof st.instruction === 'string' ? st.instruction.slice(0, 2500) : '',
-        }))
-      : [],
+    ingredients,
+    steps,
   };
 }
 
@@ -2329,19 +2453,65 @@ export const StorageService = {
         const sanitized = sanitizeStoredRecipe(rawRecipe);
         const normTitle = normalizeString(sanitized.title || '').trim().toLowerCase();
 
-        // 1. Recherche de photo correspondante dans le pack
+        // 1. Recherche de photo principale dans le pack
         let photoUri: string | null = null;
+        const extraPhotos: string[] = [];
+
         if (pack.images && pack.images.size > 0) {
-          const rawImageRef = typeof rawRecipe.imageUrl === 'string' ? rawRecipe.imageUrl : '';
-          const imageRef = rawImageRef || sanitized.imageUrl || rawRecipe.id || sanitized.id;
-          const found = RecipePackService.findImageBytes(pack.images, imageRef);
+          const rawImageRef = typeof rawRecipe.imageUrl === 'string'
+            ? rawRecipe.imageUrl
+            : typeof rawRecipe.image === 'string'
+            ? rawRecipe.image
+            : typeof rawRecipe.photo === 'string'
+            ? rawRecipe.photo
+            : typeof rawRecipe.coverImage === 'string'
+            ? rawRecipe.coverImage
+            : '';
+
+          const titleSlug = (sanitized.title || '')
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-+|-+$/g, '');
+
+          const candidates = [
+            rawImageRef,
+            sanitized.imageUrl,
+            rawRecipe.id,
+            sanitized.id,
+            titleSlug,
+          ].filter((c): c is string => typeof c === 'string' && c.trim().length > 0);
+
+          let found: { bytes: Uint8Array; fileName: string } | null = null;
+          for (const cand of candidates) {
+            found = RecipePackService.findImageBytes(pack.images, cand);
+            if (found) break;
+          }
+
           if (found) {
             photoUri = await ImageStorageService.savePhotoBytesLocally(found.bytes, found.fileName);
             if (photoUri) {
               photosCount++;
             }
           }
+
+          // 1b. Recherche de photos additionnelles (availableImages)
+          if (Array.isArray(rawRecipe.availableImages)) {
+            for (const extraRef of rawRecipe.availableImages) {
+              if (typeof extraRef !== 'string' || !extraRef.trim()) continue;
+              const foundExtra = RecipePackService.findImageBytes(pack.images, extraRef);
+              if (foundExtra) {
+                const savedExtraUri = await ImageStorageService.savePhotoBytesLocally(foundExtra.bytes, foundExtra.fileName);
+                if (savedExtraUri) extraPhotos.push(savedExtraUri);
+              } else if (extraRef.startsWith('http://') || extraRef.startsWith('https://') || extraRef.startsWith('file://')) {
+                extraPhotos.push(extraRef);
+              }
+            }
+          }
         }
+
+        const resolvedAvailableImages = extraPhotos.length > 0 ? extraPhotos : sanitized.availableImages;
 
         // 2. Déduplication par titre normalisé
         const existingRecipe = normTitle ? existingByNormalizedTitle.get(normTitle) : undefined;
@@ -2355,6 +2525,7 @@ export const StorageService = {
               id: existingRecipe.id,
               // Conserver la photo existante si aucune nouvelle photo n'a été trouvée
               imageUrl: photoUri || sanitized.imageUrl || existingRecipe.imageUrl,
+              availableImages: resolvedAvailableImages || existingRecipe.availableImages,
             };
             mergedList[targetIndex] = updatedRecipe;
             existingById.set(existingRecipe.id, updatedRecipe);
@@ -2373,6 +2544,7 @@ export const StorageService = {
             ...sanitized,
             id: newId,
             imageUrl: photoUri || sanitized.imageUrl,
+            availableImages: resolvedAvailableImages,
           };
 
           mergedList.push(newRecipe);

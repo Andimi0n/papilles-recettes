@@ -51,7 +51,8 @@ export class RecipePackService {
 
     let parsed: any;
     try {
-      parsed = JSON.parse(jsonString.trim());
+      const cleanJson = jsonString.trim().replace(/^\uFEFF/, '');
+      parsed = JSON.parse(cleanJson);
     } catch (e: any) {
       throw new Error(`Format JSON invalide : ${e?.message || 'Erreur de syntaxe'}`);
     }
@@ -60,6 +61,10 @@ export class RecipePackService {
       ? parsed
       : Array.isArray(parsed?.recipes)
       ? parsed.recipes
+      : Array.isArray(parsed?.recettes)
+      ? parsed.recettes
+      : Array.isArray(parsed?.data)
+      ? parsed.data
       : [];
 
     if (recipes.length === 0) {
@@ -176,6 +181,25 @@ export class RecipePackService {
       const keyWithoutExt = keyBase.replace(/\.[^/.]+$/, '');
       if (keyWithoutExt.toLowerCase() === baseWithoutExt.toLowerCase()) {
         return { bytes, fileName: keyBase };
+      }
+    }
+
+    // 4. Recherche insensible aux accents, tirets, séparateurs et casse (ex: "clafoutis-cerises" vs "Clafoutis Cerises.jpg")
+    const normalizeKey = (s: string) =>
+      s
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]/g, '');
+
+    const targetNorm = normalizeKey(baseWithoutExt);
+    if (targetNorm) {
+      for (const [key, bytes] of imagesMap.entries()) {
+        const keyBase = key.split('/').pop() || key;
+        const keyWithoutExt = keyBase.replace(/\.[^/.]+$/, '');
+        if (normalizeKey(keyWithoutExt) === targetNorm) {
+          return { bytes, fileName: keyBase };
+        }
       }
     }
 

@@ -125,6 +125,70 @@ async function main() {
     assert.strictEqual(stockAfter.length, 1, 'Le stock doit être intact');
     assert.strictEqual(stockAfter[0].name, 'Lait', 'Lait toujours en stock');
 
+    console.log('\n--- Test 3 : Import complet avec notes, tags, végétarien, ingrédients et étapes ---');
+    const richPack = {
+      recipes: [
+        {
+          id: 'rec_risotto_mushrooms',
+          title: 'Risotto crémeux aux champignons',
+          description: 'Un risotto réconfortant aux champignons de Paris',
+          category: 'plat',
+          difficulty: 'facile',
+          prepTime: '20',
+          cookTime: '30',
+          servings: '4',
+          rating: '4.5',
+          notes: 'Ajouter une noisette de beurre froid à la fin pour la mantecatura.',
+          isVegetarian: true,
+          tags: ['Italien', 'Réconfortant', 'Automne'],
+          imageUrl: 'photos/risotto.jpg',
+          availableImages: ['photos/risotto_detail.jpg'],
+          ingredients: [
+            '300g riz arborio',
+            '250g champignons de paris',
+            '1 oignon',
+            '50g parmesan',
+            'sel',
+            'huile d olive',
+          ],
+          steps: [
+            'Émincer les champignons et l oignon.',
+            'Faire suer l oignon dans l huile d olive.',
+            'Nacrer le riz et mouiller au bouillon.',
+            'Incorporer le parmesan et servir chaud.',
+          ],
+        },
+      ],
+      images: new Map([
+        ['photos/risotto.jpg', new Uint8Array([1, 2, 3])],
+        ['photos/risotto_detail.jpg', new Uint8Array([4, 5, 6])],
+      ]),
+    };
+
+    const richRes = await StorageService.mergeRecipePack(richPack);
+    assert.strictEqual(richRes.success, true);
+    assert.strictEqual(richRes.addedCount, 1);
+    assert.ok(richRes.photosCount >= 1);
+
+    const recipesNow = await StorageService.getRecipes();
+    const risotto = recipesNow.find((r) => r.title === 'Risotto crémeux aux champignons');
+    assert.ok(risotto, 'Le risotto doit être présent');
+    assert.strictEqual(risotto.category, 'Plat', 'Catégorie normalisée à Plat');
+    assert.strictEqual(risotto.difficulty, 'Facile', 'Difficulté normalisée à Facile');
+    assert.strictEqual(risotto.prepTimeMinutes, 20, 'Temps de prép parsé à 20');
+    assert.strictEqual(risotto.cookTimeMinutes, 30, 'Temps de cuisson parsé à 30');
+    assert.strictEqual(risotto.servings, 4, 'Servings parsé à 4');
+    assert.strictEqual(risotto.rating, 4.5, 'Rating parsé à 4.5');
+    assert.strictEqual(risotto.userNote, 'Ajouter une noisette de beurre froid à la fin pour la mantecatura.', 'userNote préservé depuis notes');
+    assert.strictEqual(risotto.isVegetarian, true, 'isVegetarian respecté à true');
+    assert.deepStrictEqual(risotto.tags, ['Italien', 'Réconfortant', 'Automne'], 'Tags préservés');
+    assert.strictEqual(risotto.steps.length, 4, '4 étapes extraites depuis les strings');
+    assert.strictEqual(risotto.steps[0].instruction, 'Émincer les champignons et l oignon.');
+    assert.strictEqual(risotto.steps[0].order, 1);
+    assert.strictEqual(risotto.ingredients.length, 6, '6 ingrédients parsés depuis les strings');
+    assert.ok(risotto.ingredients[0].canonicalId, 'canonicalId auto-détecté pour riz');
+    assert.strictEqual(risotto.availableImages?.length, 1, 'availableImages extrait et sauvegardé');
+
     console.log('✓ Tous les scénarios de mergeRecipePack sont validés avec succès !');
   } catch (err) {
     console.error('❌ Échec :', err.message);
