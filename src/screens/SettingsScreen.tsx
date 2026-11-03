@@ -848,10 +848,6 @@ const SettingsScreenComponent: React.FC<SettingsScreenProps> = ({
               <Text style={styles.headerSubtitle}>Préférences, IA & Gestion des données</Text>
             </View>
           </View>
-          <View style={styles.headerBadge}>
-            <Ionicons name="shield-checkmark-outline" size={13} color={colors.primaryDark} />
-            <Text style={styles.headerBadgeText}>Hors-ligne</Text>
-          </View>
         </View>
 
         <ScrollView
@@ -1006,12 +1002,6 @@ const SettingsScreenComponent: React.FC<SettingsScreenProps> = ({
             <View style={styles.sectionTitleRow}>
               <Ionicons name="sparkles" size={20} color={colors.primary} />
               <Text style={styles.sectionTitle}>Intelligence Artificielle (Gemini)</Text>
-              {apiKey.trim().length > 0 && (
-                <View style={styles.apiConfiguredBadge}>
-                  <Ionicons name="checkmark-circle" size={13} color="#15803D" />
-                  <Text style={styles.apiConfiguredText}>Configurée</Text>
-                </View>
-              )}
             </View>
             <Text style={styles.sectionSubtitle}>
               Utilisée pour scanner des recettes manuscrites, analyser les ingrédients de vos photos et le mode Frigo magique.

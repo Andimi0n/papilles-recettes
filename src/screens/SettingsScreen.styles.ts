@@ -42,20 +42,6 @@ export const styles = createDynamicStyles((colors, shadows) => ({
     color: colors.textSecondary,
     marginTop: 1,
   },
-  headerBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: colors.primaryLight,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  headerBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.primaryDark,
-  },
   groupHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -259,21 +245,6 @@ export const styles = createDynamicStyles((colors, shadows) => ({
     fontSize: 12,
     color: colors.textSecondary,
     lineHeight: 17,
-  },
-  apiConfiguredBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: '#DCFCE7',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-    marginLeft: 'auto',
-  },
-  apiConfiguredText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#15803D',
   },
   openAiStudioBtn: {
     flexDirection: 'row',
