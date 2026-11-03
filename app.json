@@ -37,7 +37,12 @@
     "plugins": [
       "expo-status-bar",
       "expo-secure-store",
-      "expo-font",
+      [
+        "expo-font",
+        {
+          "fonts": ["./assets/fonts/Ionicons.ttf"]
+        }
+      ],
       [
         "expo-splash-screen",
         {

@@ -13,6 +13,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Recipe, RecipeViewMode } from './src/types/recipe';
+import { FridgeItem } from './src/types/fridge';
 import { StorageService } from './src/services/storageService';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { RecipeDetailScreen } from './src/screens/RecipeDetailScreen';
@@ -88,6 +89,7 @@ function AppContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [initialViewMode, setInitialViewMode] = useState<RecipeViewMode>('detailed');
+  const [initialStockItems, setInitialStockItems] = useState<FridgeItem[]>([]);
 
   // Recette reçue en partage (via Deep Link ou scan QR code)
   const [receivedSharedRecipe, setReceivedSharedRecipe] = useState<Recipe | null>(null);
@@ -107,16 +109,18 @@ function AppContent() {
   useEffect(() => {
     const loadInitialData = async () => {
       try {
-        // Chargement parallèle des recettes, onboarding, mode d'affichage et stock
-        const [loaded, onboarded, savedViewMode] = await Promise.all([
+        // Chargement parallèle des recettes, onboarding, mode d'affichage, stock et police locale Ionicons
+        const [loaded, onboarded, savedViewMode, fridge] = await Promise.all([
           StorageService.getRecipes().catch(() => [] as Recipe[]),
           StorageService.hasCompletedOnboarding().catch(() => false),
           StorageService.getRecipeViewMode().catch(() => 'detailed' as RecipeViewMode),
-          StorageService.getFridgeItems().catch(() => {}), // préchauffage cache
+          StorageService.getFridgeItems().catch(() => [] as FridgeItem[]),
+          Ionicons.loadFont().catch(() => {}),
         ]);
         setRecipes(loaded as Recipe[]);
         if (!onboarded) setShowOnboarding(true);
         if (savedViewMode) setInitialViewMode(savedViewMode);
+        if (Array.isArray(fridge)) setInitialStockItems(fridge);
       } catch (e) {
         console.error('Erreur chargement initial:', e);
       } finally {
@@ -421,6 +425,7 @@ function AppContent() {
                 onNavigateToStock={() => navigateToShopping('fridge')}
                 initialOnlyDoable={initialHomeDoableFilter}
                 initialViewMode={initialViewMode}
+                initialStockItems={initialStockItems}
                 isActive={currentScreen === 'home'}
                 reopenStockModal={reopenStockModal}
                 onStockModalReopened={() => setReopenStockModal(false)}

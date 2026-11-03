@@ -69,6 +69,7 @@ interface HomeScreenProps {
   onNavigateToStock?: () => void;
   initialOnlyDoable?: boolean;
   initialViewMode?: RecipeViewMode;
+  initialStockItems?: FridgeItem[];
   isActive?: boolean;
   reopenStockModal?: boolean;
   onStockModalReopened?: () => void;
@@ -86,6 +87,7 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
   onNavigateToStock,
   initialOnlyDoable = false,
   initialViewMode = 'detailed',
+  initialStockItems = [],
   isActive = true,
   reopenStockModal = false,
   onStockModalReopened,
@@ -156,7 +158,14 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
       setCurrentPage(1);
     }
   }
-  const [stockItems, setStockItems] = useState<FridgeItem[]>([]);
+  const [stockItems, setStockItems] = useState<FridgeItem[]>(initialStockItems);
+  const [prevInitialStockItems, setPrevInitialStockItems] = useState(initialStockItems);
+  if (prevInitialStockItems !== initialStockItems) {
+    setPrevInitialStockItems(initialStockItems);
+    if (initialStockItems && initialStockItems.length > 0) {
+      setStockItems(initialStockItems);
+    }
+  }
   const [isStockModalVisible, setIsStockModalVisible] = useState(false);
   const [preserveStockSession, setPreserveStockSession] = useState(false);
   const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
