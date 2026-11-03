@@ -11,6 +11,7 @@ import {
   Modal,
   Keyboard,
   Switch,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -160,6 +161,7 @@ const SettingsScreenComponent: React.FC<SettingsScreenProps> = ({
   const [isExporting, setIsExporting] = useState(false);
   const [importStatusMessage, setImportStatusMessage] = useState('');
   const [isResetting, setIsResetting] = useState(false);
+  const [isDangerZoneExpanded, setIsDangerZoneExpanded] = useState(false);
 
   const loadInitialSettings = async () => {
     try {
@@ -846,6 +848,10 @@ const SettingsScreenComponent: React.FC<SettingsScreenProps> = ({
               <Text style={styles.headerSubtitle}>Préférences, IA & Gestion des données</Text>
             </View>
           </View>
+          <View style={styles.headerBadge}>
+            <Ionicons name="shield-checkmark-outline" size={13} color={colors.primaryDark} />
+            <Text style={styles.headerBadgeText}>Hors-ligne</Text>
+          </View>
         </View>
 
         <ScrollView
@@ -853,6 +859,13 @@ const SettingsScreenComponent: React.FC<SettingsScreenProps> = ({
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
+          {/* GROUPE 1 : APPARENCE & CUISINE */}
+          <View style={styles.groupHeader}>
+            <Ionicons name="color-palette" size={14} color={colors.primary} />
+            <Text style={styles.groupHeaderTitle}>Apparence & Cuisine</Text>
+            <View style={styles.groupHeaderLine} />
+          </View>
+
           {/* SECTION 1 : THÈME & AMBIANCE */}
           <View style={styles.sectionCard}>
             <View style={styles.sectionTitleRow}>
@@ -927,11 +940,78 @@ const SettingsScreenComponent: React.FC<SettingsScreenProps> = ({
             </View>
           </View>
 
+          {/* SECTION : PRÉFÉRENCES DE CUISINE (CONVIVES) */}
+          <View style={styles.sectionCard}>
+            <View style={styles.sectionTitleRow}>
+              <Ionicons name="restaurant-outline" size={20} color={colors.primary} />
+              <Text style={styles.sectionTitle}>Préférences de Cuisine</Text>
+            </View>
+            <Text style={styles.sectionSubtitle}>
+              Nombre de convives par défaut pour les nouvelles recettes et le calcul des portions.
+            </Text>
+
+            <View style={styles.servingsStepperRow}>
+              <TouchableOpacity
+                style={[
+                  styles.stepperBtn,
+                  defaultServings <= 1 && styles.stepperBtnDisabled,
+                ]}
+                onPress={() => handleSelectServings(Math.max(1, defaultServings - 1))}
+                disabled={defaultServings <= 1}
+                activeOpacity={0.7}
+                accessibilityLabel="Diminuer le nombre de convives"
+              >
+                <Ionicons
+                  name="remove"
+                  size={20}
+                  color={defaultServings <= 1 ? colors.textMuted : colors.textPrimary}
+                />
+              </TouchableOpacity>
+
+              <View style={styles.stepperValueContainer}>
+                <Ionicons name="people" size={18} color={colors.primary} />
+                <Text style={styles.stepperValueText}>
+                  {defaultServings} {defaultServings > 1 ? 'personnes' : 'personne'}
+                </Text>
+              </View>
+
+              <TouchableOpacity
+                style={[
+                  styles.stepperBtn,
+                  defaultServings >= 50 && styles.stepperBtnDisabled,
+                ]}
+                onPress={() => handleSelectServings(Math.min(50, defaultServings + 1))}
+                disabled={defaultServings >= 50}
+                activeOpacity={0.7}
+                accessibilityLabel="Augmenter le nombre de convives"
+              >
+                <Ionicons
+                  name="add"
+                  size={20}
+                  color={colors.textPrimary}
+                />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* GROUPE 2 : INTELLIGENCE ARTIFICIELLE */}
+          <View style={styles.groupHeader}>
+            <Ionicons name="sparkles" size={14} color={colors.primary} />
+            <Text style={styles.groupHeaderTitle}>Intelligence Artificielle</Text>
+            <View style={styles.groupHeaderLine} />
+          </View>
+
           {/* SECTION 2 : INTELLIGENCE ARTIFICIELLE & CLÉ API */}
           <View style={styles.sectionCard}>
             <View style={styles.sectionTitleRow}>
               <Ionicons name="sparkles" size={20} color={colors.primary} />
               <Text style={styles.sectionTitle}>Intelligence Artificielle (Gemini)</Text>
+              {apiKey.trim().length > 0 && (
+                <View style={styles.apiConfiguredBadge}>
+                  <Ionicons name="checkmark-circle" size={13} color="#15803D" />
+                  <Text style={styles.apiConfiguredText}>Configurée</Text>
+                </View>
+              )}
             </View>
             <Text style={styles.sectionSubtitle}>
               Utilisée pour scanner des recettes manuscrites, analyser les ingrédients de vos photos et le mode Frigo magique.
@@ -1031,13 +1111,20 @@ const SettingsScreenComponent: React.FC<SettingsScreenProps> = ({
             <View style={styles.aiInfoBox}>
               <Ionicons name="information-circle-outline" size={18} color={colors.textSecondary} />
               <Text style={styles.aiInfoText}>
-                Obtenez une clé gratuitement sur{' '}
-                <Text style={{ fontWeight: '700', color: colors.primary }}>
-                  aistudio.google.com
-                </Text>
-                . Aucun moyen de paiement n&apos;est nécessaire.
+                Obtenez une clé gratuitement sur Google AI Studio. Aucun moyen de paiement n&apos;est nécessaire.
               </Text>
             </View>
+
+            <TouchableOpacity
+              style={styles.openAiStudioBtn}
+              onPress={() => Linking.openURL('https://aistudio.google.com/app/apikey')}
+              activeOpacity={0.7}
+              accessibilityRole="link"
+              accessibilityLabel="Obtenir une clé API gratuite sur Google AI Studio"
+            >
+              <Ionicons name="open-outline" size={15} color={colors.primaryDark} />
+              <Text style={styles.openAiStudioText}>Obtenir une clé gratuite sur Google AI Studio</Text>
+            </TouchableOpacity>
           </View>
 
           {/* SECTION : HUMEURS DU CHEF IA (ACCORDÉON) */}
@@ -1145,58 +1232,11 @@ const SettingsScreenComponent: React.FC<SettingsScreenProps> = ({
             )}
           </View>
 
-          {/* SECTION 3 : PRÉFÉRENCES DE CUISINE */}
-          <View style={styles.sectionCard}>
-            <View style={styles.sectionTitleRow}>
-              <Ionicons name="restaurant-outline" size={20} color={colors.primary} />
-              <Text style={styles.sectionTitle}>Préférences de Cuisine</Text>
-            </View>
-            <Text style={styles.sectionSubtitle}>
-              Nombre de convives par défaut pour les nouvelles recettes et le calcul des portions.
-            </Text>
-
-            <View style={styles.servingsStepperRow}>
-              <TouchableOpacity
-                style={[
-                  styles.stepperBtn,
-                  defaultServings <= 1 && styles.stepperBtnDisabled,
-                ]}
-                onPress={() => handleSelectServings(Math.max(1, defaultServings - 1))}
-                disabled={defaultServings <= 1}
-                activeOpacity={0.7}
-                accessibilityLabel="Diminuer le nombre de convives"
-              >
-                <Ionicons
-                  name="remove"
-                  size={20}
-                  color={defaultServings <= 1 ? colors.textMuted : colors.textPrimary}
-                />
-              </TouchableOpacity>
-
-              <View style={styles.stepperValueContainer}>
-                <Ionicons name="people" size={18} color={colors.primary} />
-                <Text style={styles.stepperValueText}>
-                  {defaultServings} {defaultServings > 1 ? 'personnes' : 'personne'}
-                </Text>
-              </View>
-
-              <TouchableOpacity
-                style={[
-                  styles.stepperBtn,
-                  defaultServings >= 50 && styles.stepperBtnDisabled,
-                ]}
-                onPress={() => handleSelectServings(Math.min(50, defaultServings + 1))}
-                disabled={defaultServings >= 50}
-                activeOpacity={0.7}
-                accessibilityLabel="Augmenter le nombre de convives"
-              >
-                <Ionicons
-                  name="add"
-                  size={20}
-                  color={colors.textPrimary}
-                />
-              </TouchableOpacity>
-            </View>
+          {/* GROUPE 3 : SANTÉ & INGRÉDIENTS */}
+          <View style={styles.groupHeader}>
+            <Ionicons name="shield-checkmark" size={14} color={colors.primary} />
+            <Text style={styles.groupHeaderTitle}>Santé & Ingrédients</Text>
+            <View style={styles.groupHeaderLine} />
           </View>
 
           {/* SECTION 4 : MES ALLERGIES ALIMENTAIRES */}
@@ -1525,6 +1565,58 @@ const SettingsScreenComponent: React.FC<SettingsScreenProps> = ({
             </View>
           </View>
 
+          {/* SECTION : LEXIQUE & VOCABULAIRE DES INGRÉDIENTS */}
+          <View style={styles.sectionCard}>
+            <View style={styles.sectionTitleRow}>
+              <Ionicons name="book-outline" size={20} color={colors.primary} />
+              <Text style={styles.sectionTitle}>Lexique & Ingrédients Canoniques</Text>
+            </View>
+            <Text style={styles.sectionSubtitle}>
+              Standardisation stricte pour éviter les doublons et synonymes (&apos;petits pois&apos; vs &apos;boîte de petits pois&apos;, &apos;muscade&apos;, &apos;carotte&apos;...).
+            </Text>
+
+            <View style={styles.dataActionsColumn}>
+              {/* Bouton 1 : Consulter & Gérer le lexique */}
+              <TouchableOpacity
+                style={styles.dataActionBtn}
+                onPress={() => setIsVocabModalVisible(true)}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="library-outline" size={20} color={colors.primary} />
+                <View style={styles.dataActionInfo}>
+                  <Text style={styles.dataActionTitle}>Gérer le vocabulaire des ingrédients</Text>
+                  <Text style={styles.dataActionDesc}>
+                    {vocabCount > 0 ? `${vocabCount} ingrédients canoniques répertoriés` : 'Consulter, renommer, fusionner'}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+              </TouchableOpacity>
+
+              {/* Bouton 2 : Réinitialiser le lexique par défaut */}
+              <TouchableOpacity
+                style={[styles.dataActionBtn, { borderBottomWidth: 0 }]}
+                onPress={handleResetVocabulary}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="refresh-outline" size={20} color={colors.primary} />
+                <View style={styles.dataActionInfo}>
+                  <Text style={styles.dataActionTitle}>Réinitialiser le lexique d&apos;origine</Text>
+                  <Text style={styles.dataActionDesc}>
+                    Recharge les {VocabularyService.getDefaultCount()} ingrédients et alias certifiés
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* GROUPE 4 : ORGANISATION & DONNÉES */}
+          <View style={styles.groupHeader}>
+            <Ionicons name="folder-open" size={14} color={colors.primary} />
+            <Text style={styles.groupHeaderTitle}>Organisation & Données</Text>
+            <View style={styles.groupHeaderLine} />
+          </View>
+
           {/* SECTION : PLANIFICATION DES MENUS */}
           <View style={styles.sectionCard}>
             <View style={styles.sectionTitleRow}>
@@ -1656,78 +1748,45 @@ const SettingsScreenComponent: React.FC<SettingsScreenProps> = ({
             )}
           </View>
 
-          {/* SECTION : LEXIQUE & VOCABULAIRE DES INGRÉDIENTS */}
-          <View style={styles.sectionCard}>
-            <View style={styles.sectionTitleRow}>
-              <Ionicons name="book-outline" size={20} color={colors.primary} />
-              <Text style={styles.sectionTitle}>Lexique & Ingrédients Canoniques</Text>
-            </View>
-            <Text style={styles.sectionSubtitle}>
-              Standardisation stricte pour éviter les doublons et synonymes (&apos;petits pois&apos; vs &apos;boîte de petits pois&apos;, &apos;muscade&apos;, &apos;carotte&apos;...).
-            </Text>
-
-            <View style={styles.dataActionsColumn}>
-              {/* Bouton 1 : Consulter & Gérer le lexique */}
-              <TouchableOpacity
-                style={styles.dataActionBtn}
-                onPress={() => setIsVocabModalVisible(true)}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="library-outline" size={20} color={colors.primary} />
-                <View style={styles.dataActionInfo}>
-                  <Text style={styles.dataActionTitle}>Gérer le vocabulaire des ingrédients</Text>
-                  <Text style={styles.dataActionDesc}>
-                    {vocabCount > 0 ? `${vocabCount} ingrédients canoniques répertoriés` : 'Consulter, renommer, fusionner'}
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-              </TouchableOpacity>
-
-              {/* Bouton 2 : Réinitialiser le lexique par défaut */}
-              <TouchableOpacity
-                style={[styles.dataActionBtn, { borderBottomWidth: 0 }]}
-                onPress={handleResetVocabulary}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="refresh-outline" size={20} color={colors.primary} />
-                <View style={styles.dataActionInfo}>
-                  <Text style={styles.dataActionTitle}>Réinitialiser le lexique d&apos;origine</Text>
-                  <Text style={styles.dataActionDesc}>
-                    Recharge les {VocabularyService.getDefaultCount()} ingrédients et alias certifiés
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-              </TouchableOpacity>
-            </View>
-          </View>
-
           {/* SECTION 5 : GESTION DES DONNÉES & SAUVEGARDE */}
           <View style={styles.sectionCard}>
             <View style={styles.sectionTitleRow}>
               <Ionicons name="file-tray-full-outline" size={20} color={colors.primary} />
               <Text style={styles.sectionTitle}>Données & Sauvegarde</Text>
             </View>
+            <Text style={styles.sectionSubtitle}>
+              Sauvegardez vos recettes, exportez votre collection ou transférez vos données vers un autre appareil.
+            </Text>
 
-            {/* Statistiques rapides */}
+            {/* Statistiques rapides avec icônes colorées */}
             <View style={styles.statsRow}>
               <View style={styles.statBox}>
+                <View style={[styles.statIconWrap, { backgroundColor: colors.primaryLight }]}>
+                  <Ionicons name="book-outline" size={16} color={colors.primary} />
+                </View>
                 <Text style={styles.statNumber}>{recipes.length}</Text>
                 <Text style={styles.statLabel}>Recettes</Text>
               </View>
               <View style={styles.statBox}>
+                <View style={[styles.statIconWrap, { backgroundColor: '#FEF3C7' }]}>
+                  <Ionicons name="star" size={16} color="#D97706" />
+                </View>
                 <Text style={styles.statNumber}>{ratedCount}</Text>
                 <Text style={styles.statLabel}>Notées</Text>
               </View>
               <View style={styles.statBox}>
+                <View style={[styles.statIconWrap, { backgroundColor: colors.secondary + '20' }]}>
+                  <Ionicons name="cart-outline" size={16} color={colors.secondary} />
+                </View>
                 <Text style={styles.statNumber}>{shoppingCount}</Text>
                 <Text style={styles.statLabel}>En courses</Text>
               </View>
             </View>
 
-            {/* Boutons d'export / import */}
+            {/* Actions de Sauvegarde & Import */}
             <View style={styles.dataActionsColumn}>
               <TouchableOpacity
-                style={[styles.dataActionBtn, isExporting && { opacity: 0.6 }]}
+                style={styles.dataActionBtn}
                 onPress={handleExportData}
                 disabled={isExporting}
                 activeOpacity={0.7}
@@ -1735,87 +1794,121 @@ const SettingsScreenComponent: React.FC<SettingsScreenProps> = ({
                 {isExporting ? (
                   <ActivityIndicator size="small" color={colors.primary} />
                 ) : (
-                  <Ionicons name="share-outline" size={18} color={colors.textPrimary} />
+                  <Ionicons name="share-outline" size={18} color={colors.primary} />
                 )}
                 <View style={styles.dataActionInfo}>
                   <Text style={styles.dataActionTitle}>
                     {isExporting ? 'Préparation de la sauvegarde...' : 'Exporter ma collection'}
                   </Text>
-                  <Text style={styles.dataActionDesc}>Sauvegarde complète au format JSON</Text>
+                  <Text style={styles.dataActionDesc}>Fichier de sauvegarde complet (.json)</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={styles.dataActionBtn}
+                style={[styles.dataActionBtn, { borderBottomWidth: 0 }]}
                 onPress={() => setIsImportModalVisible(true)}
                 activeOpacity={0.7}
               >
-                <Ionicons name="download-outline" size={18} color={colors.textPrimary} />
+                <Ionicons name="download-outline" size={18} color={colors.primary} />
                 <View style={styles.dataActionInfo}>
                   <Text style={styles.dataActionTitle}>Importer un pack de recettes</Text>
                   <Text style={styles.dataActionDesc}>Fichier .json ou archive .zip avec photos</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
               </TouchableOpacity>
+            </View>
 
+            {/* Zone de Danger repliable pour prévenir les erreurs de manipulation */}
+            <View style={styles.dangerZoneCard}>
               <TouchableOpacity
-                style={styles.dataActionBtn}
-                onPress={handleResetDemo}
+                style={styles.dangerZoneToggleBtn}
+                onPress={() => setIsDangerZoneExpanded(!isDangerZoneExpanded)}
                 activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Afficher ou masquer les options de réinitialisation"
               >
-                <Ionicons name="refresh-outline" size={18} color={colors.danger} />
-                <View style={styles.dataActionInfo}>
-                  <Text style={[styles.dataActionTitle, { color: colors.danger }]}>
-                    Réinitialiser les recettes par défaut
-                  </Text>
-                  <Text style={styles.dataActionDesc}>Recharge le catalogue culte par défaut</Text>
+                <View style={styles.dangerZoneHeaderLeft}>
+                  <Ionicons name="warning-outline" size={18} color={colors.danger} />
+                  <View>
+                    <Text style={styles.dangerZoneTitle}>Options avancées de réinitialisation</Text>
+                    <Text style={styles.dangerZoneDesc}>
+                      {isDangerZoneExpanded
+                        ? 'Actions destructives sur vos données'
+                        : 'Recettes par défaut et remise à zéro'}
+                    </Text>
+                  </View>
                 </View>
-                <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+                <Ionicons
+                  name={isDangerZoneExpanded ? 'chevron-up' : 'chevron-down'}
+                  size={18}
+                  color={colors.danger}
+                />
               </TouchableOpacity>
 
-              {/* Suppression des recettes par défaut */}
-              <TouchableOpacity
-                style={styles.dataActionBtn}
-                onPress={handleDeleteDefaultRecipes}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="library-outline" size={18} color={colors.danger} />
-                <View style={styles.dataActionInfo}>
-                  <Text style={[styles.dataActionTitle, { color: colors.danger }]}>
-                    Supprimer les recettes par défaut
-                  </Text>
-                  <Text style={styles.dataActionDesc}>Ne garde que vos recettes personnelles</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-              </TouchableOpacity>
+              {isDangerZoneExpanded && (
+                <View style={styles.dangerZoneContent}>
+                  <TouchableOpacity
+                    style={styles.dataActionBtn}
+                    onPress={handleResetDemo}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="refresh-outline" size={18} color={colors.danger} />
+                    <View style={styles.dataActionInfo}>
+                      <Text style={[styles.dataActionTitle, { color: colors.danger }]}>
+                        Réinitialiser les recettes par défaut
+                      </Text>
+                      <Text style={styles.dataActionDesc}>Recharge le catalogue culte par défaut</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+                  </TouchableOpacity>
 
-              {/* Bouton de remise à zéro complète pour purger les tests */}
-              <TouchableOpacity
-                style={[styles.dataActionBtn, { borderBottomWidth: 0 }]}
-                onPress={handleFullFactoryReset}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="trash-bin-outline" size={18} color={colors.danger} />
-                <View style={styles.dataActionInfo}>
-                  <Text style={[styles.dataActionTitle, { color: colors.danger }]}>
-                    Remise à zéro complète (Nettoyer les tests)
-                  </Text>
-                  <Text style={styles.dataActionDesc}>
-                    Recharge recettes & lexique, vide courses, stock et planning
-                  </Text>
+                  <TouchableOpacity
+                    style={styles.dataActionBtn}
+                    onPress={handleDeleteDefaultRecipes}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="library-outline" size={18} color={colors.danger} />
+                    <View style={styles.dataActionInfo}>
+                      <Text style={[styles.dataActionTitle, { color: colors.danger }]}>
+                        Supprimer les recettes par défaut
+                      </Text>
+                      <Text style={styles.dataActionDesc}>Ne garde que vos recettes personnelles</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.dataActionBtn, { borderBottomWidth: 0 }]}
+                    onPress={handleFullFactoryReset}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="trash-bin-outline" size={18} color={colors.danger} />
+                    <View style={styles.dataActionInfo}>
+                      <Text style={[styles.dataActionTitle, { color: colors.danger }]}>
+                        Remise à zéro complète (Nettoyer les tests)
+                      </Text>
+                      <Text style={styles.dataActionDesc}>
+                        Recharge recettes & lexique, vide courses, stock et planning
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+                  </TouchableOpacity>
                 </View>
-                <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-              </TouchableOpacity>
+              )}
             </View>
           </View>
 
           {/* SECTION 6 : À PROPOS */}
           <View style={styles.aboutCard}>
+            <View style={styles.aboutBadge}>
+              <Ionicons name="shield-checkmark" size={13} color={colors.primaryDark} />
+              <Text style={styles.aboutBadgeText}>100 % Hors-ligne & Privé</Text>
+            </View>
             <Text style={styles.aboutTitle}>Papilles — Carnet de Recettes & Menus</Text>
-            <Text style={styles.aboutVersion}>Version 1.0.0 • Mobile First</Text>
+            <Text style={styles.aboutVersion}>Version 1.0.0 • React Native & Expo</Text>
             <Text style={styles.aboutPrivacy}>
-              🔒 Vos données, recettes et photos sont stockées à 100% sur votre appareil. Aucune télémétrie ni revente de données.
+              Vos données, recettes et photos sont stockées à 100% sur votre appareil. Aucune télémétrie ni revente de données.
             </Text>
           </View>
 
