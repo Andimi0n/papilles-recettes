@@ -4,7 +4,6 @@ export type Category =
   | 'Plat'
   | 'Dessert'
   | 'Apéritif'
-  | 'Petit-déjeuner'
   | 'Boisson';
 
 export type Difficulty = 'Facile' | 'Moyen' | 'Difficile';

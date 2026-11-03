@@ -29,7 +29,7 @@ const RECIPE_SCHEMA = {
     description: { type: 'STRING' },
     category: {
       type: 'STRING',
-      enum: ['Plat', 'Entrée', 'Dessert', 'Apéritif', 'Petit-déjeuner', 'Boisson'],
+      enum: ['Plat', 'Entrée', 'Dessert', 'Apéritif', 'Boisson'],
     },
     difficulty: {
       type: 'STRING',
@@ -1206,7 +1206,7 @@ export function sanitizeExtractedRecipe(raw: any): ExtractedRecipeData {
   }
 
   const validCategories: Category[] = [
-    'Plat', 'Entrée', 'Dessert', 'Apéritif', 'Petit-déjeuner', 'Boisson'
+    'Plat', 'Entrée', 'Dessert', 'Apéritif', 'Boisson'
   ];
   const validDifficulties: Difficulty[] = ['Facile', 'Moyen', 'Difficile'];
 

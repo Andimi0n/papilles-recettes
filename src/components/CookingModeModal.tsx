@@ -587,26 +587,6 @@ export const CookingModeModal: React.FC<CookingModeModalProps> = ({
 
           {/* Corps de l'étape : XXL, épuré, navigation au tap gauche/droite */}
           <View style={styles.stepBodyWrapper}>
-            {/* Indicateurs visuels latéraux discrets */}
-            {currentStepIndex > 0 && (
-              <View style={styles.floatingChevronLeft} pointerEvents="none">
-                <Ionicons name="chevron-back" size={20} color={colors.textSecondary} />
-              </View>
-            )}
-            <View
-              style={[
-                styles.floatingChevronRight,
-                currentStepIndex === steps.length - 1 && styles.floatingChevronRightFinish,
-              ]}
-              pointerEvents="none"
-            >
-              <Ionicons
-                name={currentStepIndex === steps.length - 1 ? 'checkmark' : 'chevron-forward'}
-                size={20}
-                color={currentStepIndex === steps.length - 1 ? '#FFFFFF' : colors.textSecondary}
-              />
-            </View>
-
             <ScrollView
               style={styles.stepScrollView}
               contentContainerStyle={styles.stepScrollContent}
@@ -689,6 +669,61 @@ export const CookingModeModal: React.FC<CookingModeModalProps> = ({
                 )}
               </View>
             </ScrollView>
+          </View>
+
+          {/* Navigation inférieure discrète et épurée */}
+          <View style={styles.discreetBottomBar}>
+            {currentStepIndex > 0 ? (
+              <TouchableOpacity
+                style={styles.discreetNavBtn}
+                onPress={handlePrevStep}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                activeOpacity={0.7}
+                accessibilityLabel="Étape précédente"
+              >
+                <Ionicons name="chevron-back" size={18} color={colors.textSecondary} />
+                <Text style={styles.discreetNavText}>Précédent</Text>
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.discreetNavPlaceholder} />
+            )}
+
+            <Text style={styles.discreetStepCounter}>
+              Étape {currentStepIndex + 1} / {steps.length}
+            </Text>
+
+            <TouchableOpacity
+              style={[
+                styles.discreetNavBtn,
+                currentStepIndex === steps.length - 1
+                  ? styles.discreetFinishBtn
+                  : styles.discreetNextBtn,
+              ]}
+              onPress={handleNextStep}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              activeOpacity={0.8}
+              accessibilityLabel={
+                currentStepIndex === steps.length - 1 ? 'Terminer la recette' : 'Étape suivante'
+              }
+            >
+              <Text
+                style={[
+                  styles.discreetNavText,
+                  currentStepIndex === steps.length - 1
+                    ? styles.discreetFinishText
+                    : styles.discreetNextText,
+                ]}
+              >
+                {currentStepIndex === steps.length - 1 ? 'Terminer' : 'Suivant'}
+              </Text>
+              <Ionicons
+                name={currentStepIndex === steps.length - 1 ? 'checkmark' : 'chevron-forward'}
+                size={18}
+                color={
+                  currentStepIndex === steps.length - 1 ? '#FFFFFF' : colors.primary
+                }
+              />
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -1068,39 +1103,52 @@ const styles = createDynamicStyles((colors, shadows) => ({
     minHeight: '100%',
     zIndex: 1,
   },
-  floatingChevronLeft: {
-    position: 'absolute',
-    left: 12,
-    top: '46%',
-    zIndex: 3,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.isDark ? 'rgba(30, 41, 36, 0.75)' : 'rgba(255, 255, 255, 0.85)',
-    borderWidth: 1,
-    borderColor: colors.borderLight,
+  // Navigation inférieure discrète
+  discreetBottomBar: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    ...shadows.small,
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderLight,
+    backgroundColor: colors.cardBackground,
   },
-  floatingChevronRight: {
-    position: 'absolute',
-    right: 12,
-    top: '46%',
-    zIndex: 3,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.isDark ? 'rgba(30, 41, 36, 0.75)' : 'rgba(255, 255, 255, 0.85)',
-    borderWidth: 1,
-    borderColor: colors.borderLight,
+  discreetNavBtn: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    ...shadows.small,
+    gap: 4,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    borderRadius: 10,
   },
-  floatingChevronRightFinish: {
+  discreetNavPlaceholder: {
+    width: 80,
+  },
+  discreetNavText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  discreetNextBtn: {
+    backgroundColor: colors.primaryLight,
+  },
+  discreetNextText: {
+    color: colors.primaryDark,
+    fontWeight: '700',
+  },
+  discreetFinishBtn: {
     backgroundColor: colors.primary,
-    borderColor: colors.primary,
+    paddingHorizontal: 14,
+  },
+  discreetFinishText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  discreetStepCounter: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textMuted,
   },
   // Zone de l'instruction
   stepScrollView: {

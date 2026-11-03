@@ -172,7 +172,7 @@ export function sanitizeStoredRecipe(r: any): Recipe {
     id: typeof r.id === 'string' && r.id ? r.id.slice(0, 100) : generateUniqueId('rec'),
     title: typeof r.title === 'string' && r.title ? r.title.slice(0, 200) : 'Recette sans titre',
     description: typeof r.description === 'string' ? r.description.slice(0, 2000) : '',
-    category: r.category || 'Plat',
+    category: r.category === 'Petit-déjeuner' ? 'Dessert' : (r.category || 'Plat'),
     difficulty: r.difficulty || 'Moyen',
     prepTimeMinutes: typeof r.prepTimeMinutes === 'number' && r.prepTimeMinutes >= 0 ? Math.min(1440, r.prepTimeMinutes) : 15,
     cookTimeMinutes: typeof r.cookTimeMinutes === 'number' && r.cookTimeMinutes >= 0 ? Math.min(1440, r.cookTimeMinutes) : 0,

@@ -52,19 +52,24 @@ export const ChefAiWidget: React.FC<ChefAiWidgetProps> = ({
       accessibilityRole="button"
       accessibilityLabel="Trouver 3 idées de recette avec le Chef IA"
     >
-      {/* En-tête du widget : Logo & Titre */}
+      {/* En-tête du widget : Logo, Titre & Description */}
       <View style={styles.headerRow}>
         <View style={styles.titleRow}>
           <View style={[styles.iconBox, { backgroundColor: colors.secondary + '20' }]}>
             <Ionicons name="sparkles" size={17} color={colors.secondary} />
           </View>
-          <Text style={styles.headerTitle}>Inspirations du Chef IA</Text>
+          <View style={styles.titleCol}>
+            <Text style={styles.headerTitle}>Inspirations du Chef IA</Text>
+            <Text style={styles.headerDescription}>
+              Des idées de recettes sur-mesure à partir de vos ingrédients
+            </Text>
+          </View>
         </View>
       </View>
 
       {/* Bouton d'action */}
       <View style={styles.actionBtn}>
-        <Ionicons name="bulb-outline" size={15} color="#FFFFFF" />
+        <Ionicons name="bulb-outline" size={16} color="#FACC15" />
         <Text style={styles.actionBtnText}>Trouver 3 idées de recette</Text>
         <Ionicons name="chevron-forward" size={14} color="#FFFFFF" />
       </View>
@@ -86,12 +91,15 @@ const styles = createDynamicStyles((colors, shadows) => ({
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 12,
   },
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
+    flex: 1,
+  },
+  titleCol: {
     flex: 1,
   },
   iconBox: {
@@ -105,6 +113,12 @@ const styles = createDynamicStyles((colors, shadows) => ({
     fontSize: 15,
     fontWeight: '700',
     color: colors.textPrimary,
+  },
+  headerDescription: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 2,
+    lineHeight: 16,
   },
   actionBtn: {
     flexDirection: 'row',

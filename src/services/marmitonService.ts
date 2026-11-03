@@ -144,7 +144,7 @@ export function normalizeMarmitonCategory(categoryStr?: string, title?: string):
   const text = `${categoryStr || ''} ${title || ''}`.toLowerCase();
 
   if (
-    /dessert|g[aâ]teau|tarte sucr[eé]e|tartelette|tarte tatin|tarte aux (?:pommes?|poires?|fraises?|framboises?|citrons?|abricots?)|biscuit|cr[eê]pe|gaufre|mousse|flan|confiserie|brioche|p[aâ]tisserie|chocolat|muffin|fondant|crumble|clafoutis|pain perdu|glace|sorbet|brownie|financier|macaron|madeleine|cookie|cr[eè]me br[uû]l[eé]e|tiramisu|charlotte|cake sucr[eé]/i.test(
+    /dessert|g[aâ]teau|tarte sucr[eé]e|tartelette|tarte tatin|tarte aux (?:pommes?|poires?|fraises?|framboises?|citrons?|abricots?)|biscuit|cr[eê]pe|gaufre|mousse|flan|confiserie|brioche|p[aâ]tisserie|chocolat|muffin|fondant|crumble|clafoutis|pain perdu|glace|sorbet|brownie|financier|macaron|madeleine|cookie|cr[eè]me br[uû]l[eé]e|tiramisu|charlotte|cake sucr[eé]|pancakes?|granola|porridge|muesli/i.test(
       text
     )
   ) {
@@ -162,9 +162,6 @@ export function normalizeMarmitonCategory(categoryStr?: string, title?: string):
   }
   if (/boisson|cocktail|smoothie|jus|milkshake|th[eé]|infusion|sirop/i.test(text)) {
     return 'Boisson';
-  }
-  if (/petit-d[eé]jeuner|brunch|pancake|granola/i.test(text)) {
-    return 'Petit-déjeuner';
   }
 
   return 'Plat';

@@ -264,22 +264,17 @@ export function normalizeRecipeCategory(
   const kwStr = Array.isArray(keywords) ? keywords.join(' ') : keywords || '';
   const text = `${categoryStr || ''} ${title || ''} ${kwStr}`.toLowerCase();
 
-  // 1. Petit-déjeuner / Brunch
-  if (/petit-d[eé]jeuner|brunch|granola|porridge|muesli|overnight oats|pancakes?/i.test(text)) {
-    return 'Petit-déjeuner';
-  }
-
-  // 2. Boissons & Cocktails
+  // 1. Boissons & Cocktails
   if (/boisson|cocktail|smoothie|jus|milkshake|th[eé]|infusion|sirop|drink|beverage/i.test(text)) {
     return 'Boisson';
   }
 
-  // 3. Apéritifs & Tapas
+  // 2. Apéritifs & Tapas
   if (/ap[eé]ritif|ap[eé]ro|amuse-bouche|tapas|cocktail d[iî]natoire|canap[eé]|dips?|finger food/i.test(text)) {
     return 'Apéritif';
   }
 
-  // 4. Entrées, Salades & Soupes
+  // 3. Entrées, Salades & Soupes
   if (
     /entr[eé]e|salade|soupe|velout[eé]|potage|quiche|tourte|tarte sal[eé]e|carpaccio|terrine|verrine|starter|appetizer|soup|salad/i.test(
       text
@@ -288,9 +283,9 @@ export function normalizeRecipeCategory(
     return 'Entrée';
   }
 
-  // 5. Desserts & Pâtisseries
+  // 4. Desserts & Pâtisseries
   if (
-    /dessert|g[aâ]teau|tarte sucr[eé]e|tartelette|tarte tatin|tarte aux (?:pommes?|poires?|fraises?|framboises?|citrons?|abricots?)|biscuit|cr[eê]pe|gaufre|mousse|flan|confiserie|brioche|p[aâ]tisserie|chocolat|muffin|fondant|crumble|clafoutis|pain perdu|glace|sorbet|brownie|financier|macaron|madeleine|cookie|cr[eè]me br[uû]l[eé]e|tiramisu|charlotte|cake sucr[eé]|cake aux fruits|banana bread|entremets?|sweet|cake|pie|pastry|waffle/i.test(
+    /dessert|g[aâ]teau|tarte sucr[eé]e|tartelette|tarte tatin|tarte aux (?:pommes?|poires?|fraises?|framboises?|citrons?|abricots?)|biscuit|cr[eê]pe|gaufre|mousse|flan|confiserie|brioche|p[aâ]tisserie|chocolat|muffin|fondant|crumble|clafoutis|pain perdu|glace|sorbet|brownie|financier|macaron|madeleine|cookie|cr[eè]me br[uû]l[eé]e|tiramisu|charlotte|cake sucr[eé]|cake aux fruits|banana bread|entremets?|sweet|cake|pie|pastry|waffle|granola|porridge|muesli|overnight oats|pancakes?/i.test(
       text
     )
   ) {

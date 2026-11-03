@@ -175,7 +175,7 @@ async function main() {
   assert.strictEqual(normalizeRecipeCategory('Starters', 'Salade César'), 'Entrée');
   assert.strictEqual(normalizeRecipeCategory('', 'Guacamole et chips apéritif'), 'Apéritif');
   assert.strictEqual(normalizeRecipeCategory('', 'Smoothie mangue passion'), 'Boisson');
-  assert.strictEqual(normalizeRecipeCategory('', 'Pancakes du dimanche brunch'), 'Petit-déjeuner');
+  assert.strictEqual(normalizeRecipeCategory('', 'Pancakes du dimanche brunch'), 'Dessert');
   assert.strictEqual(normalizeRecipeCategory('Plat principal', 'Boeuf bourguignon traditionnel'), 'Plat');
   assert.strictEqual(normalizeRecipeCategory('', 'Risotto aux cèpes'), 'Plat');
   console.log('✓ Normalisation sémantique fiable vers les catégories Papilles');

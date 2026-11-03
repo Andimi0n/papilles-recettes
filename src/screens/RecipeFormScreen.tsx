@@ -53,7 +53,6 @@ const CATEGORIES: Category[] = [
   'Entrée',
   'Dessert',
   'Apéritif',
-  'Petit-déjeuner',
   'Boisson',
 ];
 
