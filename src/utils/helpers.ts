@@ -530,6 +530,8 @@ export function getPlannerDaySlots(
 ): PlannerDaySlot[] {
   const todayStr = getLocalDateString(now);
   const todayDayOfWeek = getDayOfWeekFromDateString(todayStr);
+  const tomorrowStr = addDaysToDateString(todayStr, 1);
+  const tomorrowDayOfWeek = getDayOfWeekFromDateString(tomorrowStr);
 
   if (mode === 'fixed') {
     const orderedDays = getOrderedDaysOfWeek(startDay);
@@ -539,8 +541,8 @@ export function getPlannerDaySlots(
         dayName: day,
         mainLabel: day,
         tabPillLabel: day.slice(0, 3),
-        isToday: false,
-        isTomorrow: false,
+        isToday: day === todayDayOfWeek,
+        isTomorrow: day === tomorrowDayOfWeek,
         lunchKey: `${day}_lunch`,
         dinnerKey: `${day}_dinner`,
         isLunchPassed: false,

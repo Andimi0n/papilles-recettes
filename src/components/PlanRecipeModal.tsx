@@ -22,10 +22,8 @@ import { StorageService } from '../services/storageService';
 import { createDynamicStyles } from '../theme/colors';
 import { useTheme } from '../theme/ThemeContext';
 import {
-  getLocalDateString,
-  addDaysToDateString,
-  getDayOfWeekFromDateString,
-  formatShortDateFrench,
+  PlannerDaySlot,
+  getPlannerDaySlots,
   generateUniqueId,
 } from '../utils/helpers';
 
@@ -37,16 +35,7 @@ export interface PlanRecipeModalProps {
   onNavigateToPlanner?: () => void;
 }
 
-interface DaySlotData {
-  key: string;
-  dateStr: string;
-  dayName: string;
-  mainLabel: string;
-  dateLabel: string;
-  isToday: boolean;
-  isTomorrow: boolean;
-  lunchKey: string;
-  dinnerKey: string;
+interface DaySlotData extends PlannerDaySlot {
   lunchMeal?: PlannedMeal;
   dinnerMeal?: PlannedMeal;
 }
@@ -102,62 +91,31 @@ export const PlanRecipeModal: React.FC<PlanRecipeModalProps> = ({
     };
   }, [visible]);
 
-  // Grille des 7 prochains jours
+  // Grille des 7 créneaux selon la préférence de planification (fixe ou dynamique)
   const daySlots: DaySlotData[] = useMemo(() => {
-    const todayStr = getLocalDateString();
-    const slots: DaySlotData[] = [];
+    const baseSlots = getPlannerDaySlots(
+      plannerSettings.mode,
+      plannerSettings.startDay
+    );
 
-    for (let i = 0; i < 7; i++) {
-      const dateStr = addDaysToDateString(todayStr, i);
-      const dayName = getDayOfWeekFromDateString(dateStr);
-      const dateLabel = formatShortDateFrench(dateStr);
-      const isToday = i === 0;
-      const isTomorrow = i === 1;
-
-      let mainLabel: string;
-      if (isToday) {
-        mainLabel = "Aujourd'hui";
-      } else if (isTomorrow) {
-        mainLabel = 'Demain';
-      } else {
-        mainLabel = dayName;
-      }
-
-      const lunchKey =
-        plannerSettings.mode === 'dynamic'
-          ? `${dateStr}_lunch`
-          : `${dayName}_lunch`;
-      const dinnerKey =
-        plannerSettings.mode === 'dynamic'
-          ? `${dateStr}_dinner`
-          : `${dayName}_dinner`;
-
+    return baseSlots.map((slot) => {
       const lunchMeal =
-        weeklyPlan[lunchKey] ||
-        weeklyPlan[`${dateStr}_lunch`] ||
-        weeklyPlan[`${dayName}_lunch`];
-      const dinnerMeal =
-        weeklyPlan[dinnerKey] ||
-        weeklyPlan[`${dateStr}_dinner`] ||
-        weeklyPlan[`${dayName}_dinner`];
+        weeklyPlan[slot.lunchKey] ||
+        (slot.dateStr ? weeklyPlan[`${slot.dateStr}_lunch`] : undefined) ||
+        weeklyPlan[`${slot.dayName}_lunch`];
 
-      slots.push({
-        key: `slot_${dateStr}_${i}`,
-        dateStr,
-        dayName,
-        mainLabel,
-        dateLabel,
-        isToday,
-        isTomorrow,
-        lunchKey,
-        dinnerKey,
+      const dinnerMeal =
+        weeklyPlan[slot.dinnerKey] ||
+        (slot.dateStr ? weeklyPlan[`${slot.dateStr}_dinner`] : undefined) ||
+        weeklyPlan[`${slot.dayName}_dinner`];
+
+      return {
+        ...slot,
         lunchMeal,
         dinnerMeal,
-      });
-    }
-
-    return slots;
-  }, [plannerSettings.mode, weeklyPlan]);
+      };
+    });
+  }, [plannerSettings.mode, plannerSettings.startDay, weeklyPlan]);
 
   const planMealForSlot = async (
     slot: DaySlotData,
@@ -347,7 +305,9 @@ export const PlanRecipeModal: React.FC<PlanRecipeModalProps> = ({
             <View>
               <Text style={styles.headerTitle}>Ajouter au menu</Text>
               <Text style={styles.headerSubtitle}>
-                Choisissez un créneau pour les 7 prochains jours
+                {plannerSettings.mode === 'dynamic'
+                  ? 'Créneaux des 7 prochains jours'
+                  : `Menu de la semaine (dès ${plannerSettings.startDay})`}
               </Text>
             </View>
           </View>
@@ -421,7 +381,25 @@ export const PlanRecipeModal: React.FC<PlanRecipeModalProps> = ({
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
           >
-            <Text style={styles.sectionSubtitle}>Créneaux des 7 prochains jours</Text>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionSubtitle}>
+                {plannerSettings.mode === 'dynamic'
+                  ? '7 prochains jours glissants'
+                  : `Semaine fixe (${plannerSettings.startDay} à Dimanche)`}
+              </Text>
+              <View style={styles.modeIndicatorBadge}>
+                <Ionicons
+                  name={plannerSettings.mode === 'dynamic' ? 'flash' : 'calendar'}
+                  size={12}
+                  color={colors.primary}
+                />
+                <Text style={styles.modeIndicatorBadgeText}>
+                  {plannerSettings.mode === 'dynamic'
+                    ? 'Dynamique'
+                    : `Fixe • ${plannerSettings.startDay}`}
+                </Text>
+              </View>
+            </View>
 
             {daySlots.map((slot) => (
               <View key={slot.key} style={styles.dayCard}>
@@ -442,7 +420,15 @@ export const PlanRecipeModal: React.FC<PlanRecipeModalProps> = ({
                         {slot.mainLabel}
                       </Text>
                     </View>
-                    <Text style={styles.dayDateText}>• {slot.dateLabel}</Text>
+                    {slot.dateLabel ? (
+                      <Text style={styles.dayDateText}>• {slot.dateLabel}</Text>
+                    ) : slot.isToday ? (
+                      <Text style={[styles.dayDateText, styles.dayDateTodayText]}>
+                        • Aujourd’hui
+                      </Text>
+                    ) : slot.isTomorrow ? (
+                      <Text style={styles.dayDateText}>• Demain</Text>
+                    ) : null}
                   </View>
 
                   <Text style={styles.dayOccupiedCount}>
@@ -602,12 +588,33 @@ const styles = createDynamicStyles((colors, shadows) => ({
     paddingTop: 8,
     paddingBottom: 32,
   },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+    marginHorizontal: 2,
+  },
   sectionSubtitle: {
     fontSize: 13,
     fontWeight: '600',
     color: colors.textSecondary,
-    marginBottom: 10,
-    marginLeft: 2,
+  },
+  modeIndicatorBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.primaryLight,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.primary + '30',
+  },
+  modeIndicatorBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.primary,
   },
   dayCard: {
     backgroundColor: colors.cardBackground,
@@ -652,6 +659,10 @@ const styles = createDynamicStyles((colors, shadows) => ({
   dayDateText: {
     fontSize: 12,
     color: colors.textSecondary,
+  },
+  dayDateTodayText: {
+    color: colors.primary,
+    fontWeight: '600',
   },
   dayOccupiedCount: {
     fontSize: 11.5,
