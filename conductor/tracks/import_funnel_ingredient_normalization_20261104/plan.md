@@ -58,10 +58,10 @@
 
 ## Phase 4 : Validation Globale sur le Pack Réel PhotoRecette (562 Recettes)
 
-- [ ] Task 4.1 : Exécuter le banc d'analyse sur l'ensemble du corpus PhotoRecette
-    - [ ] Lancer le script de vérification sur les 562 fichiers de recettes
-    - [ ] Valider que le taux de couverture global dépasse 95% des occurrences
-    - [ ] Contrôler manuellement un échantillon de 50 résolutions pour s'assurer de l'absence totale de faux amis
-- [ ] Task 4.2 : Phase Verification & Checkpoint (Refer to workflow.md)
-    - [ ] Exécuter la totalité des tests de non-régression du projet (`testStockMatcher.js`, `testShoppingAggregator.js`, `testAllergenMatcher.js`)
-    - [ ] Valider la conformité finale du projet
+- [x] Task 4.1 : Exécuter le banc d'analyse sur l'ensemble du corpus PhotoRecette [6fb8ce0]
+    - [x] Lancer le script de vérification sur les 562 fichiers de recettes
+    - [x] Valider que le taux de couverture global dépasse 95% des occurrences
+    - [x] Contrôler manuellement un échantillon de 50 résolutions pour s'assurer de l'absence totale de faux amis
+- [x] Task 4.2 : Phase Verification & Checkpoint (Refer to workflow.md) [6fb8ce0]
+    - [x] Exécuter la totalité des tests de non-régression du projet (`testStockMatcher.js`, `testShoppingAggregator.js`, `testAllergenMatcher.js`)
+    - [x] Valider la conformité finale du projet
