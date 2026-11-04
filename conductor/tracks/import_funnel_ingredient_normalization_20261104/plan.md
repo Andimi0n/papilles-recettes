@@ -42,9 +42,9 @@
 
 ## Phase 3 : Intégration du Reporting d'Import & Fluidité UX (TDD)
 
-- [ ] Task 3.1 : Rédiger les tests unitaires pour les statistiques d'import dans `storageService.ts` (Red Phase)
-    - [ ] Tester que `mergeRecipePack` calcule et retourne `totalIngredients`, `canonicalIngredientsCount` et `unmatchedIngredientsCount`
-    - [ ] Vérifier l'échec initial du test (Red)
+- [x] Task 3.1 : Rédiger les tests unitaires pour les statistiques d'import dans `storageService.ts` (Red Phase) [2fa6b2e]
+    - [x] Tester que `mergeRecipePack` calcule et retourne `totalIngredients`, `canonicalIngredientsCount` et `unmatchedIngredientsCount`
+    - [x] Vérifier l'échec initial du test (Red)
 - [ ] Task 3.2 : Intégrer le calcul des statistiques de couverture dans `StorageService.mergeRecipePack` (Green Phase)
     - [ ] Collecter les métriques de normalisation lors du parcours des ingrédients dans `mergeRecipePack`
     - [ ] Exposer les compteurs dans le résultat retourné par le service
