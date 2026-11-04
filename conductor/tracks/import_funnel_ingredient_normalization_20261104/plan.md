@@ -18,9 +18,9 @@
     - [x] Implémenter la décomposition des alternatives en amont de la résolution canonique
     - [x] Relier le premier canonicalId valide sans altérer le `name` original
     - [x] Exécuter les tests unitaires et valider le passage au vert
-- [ ] Task 1.5 : Phase Verification & Checkpoint (Refer to workflow.md)
-    - [ ] Vérifier la couverture de code (>80%) sur les modifications de `ingredientNormalizer.ts`
-    - [ ] Valider l'absence de régression sur `scripts/testIngredientNormalizer.js`
+- [x] Task 1.5 : Phase Verification & Checkpoint (Refer to workflow.md) [44a3140]
+    - [x] Vérifier la couverture de code (>80%) sur les modifications de `ingredientNormalizer.ts`
+    - [x] Valider l'absence de régression sur `scripts/testIngredientNormalizer.js`
 
 ## Phase 2 : Enrichissement du Lexique Canonique & Alias Fréquents (TDD)
 
