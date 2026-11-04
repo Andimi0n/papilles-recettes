@@ -175,6 +175,8 @@ function cleanRawIngredientString(raw: string): {
 interface VocabLookupIndex {
   exactMap: Map<string, CanonicalIngredient>;
   stemMap: Map<string, CanonicalIngredient>;
+  /** Alias pré-normalisés, dans l'ordre du lexique (évite normalizeString() par alias à chaque recherche). */
+  aliasEntries: { item: CanonicalIngredient; alias: string; aNorm: string }[];
 }
 
 let CACHED_VOCAB_REF: CanonicalIngredient[] | null = null;
@@ -187,6 +189,7 @@ function getVocabLookupIndex(vocabList: CanonicalIngredient[]): VocabLookupIndex
 
   const exactMap = new Map<string, CanonicalIngredient>();
   const stemMap = new Map<string, CanonicalIngredient>();
+  const aliasEntries: VocabLookupIndex['aliasEntries'] = [];
 
   vocabList.forEach((item) => {
     // 1. Nom canonique et normalisé
@@ -203,6 +206,7 @@ function getVocabLookupIndex(vocabList: CanonicalIngredient[]): VocabLookupIndex
     // 2. Alias
     (item.aliases || []).forEach((alias) => {
       const aNorm = normalizeString(alias);
+      aliasEntries.push({ item, alias, aNorm });
       if (aNorm) {
         exactMap.set(aNorm, item);
         stemMap.set(stemPhrase(aNorm), item);
@@ -211,7 +215,7 @@ function getVocabLookupIndex(vocabList: CanonicalIngredient[]): VocabLookupIndex
   });
 
   CACHED_VOCAB_REF = vocabList;
-  CACHED_LOOKUP_INDEX = { exactMap, stemMap };
+  CACHED_LOOKUP_INDEX = { exactMap, stemMap, aliasEntries };
   return CACHED_LOOKUP_INDEX;
 }
 
@@ -487,26 +491,23 @@ function resolveIngredientName(raw: {
   }
 
   // 4.3 Recherche dans les alias composés (couverture >= 70%)
-  for (const item of vocabList) {
-    for (const alias of item.aliases) {
-      const aNorm = normalizeString(alias);
-      if (cleanedNorm.includes(aNorm) || aNorm.includes(cleanedNorm)) {
-        const minLen = Math.min(aNorm.length, cleanedNorm.length);
-        const maxLen = Math.max(aNorm.length, cleanedNorm.length);
-        if (minLen / maxLen >= 0.7) {
-          return saveCache({
-            name: item.canonicalName,
-            quantityMode: 'merge',
-            extractedQuantity: mergedQuantity,
-            extractedUnit: mergedUnit,
-            originalName,
-            wasNormalized: true,
-            canonicalId: item.id,
-            matchedAlias: alias,
-            isPantryStaple: resolveStaple(item),
-            isOptional: resolvedOptional,
-          });
-        }
+  for (const { item, alias, aNorm } of lookupIndex.aliasEntries) {
+    if (cleanedNorm.includes(aNorm) || aNorm.includes(cleanedNorm)) {
+      const minLen = Math.min(aNorm.length, cleanedNorm.length);
+      const maxLen = Math.max(aNorm.length, cleanedNorm.length);
+      if (minLen / maxLen >= 0.7) {
+        return saveCache({
+          name: item.canonicalName,
+          quantityMode: 'merge',
+          extractedQuantity: mergedQuantity,
+          extractedUnit: mergedUnit,
+          originalName,
+          wasNormalized: true,
+          canonicalId: item.id,
+          matchedAlias: alias,
+          isPantryStaple: resolveStaple(item),
+          isOptional: resolvedOptional,
+        });
       }
     }
   }
@@ -517,7 +518,6 @@ function resolveIngredientName(raw: {
     let bestDistance = Infinity;
 
     for (const item of vocabList) {
-      const dist = levenshteinDistance(item.normalizedName, cleanedNorm);
       // Garde-fous renforcés :
       // - 4 lettres : distance 1 autorisée UNIQUEMENT si la première lettre est identique
       // - 5 à 7 lettres : distance 1 autorisée
@@ -532,6 +532,7 @@ function resolveIngredientName(raw: {
         maxAllowed = 1;
       }
 
+      const dist = levenshteinDistance(item.normalizedName, cleanedNorm);
       if (maxAllowed > 0 && dist <= maxAllowed && dist < bestDistance) {
         bestDistance = dist;
         bestMatch = item;
