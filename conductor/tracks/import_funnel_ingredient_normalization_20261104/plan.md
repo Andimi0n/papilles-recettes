@@ -28,17 +28,17 @@
     - [x] Définir les assertions vérifiant la présence, les rayons et les allergènes des ~35 aliments génériques
     - [x] Définir les assertions sur la résolution des alias fréquents (`jeunes pousses d'épinard`, `crottin de chèvre`, `pommes de terre grenailles`...)
     - [x] Vérifier l'échec attendu des tests (Red)
-- [ ] Task 2.2 : Ajouter les ~35 aliments génériques manquants dans `canonicalVocabulary.ts` (Green Phase)
-    - [ ] Ajouter les entrées pour Spätzle, Tortilla, Polenta, Nouilles ramen, Nouilles de riz
-    - [ ] Ajouter les entrées pour Chou-rave, Jeunes pousses, Mesclun, Pousses d'épinard, Betterave jaune, Radis red meat, Baies roses
-    - [ ] Ajouter les entrées pour Falafel, Paupiette, Crépinette, Chair à saucisse, Panko, Pâte de curry
-    - [ ] Configurer les rayons par défaut, densités et familles d'allergènes INCO pour chaque nouvel ingrédient
-- [ ] Task 2.3 : Enrichir les alias sur les ingrédients canoniques existants dans `canonicalVocabulary.ts` (Green Phase)
-    - [ ] Compléter les alias pour Épinard, Pomme de terre, Feta, Yaourt, Fromage de chèvre, Cacahuète
-    - [ ] Exécuter la suite de validation du vocabulaire et confirmer le passage au vert
-- [ ] Task 2.4 : Phase Verification & Checkpoint (Refer to workflow.md)
-    - [ ] Lancer `npm run validate:lexicon` et vérifier l'unicité stricte des identifiants et alias
-    - [ ] Vérifier qu'aucun alias interdit isolé n'est introduit
+- [x] Task 2.2 : Ajouter les ~35 aliments génériques manquants dans `canonicalVocabulary.ts` (Green Phase) [5dfc774]
+    - [x] Ajouter les entrées pour Spätzle, Tortilla, Polenta, Nouilles ramen, Nouilles de riz
+    - [x] Ajouter les entrées pour Chou-rave, Jeunes pousses, Mesclun, Pousses d'épinard, Betterave jaune, Radis red meat, Baies roses
+    - [x] Ajouter les entrées pour Falafel, Paupiette, Crépinette, Chair à saucisse, Panko, Pâte de curry
+    - [x] Configurer les rayons par défaut, densités et familles d'allergènes INCO pour chaque nouvel ingrédient
+- [x] Task 2.3 : Enrichir les alias sur les ingrédients canoniques existants dans `canonicalVocabulary.ts` (Green Phase) [5dfc774]
+    - [x] Compléter les alias pour Épinard, Pomme de terre, Feta, Yaourt, Fromage de chèvre, Cacahuète
+    - [x] Exécuter la suite de validation du vocabulaire et confirmer le passage au vert
+- [x] Task 2.4 : Phase Verification & Checkpoint (Refer to workflow.md) [5dfc774]
+    - [x] Lancer `npm run validate:lexicon` et vérifier l'unicité stricte des identifiants et alias
+    - [x] Vérifier qu'aucun alias interdit isolé n'est introduit
 
 ## Phase 3 : Intégration du Reporting d'Import & Fluidité UX (TDD)
 
