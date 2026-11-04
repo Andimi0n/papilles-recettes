@@ -1,0 +1,8 @@
+{
+  "track_id": "import_funnel_ingredient_normalization_20261104",
+  "type": "feature",
+  "status": "new",
+  "created_at": "2026-11-04T15:35:00+01:00",
+  "updated_at": "2026-11-04T15:35:00+01:00",
+  "description": "Entonnoir à 3 niveaux pour la normalisation et l'import d'ingrédients culinaires non canoniques"
+}

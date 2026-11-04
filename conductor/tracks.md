@@ -10,6 +10,10 @@
 - [x] **Track: Optimisation des performances globales de l'application (React 19, FlashList, Cache mémoire SQLite, Compression Photos HD, StockMatcher, Splash Screen)**
   *Link: [./tracks/app_performance_optimization_20261102/index.md](./tracks/app_performance_optimization_20261102/index.md)*
 
+---
+- [ ] **Track: Entonnoir d'ingrédients à 3 niveaux pour la normalisation et l'import de recettes culinaires**
+  *Link: [./tracks/import_funnel_ingredient_normalization_20261104/index.md](./tracks/import_funnel_ingredient_normalization_20261104/index.md)*
+
 
 
 ## Archived Tracks
