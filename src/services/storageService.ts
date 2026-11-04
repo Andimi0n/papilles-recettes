@@ -39,6 +39,7 @@ export interface RecipePackMergeResult {
   totalIngredientsCount?: number;
   canonicalIngredientsCount?: number;
   unmatchedIngredientsCount?: number;
+  uniqueUnmatchedIngredientsCount?: number;
   unmatchedIngredientNames?: string[];
   error?: string;
 }
@@ -2604,6 +2605,7 @@ export const StorageService = {
         totalIngredientsCount,
         canonicalIngredientsCount,
         unmatchedIngredientsCount,
+        uniqueUnmatchedIngredientsCount: unmatchedIngredientNames.size,
         unmatchedIngredientNames: Array.from(unmatchedIngredientNames),
       };
     } catch (err: any) {
@@ -2616,6 +2618,7 @@ export const StorageService = {
         totalIngredientsCount: 0,
         canonicalIngredientsCount: 0,
         unmatchedIngredientsCount: 0,
+        uniqueUnmatchedIngredientsCount: 0,
         unmatchedIngredientNames: [],
         error: err?.message || 'Erreur inattendue lors de la fusion du pack.',
       };

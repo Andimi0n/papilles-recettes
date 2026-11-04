@@ -172,9 +172,11 @@ async function main() {
     assert.strictEqual(typeof richRes.totalIngredientsCount, 'number', 'totalIngredientsCount doit être un nombre');
     assert.strictEqual(typeof richRes.canonicalIngredientsCount, 'number', 'canonicalIngredientsCount doit être un nombre');
     assert.strictEqual(typeof richRes.unmatchedIngredientsCount, 'number', 'unmatchedIngredientsCount doit être un nombre');
+    assert.strictEqual(typeof richRes.uniqueUnmatchedIngredientsCount, 'number', 'uniqueUnmatchedIngredientsCount doit être un nombre');
     assert.strictEqual(richRes.totalIngredientsCount, 6, '6 ingrédients dans le pack');
     assert.strictEqual(richRes.canonicalIngredientsCount, 6, 'Les 6 ingrédients du risotto sont canoniques');
     assert.strictEqual(richRes.unmatchedIngredientsCount, 0, '0 ingrédient non canonique');
+    assert.strictEqual(richRes.uniqueUnmatchedIngredientsCount, 0, '0 ingrédient unique non canonique');
 
     const recipesNow = await StorageService.getRecipes();
     const risotto = recipesNow.find((r) => r.title === 'Risotto crémeux aux champignons');

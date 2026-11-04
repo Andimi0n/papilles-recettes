@@ -146,6 +146,7 @@ const SettingsScreenComponent: React.FC<SettingsScreenProps> = ({
   // Vocabulaire & Lexique Ingrédients
   const [vocabList, setVocabList] = useState<CanonicalIngredient[]>([]);
   const [isVocabModalVisible, setIsVocabModalVisible] = useState(false);
+  const [vocabInitialSearchQuery, setVocabInitialSearchQuery] = useState('');
   const [vocabCount, setVocabCount] = useState(0);
 
   // Humeurs du Chef IA
@@ -591,32 +592,38 @@ const SettingsScreenComponent: React.FC<SettingsScreenProps> = ({
   const showPackImportSuccessAlert = (result: any) => {
     const totalIng = result.totalIngredientsCount || 0;
     const canonIng = result.canonicalIngredientsCount || 0;
-    const unmatchedIng = result.unmatchedIngredientsCount || 0;
+    const unmatchedCount = result.uniqueUnmatchedIngredientsCount ?? (result.unmatchedIngredientNames?.length ?? result.unmatchedIngredientsCount ?? 0);
     const coverage = totalIng > 0 ? Math.round((canonIng / totalIng) * 100) : 100;
+    const unmatchedNames: string[] = result.unmatchedIngredientNames || [];
 
     let msg = `🎉 ${result.addedCount} nouvelle(s) recette(s) ajoutée(s)\n🔄 ${result.updatedCount} recette(s) mise(s) à jour\n🖼️ ${result.photosCount} photo(s) liée(s)`;
     if (totalIng > 0) {
       msg += `\n📊 ${coverage}% des ingrédients reconnus canoniquement`;
     }
-    if (unmatchedIng > 0) {
-      msg += `\nℹ️ ${unmatchedIng} ingrédient(s) spécifique(s) importé(s) hors lexique (kits d'épices...)`;
+    if (unmatchedCount > 0) {
+      const sampleNames = unmatchedNames.slice(0, 3).join(', ');
+      msg += `\nℹ️ ${unmatchedCount} ingrédient(s) unique(s) importé(s) hors lexique${sampleNames ? ` (${sampleNames}${unmatchedNames.length > 3 ? '...' : ''})` : ''}`;
     }
 
     const buttons: any[] = [];
-    if (unmatchedIng > 0) {
+    if (unmatchedCount > 0) {
       buttons.push({
         text: 'Gérer le lexique',
         onPress: () => {
           setIsImportModalVisible(false);
           setImportJsonText('');
           if (onRecipesReloadNeeded) onRecipesReloadNeeded();
-          setIsVocabModalVisible(true);
+          setVocabInitialSearchQuery(unmatchedNames[0] || '');
+          // Temporisation pour éviter le conflit de présentation simultanée de Modal sous iOS
+          setTimeout(() => {
+            setIsVocabModalVisible(true);
+          }, 350);
         },
       });
     }
     buttons.push({
       text: 'Super !',
-      style: unmatchedIng > 0 ? 'cancel' : 'default',
+      style: unmatchedCount > 0 ? 'cancel' : 'default',
       onPress: () => {
         setIsImportModalVisible(false);
         setImportJsonText('');
@@ -2006,8 +2013,10 @@ const SettingsScreenComponent: React.FC<SettingsScreenProps> = ({
       {/* Modal de gestion du lexique & vocabulaire des ingrédients */}
       <VocabularyManagerModal
         visible={isVocabModalVisible}
+        initialSearchQuery={vocabInitialSearchQuery}
         onClose={() => {
           setIsVocabModalVisible(false);
+          setVocabInitialSearchQuery('');
           loadInitialSettings();
         }}
       />

@@ -25,17 +25,26 @@ import { normalizeString } from '../utils/helpers';
 interface VocabularyManagerModalProps {
   visible: boolean;
   onClose: () => void;
+  initialSearchQuery?: string;
 }
 
 export const VocabularyManagerModal: React.FC<VocabularyManagerModalProps> = ({
   visible,
   onClose,
+  initialSearchQuery,
 }) => {
   const { colors, isDark } = useTheme();
 
   const [items, setItems] = useState<CanonicalIngredient[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(initialSearchQuery || '');
+  const [prevInitialQuery, setPrevInitialQuery] = useState(initialSearchQuery);
   const [selectedAisle, setSelectedAisle] = useState<string>('Tous');
+
+  // Ajustement d'état lors du changement de prop initialSearchQuery (pattern React officiel)
+  if (initialSearchQuery !== prevInitialQuery) {
+    setPrevInitialQuery(initialSearchQuery);
+    setSearchQuery(initialSearchQuery || '');
+  }
 
   // État du modal d'édition / création
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
