@@ -85,6 +85,44 @@ async function main() {
     assert.strictEqual(normPatatesSlash.name, 'patates douces / pommes de terre', 'le libellé complet doit être conservé pour l\'affichage');
     console.log('✓ "patates douces / pommes de terre" -> conservé et lié à Patate douce');
 
+    // =========================================================================
+    // SECTION 4 : Nouveaux aliments canoniques & enrichissement d'alias (Phase 2)
+    // =========================================================================
+    console.log('\n--- Test 4 : Résolution des nouveaux aliments canoniques ajoutés ---');
+
+    const normSpatzle = normalizeIngredient({ name: 'spätzle' });
+    assert.ok(normSpatzle.canonicalId, 'spätzle doit avoir un canonicalId');
+    console.log('✓ "spätzle" résolu vers', normSpatzle.name);
+
+    const normChouRave = normalizeIngredient({ name: 'chou-rave' });
+    assert.ok(normChouRave.canonicalId, 'chou-rave doit avoir un canonicalId');
+    console.log('✓ "chou-rave" résolu vers', normChouRave.name);
+
+    const normFalafel = normalizeIngredient({ name: 'falafels' });
+    assert.ok(normFalafel.canonicalId, 'falafels doit avoir un canonicalId');
+    console.log('✓ "falafels" résolu vers', normFalafel.name);
+
+    const normPanko = normalizeIngredient({ name: 'chapelure panko' });
+    assert.ok(normPanko.canonicalId, 'chapelure panko doit avoir un canonicalId');
+    console.log('✓ "chapelure panko" résolu vers', normPanko.name);
+
+    const normBaiesRoses = normalizeIngredient({ name: 'baies roses' });
+    assert.ok(normBaiesRoses.canonicalId, 'baies roses doit avoir un canonicalId');
+    console.log('✓ "baies roses" résolu vers', normBaiesRoses.name);
+
+    const normJeunesPoussesEpinards = normalizeIngredient({ name: "jeunes pousses d'épinards" });
+    assert.ok(normJeunesPoussesEpinards.canonicalId, "jeunes pousses d'épinards doit avoir un canonicalId");
+    console.log('✓ "jeunes pousses d\'épinards" résolu vers', normJeunesPoussesEpinards.name);
+
+    const normPommesGrenailles = normalizeIngredient({ name: 'pommes de terre grenailles' });
+    assert.strictEqual(normPommesGrenailles.canonicalId, 'ing_canon_pomme_de_terre');
+    console.log('✓ "pommes de terre grenailles" résolu vers Pomme de terre');
+
+    const normYaourtGrecque = normalizeIngredient({ name: 'yaourt à la grecque' });
+    assert.strictEqual(normYaourtGrecque.canonicalId, 'ing_canon_yaourt');
+    console.log('✓ "yaourt à la grecque" résolu vers Yaourt');
+
+
 
     console.log('\n🎉 TOUS LES TESTS DE LA SECTION ONT RÉUSSI !');
     success = true;
