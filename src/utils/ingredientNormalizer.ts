@@ -82,13 +82,15 @@ const QUALIFIER_PATTERNS: RegExp[] = [
   /\bal\s+dente\b/gi,
   /\bfarcie(?:s)?\b/gi,
   /\bde\s+saison\b/gi,
-  // Labels officiels, certifications et affinages
+  // Labels officiels, certifications, affinages et modes de préparation
   /\b(?:aop|a\.o\.p\.|igp|i\.g\.p\.|aoc|a\.o\.c\.)\b/gi,
   /\b(?:bio|biologique|biologiques)\b/gi,
-  /\bau\s+lait\s+cru\b/gi,
-  /\bau\s+lait\s+pasteurise\b/gi,
+  /\bpre-?cuit(?:e|s|es)?\b/gi,
+  /\b(?:au\s+lait\s+)?pasteurise(?:e|s|es)?\b/gi,
+  /\b(?:au\s+lait\s+)?cru(?:e|s|es)?\b/gi,
   /\bfermier(?:e|s|es)?\b/gi,
-  /\bde\s+votre\s+choix\b/gi,
+  /\bde\s+(?:votre|notre|mon)\s+choix\b/gi,
+  /\bau\s+choix\b/gi,
   /\bnon\s+sale(?:e|s|es)?\b/gi,
 ];
 
@@ -624,7 +626,7 @@ function resolveIngredientName(raw: {
 
     if (bestMatch) {
       // Garde-fous spécifiques contre faux-amis culinaires
-      if (cleanedNorm === 'pulpe' && bestMatch.id === 'ing_canon_poulpe') {
+      if ((cleanedNorm === 'pulpe' || cleanedNorm === 'pulpes' || stemPhrase(cleanedNorm) === 'pulp') && bestMatch.id === 'ing_canon_poulpe') {
         bestMatch = null;
       }
     }

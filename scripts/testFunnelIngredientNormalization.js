@@ -49,6 +49,22 @@ async function main() {
     assert.strictEqual(normVinaigreChoix.canonicalId, 'ing_canon_vinaigre', 'vinaigre de votre choix doit résoudre vers ing_canon_vinaigre');
     console.log('✓ "vinaigre de votre choix" résolu vers Vinaigre');
 
+    const normLaitPasteurise = normalizeIngredient({ name: 'lait pasteurisé' });
+    assert.strictEqual(normLaitPasteurise.canonicalId, 'ing_canon_lait', 'lait pasteurisé doit résoudre vers ing_canon_lait');
+    console.log('✓ "lait pasteurisé" résolu vers Lait');
+
+    const normLaitCru = normalizeIngredient({ name: 'lait cru' });
+    assert.strictEqual(normLaitCru.canonicalId, 'ing_canon_lait', 'lait cru doit résoudre vers ing_canon_lait');
+    console.log('✓ "lait cru" résolu vers Lait');
+
+    const normFromageLaitCru = normalizeIngredient({ name: 'fromage au lait cru' });
+    assert.strictEqual(normFromageLaitCru.canonicalId, 'ing_canon_fromage', 'fromage au lait cru doit résoudre vers ing_canon_fromage');
+    console.log('✓ "fromage au lait cru" résolu vers Fromage');
+
+    const normDemiBaguettePrecuite = normalizeIngredient({ name: 'demi baguette précuite' });
+    assert.strictEqual(normDemiBaguettePrecuite.canonicalId, 'ing_canon_pain', 'demi baguette précuite doit résoudre vers ing_canon_pain');
+    console.log('✓ "demi baguette précuite" résolu vers Pain');
+
     // =========================================================================
     // SECTION 2 : Garde-fous Anti-Faux-Amis
     // =========================================================================

@@ -169,6 +169,29 @@ async function main() {
   assert.strictEqual(briocheCheck.allergenFamily, 'oeufs');
   console.log('✓ Brioche détectée avec allergène secondaire oeufs');
 
+  const spatzleEggsCheck = isIngredientAllergen('Spätzle', preparedEggs);
+  assert.strictEqual(spatzleEggsCheck.isAllergen, true, 'Spätzle doit déclencher l\'allergie oeufs (secondaire)');
+  assert.strictEqual(spatzleEggsCheck.allergenFamily, 'oeufs');
+  console.log('✓ Spätzle détecté avec allergène secondaire oeufs');
+
+  const preparedMilk = prepareUserAllergens([
+    { id: 'l1', name: 'Lait', allergenFamily: 'lait', addedAt: '' },
+  ]);
+  const pralinoiseMilkCheck = isIngredientAllergen('Pralinoise', preparedMilk);
+  assert.strictEqual(pralinoiseMilkCheck.isAllergen, true, 'Pralinoise doit déclencher l\'allergie lait (secondaire)');
+  assert.strictEqual(pralinoiseMilkCheck.allergenFamily, 'lait');
+  console.log('✓ Pralinoise détectée avec allergène secondaire lait');
+
+  const crepesDentellesMilkCheck = isIngredientAllergen('Crêpes dentelles', preparedMilk);
+  assert.strictEqual(crepesDentellesMilkCheck.isAllergen, true, 'Crêpes dentelles doit déclencher l\'allergie lait (secondaire)');
+  assert.strictEqual(crepesDentellesMilkCheck.allergenFamily, 'lait');
+  console.log('✓ Crêpes dentelles détectées avec allergène secondaire lait');
+
+  const fromageLaitCruCheck = isIngredientAllergen('Fromage au lait cru', preparedMilk);
+  assert.strictEqual(fromageLaitCruCheck.isAllergen, true, 'Fromage au lait cru doit déclencher l\'allergie lait');
+  assert.strictEqual(fromageLaitCruCheck.allergenFamily, 'lait');
+  console.log('✓ Fromage au lait cru détecté avec allergène lait');
+
   // =========================================================================
   // TEST SECTION 5 : Indexation O(1) et Stop-Words culinaires
   // =========================================================================

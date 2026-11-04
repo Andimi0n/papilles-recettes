@@ -113,7 +113,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
   {
     name: 'Concombre',
     aisle: 'Fruits & Légumes',
-    aliases: ['concombres', 'concombre epluche', 'tranches de concombre', 'concombre noa'],
+    aliases: ['concombres', 'concombre epluche', 'tranches de concombre'],
   },
   {
     name: 'Brocoli',
@@ -648,6 +648,12 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
     allergen: 'lait',
   },
   {
+    name: 'Fromage',
+    aisle: 'Produits Frais & Crèmerie',
+    aliases: ['fromages', 'fromage au choix', 'tranche de fromage', 'tranches de fromage', 'fromage en tranche', 'fromage au lait cru', 'fromage au lait pasteurise'],
+    allergen: 'lait',
+  },
+  {
     name: 'Parmesan',
     aisle: 'Produits Frais & Crèmerie',
     aliases: ['parmesan rape', 'parmigiano', 'parmigiano reggiano', 'grana padano', 'copeaux de parmesan'],
@@ -724,6 +730,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
     name: 'Falafel',
     aisle: 'Produits Frais & Crèmerie',
     aliases: ['falafels', 'boulettes de pois chiches'],
+    secondaryAllergens: ['sesame'],
   },
   {
     name: 'Fromage frais',
@@ -1308,6 +1315,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
     aisle: 'Épicerie & Condiments',
     aliases: ['chocolat pralinoise', 'tablette pralinoise'],
     allergen: 'fruits_a_coque',
+    secondaryAllergens: ['lait'],
   },
   {
     name: 'Purée de pommes de terre',
@@ -2134,6 +2142,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
     aisle: 'Boulangerie & Pâtisserie',
     aliases: ['crepes dentelles', 'gavottes', 'crepe dentelle'],
     allergen: 'gluten',
+    secondaryAllergens: ['lait'],
   },
   {
     name: 'Pain d\'épices',
@@ -2144,7 +2153,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
   {
     name: 'Pain',
     aisle: 'Boulangerie & Pâtisserie',
-    aliases: ['baguette', 'pain de campagne', 'pain frais', 'tranches de pain', 'tartines de pain', 'croutons', 'ciabatta', 'pain ciabatta', 'demi baguette', 'demi baguette precuite', 'demi-baguette precuite'],
+    aliases: ['baguette', 'pain de campagne', 'pain frais', 'tranches de pain', 'tartines de pain', 'croutons', 'ciabatta', 'pain ciabatta', 'demi baguette'],
     allergen: 'gluten',
   },
   {
@@ -2316,7 +2325,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
   {
     name: 'Cognac',
     aisle: 'Boissons',
-    aliases: ['armagnac', 'calvados', 'grand marnier', 'cointreau', 'kirsch', 'amaretto', 'marsala', 'porto', 'madere', 'noilly prat', 'vermouth', 'liqueur d amande', 'liqueur d amandes'],
+    aliases: ['armagnac', 'calvados', 'grand marnier', 'cointreau', 'kirsch', 'amaretto', 'marsala', 'porto', 'madere', 'noilly prat', 'vermouth'],
   },
   {
     name: 'Pastis',
