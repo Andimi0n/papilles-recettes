@@ -494,6 +494,7 @@ function AppContent({ initialData }: AppContentProps) {
               onUpdateRating={handleUpdateRating}
               onUpdateTags={handleUpdateTags}
               onNavigateToShoppingList={() => navigateToShopping('shopping')}
+              onNavigateToPlanner={() => setCurrentScreen('planner')}
             />
           )}
 

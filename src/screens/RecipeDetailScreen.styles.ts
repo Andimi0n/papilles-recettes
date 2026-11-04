@@ -170,6 +170,8 @@ export const styles = createDynamicStyles((colors, shadows) => ({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginVertical: 4,
+    flexWrap: 'wrap',
+    gap: 6,
   },
   compactRatingLeft: {
     flexDirection: 'row',

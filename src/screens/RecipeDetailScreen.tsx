@@ -27,6 +27,7 @@ import { StarRating } from '../components/StarRating';
 import { CookingModeModal } from '../components/CookingModeModal';
 import { RecipeQrModal } from '../components/RecipeQrModal';
 import { RecipePrintModal } from '../components/RecipePrintModal';
+import { PlanRecipeModal } from '../components/PlanRecipeModal';
 import { RecipeIngredientsList } from '../components/recipe-detail/RecipeIngredientsList';
 import { RecipeInstructionsList } from '../components/recipe-detail/RecipeInstructionsList';
 import { RecipeShareService } from '../services/recipeShareService';
@@ -73,6 +74,7 @@ interface RecipeDetailScreenProps {
   onUpdateRating: (id: string, rating: number, userNote?: string) => void;
   onUpdateTags?: (id: string, tags: string[]) => void;
   onNavigateToShoppingList?: () => void;
+  onNavigateToPlanner?: () => void;
 }
 
 export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
@@ -86,6 +88,7 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
   onUpdateRating,
   onUpdateTags,
   onNavigateToShoppingList,
+  onNavigateToPlanner,
 }) => {
   // Maintient l'écran du smartphone allumé pendant la lecture de la fiche recette
   useKeepAwake();
@@ -454,6 +457,9 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
   // Modal Mode Cuisine Pas-à-Pas
   const [isCookingModeVisible, setIsCookingModeVisible] = useState(false);
 
+  // Modal d'ajout au planning des menus
+  const [isPlanModalVisible, setIsPlanModalVisible] = useState(false);
+
   // Modal pour modifier l'astuce / commentaire
   const [isNoteModalVisible, setIsNoteModalVisible] = useState(false);
   const [noteText, setNoteText] = useState(recipe.userNote || '');
@@ -674,6 +680,24 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
                 />
               </View>
               <View style={styles.compactMetaActionsRight}>
+                <TouchableOpacity
+                  onPress={() => setIsPlanModalVisible(true)}
+                  style={styles.compactNoteBtn}
+                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                  activeOpacity={0.75}
+                  accessibilityRole="button"
+                  accessibilityLabel="Ajouter au calendrier des menus"
+                >
+                  <Ionicons
+                    name="calendar-outline"
+                    size={14}
+                    color={colors.primary}
+                  />
+                  <Text style={styles.compactNoteBtnText}>
+                    Au menu
+                  </Text>
+                </TouchableOpacity>
+
                 <TouchableOpacity
                   onPress={() => setIsNoteModalVisible(true)}
                   style={styles.compactNoteBtn}
@@ -1230,6 +1254,17 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
             recipe={recipe}
             initialServings={currentServings}
             onClose={() => setIsPrintModalVisible(false)}
+          />
+        )}
+
+        {/* Modal d'ajout au planning des menus */}
+        {isPlanModalVisible && (
+          <PlanRecipeModal
+            visible={isPlanModalVisible}
+            recipe={recipe}
+            initialServings={currentServings}
+            onClose={() => setIsPlanModalVisible(false)}
+            onNavigateToPlanner={onNavigateToPlanner}
           />
         )}
 
