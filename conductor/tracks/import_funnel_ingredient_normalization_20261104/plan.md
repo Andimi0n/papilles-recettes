@@ -6,10 +6,10 @@
     - [x] Créer le fichier de test unitaire pour les cas `feta AOP`, `biologique`, `au lait cru`, `non salées`
     - [x] Définir les assertions bloquantes sur les faux amis (`pulpe de tomate != poulpe`, `pâte de curry != pâtes`)
     - [x] Vérifier que les tests échouent conformément à la phase Red de TDD
-- [ ] Task 1.2 : Implémenter le filtrage des labels et qualificatifs de qualité dans `ingredientNormalizer.ts` (Green Phase)
-    - [ ] Ajouter la regex d'élagage des labels de qualité (`AOP`, `IGP`, `AOC`, `bio`, `au lait cru`, `fermier`, `non salé...`)
-    - [ ] Mettre à jour l'étape 3 du pipeline de normalisation pour préserver le nom d'affichage tout en résolvant le canonique
-    - [ ] Exécuter la suite de tests et vérifier le passage au vert
+- [x] Task 1.2 : Implémenter le filtrage des labels et qualificatifs de qualité dans `ingredientNormalizer.ts` (Green Phase) [e8ac64d]
+    - [x] Ajouter la regex d'élagage des labels de qualité (`AOP`, `IGP`, `AOC`, `bio`, `au lait cru`, `fermier`, `non salé...`)
+    - [x] Mettre à jour l'étape 3 du pipeline de normalisation pour préserver le nom d'affichage tout en résolvant le canonique
+    - [x] Exécuter la suite de tests et vérifier le passage au vert
 - [ ] Task 1.3 : Rédiger les tests unitaires pour la résolution des alternatives culinaires (Red Phase)
     - [ ] Définir les cas de test avec "ou" et "/" (ex: `crème fraîche ou yaourt`, `vinaigre de votre choix`, `mesclun ou jeunes pousses`)
     - [ ] Vérifier que le libellé complet est préservé dans `name` et que le premier choix valide fournit `canonicalId`
