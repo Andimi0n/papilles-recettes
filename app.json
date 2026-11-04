@@ -38,6 +38,12 @@
       "expo-status-bar",
       "expo-secure-store",
       [
+        "expo-navigation-bar",
+        {
+          "hidden": true
+        }
+      ],
+      [
         "expo-font",
         {
           "fonts": ["./assets/fonts/Ionicons.ttf"]

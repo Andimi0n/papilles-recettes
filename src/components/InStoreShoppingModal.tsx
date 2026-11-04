@@ -11,6 +11,7 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { NavigationBar } from 'expo-navigation-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { ShoppingItem, ShoppingAisle } from '../types/shopping';
 import { FridgeItem } from '../types/fridge';
@@ -194,6 +195,7 @@ export const InStoreShoppingModal: React.FC<InStoreShoppingModalProps> = React.m
       presentationStyle="fullScreen"
       onRequestClose={handleRequestClose}
     >
+      <NavigationBar hidden={true} />
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
         {/* En-tête épuré et contrasté */}
         <View style={styles.header}>

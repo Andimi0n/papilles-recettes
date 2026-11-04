@@ -10,6 +10,7 @@ import {
   TextInput,
 } from 'react-native';
 import { CameraView, useCameraPermissions, Camera, BarcodeScanningResult } from 'expo-camera';
+import { NavigationBar } from 'expo-navigation-bar';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
@@ -279,6 +280,7 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
       presentationStyle="fullScreen"
       onRequestClose={onClose}
     >
+      <NavigationBar hidden={true} />
       <InnerQrScanner onClose={onClose} onRecipeScanned={onRecipeScanned} />
     </Modal>
   );

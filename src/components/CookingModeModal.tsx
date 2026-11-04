@@ -10,6 +10,7 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { NavigationBar } from 'expo-navigation-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { useKeepAwake } from 'expo-keep-awake';
 import { Recipe, Ingredient } from '../types/recipe';
@@ -434,6 +435,7 @@ export const CookingModeModal: React.FC<CookingModeModalProps> = ({
       presentationStyle="fullScreen"
       onRequestClose={handleRequestClose}
     >
+      <NavigationBar hidden={true} />
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
         <View style={styles.container}>
           {/* Top Bar : Quitter, Titre & Indicateur Écran Toujours Allumé */}

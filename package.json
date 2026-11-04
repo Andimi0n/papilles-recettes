@@ -15,6 +15,7 @@
     "expo-image": "~58.0.18",
     "expo-image-manipulator": "~58.0.16",
     "expo-image-picker": "~58.0.10",
+    "expo-navigation-bar": "~58.0.4",
     "expo-print": "~58.0.8",
     "expo-secure-store": "~58.0.2",
     "expo-sharing": "~58.0.21",
@@ -91,7 +92,6 @@
     "test:ai-prompt": "node scripts/testRecipeAiIdeasPrompt.js",
     "test:perf-phase1": "node scripts/testAppPerformancePhase1.js",
     "test:perf-phase3": "node scripts/testAppPerformancePhase3.js"
-
   },
   "overrides": {
     "braces": "^3.0.3",

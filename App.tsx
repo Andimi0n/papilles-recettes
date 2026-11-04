@@ -8,9 +8,11 @@ import {
   Platform,
   BackHandler,
   Linking,
+  AppState,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
+import { NavigationBar } from 'expo-navigation-bar';
+import { SafeAreaProvider, initialWindowMetrics, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Recipe, RecipeViewMode } from './src/types/recipe';
 import { FridgeItem } from './src/types/fridge';
@@ -84,14 +86,28 @@ interface AppContentProps {
 
 function AppContent({ initialData }: AppContentProps) {
   const { isDark, colors, isLoaded: isThemeLoaded } = useTheme();
+  const insets = useSafeAreaInsets();
   const [currentScreen, setCurrentScreen] = useState<AppScreen>('home');
   const [viewedTabs, setViewedTabs] = useState<Record<string, boolean>>({ home: true });
 
+  // Mode immersif plein écran (Android) : masquer la barre de navigation système et réappliquer au retour au premier plan
   useEffect(() => {
-    if (['home', 'planner', 'shopping', 'settings'].includes(currentScreen)) {
-      setViewedTabs((prev) => (prev[currentScreen] ? prev : { ...prev, [currentScreen]: true }));
+    if (Platform.OS === 'android') {
+      NavigationBar.setHidden(true);
+      const subscription = AppState.addEventListener('change', (nextAppState) => {
+        if (nextAppState === 'active') {
+          NavigationBar.setHidden(true);
+        }
+      });
+      return () => {
+        subscription.remove();
+      };
     }
-  }, [currentScreen]);
+  }, []);
+
+  if (['home', 'planner', 'shopping', 'settings'].includes(currentScreen) && !viewedTabs[currentScreen]) {
+    setViewedTabs((prev) => ({ ...prev, [currentScreen]: true }));
+  }
 
   const [returnScreenAfterDetail, setReturnScreenAfterDetail] = useState<'home' | 'planner' | 'shopping' | 'settings'>('home');
   const [recipes, setRecipes] = useState<Recipe[]>(initialData?.recipes || []);
@@ -383,6 +399,7 @@ function AppContent({ initialData }: AppContentProps) {
     return (
       <View style={styles.loadingContainer}>
         <StatusBar style={isDark ? 'light' : 'dark'} />
+        <NavigationBar hidden={true} style={isDark ? 'light' : 'dark'} />
         <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
@@ -392,6 +409,7 @@ function AppContent({ initialData }: AppContentProps) {
     return (
       <View style={styles.container}>
         <StatusBar style={isDark ? 'light' : 'dark'} />
+        <NavigationBar hidden={true} style={isDark ? 'light' : 'dark'} />
         <OnboardingScreen onComplete={handleOnboardingComplete} />
       </View>
     );
@@ -402,6 +420,7 @@ function AppContent({ initialData }: AppContentProps) {
   return (
     <View style={styles.container}>
       <StatusBar style={isDark ? 'light' : 'dark'} />
+      <NavigationBar hidden={true} style={isDark ? 'light' : 'dark'} />
         {/* Écrans Principaux avec Keep-Alive (onglets persistants en mémoire, isolés et gelés si inactifs) */}
         <View style={styles.mainContent}>
           <TabPane
@@ -523,7 +542,12 @@ function AppContent({ initialData }: AppContentProps) {
 
         {/* Barre de navigation inférieure persistante pour les onglets principaux */}
         {isMainTab && (
-          <View style={styles.bottomTabBar}>
+          <View
+            style={[
+              styles.bottomTabBar,
+              { paddingBottom: Math.max(insets.bottom, Platform.OS === 'ios' ? 24 : 10) },
+            ]}
+          >
             <TouchableOpacity
               style={styles.tabItem}
               onPress={() => navigateToHome()}
