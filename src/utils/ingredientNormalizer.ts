@@ -322,42 +322,6 @@ interface NameResolution extends Omit<NormalizationResult, 'quantity' | 'unit'> 
   extractedUnit?: string;
 }
 
-const AMBIGUOUS_ALTERNATIVE_PREFIXES = new Set(['pate', 'pates', 'pulpe', 'poudre', 'puree']);
-
-/**
- * Décompose une formulation culinaire à choix multiple ("X ou Y", "X / Y")
- * en prenant en compte la factorisation de complément ("pâte ou poudre de curry" -> "pâte de curry", "poudre de curry").
- */
-function resolveAlternativeCandidates(str: string): string[] {
-  const parts = str.split(/\s+(?:ou|\/)\s+/i).map((p) => p.trim()).filter(Boolean);
-  if (parts.length < 2) return [];
-
-  const candidates: string[] = [];
-  const p0Norm = normalizeString(parts[0]);
-
-  // Distribution de complément (ex: "X ou Y de Z" -> "X de Z")
-  const prepMatch = parts[1].match(/^(.*?)\s+(de|d'|d’|du|des|a|au|aux)\s+(.+)$/i);
-  if (prepMatch && !/\b(?:de|d'|d’|du|des|a|au|aux)\b/i.test(parts[0])) {
-    const prep = prepMatch[2];
-    const complement = prepMatch[3];
-    candidates.push(`${parts[0]} ${prep} ${complement}`.trim());
-  }
-
-  // Ne pas tester un préfixe ambigu isolé qui causerait un faux ami (ex: "pâte" -> "Pâtes", "pulpe" -> "Poulpe")
-  if (!AMBIGUOUS_ALTERNATIVE_PREFIXES.has(p0Norm)) {
-    candidates.push(parts[0]);
-  }
-
-  candidates.push(parts[1]);
-
-  if (parts.length > 2) {
-    for (let i = 2; i < parts.length; i++) {
-      candidates.push(parts[i]);
-    }
-  }
-
-  return candidates;
-}
 
 function resolveIngredientName(raw: {
   name: string;
@@ -510,42 +474,6 @@ function resolveIngredientName(raw: {
         isPantryStaple: resolveStaple(culinaryMatch),
         isOptional: resolvedOptional,
       });
-    }
-  }
-
-  // =========================================================================
-  // ÉTAPE 3.2 : Détection & Résolution des Alternatives Culinaires ("ou", "/")
-  // Ex: "crème fraîche ou yaourt" -> conserve le libellé pour l'affichage de la recette,
-  // lie le premier canonicalId résolu (ing_canon_creme_fraiche)
-  // =========================================================================
-  const altSource = /\s+(?:ou|\/)\s+/i.test(strippedNorm) ? strippedNorm : cleanedNorm;
-  if (/\s+(?:ou|\/)\s+/i.test(altSource)) {
-    const candidates = resolveAlternativeCandidates(altSource);
-    for (const cand of candidates) {
-      if (cand && !/\s+(?:ou|\/)\s+/i.test(cand)) {
-        const candRes = resolveIngredientName({
-          name: cand,
-          unitMarksOptional: raw.unitMarksOptional,
-        });
-        if (candRes.canonicalId) {
-          const cleanedAlternativeName = mergedQuantity
-            ? originalName.replace(LEADING_QUANTITY_REGEX, '$2').trim()
-            : originalName.trim();
-
-          return saveCache({
-            name: cleanedAlternativeName || originalName.trim(),
-            quantityMode: mergedQuantity ? 'merge' : 'raw',
-            extractedQuantity: mergedQuantity,
-            extractedUnit: mergedUnit,
-            originalName,
-            wasNormalized: true,
-            canonicalId: candRes.canonicalId,
-            matchedAlias: candRes.matchedAlias,
-            isPantryStaple: candRes.isPantryStaple,
-            isOptional: resolvedOptional,
-          });
-        }
-      }
     }
   }
 
