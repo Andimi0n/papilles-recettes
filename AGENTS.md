@@ -50,12 +50,12 @@
   - `databaseService.ts` : Couche de persistance relationnelle SQLite (`papilles.db` avec mode WAL et PRAGMA foreign_keys). Tables indexées : `recipes`, `fridge_items`, `shopping_items`, `weekly_plan`, `meal_logs`, `user_allergens`, `settings`. Gère la migration one-shot depuis AsyncStorage et le fallback automatique pour l'environnement de test Node.js.
   - `imageStorageService.ts` : Gestionnaire de persistance permanente des photos de recettes via `expo-file-system`. Déplace les images locales du cache temporaire de l'OS vers le dossier permanent sécurisé `documentDirectory/recipe_photos/` et nettoie les photos orphelines lors de la suppression de recettes.
   - `recipePackService.ts` : Extraction et analyse séquentielle par petits lots (protection Zip Slip) de packs de recettes JSON et archives ZIP avec photos de couverture.
-  - `vocabularyService.ts` : CRUD du lexique canonique, gestion des alias, rayons (`defaultAisle`), promotion de synonymes et propagation automatique (Observer pattern).
+  - `vocabularyService.ts` : CRUD du lexique canonique, gestion des alias, rayons (`defaultAisle`), promotion de synonymes et propagation automatique (Observer pattern). Les accesseurs synchrones `getSyncList()` / `getSyncMap*()` renvoient, tant que le stockage n'est pas chargé, un lexique de repli **mémorisé** (construit une seule fois).
   - `unifiedIngredientService.ts` : Résolution unifiée d'ingrédients et suggestion de synonymes.
   - `recipeAiService.ts` : Appels REST Gemini (`v1beta`) avec cascade multi-modèles (`GEMINI_MODELS_CASCADE`: `gemini-3.8-flash` → `2.5-flash` → `2.0-flash` → `1.5-flash`), backoff exponentiel et auto-réparation JSON (`repairTruncatedJsonString`).
   - `marmitonService.ts` : Import et parsing de recettes web Marmiton.
 - **`src/utils/`** (Moteurs algorithmiques) :
-  - `ingredientNormalizer.ts` : Pipeline **Lexique-First** (lookup O(1) sur `canonicalName` et alias *avant* tout stripping regex), cache `NORMALIZATION_CACHE` (`clearNormalizationCache()`).
+  - `ingredientNormalizer.ts` : Pipeline **Lexique-First** (lookup O(1) sur `canonicalName` et alias *avant* tout stripping regex), cache `NORMALIZATION_CACHE` (`clearNormalizationCache()`) indexé sur le nom seul (sans quantité/unité) via `resolveIngredientName()`, la fusion quantité/unité étant appliquée ensuite.
   - `stockMatcher.ts` : Calcul haute performance (< 1 ms, Maps pré-indexées, zéro regex dans les boucles) des recettes réalisables (`isDoable`) et `missingIngredients`.
   - `shoppingAggregator.ts` : Fusion O(1) par `canonicalId`, conversions métriques (`g`/`kg`, `ml`/`cl`/`L`), exclusion stricte de l'eau (`Eau`), gestion des indispensables de placard (`isPantryStaple`) et export (`formatShoppingListForShare`).
   - `shoppingInputParser.ts` : Parsing en langage naturel pour la liste de courses (`"1kg carottes"`, `"2 paquets de kinder"`, fractions Unicode `½`), supportant à la fois les items canoniques et les produits hors-lexique/ménagers.
@@ -86,6 +86,11 @@
    - **Persistance des Photos :** Les photos locales (galerie, caméra) sont systématiquement migrées et stockées dans `documentDirectory/recipe_photos/` via `ImageStorageService` pour immuniser l'app contre les nettoyages de cache de l'appareil.
    - Aucune donnée utilisateur n'est envoyée sur un serveur tiers (hors appels directs Gemini API et fetch Marmiton).
    - Toujours passer les données chargées ou générées par IA via `sanitizeStoredRecipe()` et `sanitizeImageUrl()`.
+5. **Performance du démarrage (thread JS bloquant) :**
+   - SQLite est appelé en API synchrone : `StorageService.getRecipes()` → `rows.map(sanitizeStoredRecipe)` s'exécute d'un bloc, sans rendre la main (les `setTimeout` de secours ne peuvent pas se déclencher pendant ce temps). Tout coût par ingrédient y est multiplié par le nombre total d'ingrédients.
+   - Ne jamais reconstruire le lexique (`getInitialCanonicalVocabulary()`) ni un index dérivé à chaque appel : l'identité du tableau renvoyé par `getSyncList()` doit rester stable pour que `getVocabLookupIndex()` reste en cache.
+   - `getRecipes()` attend `VocabularyService.getAll()` avant d'assainir ; `sanitizeStoredRecipe()` saute `normalizeIngredient()` pour les ingrédients déjà résolus (`canonicalId`, `isPantryStaple` et `isOptional` définis).
+   - Le log `⚡ [Papilles Startup] N recettes assainies en Xms` mesure ce coût sur l'appareil.
 
 ---
 
