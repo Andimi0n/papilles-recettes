@@ -64,6 +64,35 @@ function rebuildMaps(list: CanonicalIngredient[]) {
   memoryMapByAlias = byAlias;
 }
 
+// Lexique de repli (graine initiale) mémorisé tant que le stockage n'est pas chargé.
+// Sans cette mémorisation, chaque appel synchrone reconstruisait ~350 entrées (+ index
+// dérivés dans ingredientNormalizer), ce qui bloquait le thread JS ~30 s au démarrage sur Hermes.
+interface FallbackVocabulary {
+  list: CanonicalIngredient[];
+  byId: Map<string, CanonicalIngredient>;
+  byNorm: Map<string, CanonicalIngredient>;
+  byAlias: Map<string, CanonicalIngredient>;
+}
+let fallbackVocabulary: FallbackVocabulary | null = null;
+
+function getFallbackVocabulary(): FallbackVocabulary {
+  if (!fallbackVocabulary) {
+    const list = getInitialCanonicalVocabulary();
+    const byId = new Map<string, CanonicalIngredient>();
+    const byNorm = new Map<string, CanonicalIngredient>();
+    const byAlias = new Map<string, CanonicalIngredient>();
+    list.forEach(item => {
+      byId.set(item.id, item);
+      byNorm.set(item.normalizedName, item);
+      if (item.aliases) {
+        item.aliases.forEach(alias => byAlias.set(alias, item));
+      }
+    });
+    fallbackVocabulary = { list, byId, byNorm, byAlias };
+  }
+  return fallbackVocabulary;
+}
+
 let initPromise: Promise<CanonicalIngredient[]> | null = null;
 let cascadeListeners: VocabularyCascadeListener[] = [];
 let onSaveCallback: (() => void) | null = null;
@@ -312,7 +341,7 @@ export const VocabularyService = {
     }
     // Déclenche l'initialisation asynchrone en tâche de fond
     this.getAll().catch(() => {});
-    return getInitialCanonicalVocabulary();
+    return getFallbackVocabulary().list;
   },
 
   getSyncMapById(): Map<string, CanonicalIngredient> {
@@ -320,10 +349,7 @@ export const VocabularyService = {
       return memoryMapById;
     }
     this.getAll().catch(() => {});
-    const fallbackList = getInitialCanonicalVocabulary();
-    const map = new Map<string, CanonicalIngredient>();
-    fallbackList.forEach(item => map.set(item.id, item));
-    return map;
+    return getFallbackVocabulary().byId;
   },
 
   getSyncMapByNormName(): Map<string, CanonicalIngredient> {
@@ -331,10 +357,7 @@ export const VocabularyService = {
       return memoryMapByNormName;
     }
     this.getAll().catch(() => {});
-    const fallbackList = getInitialCanonicalVocabulary();
-    const map = new Map<string, CanonicalIngredient>();
-    fallbackList.forEach(item => map.set(item.normalizedName, item));
-    return map;
+    return getFallbackVocabulary().byNorm;
   },
 
   getSyncMapByAlias(): Map<string, CanonicalIngredient> {
@@ -342,14 +365,7 @@ export const VocabularyService = {
       return memoryMapByAlias;
     }
     this.getAll().catch(() => {});
-    const fallbackList = getInitialCanonicalVocabulary();
-    const map = new Map<string, CanonicalIngredient>();
-    fallbackList.forEach(item => {
-      if (item.aliases) {
-        item.aliases.forEach(alias => map.set(alias, item));
-      }
-    });
-    return map;
+    return getFallbackVocabulary().byAlias;
   },
 
   /**
