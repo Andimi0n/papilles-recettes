@@ -112,11 +112,24 @@ function extractQuantityAndContainer(raw: string): {
   let extractedQuantity: string | undefined;
   let extractedUnit: string | undefined;
 
-  // 1. Extraire un éventuel nombre en tête (ex: "2 carottes")
-  const leadMatch = s.match(LEADING_QUANTITY_REGEX);
-  if (leadMatch) {
-    extractedQuantity = leadMatch[1];
-    s = leadMatch[2].trim();
+  // 1. Extraire une éventuelle quantité métrique attachée (ex: "100g de", "250ml de")
+  const attachedMetric = s.match(/^([0-9]+(?:\/[0-9]+)?(?:\.[0-9]+)?)\s*([a-z]+)\s+(?:de|d'|d’)?\s*(.*)$/i);
+  if (attachedMetric && /^(?:kg|kilos?|g|grammes?|l|litres?|cl|centilitres?|ml|millilitres?)$/i.test(attachedMetric[2])) {
+    extractedQuantity = attachedMetric[1];
+    const rawUnit = attachedMetric[2].toLowerCase();
+    if (rawUnit === 'grammes' || rawUnit === 'gramme' || rawUnit === 'g') extractedUnit = 'g';
+    else if (rawUnit === 'kilos' || rawUnit === 'kilo' || rawUnit === 'kg') extractedUnit = 'kg';
+    else if (rawUnit === 'litres' || rawUnit === 'litre' || rawUnit === 'l') extractedUnit = 'L';
+    else if (rawUnit === 'centilitres' || rawUnit === 'centilitre' || rawUnit === 'cl') extractedUnit = 'cl';
+    else if (rawUnit === 'millilitres' || rawUnit === 'millilitre' || rawUnit === 'ml') extractedUnit = 'ml';
+    s = attachedMetric[3].trim();
+  } else {
+    // Extraire un éventuel nombre en tête détaché (ex: "2 carottes")
+    const leadMatch = s.match(LEADING_QUANTITY_REGEX);
+    if (leadMatch) {
+      extractedQuantity = leadMatch[1];
+      s = leadMatch[2].trim();
+    }
   }
 
   // 2. Extraire les contenants (ex: "boite de", "tranche de", "pincee de")
