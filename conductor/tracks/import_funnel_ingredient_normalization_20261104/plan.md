@@ -2,10 +2,10 @@
 
 ## Phase 1 : Élagage des Qualificatifs de Label & Gestion des Alternatives Culinaires (TDD)
 
-- [ ] Task 1.1 : Rédiger les tests unitaires pour l'élagage des labels de qualité et anti-faux-amis (Red Phase)
-    - [ ] Créer le fichier de test unitaire pour les cas `feta AOP`, `biologique`, `au lait cru`, `non salées`
-    - [ ] Définir les assertions bloquantes sur les faux amis (`pulpe de tomate != poulpe`, `pâte de curry != pâtes`)
-    - [ ] Vérifier que les tests échouent conformément à la phase Red de TDD
+- [x] Task 1.1 : Rédiger les tests unitaires pour l'élagage des labels de qualité et anti-faux-amis (Red Phase) [119af08]
+    - [x] Créer le fichier de test unitaire pour les cas `feta AOP`, `biologique`, `au lait cru`, `non salées`
+    - [x] Définir les assertions bloquantes sur les faux amis (`pulpe de tomate != poulpe`, `pâte de curry != pâtes`)
+    - [x] Vérifier que les tests échouent conformément à la phase Red de TDD
 - [ ] Task 1.2 : Implémenter le filtrage des labels et qualificatifs de qualité dans `ingredientNormalizer.ts` (Green Phase)
     - [ ] Ajouter la regex d'élagage des labels de qualité (`AOP`, `IGP`, `AOC`, `bio`, `au lait cru`, `fermier`, `non salé...`)
     - [ ] Mettre à jour l'étape 3 du pipeline de normalisation pour préserver le nom d'affichage tout en résolvant le canonique
