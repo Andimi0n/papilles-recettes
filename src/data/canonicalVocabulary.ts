@@ -2482,10 +2482,20 @@ function normalizeForVocabIndex(str: string): string {
     .trim();
 }
 
+const LEGACY_SLUG_OVERRIDES: Record<string, string> = {
+  'Œufs': 'ing_canon_ufs',
+  'Bœuf': 'ing_canon_b_uf',
+  'Œufs de poisson': 'ing_canon_ufs_de_poisson',
+  'Bouillon de bœuf': 'ing_canon_bouillon_de_b_uf',
+};
+
 /**
  * Génère un identifiant canonique stable et unique basé sur le nom de l'ingrédient
  */
 export function generateCanonicalSlugId(name: string): string {
+  if (LEGACY_SLUG_OVERRIDES[name]) {
+    return LEGACY_SLUG_OVERRIDES[name];
+  }
   const clean = normalizeForVocabIndex(name)
     .replace(/[^a-z0-9]+/g, '_')
     .replace(/^_+|_+$/g, '');
