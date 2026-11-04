@@ -24,10 +24,10 @@
 
 ## Phase 2 : Enrichissement du Lexique Canonique & Alias Fréquents (TDD)
 
-- [ ] Task 2.1 : Rédiger les tests unitaires de validation du lexique pour les nouveaux aliments et alias (Red Phase)
-    - [ ] Définir les assertions vérifiant la présence, les rayons et les allergènes des ~35 aliments génériques
-    - [ ] Définir les assertions sur la résolution des alias fréquents (`jeunes pousses d'épinard`, `crottin de chèvre`, `pommes de terre grenailles`...)
-    - [ ] Vérifier l'échec attendu des tests (Red)
+- [x] Task 2.1 : Rédiger les tests unitaires de validation du lexique pour les nouveaux aliments et alias (Red Phase) [651640a]
+    - [x] Définir les assertions vérifiant la présence, les rayons et les allergènes des ~35 aliments génériques
+    - [x] Définir les assertions sur la résolution des alias fréquents (`jeunes pousses d'épinard`, `crottin de chèvre`, `pommes de terre grenailles`...)
+    - [x] Vérifier l'échec attendu des tests (Red)
 - [ ] Task 2.2 : Ajouter les ~35 aliments génériques manquants dans `canonicalVocabulary.ts` (Green Phase)
     - [ ] Ajouter les entrées pour Spätzle, Tortilla, Polenta, Nouilles ramen, Nouilles de riz
     - [ ] Ajouter les entrées pour Chou-rave, Jeunes pousses, Mesclun, Pousses d'épinard, Betterave jaune, Radis red meat, Baies roses
