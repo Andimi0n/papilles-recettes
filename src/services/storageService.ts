@@ -269,8 +269,12 @@ export function sanitizeStoredRecipe(r: any): Recipe {
 
     name = name.slice(0, 150);
 
-    // Lexique-First: auto-résolution du canonicalId et fond de placard si absent
-    if (name) {
+    // Lexique-First: auto-résolution du canonicalId et fond de placard si absent.
+    // Ingrédient déjà résolu (cas des recettes relues depuis SQLite) : le résultat de la
+    // normalisation ne serait pas utilisé, on l'évite pour ne pas ralentir le démarrage.
+    const isAlreadyResolved =
+      canonicalId !== undefined && isPantryStaple !== undefined && isOptional !== undefined;
+    if (name && !isAlreadyResolved) {
       const norm = normalizeIngredient({ name, canonicalId, quantity, unit, isPantryStaple, isOptional });
       if (!canonicalId && norm.canonicalId) canonicalId = norm.canonicalId;
       if (isPantryStaple === undefined) isPantryStaple = norm.isPantryStaple ?? (isKnownDefaultPantryStaple(name) ? true : undefined);
