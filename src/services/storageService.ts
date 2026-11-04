@@ -422,6 +422,10 @@ export const StorageService = {
     }
 
     try {
+      // Lexique utilisateur chargé AVANT la normalisation des ingrédients : sinon la résolution
+      // se fait sur la graine de repli (lexique personnalisé ignoré) pendant toute la boucle synchrone.
+      await VocabularyService.getAll().catch(() => {});
+
       const rows = await DatabaseService.getRecipes();
 
       if (rows.length === 0) {
@@ -435,7 +439,9 @@ export const StorageService = {
       }
 
       // Validation défensive runtime
+      const sanitizeStart = Date.now();
       const result = rows.map(sanitizeStoredRecipe);
+      console.log(`⚡ [Papilles Startup] ${result.length} recettes assainies en ${Date.now() - sanitizeStart}ms`);
       memoryCache.recipes = result;
       return result;
     } catch (error) {
