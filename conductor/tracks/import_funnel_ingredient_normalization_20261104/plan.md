@@ -14,10 +14,10 @@
     - [x] Définir les cas de test avec "ou" et "/" (ex: `crème fraîche ou yaourt`, `vinaigre de votre choix`, `mesclun ou jeunes pousses`)
     - [x] Vérifier que le libellé complet est préservé dans `name` et que le premier choix valide fournit `canonicalId`
     - [x] Vérifier que les tests échouent conformément à la phase Red
-- [ ] Task 1.4 : Implémenter la détection et résolution des alternatives dans `ingredientNormalizer.ts` (Green Phase)
-    - [ ] Implémenter la décomposition des alternatives en amont de la résolution canonique
-    - [ ] Relier le premier canonicalId valide sans altérer le `name` original
-    - [ ] Exécuter les tests unitaires et valider le passage au vert
+- [x] Task 1.4 : Implémenter la détection et résolution des alternatives dans `ingredientNormalizer.ts` (Green Phase) [44a3140]
+    - [x] Implémenter la décomposition des alternatives en amont de la résolution canonique
+    - [x] Relier le premier canonicalId valide sans altérer le `name` original
+    - [x] Exécuter les tests unitaires et valider le passage au vert
 - [ ] Task 1.5 : Phase Verification & Checkpoint (Refer to workflow.md)
     - [ ] Vérifier la couverture de code (>80%) sur les modifications de `ingredientNormalizer.ts`
     - [ ] Valider l'absence de régression sur `scripts/testIngredientNormalizer.js`
