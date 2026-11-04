@@ -349,6 +349,28 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
   );
   const [isDraggingStep, setIsDraggingStep] = useState(false);
 
+  // Récupération sécurisée d'une photo capturée si Android a recyclé l'activité en arrière-plan
+  useEffect(() => {
+    if (Platform.OS === 'android') {
+      ImagePicker.getPendingResultAsync()
+        .then(async (result) => {
+          if (result && 'assets' in result && !result.canceled && result.assets && result.assets.length > 0) {
+            const rawUri = result.assets[0].uri;
+            if (rawUri) {
+              const permanentUri = await ImageStorageService.persistImageLocally(rawUri);
+              setImageUrl(permanentUri || rawUri);
+              setAvailableImages((prev) => {
+                const current = Array.isArray(prev) ? prev : [];
+                const target = permanentUri || rawUri;
+                return current.includes(target) ? current : [target, ...current];
+              });
+            }
+          }
+        })
+        .catch((e) => console.log('[ImagePicker] pending result error:', e));
+    }
+  }, []);
+
   // Image pickers (Appareil photo & Galerie)
   const handleCaptureImage = async () => {
     try {
@@ -360,16 +382,23 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
         );
         return;
       }
+      // Note Android : allowsEditing doit rester false pour éviter le crash natif du CropActivity/OOM
       const result = await ImagePicker.launchCameraAsync({
-        allowsEditing: true,
-        aspect: [16, 9],
-        quality: 0.8,
+        allowsEditing: false,
+        quality: 0.7,
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        const permanentUri = await ImageStorageService.persistImageLocally(result.assets[0].uri);
-        setImageUrl(permanentUri);
-        setAvailableImages((prev) => (prev.includes(permanentUri) ? prev : [permanentUri, ...prev]));
+        const rawUri = result.assets[0].uri;
+        if (rawUri) {
+          const permanentUri = await ImageStorageService.persistImageLocally(rawUri);
+          setImageUrl(permanentUri || rawUri);
+          setAvailableImages((prev) => {
+            const current = Array.isArray(prev) ? prev : [];
+            const target = permanentUri || rawUri;
+            return current.includes(target) ? current : [target, ...current];
+          });
+        }
       }
     } catch (e) {
       console.log('Erreur capture photo:', e);
@@ -389,15 +418,21 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
       }
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
-        allowsEditing: true,
-        aspect: [16, 9],
+        allowsEditing: false,
         quality: 0.8,
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        const permanentUri = await ImageStorageService.persistImageLocally(result.assets[0].uri);
-        setImageUrl(permanentUri);
-        setAvailableImages((prev) => (prev.includes(permanentUri) ? prev : [permanentUri, ...prev]));
+        const rawUri = result.assets[0].uri;
+        if (rawUri) {
+          const permanentUri = await ImageStorageService.persistImageLocally(rawUri);
+          setImageUrl(permanentUri || rawUri);
+          setAvailableImages((prev) => {
+            const current = Array.isArray(prev) ? prev : [];
+            const target = permanentUri || rawUri;
+            return current.includes(target) ? current : [target, ...current];
+          });
+        }
       }
     } catch (e) {
       console.log('Erreur sélection image:', e);
