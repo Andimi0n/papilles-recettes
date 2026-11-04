@@ -45,16 +45,16 @@
 - [x] Task 3.1 : Rédiger les tests unitaires pour les statistiques d'import dans `storageService.ts` (Red Phase) [2fa6b2e]
     - [x] Tester que `mergeRecipePack` calcule et retourne `totalIngredients`, `canonicalIngredientsCount` et `unmatchedIngredientsCount`
     - [x] Vérifier l'échec initial du test (Red)
-- [ ] Task 3.2 : Intégrer le calcul des statistiques de couverture dans `StorageService.mergeRecipePack` (Green Phase)
-    - [ ] Collecter les métriques de normalisation lors du parcours des ingrédients dans `mergeRecipePack`
-    - [ ] Exposer les compteurs dans le résultat retourné par le service
-    - [ ] Valider le passage au vert des tests
-- [ ] Task 3.3 : Mettre à jour l'UI d'import dans `SettingsScreen.tsx` (Green Phase)
-    - [ ] Enrichir le message de succès d'importation avec le pourcentage de reconnaissance canonique
-    - [ ] Proposer une redirection conviviale vers le gestionnaire de vocabulaire si des ingrédients hors-lexique sont détectés
-- [ ] Task 3.4 : Phase Verification & Checkpoint (Refer to workflow.md)
-    - [ ] Vérifier le comportement en cas d'erreur de parsing ou d'archive corrompue
-    - [ ] Valider l'intégrité de l'expérience utilisateur mobile (pas de blocage ni gel d'écran)
+- [x] Task 3.2 : Intégrer le calcul des statistiques de couverture dans `StorageService.mergeRecipePack` (Green Phase) [1eab9d3]
+    - [x] Collecter les métriques de normalisation lors du parcours des ingrédients dans `mergeRecipePack`
+    - [x] Exposer les compteurs dans le résultat retourné par le service
+    - [x] Valider le passage au vert des tests
+- [x] Task 3.3 : Mettre à jour l'UI d'import dans `SettingsScreen.tsx` (Green Phase) [1eab9d3]
+    - [x] Enrichir le message de succès d'importation avec le pourcentage de reconnaissance canonique
+    - [x] Proposer une redirection conviviale vers le gestionnaire de vocabulaire si des ingrédients hors-lexique sont détectés
+- [x] Task 3.4 : Phase Verification & Checkpoint (Refer to workflow.md) [1eab9d3]
+    - [x] Vérifier le comportement en cas d'erreur de parsing ou d'archive corrompue
+    - [x] Valider l'intégrité de l'expérience utilisateur mobile (pas de blocage ni gel d'écran)
 
 ## Phase 4 : Validation Globale sur le Pack Réel PhotoRecette (562 Recettes)
 
