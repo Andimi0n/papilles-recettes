@@ -103,7 +103,7 @@ export function stemPhrase(str: string): string {
 /**
  * Extrait les quantités et contenants en tête de chaîne sans modifier les adjectifs
  */
-function extractQuantityAndContainer(raw: string): {
+export function extractQuantityAndContainer(raw: string): {
   remainderNorm: string;
   extractedQuantity?: string;
   extractedUnit?: string;
@@ -305,6 +305,8 @@ export function normalizeIngredient(raw: {
   }
   return {
     ...resolution,
+    extractedQuantity,
+    extractedUnit,
     quantity: raw.quantity?.trim() || extractedQuantity,
     unit: raw.unit?.trim() || extractedUnit,
   };

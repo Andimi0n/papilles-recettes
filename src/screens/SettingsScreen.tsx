@@ -2018,6 +2018,7 @@ const SettingsScreenComponent: React.FC<SettingsScreenProps> = ({
           setIsVocabModalVisible(false);
           setVocabInitialSearchQuery('');
           loadInitialSettings();
+          if (onRecipesReloadNeeded) onRecipesReloadNeeded();
         }}
       />
 

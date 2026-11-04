@@ -248,6 +248,112 @@ async function main() {
   );
   console.log('✓ Stock & Courses : Rayon officiel synchronisé en cascade');
 
+  // =========================================================================
+  // TEST 4 : Création d'ingrédient (VocabularyService.add) et cascade 'create'
+  // =========================================================================
+  console.log('\n--- Test 4 : Création d\'ingrédient et cascade sur recettes hors lexique ---');
+
+  // Ajouter une recette avec un ingrédient hors lexique (Spiruline) avec canonicalId: undefined
+  const recipeUnmatched = {
+    id: 'rec_test_smoothie',
+    title: 'Smoothie Vert',
+    description: 'Smoothie énergétique',
+    category: 'boissons',
+    servings: 2,
+    prepTime: 5,
+    cookTime: 0,
+    difficulty: 'facile',
+    ingredients: [
+      { id: 'ing_sp_1', name: 'Spiruline', canonicalId: undefined, quantity: '2', unit: 'c. à soupe' },
+      { id: 'ing_sp_2', name: 'Banane', canonicalId: 'ing_canon_banane', quantity: '1', unit: 'pièce' },
+    ],
+    steps: ['Mixer'],
+  };
+
+  const currentRecipes = await StorageService.getRecipes();
+  await AsyncStorageMock.setItem('@papilles_recipes_v4', JSON.stringify([...currentRecipes, recipeUnmatched]));
+
+  const fridgeUnmatched = {
+    id: 'fridge_sp_1',
+    name: 'Spiruline',
+    canonicalId: undefined,
+    aisle: 'Autre',
+    createdAt: new Date().toISOString(),
+  };
+  const currentFridge = await StorageService.getFridgeItems();
+  await AsyncStorageMock.setItem('@papilles_fridge_items_v1', JSON.stringify([...currentFridge, fridgeUnmatched]));
+
+  const shoppingUnmatched = {
+    id: 'shop_sp_1',
+    name: 'Spiruline',
+    canonicalId: undefined,
+    quantity: '1',
+    unit: 'sachet',
+    isChecked: false,
+    aisle: 'Autre',
+    createdAt: new Date().toISOString(),
+  };
+  const currentShopping = await StorageService.getShoppingList();
+  await AsyncStorageMock.setItem('@papilles_shopping_list_v1', JSON.stringify([...currentShopping, shoppingUnmatched]));
+
+  // Action : création de "Spiruline" dans le lexique via VocabularyService.add
+  const newSpiruline = await VocabularyService.add({
+    canonicalName: 'Spiruline',
+    defaultAisle: 'condiments_epices',
+    isPantryStaple: true,
+  });
+
+  assert.ok(newSpiruline.id, 'Nouvel ingrédient doit avoir un ID');
+  assert.strictEqual(newSpiruline.canonicalName, 'Spiruline');
+  console.log(`✓ Vocabulaire : Ingrédient "${newSpiruline.canonicalName}" créé (${newSpiruline.id})`);
+
+  // Vérification de la cascade sur les recettes
+  const afterCreateRecipes = await StorageService.getRecipes();
+  const smoothieAfter = afterCreateRecipes.find((r) => r.id === 'rec_test_smoothie');
+  assert.ok(smoothieAfter, 'Recette smoothie trouvée');
+  const ingSpirulineAfter = smoothieAfter.ingredients.find((i) => i.id === 'ing_sp_1');
+  assert.strictEqual(
+    ingSpirulineAfter.canonicalId,
+    newSpiruline.id,
+    'L\'ingrédient de recette doit être lié au nouvel ID canonique lors de la cascade create'
+  );
+  assert.strictEqual(
+    ingSpirulineAfter.isPantryStaple,
+    true,
+    'isPantryStaple doit être propagé lors de la cascade create'
+  );
+  console.log('✓ Recettes : Ingrédient hors-lexique rétroactivement lié au nouvel ID canonique');
+
+  // Vérification de la cascade sur le stock
+  const afterCreateFridge = await StorageService.getFridgeItems();
+  const fridgeSpirulineAfter = afterCreateFridge.find((i) => i.id === 'fridge_sp_1');
+  assert.strictEqual(
+    fridgeSpirulineAfter.canonicalId,
+    newSpiruline.id,
+    'L\'élément de stock doit être lié au nouvel ID canonique'
+  );
+  assert.strictEqual(
+    fridgeSpirulineAfter.aisle,
+    'condiments_epices',
+    'Le rayon du stock doit être mis à jour'
+  );
+  console.log('✓ Stock Frigo : Stock hors-lexique rétroactivement lié au nouvel ID canonique');
+
+  // Vérification de la cascade sur les courses
+  const afterCreateShopping = await StorageService.getShoppingList();
+  const shoppingSpirulineAfter = afterCreateShopping.find((i) => i.id === 'shop_sp_1');
+  assert.strictEqual(
+    shoppingSpirulineAfter.canonicalId,
+    newSpiruline.id,
+    'L\'élément de courses doit être lié au nouvel ID canonique'
+  );
+  assert.strictEqual(
+    shoppingSpirulineAfter.aisle,
+    'condiments_epices',
+    'Le rayon des courses doit être mis à jour'
+  );
+  console.log('✓ Courses : Article hors-lexique rétroactivement lié au nouvel ID canonique');
+
   // Nettoyage du répertoire temporaire
   const fs = require('fs');
   fs.rmSync(tmpDir, { recursive: true, force: true });

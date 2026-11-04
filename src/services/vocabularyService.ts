@@ -15,6 +15,10 @@ const VOCABULARY_STORAGE_KEY = '@papilles_canonical_vocabulary_v1';
 
 export type VocabularyCascadeEvent =
   | {
+      type: 'create';
+      newIngredient: CanonicalIngredient;
+    }
+  | {
       type: 'promote';
       parentIds: string[];
       newIngredient: CanonicalIngredient;
@@ -535,6 +539,10 @@ export const VocabularyService = {
 
     const updated = [newEntry, ...list];
     await this.saveAll(updated);
+    await this.notifyCascade({
+      type: 'create',
+      newIngredient: newEntry,
+    });
     return newEntry;
   },
 

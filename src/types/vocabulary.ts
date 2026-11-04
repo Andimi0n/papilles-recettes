@@ -74,6 +74,8 @@ export interface NormalizationResult {
   name: string;             // Nom canonique résolu (ex: "Petits pois")
   quantity?: string;        // Quantité extraite ou conservée (ex: "1")
   unit?: string;            // Unité ou contenant extrait (ex: "boîte")
+  extractedQuantity?: string; // Quantité extraite depuis la chaîne name
+  extractedUnit?: string;     // Unité extraite depuis la chaîne name
   originalName: string;     // Nom brut avant normalisation
   wasNormalized: boolean;   // Indique si le terme a été modifié/standardisé
   canonicalId?: string;     // Identifiant de l'ingrédient dans le référentiel s'il a été matché

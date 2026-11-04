@@ -16,7 +16,7 @@ import { CanonicalIngredient, ALLERGEN_FAMILIES, AllergenFamily } from '../types
 import { ShoppingAisle } from '../types/shopping';
 import { VocabularyService } from '../services/vocabularyService';
 import { AllergenFamilyPickerModal } from './AllergenFamilyPickerModal';
-import { AISLE_CONFIGS, ALL_AISLES } from '../utils/aisleClassifier';
+import { AISLE_CONFIGS, ALL_AISLES, classifyIngredientAisle } from '../utils/aisleClassifier';
 import { FORBIDDEN_ISOLATED_ALIASES } from '../data/canonicalVocabulary';
 import { useTheme } from '../theme/ThemeContext';
 import { createDynamicStyles } from '../theme/colors';
@@ -115,8 +115,12 @@ export const VocabularyManagerModal: React.FC<VocabularyManagerModalProps> = ({
   // Actions CRUD
   const handleOpenAdd = () => {
     setEditingItem(null);
-    setFormName('');
-    setFormAisle('Épicerie & Condiments');
+    const cleanQuery = searchQuery.trim();
+    const prefilledName = cleanQuery
+      ? cleanQuery.charAt(0).toUpperCase() + cleanQuery.slice(1)
+      : '';
+    setFormName(prefilledName);
+    setFormAisle(prefilledName ? classifyIngredientAisle(prefilledName) : 'Épicerie & Condiments');
     setFormAliases('');
     setFormIsPantryStaple(false);
     setFormAllergen(null);

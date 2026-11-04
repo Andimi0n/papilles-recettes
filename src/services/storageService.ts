@@ -284,6 +284,15 @@ export function sanitizeStoredRecipe(r: any): Recipe {
       if (!canonicalId && norm.canonicalId) canonicalId = norm.canonicalId;
       if (isPantryStaple === undefined) isPantryStaple = norm.isPantryStaple ?? (isKnownDefaultPantryStaple(name) ? true : undefined);
       if (isOptional === undefined && norm.isOptional !== undefined) isOptional = norm.isOptional;
+      const hadExtractedQty = !quantity.trim() && Boolean(norm.quantity);
+      const hadExtractedUnit = !unit.trim() && Boolean(norm.unit);
+      if (hadExtractedQty) quantity = norm.quantity!;
+      if (hadExtractedUnit) unit = norm.unit!;
+      // Si une quantité ou une unité a été extraite du nom (ex: "2 c. à soupe de garam masala"),
+      // on met à jour le nom pour dissocier proprement quantité et nom de l'ingrédient
+      if ((hadExtractedQty || hadExtractedUnit || norm.extractedQuantity || norm.extractedUnit) && norm.name) {
+        name = norm.name;
+      }
     }
 
     return {
@@ -746,7 +755,22 @@ export const StorageService = {
       for (const recipe of recipes) {
         let hasRecipeChange = false;
         const updatedIngredients = (recipe.ingredients || []).map((ing) => {
-          if (event.type === 'promote') {
+          if (event.type === 'create') {
+            if (!ing.canonicalId) {
+              const recheck = normalizeIngredient({ name: ing.name });
+              if (recheck.canonicalId === event.newIngredient.id) {
+                hasRecipeChange = true;
+                return {
+                  ...ing,
+                  canonicalId: event.newIngredient.id,
+                  isPantryStaple:
+                    event.newIngredient.isPantryStaple !== undefined
+                      ? event.newIngredient.isPantryStaple
+                      : ing.isPantryStaple,
+                };
+              }
+            }
+          } else if (event.type === 'promote') {
             if (event.parentIds.includes(ing.canonicalId || '')) {
               const recheck = normalizeIngredient({ name: ing.name });
               if (recheck.canonicalId === event.newIngredient.id) {
@@ -771,6 +795,40 @@ export const StorageService = {
             if (isSource) {
               hasRecipeChange = true;
               return { ...ing, canonicalId: event.targetId };
+            }
+          } else if (event.type === 'update') {
+            if (!ing.canonicalId) {
+              const recheck = normalizeIngredient({ name: ing.name });
+              if (recheck.canonicalId === event.updatedIngredient.id) {
+                hasRecipeChange = true;
+                return {
+                  ...ing,
+                  canonicalId: event.updatedIngredient.id,
+                  isPantryStaple:
+                    event.updatedIngredient.isPantryStaple !== undefined
+                      ? event.updatedIngredient.isPantryStaple
+                      : ing.isPantryStaple,
+                };
+              }
+            } else if (ing.canonicalId === event.updatedIngredient.id) {
+              const recheck = normalizeIngredient({ name: ing.name });
+              if (recheck.canonicalId !== event.updatedIngredient.id) {
+                hasRecipeChange = true;
+                return {
+                  ...ing,
+                  canonicalId: recheck.canonicalId,
+                  isPantryStaple: recheck.isPantryStaple ?? ing.isPantryStaple,
+                };
+              } else if (
+                event.updatedIngredient.isPantryStaple !== undefined &&
+                ing.isPantryStaple !== event.updatedIngredient.isPantryStaple
+              ) {
+                hasRecipeChange = true;
+                return {
+                  ...ing,
+                  isPantryStaple: event.updatedIngredient.isPantryStaple,
+                };
+              }
             }
           } else if (event.type === 'delete') {
             if (ing.canonicalId === event.deletedId) {
@@ -811,7 +869,20 @@ export const StorageService = {
       const fridgeItems = await DatabaseService.getFridgeItems();
       let hasAnyFridgeChange = false;
       let updatedFridge = fridgeItems.map((item) => {
-        if (event.type === 'promote') {
+        if (event.type === 'create') {
+          if (!item.canonicalId) {
+            const recheck = normalizeIngredient({ name: item.name });
+            if (recheck.canonicalId === event.newIngredient.id) {
+              fridgeUpdated++;
+              hasAnyFridgeChange = true;
+              return {
+                ...item,
+                canonicalId: event.newIngredient.id,
+                aisle: event.newIngredient.defaultAisle || item.aisle,
+              };
+            }
+          }
+        } else if (event.type === 'promote') {
           if (event.parentIds.includes(item.canonicalId || '')) {
             const recheck = normalizeIngredient({ name: item.name });
             if (recheck.canonicalId === event.newIngredient.id) {
@@ -838,11 +909,37 @@ export const StorageService = {
             };
           }
         } else if (event.type === 'update') {
-          if (item.canonicalId === event.updatedIngredient.id) {
-            if (item.aisle !== event.updatedIngredient.defaultAisle) {
+          if (!item.canonicalId) {
+            const recheck = normalizeIngredient({ name: item.name });
+            if (recheck.canonicalId === event.updatedIngredient.id) {
               fridgeUpdated++;
               hasAnyFridgeChange = true;
-              return { ...item, aisle: event.updatedIngredient.defaultAisle };
+              return {
+                ...item,
+                canonicalId: event.updatedIngredient.id,
+                aisle: event.updatedIngredient.defaultAisle || item.aisle,
+              };
+            }
+          } else if (item.canonicalId === event.updatedIngredient.id) {
+            let itemChanged = false;
+            let nextAisle = item.aisle;
+            let nextCanonicalId: string | undefined = item.canonicalId;
+
+            const recheck = normalizeIngredient({ name: item.name });
+            if (recheck.canonicalId !== event.updatedIngredient.id) {
+              nextCanonicalId = recheck.canonicalId;
+              const canonDef = nextCanonicalId ? vocabMapById.get(nextCanonicalId) : undefined;
+              nextAisle = canonDef?.defaultAisle || item.aisle;
+              itemChanged = true;
+            } else if (item.aisle !== event.updatedIngredient.defaultAisle) {
+              nextAisle = event.updatedIngredient.defaultAisle;
+              itemChanged = true;
+            }
+
+            if (itemChanged) {
+              fridgeUpdated++;
+              hasAnyFridgeChange = true;
+              return { ...item, canonicalId: nextCanonicalId, aisle: nextAisle };
             }
           }
         } else if (event.type === 'delete') {
@@ -895,7 +992,21 @@ export const StorageService = {
       const shoppingItems = await DatabaseService.getShoppingItems();
       let hasAnyShoppingChange = false;
       let updatedShopping = shoppingItems.map((item) => {
-        if (event.type === 'promote') {
+        if (event.type === 'create') {
+          if (!item.canonicalId) {
+            const recheck = normalizeIngredient({ name: item.name });
+            if (recheck.canonicalId === event.newIngredient.id) {
+              shoppingUpdated++;
+              hasAnyShoppingChange = true;
+              return {
+                ...item,
+                name: event.newIngredient.canonicalName,
+                canonicalId: event.newIngredient.id,
+                aisle: event.newIngredient.defaultAisle || item.aisle,
+              };
+            }
+          }
+        } else if (event.type === 'promote') {
           if (event.parentIds.includes(item.canonicalId || '')) {
             const recheck = normalizeIngredient({ name: item.name });
             if (recheck.canonicalId === event.newIngredient.id) {
@@ -927,7 +1038,19 @@ export const StorageService = {
             };
           }
         } else if (event.type === 'update') {
-          if (item.canonicalId === event.updatedIngredient.id) {
+          if (!item.canonicalId) {
+            const recheck = normalizeIngredient({ name: item.name });
+            if (recheck.canonicalId === event.updatedIngredient.id) {
+              shoppingUpdated++;
+              hasAnyShoppingChange = true;
+              return {
+                ...item,
+                name: event.updatedIngredient.canonicalName,
+                canonicalId: event.updatedIngredient.id,
+                aisle: event.updatedIngredient.defaultAisle || item.aisle,
+              };
+            }
+          } else if (item.canonicalId === event.updatedIngredient.id) {
             let changed = false;
             const nextItem = { ...item };
             if (
@@ -2481,7 +2604,11 @@ export const StorageService = {
             } else {
               unmatchedIngredientsCount++;
               if (ing.name && ing.name.trim()) {
-                unmatchedIngredientNames.add(ing.name.trim());
+                const norm = normalizeIngredient({ name: ing.name.trim() });
+                const cleanName = (norm.name || ing.name).trim();
+                if (cleanName) {
+                  unmatchedIngredientNames.add(cleanName);
+                }
               }
             }
           }

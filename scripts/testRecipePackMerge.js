@@ -197,7 +197,46 @@ async function main() {
     assert.ok(risotto.ingredients[0].canonicalId, 'canonicalId auto-détecté pour riz');
     assert.strictEqual(risotto.availableImages?.length, 1, 'availableImages extrait et sauvegardé');
 
-    console.log('✓ Tous les scénarios de mergeRecipePack sont validés avec succès !');
+    console.log('\n--- Test 4 : Ingrédients hors lexique avec dissociation quantité / unité / nom ---');
+    const packUnmatched = {
+      version: 1,
+      recipes: [
+        {
+          id: 'rec_curry_masala',
+          title: 'Smoothie énergie',
+          ingredients: [
+            { name: '2 c. à soupe de spiruline' },
+            { name: '100g de baies de goji', quantity: '' },
+            { name: 'sel', quantity: '1', unit: 'pincée' }
+          ]
+        }
+      ]
+    };
+
+    const unmatchedRes = await StorageService.mergeRecipePack(packUnmatched);
+    assert.strictEqual(unmatchedRes.addedCount, 1);
+    assert.strictEqual(unmatchedRes.unmatchedIngredientsCount, 2);
+    assert.deepStrictEqual(unmatchedRes.unmatchedIngredientNames.sort(), ['Baies de goji', 'Spiruline'].sort());
+
+    const recipesCurry = await StorageService.getRecipes();
+    const curryRec = recipesCurry.find((r) => r.id === 'rec_curry_masala');
+    assert.ok(curryRec);
+
+    const ingSpiruline = curryRec.ingredients.find((i) => i.name === 'Spiruline');
+    assert.ok(ingSpiruline, 'Le nom doit être épuré en "Spiruline" sans préfixe de quantité');
+    assert.strictEqual(ingSpiruline.quantity, '2', 'La quantité 2 doit être dissociée');
+    assert.strictEqual(ingSpiruline.unit, 'c. à soupe', 'L unité c. à soupe doit être dissociée');
+    assert.strictEqual(ingSpiruline.canonicalId, undefined, 'canonicalId doit être undefined pour un ingrédient hors lexique');
+
+    const ingGoji = curryRec.ingredients.find((i) => i.name === 'Baies de goji');
+    assert.ok(ingGoji);
+    assert.strictEqual(ingGoji.quantity, '100');
+    assert.strictEqual(ingGoji.unit, 'g');
+    assert.strictEqual(ingGoji.canonicalId, undefined);
+
+    console.log('✓ Dissociation quantité / unité / nom hors lexique validée avec succès !');
+
+    console.log('\n✓ Tous les scénarios de mergeRecipePack sont validés avec succès !');
   } catch (err) {
     console.error('❌ Échec :', err.message);
     process.exit(1);
