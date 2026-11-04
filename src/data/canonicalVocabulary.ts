@@ -2483,18 +2483,27 @@ function normalizeForVocabIndex(str: string): string {
 }
 
 const LEGACY_SLUG_OVERRIDES: Record<string, string> = {
-  'Œufs': 'ing_canon_ufs',
-  'Bœuf': 'ing_canon_b_uf',
-  'Œufs de poisson': 'ing_canon_ufs_de_poisson',
-  'Bouillon de bœuf': 'ing_canon_bouillon_de_b_uf',
+  'œufs': 'ing_canon_ufs',
+  'oeufs': 'ing_canon_ufs',
+  'ufs': 'ing_canon_ufs',
+  'bœuf': 'ing_canon_b_uf',
+  'boeuf': 'ing_canon_b_uf',
+  'b uf': 'ing_canon_b_uf',
+  'œufs de poisson': 'ing_canon_ufs_de_poisson',
+  'oeufs de poisson': 'ing_canon_ufs_de_poisson',
+  'ufs de poisson': 'ing_canon_ufs_de_poisson',
+  'bouillon de bœuf': 'ing_canon_bouillon_de_b_uf',
+  'bouillon de boeuf': 'ing_canon_bouillon_de_b_uf',
+  'bouillon de b uf': 'ing_canon_bouillon_de_b_uf',
 };
 
 /**
  * Génère un identifiant canonique stable et unique basé sur le nom de l'ingrédient
  */
 export function generateCanonicalSlugId(name: string): string {
-  if (LEGACY_SLUG_OVERRIDES[name]) {
-    return LEGACY_SLUG_OVERRIDES[name];
+  const normKey = (name || '').trim().toLowerCase();
+  if (LEGACY_SLUG_OVERRIDES[normKey]) {
+    return LEGACY_SLUG_OVERRIDES[normKey];
   }
   const clean = normalizeForVocabIndex(name)
     .replace(/[^a-z0-9]+/g, '_')

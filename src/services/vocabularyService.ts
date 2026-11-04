@@ -128,6 +128,7 @@ export const VocabularyService = {
             const initialSeedMap = new Map<string, CanonicalIngredient>();
             getInitialCanonicalVocabulary().forEach((s) => {
               initialSeedMap.set(s.normalizedName, s);
+              initialSeedMap.set(s.id, s);
             });
 
             const sanitized = parsed.map((item) => {
@@ -150,7 +151,7 @@ export const VocabularyService = {
 
               let secondaryAllergens = item.secondaryAllergens;
               if (secondaryAllergens === undefined && !item.isCustom) {
-                const seed = initialSeedMap.get(item.normalizedName);
+                const seed = initialSeedMap.get(item.normalizedName) || initialSeedMap.get(item.id);
                 if (seed?.secondaryAllergens !== undefined) {
                   secondaryAllergens = seed.secondaryAllergens;
                   itemUpdated = true;
@@ -159,7 +160,7 @@ export const VocabularyService = {
 
               let density = item.density;
               if (density === undefined && !item.isCustom) {
-                const seed = initialSeedMap.get(item.normalizedName);
+                const seed = initialSeedMap.get(item.normalizedName) || initialSeedMap.get(item.id);
                 if (seed?.density !== undefined) {
                   density = seed.density;
                   itemUpdated = true;
@@ -262,9 +263,31 @@ export const VocabularyService = {
             let finalList = Array.from(uniqueMap.values());
 
             // Synchroniser les nouveaux ingrédients de base (ex: Cacahuètes, Sésame, Tofu, Noix...)
-            const existingNormalized = new Set(finalList.map((i) => i.normalizedName));
             const initialSeed = getInitialCanonicalVocabulary();
-            const missingSeeds = initialSeed.filter((s) => !existingNormalized.has(s.normalizedName));
+            const initialSeedById = new Map<string, CanonicalIngredient>();
+            initialSeed.forEach((s) => initialSeedById.set(s.id, s));
+
+            // Migration transparente des normalizedName obsolètes (ex: ligatures "ufs" -> "oeufs")
+            finalList = finalList.map((item) => {
+              const seed = initialSeedById.get(item.id);
+              if (seed && seed.normalizedName !== item.normalizedName) {
+                hadChanges = true;
+                return {
+                  ...item,
+                  normalizedName: seed.normalizedName,
+                  aliases: Array.from(new Set([...(item.aliases || []), ...(seed.aliases || [])])),
+                  allergen: item.allergen || seed.allergen,
+                  secondaryAllergens: item.secondaryAllergens || seed.secondaryAllergens,
+                };
+              }
+              return item;
+            });
+
+            const existingNormalized = new Set(finalList.map((i) => normalizeString(i.normalizedName)));
+            const existingIds = new Set(finalList.map((i) => i.id));
+            const missingSeeds = initialSeed.filter(
+              (s) => !existingIds.has(s.id) && !existingNormalized.has(normalizeString(s.normalizedName))
+            );
             if (missingSeeds.length > 0) {
               finalList = [...finalList, ...missingSeeds];
               hadChanges = true;
