@@ -36,6 +36,10 @@ export interface RecipePackMergeResult {
   addedCount: number;
   updatedCount: number;
   photosCount: number;
+  totalIngredientsCount?: number;
+  canonicalIngredientsCount?: number;
+  unmatchedIngredientsCount?: number;
+  unmatchedIngredientNames?: string[];
   error?: string;
 }
 
@@ -2452,6 +2456,10 @@ export const StorageService = {
       let addedCount = 0;
       let updatedCount = 0;
       let photosCount = 0;
+      let totalIngredientsCount = 0;
+      let canonicalIngredientsCount = 0;
+      let unmatchedIngredientsCount = 0;
+      const unmatchedIngredientNames = new Set<string>();
 
       const mergedList: Recipe[] = [...current];
       const totalToProcess = pack.recipes.length;
@@ -2462,6 +2470,21 @@ export const StorageService = {
 
         const sanitized = sanitizeStoredRecipe(rawRecipe);
         const normTitle = normalizeString(sanitized.title || '').trim().toLowerCase();
+
+        // Comptabilisation de la couverture du lexique canonique
+        if (Array.isArray(sanitized.ingredients)) {
+          for (const ing of sanitized.ingredients) {
+            totalIngredientsCount++;
+            if (ing.canonicalId) {
+              canonicalIngredientsCount++;
+            } else {
+              unmatchedIngredientsCount++;
+              if (ing.name && ing.name.trim()) {
+                unmatchedIngredientNames.add(ing.name.trim());
+              }
+            }
+          }
+        }
 
         // 1. Recherche de photo principale dans le pack
         let photoUri: string | null = null;
@@ -2578,6 +2601,10 @@ export const StorageService = {
         addedCount,
         updatedCount,
         photosCount,
+        totalIngredientsCount,
+        canonicalIngredientsCount,
+        unmatchedIngredientsCount,
+        unmatchedIngredientNames: Array.from(unmatchedIngredientNames),
       };
     } catch (err: any) {
       console.error('[StorageService] Erreur lors de la fusion du pack de recettes :', err);
@@ -2586,6 +2613,10 @@ export const StorageService = {
         addedCount: 0,
         updatedCount: 0,
         photosCount: 0,
+        totalIngredientsCount: 0,
+        canonicalIngredientsCount: 0,
+        unmatchedIngredientsCount: 0,
+        unmatchedIngredientNames: [],
         error: err?.message || 'Erreur inattendue lors de la fusion du pack.',
       };
     }

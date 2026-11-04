@@ -588,6 +588,45 @@ const SettingsScreenComponent: React.FC<SettingsScreenProps> = ({
     }
   };
 
+  const showPackImportSuccessAlert = (result: any) => {
+    const totalIng = result.totalIngredientsCount || 0;
+    const canonIng = result.canonicalIngredientsCount || 0;
+    const unmatchedIng = result.unmatchedIngredientsCount || 0;
+    const coverage = totalIng > 0 ? Math.round((canonIng / totalIng) * 100) : 100;
+
+    let msg = `🎉 ${result.addedCount} nouvelle(s) recette(s) ajoutée(s)\n🔄 ${result.updatedCount} recette(s) mise(s) à jour\n🖼️ ${result.photosCount} photo(s) liée(s)`;
+    if (totalIng > 0) {
+      msg += `\n📊 ${coverage}% des ingrédients reconnus canoniquement`;
+    }
+    if (unmatchedIng > 0) {
+      msg += `\nℹ️ ${unmatchedIng} ingrédient(s) spécifique(s) importé(s) hors lexique (kits d'épices...)`;
+    }
+
+    const buttons: any[] = [];
+    if (unmatchedIng > 0) {
+      buttons.push({
+        text: 'Gérer le lexique',
+        onPress: () => {
+          setIsImportModalVisible(false);
+          setImportJsonText('');
+          if (onRecipesReloadNeeded) onRecipesReloadNeeded();
+          setIsVocabModalVisible(true);
+        },
+      });
+    }
+    buttons.push({
+      text: 'Super !',
+      style: unmatchedIng > 0 ? 'cancel' : 'default',
+      onPress: () => {
+        setIsImportModalVisible(false);
+        setImportJsonText('');
+        if (onRecipesReloadNeeded) onRecipesReloadNeeded();
+      },
+    });
+
+    Alert.alert('Pack importé avec succès', msg, buttons);
+  };
+
   const handleConfirmImport = async () => {
     if (!importJsonText.trim()) {
       Alert.alert('Erreur', 'Veuillez coller le texte JSON à importer.');
@@ -601,20 +640,7 @@ const SettingsScreenComponent: React.FC<SettingsScreenProps> = ({
       setImportStatusMessage('Fusion dans votre carnet...');
       const result = await StorageService.mergeRecipePack(pack);
       if (result.success) {
-        Alert.alert(
-          'Pack importé avec succès',
-          `🎉 ${result.addedCount} nouvelle(s) recette(s) ajoutée(s)\n🔄 ${result.updatedCount} recette(s) mise(s) à jour\n🖼️ ${result.photosCount} photo(s) de couverture liée(s)`,
-          [
-            {
-              text: 'Super !',
-              onPress: () => {
-                setIsImportModalVisible(false);
-                setImportJsonText('');
-                if (onRecipesReloadNeeded) onRecipesReloadNeeded();
-              },
-            },
-          ]
-        );
+        showPackImportSuccessAlert(result);
       } else {
         Alert.alert('Erreur importation', result.error || 'Format JSON invalide.');
       }
@@ -695,20 +721,7 @@ const SettingsScreenComponent: React.FC<SettingsScreenProps> = ({
       const result = await StorageService.mergeRecipePack(pack);
 
       if (result.success) {
-        Alert.alert(
-          'Pack importé avec succès',
-          `🎉 ${result.addedCount} nouvelle(s) recette(s) ajoutée(s)\n🔄 ${result.updatedCount} recette(s) mise(s) à jour\n🖼️ ${result.photosCount} photo(s) de couverture liée(s)`,
-          [
-            {
-              text: 'Super !',
-              onPress: () => {
-                setIsImportModalVisible(false);
-                setImportJsonText('');
-                if (onRecipesReloadNeeded) onRecipesReloadNeeded();
-              },
-            },
-          ]
-        );
+        showPackImportSuccessAlert(result);
       } else {
         Alert.alert('Erreur importation', result.error || 'Impossible de fusionner le pack.');
       }
