@@ -216,7 +216,7 @@ function getVocabLookupIndex(vocabList: CanonicalIngredient[]): VocabLookupIndex
 }
 
 // Cache mémoire pour accélérer les résolutions répétitives (O(1))
-const NORMALIZATION_CACHE = new Map<string, NormalizationResult>();
+const NORMALIZATION_CACHE = new Map<string, NameResolution>();
 
 export function clearNormalizationCache(): void {
   NORMALIZATION_CACHE.clear();
@@ -261,13 +261,55 @@ export function normalizeIngredient(raw: {
     };
   }
 
-  const cacheKey = `${originalName}__${raw.canonicalId || ''}__${raw.quantity || ''}__${raw.unit || ''}__${raw.isPantryStaple}__${raw.isOptional}`;
+  const unitMarksOptional =
+    typeof raw.isOptional !== 'boolean' &&
+    Boolean(raw.unit && OPTIONAL_REGEX.test(normalizeString(raw.unit)));
+
+  const { quantityMode, extractedQuantity, extractedUnit, ...resolution } = resolveIngredientName({
+    name: originalName,
+    canonicalId: raw.canonicalId,
+    isPantryStaple: raw.isPantryStaple,
+    isOptional: raw.isOptional,
+    unitMarksOptional,
+  });
+
+  if (quantityMode === 'raw') {
+    return { ...resolution, quantity: raw.quantity, unit: raw.unit };
+  }
+  return {
+    ...resolution,
+    quantity: raw.quantity?.trim() || extractedQuantity,
+    unit: raw.unit?.trim() || extractedUnit,
+  };
+}
+
+/**
+ * Résolution du nom seul, indépendante des quantité/unité saisies : la clé de cache
+ * ne contient donc pas la quantité ("Beurre 50 g" et "Beurre 100 g" partagent l'entrée).
+ * - quantityMode 'raw'   : quantité/unité saisies conservées telles quelles.
+ * - quantityMode 'merge' : quantité/unité saisies prioritaires, sinon celles extraites du nom.
+ */
+interface NameResolution extends Omit<NormalizationResult, 'quantity' | 'unit'> {
+  quantityMode: 'raw' | 'merge';
+  extractedQuantity?: string;
+  extractedUnit?: string;
+}
+
+function resolveIngredientName(raw: {
+  name: string;
+  canonicalId?: string;
+  isPantryStaple?: boolean;
+  isOptional?: boolean;
+  unitMarksOptional: boolean;
+}): NameResolution {
+  const originalName = raw.name;
+  const cacheKey = `${originalName}__${raw.canonicalId || ''}__${raw.isPantryStaple}__${raw.isOptional}__${raw.unitMarksOptional}`;
   const cached = NORMALIZATION_CACHE.get(cacheKey);
   if (cached) {
     return cached;
   }
 
-  const saveCache = (res: NormalizationResult): NormalizationResult => {
+  const saveCache = (res: NameResolution): NameResolution => {
     if (NORMALIZATION_CACHE.size > 2000) {
       NORMALIZATION_CACHE.clear();
     }
@@ -287,7 +329,7 @@ export function normalizeIngredient(raw: {
   const resolvedOptional =
     typeof raw.isOptional === 'boolean'
       ? raw.isOptional
-      : Boolean(hasOptionalInName || (raw.unit && OPTIONAL_REGEX.test(normalizeString(raw.unit))));
+      : Boolean(hasOptionalInName || raw.unitMarksOptional);
 
   const resolveStaple = (item?: CanonicalIngredient, fallbackTerm?: string) => {
     if (typeof raw.isPantryStaple === 'boolean') {
@@ -311,8 +353,7 @@ export function normalizeIngredient(raw: {
   if (directMatch) {
     return saveCache({
       name: directMatch.canonicalName,
-      quantity: raw.quantity,
-      unit: raw.unit,
+      quantityMode: 'raw',
       originalName,
       wasNormalized: directMatch.canonicalName !== originalName.trim(),
       canonicalId: directMatch.id,
@@ -332,8 +373,7 @@ export function normalizeIngredient(raw: {
     if (existingById) {
       return saveCache({
         name: existingById.canonicalName,
-        quantity: raw.quantity,
-        unit: raw.unit,
+        quantityMode: 'raw',
         originalName,
         wasNormalized: existingById.canonicalName !== originalName.trim(),
         canonicalId: existingById.id,
@@ -351,12 +391,11 @@ export function normalizeIngredient(raw: {
   const { remainderNorm, extractedQuantity, extractedUnit } = extractQuantityAndContainer(strippedNorm);
   const containerMatch = lookupIndex.exactMap.get(remainderNorm);
   if (containerMatch) {
-    const finalQuantity = raw.quantity?.trim() || extractedQuantity;
-    const finalUnit = raw.unit?.trim() || extractedUnit;
     return saveCache({
       name: containerMatch.canonicalName,
-      quantity: finalQuantity,
-      unit: finalUnit,
+      quantityMode: 'merge',
+      extractedQuantity,
+      extractedUnit,
       originalName,
       wasNormalized: containerMatch.canonicalName !== originalName.trim(),
       canonicalId: containerMatch.id,
@@ -371,15 +410,16 @@ export function normalizeIngredient(raw: {
   // Ex: "2 oignons blancs émincés" -> extrait "2", découpe "émincés" -> reste "oignons blancs"
   // =========================================================================
   const { cleanedNorm, extractedQuantity: qClean, extractedUnit: uClean } = cleanRawIngredientString(strippedNorm);
-  const finalQuantity = raw.quantity?.trim() || extractedQuantity || qClean;
-  const finalUnit = raw.unit?.trim() || extractedUnit || uClean;
+  const mergedQuantity = extractedQuantity || qClean;
+  const mergedUnit = extractedUnit || uClean;
 
   const cleanedMatch = lookupIndex.exactMap.get(cleanedNorm);
   if (cleanedMatch) {
     return saveCache({
       name: cleanedMatch.canonicalName,
-      quantity: finalQuantity,
-      unit: finalUnit,
+      quantityMode: 'merge',
+      extractedQuantity: mergedQuantity,
+      extractedUnit: mergedUnit,
       originalName,
       wasNormalized: cleanedMatch.canonicalName !== originalName.trim(),
       canonicalId: cleanedMatch.id,
@@ -396,8 +436,9 @@ export function normalizeIngredient(raw: {
     if (culinaryMatch) {
       return saveCache({
         name: culinaryMatch.canonicalName,
-        quantity: finalQuantity,
-        unit: finalUnit,
+        quantityMode: 'merge',
+        extractedQuantity: mergedQuantity,
+        extractedUnit: mergedUnit,
         originalName,
         wasNormalized: culinaryMatch.canonicalName !== originalName.trim(),
         canonicalId: culinaryMatch.id,
@@ -417,8 +458,9 @@ export function normalizeIngredient(raw: {
   if (stemMatch) {
     return saveCache({
       name: stemMatch.canonicalName,
-      quantity: finalQuantity,
-      unit: finalUnit,
+      quantityMode: 'merge',
+      extractedQuantity: mergedQuantity,
+      extractedUnit: mergedUnit,
       originalName,
       wasNormalized: stemMatch.canonicalName !== originalName.trim(),
       canonicalId: stemMatch.id,
@@ -434,8 +476,7 @@ export function normalizeIngredient(raw: {
   if (stemMinMatch) {
     return saveCache({
       name: stemMinMatch.canonicalName,
-      quantity: raw.quantity,
-      unit: raw.unit,
+      quantityMode: 'raw',
       originalName,
       wasNormalized: stemMinMatch.canonicalName !== originalName.trim(),
       canonicalId: stemMinMatch.id,
@@ -455,8 +496,9 @@ export function normalizeIngredient(raw: {
         if (minLen / maxLen >= 0.7) {
           return saveCache({
             name: item.canonicalName,
-            quantity: finalQuantity,
-            unit: finalUnit,
+            quantityMode: 'merge',
+            extractedQuantity: mergedQuantity,
+            extractedUnit: mergedUnit,
             originalName,
             wasNormalized: true,
             canonicalId: item.id,
@@ -499,8 +541,9 @@ export function normalizeIngredient(raw: {
     if (bestMatch) {
       return saveCache({
         name: bestMatch.canonicalName,
-        quantity: finalQuantity,
-        unit: finalUnit,
+        quantityMode: 'merge',
+        extractedQuantity: mergedQuantity,
+        extractedUnit: mergedUnit,
         originalName,
         wasNormalized: true,
         canonicalId: bestMatch.id,
@@ -521,8 +564,9 @@ export function normalizeIngredient(raw: {
 
   return saveCache({
     name: formattedCleaned,
-    quantity: finalQuantity,
-    unit: finalUnit,
+    quantityMode: 'merge',
+    extractedQuantity: mergedQuantity,
+    extractedUnit: mergedUnit,
     originalName,
     wasNormalized: formattedCleaned !== originalName.trim(),
     isPantryStaple: resolveStaple(undefined, fallbackTerm),
