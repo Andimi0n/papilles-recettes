@@ -10,10 +10,10 @@
     - [x] Ajouter la regex d'élagage des labels de qualité (`AOP`, `IGP`, `AOC`, `bio`, `au lait cru`, `fermier`, `non salé...`)
     - [x] Mettre à jour l'étape 3 du pipeline de normalisation pour préserver le nom d'affichage tout en résolvant le canonique
     - [x] Exécuter la suite de tests et vérifier le passage au vert
-- [ ] Task 1.3 : Rédiger les tests unitaires pour la résolution des alternatives culinaires (Red Phase)
-    - [ ] Définir les cas de test avec "ou" et "/" (ex: `crème fraîche ou yaourt`, `vinaigre de votre choix`, `mesclun ou jeunes pousses`)
-    - [ ] Vérifier que le libellé complet est préservé dans `name` et que le premier choix valide fournit `canonicalId`
-    - [ ] Vérifier que les tests échouent conformément à la phase Red
+- [x] Task 1.3 : Rédiger les tests unitaires pour la résolution des alternatives culinaires (Red Phase) [4ff8e64]
+    - [x] Définir les cas de test avec "ou" et "/" (ex: `crème fraîche ou yaourt`, `vinaigre de votre choix`, `mesclun ou jeunes pousses`)
+    - [x] Vérifier que le libellé complet est préservé dans `name` et que le premier choix valide fournit `canonicalId`
+    - [x] Vérifier que les tests échouent conformément à la phase Red
 - [ ] Task 1.4 : Implémenter la détection et résolution des alternatives dans `ingredientNormalizer.ts` (Green Phase)
     - [ ] Implémenter la décomposition des alternatives en amont de la résolution canonique
     - [ ] Relier le premier canonicalId valide sans altérer le `name` original
