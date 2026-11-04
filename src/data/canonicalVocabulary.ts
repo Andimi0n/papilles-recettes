@@ -58,7 +58,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
   {
     name: 'Pomme de terre',
     aisle: 'Fruits & Légumes',
-    aliases: ['pommes de terre', 'patate', 'patates', 'pdt', 'grenaille', 'grenailles', 'pomme de terre epluchee', 'pommes de terre epluchees'],
+    aliases: ['pommes de terre', 'patate', 'patates', 'pdt', 'grenaille', 'grenailles', 'pomme de terre epluchee', 'pommes de terre epluchees', 'pommes de terre a chair ferme', 'pomme de terre chair ferme'],
   },
   {
     name: 'Patate douce',
@@ -195,7 +195,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
   {
     name: 'Orange',
     aisle: 'Fruits & Légumes',
-    aliases: ['oranges', 'jus d orange', 'zeste d orange'],
+    aliases: ['oranges', 'jus d orange', 'zeste d orange', 'ecorce d orange'],
   },
   {
     name: 'Fraise',
@@ -210,7 +210,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
   {
     name: 'Poire',
     aisle: 'Fruits & Légumes',
-    aliases: ['poires', 'poire epluchee'],
+    aliases: ['poires', 'poire epluchee', 'poire conference', 'poires conferences'],
   },
   {
     name: 'Betterave',
@@ -605,7 +605,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
   {
     name: 'Crème fraîche',
     aisle: 'Produits Frais & Crèmerie',
-    aliases: ['creme fraiche', 'cremes fraiches', 'creme liquide', 'creme epaisse', 'creme fleurette', 'creme entiere', 'brique de creme'],
+    aliases: ['creme fraiche', 'cremes fraiches', 'creme liquide', 'creme epaisse', 'creme fleurette', 'creme entiere', 'brique de creme', 'creme allegee', 'creme liquide epaisse', 'creme semi-liquide'],
     allergen: 'lait',
     density: 1.0,
   },
@@ -685,7 +685,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
   {
     name: 'Yaourt',
     aisle: 'Produits Frais & Crèmerie',
-    aliases: ['yaourts', 'yogourt', 'yaourt nature', 'yaourt grec', 'pot de yaourt'],
+    aliases: ['yaourts', 'yogourt', 'yaourt nature', 'yaourt grec', 'pot de yaourt', 'yaourt bulgare', 'yaourt brasse'],
     allergen: 'lait',
     density: 1.05,
   },
@@ -906,29 +906,45 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
   // 3. BOUCHERIE & POISSONNERIE
   // =========================================================================
   {
+    name: 'Poisson blanc',
+    aisle: 'Boucherie & Poissonnerie',
+    aliases: ['poisson', 'poissons', 'filet de poisson', 'filets de poisson', 'poisson frais'],
+    allergen: 'poissons',
+  },
+  {
+    name: 'Paupiettes de veau',
+    aisle: 'Boucherie & Poissonnerie',
+    aliases: ['paupiette de veau', 'paupiettes', 'paupiette'],
+  },
+  {
+    name: 'Jarret de veau',
+    aisle: 'Boucherie & Poissonnerie',
+    aliases: ['jarrets de veau', 'jarret de veau tranche'],
+  },
+  {
     name: 'Poulet',
     aisle: 'Boucherie & Poissonnerie',
-    aliases: ['blanc de poulet', 'blancs de poulet', 'filet de poulet', 'filets de poulet', 'cuisse de poulet', 'cuisses de poulet', 'escalope de poulet', 'escalopes de poulet', 'morceaux de poulet', 'aiguillettes de poulet', 'poulet emince'],
+    aliases: ['blanc de poulet', 'blancs de poulet', 'filet de poulet', 'filets de poulet', 'cuisse de poulet', 'cuisses de poulet', 'escalope de poulet', 'escalopes de poulet', 'morceaux de poulet', 'aiguillettes de poulet', 'poulet emince', 'pilons de poulet', 'pilon de poulet', 'hauts de cuisse de poulet'],
   },
   {
     name: 'Bœuf',
     aisle: 'Boucherie & Poissonnerie',
-    aliases: ['viande bovine', 'bavette', 'entrecote', 'rumsteck', 'paleron', 'bourguignon', 'morceaux de boeuf'],
+    aliases: ['viande bovine', 'bavette', 'entrecote', 'rumsteck', 'paleron', 'bourguignon', 'morceaux de boeuf', 'boeuf a braiser', 'paleron de boeuf', 'viande de boeuf'],
   },
   {
     name: 'Steak haché',
     aisle: 'Boucherie & Poissonnerie',
-    aliases: ['steaks haches', 'steak', 'steaks', 'viande hachee', 'viande de boeuf hachee'],
+    aliases: ['steaks haches', 'steak', 'steaks', 'viande hachee', 'viande de boeuf hachee', 'boeuf hache'],
   },
   {
     name: 'Lardon',
     aisle: 'Boucherie & Poissonnerie',
-    aliases: ['lardons', 'lardons fumes', 'lardons nature', 'barquette de lardons', 'poitrine fumee', 'pancetta'],
+    aliases: ['lardons', 'lardons fumes', 'lardons nature', 'barquette de lardons', 'poitrine fumee', 'pancetta', 'lard fume', 'lard fume entier', 'lard'],
   },
   {
     name: 'Jambon',
     aisle: 'Boucherie & Poissonnerie',
-    aliases: ['jambons', 'jambon blanc', 'jambon de paris', 'tranches de jambon', 'tranche de jambon', 'des de jambon'],
+    aliases: ['jambons', 'jambon blanc', 'jambon de paris', 'tranches de jambon', 'tranche de jambon', 'des de jambon', 'des de jambon blanc'],
   },
   {
     name: 'Jambon cru',
@@ -1223,9 +1239,44 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
   // 4. ÉPICERIE & CONDIMENTS
   // =========================================================================
   {
+    name: 'Anis vert',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['graines d anis vert'],
+    isPantryStaple: true,
+  },
+  {
+    name: 'Chili en poudre',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['chili', 'epices chili', 'melange chili'],
+    isPantryStaple: true,
+  },
+  {
+    name: 'Fond de veau',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['fond de veau deshydrate', 'fond brun de veau'],
+    isPantryStaple: true,
+  },
+  {
+    name: 'Extrait d\'amande amère',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['extrait d amande amere', 'arome amande amere', 'amande amere'],
+    allergen: 'fruits_a_coque',
+  },
+  {
+    name: 'Pralinoise',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['chocolat pralinoise', 'tablette pralinoise'],
+    allergen: 'fruits_a_coque',
+  },
+  {
+    name: 'Purée de pommes de terre',
+    aisle: 'Épicerie & Condiments',
+    aliases: ['puree mousseline', 'flocons de puree', 'puree de pomme de terre', 'puree de pommes de terre'],
+  },
+  {
     name: 'Farine',
     aisle: 'Épicerie & Condiments',
-    aliases: ['farines', 'farine de ble', 'farine t55', 'farine t45', 'farine fluide', 'farine tamisee'],
+    aliases: ['farines', 'farine de ble', 'farine t55', 'farine t45', 'farine fluide', 'farine tamisee', 'farine blanche', 'farine avec levure incorporee'],
     allergen: 'gluten',
     density: 0.57,
   },
@@ -1250,7 +1301,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
   {
     name: 'Sel',
     aisle: 'Épicerie & Condiments',
-    aliases: ['sels', 'sel fin', 'gros sel', 'fleur de sel', 'pincee de sel'],
+    aliases: ['sels', 'sel fin', 'gros sel', 'fleur de sel', 'pincee de sel', 'sel de guerande'],
     isPantryStaple: true,
     density: 1.20,
   },
@@ -1285,7 +1336,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
   {
     name: 'Riz',
     aisle: 'Épicerie & Condiments',
-    aliases: ['riz basmati', 'riz thai', 'riz rond', 'riz arborio', 'riz long', 'riz blanc'],
+    aliases: ['riz basmati', 'riz thai', 'riz rond', 'riz arborio', 'riz long', 'riz blanc', 'riz blanc rond'],
     density: 0.85,
   },
   {
@@ -1390,7 +1441,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
   {
     name: 'Chocolat noir',
     aisle: 'Épicerie & Condiments',
-    aliases: ['chocolat', 'chocolat patissier', 'tablette de chocolat noir', 'chocolat dessert', 'chocolat noir patissier'],
+    aliases: ['chocolat', 'chocolat patissier', 'tablette de chocolat noir', 'chocolat dessert', 'chocolat noir patissier', 'chocolat special dessert'],
     allergen: 'lait',
     secondaryAllergens: ['soja']
   },
@@ -1414,7 +1465,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
   {
     name: 'Miel',
     aisle: 'Épicerie & Condiments',
-    aliases: ['pot de miel', 'miel de fleurs', 'miel d acacia'],
+    aliases: ['pot de miel', 'miel de fleurs', 'miel d acacia', 'miel liquide'],
     density: 1.42,
   },
   {
@@ -1975,7 +2026,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
   {
     name: 'Ras el-hanout',
     aisle: 'Épicerie & Condiments',
-    aliases: ['ras el hanout', 'raz el hanout', 'quatre epices', '4 epices', 'melange 4 epices', 'zaatar', 'sumac'],
+    aliases: ['ras el hanout', 'raz el hanout', 'quatre epices', '4 epices', 'melange 4 epices', 'zaatar', 'sumac', 'epices a couscous', 'epices couscous'],
     isPantryStaple: true,
   },
   {
@@ -2018,9 +2069,21 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
   // 5. BOULANGERIE & PÂTISSERIE
   // =========================================================================
   {
+    name: 'Crêpes dentelles',
+    aisle: 'Boulangerie & Pâtisserie',
+    aliases: ['crepes dentelles', 'gavottes', 'crepe dentelle'],
+    allergen: 'gluten',
+  },
+  {
+    name: 'Pain d\'épices',
+    aisle: 'Boulangerie & Pâtisserie',
+    aliases: ['pain d epice', 'pains d epices'],
+    allergen: 'gluten',
+  },
+  {
     name: 'Pain',
     aisle: 'Boulangerie & Pâtisserie',
-    aliases: ['baguette', 'pain de campagne', 'pain frais', 'tranches de pain', 'tartines de pain', 'croutons'],
+    aliases: ['baguette', 'pain de campagne', 'pain frais', 'tranches de pain', 'tartines de pain', 'croutons', 'ciabatta', 'pain ciabatta'],
     allergen: 'gluten',
   },
   {
@@ -2039,7 +2102,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
   {
     name: 'Pâte feuilletée',
     aisle: 'Boulangerie & Pâtisserie',
-    aliases: ['rouleau de pate feuilletee', 'pate feuilletee pur beurre'],
+    aliases: ['rouleau de pate feuilletee', 'pate feuilletee pur beurre', 'ronds de pate feuilletee', 'rouleaux de pate feuilletee'],
     allergen: 'gluten',
     secondaryAllergens: ['lait']
   },
@@ -2066,7 +2129,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
   {
     name: 'Levure boulangère',
     aisle: 'Boulangerie & Pâtisserie',
-    aliases: ['levure de boulanger', 'cube de levure fraiche', 'levure seche'],
+    aliases: ['levure de boulanger', 'cube de levure fraiche', 'levure seche', 'levure de boulangerie', 'levure de boulangerie express', 'levure boulangere speciale pain', 'levure fraiche'],
   },
   {
     name: 'Poudre d\'amande',
@@ -2104,7 +2167,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
   {
     name: 'Pain pita',
     aisle: 'Boulangerie & Pâtisserie',
-    aliases: ['pita', 'pains pita', 'pain libanais', 'naan', 'pain bagnat', 'pain ciabatta', 'focaccia', 'english muffin'],
+    aliases: ['pita', 'pains pita', 'pain libanais', 'naan', 'pain bagnat', 'focaccia', 'english muffin'],
     allergen: 'gluten',
   },
   {
@@ -2130,6 +2193,11 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
   // 6. BOISSONS
   // =========================================================================
   {
+    name: 'Liqueur de menthe',
+    aisle: 'Boissons',
+    aliases: ['get 27', 'get 31', 'creme de menthe', 'pippermint'],
+  },
+  {
     name: 'Vin blanc',
     aisle: 'Boissons',
     aliases: ['vin blanc sec', 'verre de vin blanc', 'bouteille de vin blanc'],
@@ -2146,7 +2214,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
   {
     name: 'Bière',
     aisle: 'Boissons',
-    aliases: ['bieres', 'biere blonde', 'canette de biere'],
+    aliases: ['bieres', 'biere blonde', 'canette de biere', 'biere brune'],
     allergen: 'gluten',
   },
   {
@@ -2171,7 +2239,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
   {
     name: 'Café',
     aisle: 'Boissons',
-    aliases: ['tasse de cafe', 'cafe expresso', 'cafe moulu', 'cafe soluble'],
+    aliases: ['tasse de cafe', 'cafe expresso', 'cafe moulu', 'cafe soluble', 'cafe noir', 'cafe filtre', 'cafe serre'],
   },
   {
     name: 'Cidre',
@@ -2187,7 +2255,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
   {
     name: 'Cognac',
     aisle: 'Boissons',
-    aliases: ['armagnac', 'calvados', 'grand marnier', 'cointreau', 'kirsch', 'amaretto', 'marsala', 'porto', 'madere', 'noilly prat', 'vermouth'],
+    aliases: ['armagnac', 'calvados', 'grand marnier', 'cointreau', 'kirsch', 'amaretto', 'marsala', 'porto', 'madere', 'noilly prat', 'vermouth', 'liqueur d amande', 'liqueur d amandes'],
   },
   {
     name: 'Pastis',
