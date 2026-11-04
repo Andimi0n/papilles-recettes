@@ -113,7 +113,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
   {
     name: 'Concombre',
     aisle: 'Fruits & Légumes',
-    aliases: ['concombres', 'concombre epluche', 'tranches de concombre'],
+    aliases: ['concombres', 'concombre epluche', 'tranches de concombre', 'concombre noa'],
   },
   {
     name: 'Brocoli',
@@ -320,7 +320,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
   {
     name: 'Basilic',
     aisle: 'Fruits & Légumes',
-    aliases: ['feuilles de basilic', 'feuille de basilic', 'basilic frais', 'basilic cisele'],
+    aliases: ['feuilles de basilic', 'feuille de basilic', 'basilic frais', 'basilic cisele', 'basilic thai'],
   },
   {
     name: 'Persil',
@@ -389,7 +389,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
   {
     name: 'Chou rouge',
     aisle: 'Fruits & Légumes',
-    aliases: ['choux rouges', 'chou rouge emince', 'chou rouge rape'],
+    aliases: ['choux rouges', 'chou rouge emince', 'chou rouge rape', 'pousses de chou rouge'],
   },
   {
     name: 'Chou blanc',
@@ -965,7 +965,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
   {
     name: 'Bœuf',
     aisle: 'Boucherie & Poissonnerie',
-    aliases: ['viande bovine', 'bavette', 'entrecote', 'rumsteck', 'paleron', 'bourguignon', 'morceaux de boeuf', 'boeuf a braiser', 'paleron de boeuf', 'viande de boeuf'],
+    aliases: ['viande bovine', 'bavette', 'entrecote', 'rumsteck', 'paleron', 'bourguignon', 'morceaux de boeuf', 'boeuf a braiser', 'paleron de boeuf', 'viande de boeuf', 'roti de boeuf'],
   },
   {
     name: 'Steak haché',
@@ -1469,7 +1469,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
   {
     name: 'Coulis de tomate',
     aisle: 'Épicerie & Condiments',
-    aliases: ['sauce tomate', 'puree de tomate', 'pulpe de tomate', 'passata'],
+    aliases: ['sauce tomate', 'puree de tomate', 'pulpe de tomate', 'passata', 'sauce tomate cuisinee', 'pulpe ou coulis de tomate'],
     density: 1.05,
   },
   {
@@ -2144,7 +2144,7 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
   {
     name: 'Pain',
     aisle: 'Boulangerie & Pâtisserie',
-    aliases: ['baguette', 'pain de campagne', 'pain frais', 'tranches de pain', 'tartines de pain', 'croutons', 'ciabatta', 'pain ciabatta'],
+    aliases: ['baguette', 'pain de campagne', 'pain frais', 'tranches de pain', 'tartines de pain', 'croutons', 'ciabatta', 'pain ciabatta', 'demi baguette', 'demi baguette precuite', 'demi-baguette precuite'],
     allergen: 'gluten',
   },
   {
@@ -2471,6 +2471,8 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
 function normalizeForVocabIndex(str: string): string {
   return str
     .toLowerCase()
+    .replace(/œ/g, 'oe')
+    .replace(/æ/g, 'ae')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     // Remplace les apostrophes (droites ou typographiques) et tirets par des espaces

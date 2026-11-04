@@ -6,6 +6,8 @@ import { DayOfWeek, MealTime, PlannerMode } from '../types/planner';
 export function normalizeString(str: string): string {
   return str
     .toLowerCase()
+    .replace(/œ/g, 'oe')
+    .replace(/æ/g, 'ae')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .trim();
