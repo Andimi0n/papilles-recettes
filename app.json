@@ -11,7 +11,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.andimi0n.papilles",
       "infoPlist": {
-        "NSCameraUsageDescription": "Papilles utilise la caméra pour scanner des recettes imprimées et des QR codes de partage.",
+        "NSCameraUsageDescription": "Papilles utilise la caméra pour photographier vos recettes, scanner des fiches imprimées et lire les QR codes de partage.",
         "NSPhotoLibraryUsageDescription": "Papilles utilise vos photos pour importer des images de recettes depuis votre galerie."
       }
     },
@@ -56,7 +56,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Papilles utilise vos photos pour importer des images de recettes depuis votre galerie."
+          "photosPermission": "Papilles utilise vos photos pour importer des images de recettes depuis votre galerie.",
+          "cameraPermission": "Papilles utilise votre appareil photo pour photographier vos recettes et scanner vos fiches."
         }
       ],
       "expo-sqlite"

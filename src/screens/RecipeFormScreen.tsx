@@ -349,8 +349,35 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
   );
   const [isDraggingStep, setIsDraggingStep] = useState(false);
 
-  // Image picker
-  const handlePickImage = async () => {
+  // Image pickers (Appareil photo & Galerie)
+  const handleCaptureImage = async () => {
+    try {
+      const permission = await ImagePicker.requestCameraPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert(
+          'Permission requise',
+          'Veuillez autoriser l\'accès à l\'appareil photo dans vos réglages pour photographier votre recette.'
+        );
+        return;
+      }
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        aspect: [16, 9],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const permanentUri = await ImageStorageService.persistImageLocally(result.assets[0].uri);
+        setImageUrl(permanentUri);
+        setAvailableImages((prev) => (prev.includes(permanentUri) ? prev : [permanentUri, ...prev]));
+      }
+    } catch (e) {
+      console.log('Erreur capture photo:', e);
+      Alert.alert('Erreur', 'Impossible de capturer la photo.');
+    }
+  };
+
+  const handlePickFromGallery = async () => {
     try {
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permission.granted) {
@@ -370,9 +397,11 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const permanentUri = await ImageStorageService.persistImageLocally(result.assets[0].uri);
         setImageUrl(permanentUri);
+        setAvailableImages((prev) => (prev.includes(permanentUri) ? prev : [permanentUri, ...prev]));
       }
     } catch (e) {
       console.log('Erreur sélection image:', e);
+      Alert.alert('Erreur', 'Impossible de sélectionner la photo.');
     }
   };
 
@@ -964,14 +993,28 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
                 contentFit="cover"
                 cachePolicy="disk"
               />
-              <TouchableOpacity
-                style={styles.changeImageBtn}
-                onPress={handlePickImage}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="camera" size={18} color="#FFFFFF" />
-                <Text style={styles.changeImageBtnText}>Choisir une photo</Text>
-              </TouchableOpacity>
+              <View style={styles.imageActionsRow}>
+                <TouchableOpacity
+                  style={styles.changeImageBtn}
+                  onPress={handleCaptureImage}
+                  activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Prendre une photo avec l'appareil photo"
+                >
+                  <Ionicons name="camera" size={15} color="#FFFFFF" />
+                  <Text style={styles.changeImageBtnText}>Prendre photo</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.changeImageBtn}
+                  onPress={handlePickFromGallery}
+                  activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Choisir une photo dans la galerie"
+                >
+                  <Ionicons name="images" size={15} color="#FFFFFF" />
+                  <Text style={styles.changeImageBtnText}>Galerie</Text>
+                </TouchableOpacity>
+              </View>
             </View>
 
             {/* Photos web disponibles pour la couverture */}
