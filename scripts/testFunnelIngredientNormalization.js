@@ -70,6 +70,22 @@ async function main() {
     assert.notStrictEqual(normPainCiabatta.canonicalId, 'ing_canon_pain_pita', 'pain ciabatta ne doit pas résoudre vers Pain pita');
     console.log('✓ "pain ciabatta" ne résout pas vers Pain pita');
 
+    // =========================================================================
+    // SECTION 3 : Alternatives culinaires ("ou", "/")
+    // =========================================================================
+    console.log('\n--- Test 3 : Alternatives culinaires (préservation du libellé + canonicalId du 1er choix) ---');
+
+    const normCremeOuYaourt = normalizeIngredient({ name: 'crème fraîche ou yaourt' });
+    assert.strictEqual(normCremeOuYaourt.canonicalId, 'ing_canon_creme_fraiche', 'crème fraîche ou yaourt doit lier ing_canon_creme_fraiche');
+    assert.strictEqual(normCremeOuYaourt.name, 'crème fraîche ou yaourt', 'le libellé complet doit être conservé pour l\'affichage');
+    console.log('✓ "crème fraîche ou yaourt" -> conservé et lié à Crème fraîche');
+
+    const normPatatesSlash = normalizeIngredient({ name: 'patates douces / pommes de terre' });
+    assert.strictEqual(normPatatesSlash.canonicalId, 'ing_canon_patate_douce', 'patates douces / pommes de terre doit lier ing_canon_patate_douce');
+    assert.strictEqual(normPatatesSlash.name, 'patates douces / pommes de terre', 'le libellé complet doit être conservé pour l\'affichage');
+    console.log('✓ "patates douces / pommes de terre" -> conservé et lié à Patate douce');
+
+
     console.log('\n🎉 TOUS LES TESTS DE LA SECTION ONT RÉUSSI !');
     success = true;
   } finally {
