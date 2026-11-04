@@ -14,8 +14,10 @@ export function normalizeString(str: string): string {
 /**
  * Calcule la distance de Levenshtein entre deux chaînes normalisées.
  * Optimisé en mémoire O(min(M, N)).
+ * Avec `maxDistance`, le calcul s'arrête dès que ce seuil est forcément dépassé
+ * et renvoie alors `maxDistance + 1` (le minimum d'une ligne ne décroît jamais).
  */
-export function levenshteinDistance(a: string, b: string): number {
+export function levenshteinDistance(a: string, b: string, maxDistance = Infinity): number {
   if (a === b) return 0;
   if (a.length === 0) return b.length;
   if (b.length === 0) return a.length;
@@ -28,6 +30,8 @@ export function levenshteinDistance(a: string, b: string): number {
 
   const aLen = a.length;
   const bLen = b.length;
+  if (bLen - aLen > maxDistance) return maxDistance + 1;
+
   let prevRow = new Array(aLen + 1);
   let currRow = new Array(aLen + 1);
 
@@ -37,20 +41,25 @@ export function levenshteinDistance(a: string, b: string): number {
 
   for (let j = 1; j <= bLen; j++) {
     currRow[0] = j;
+    let rowMin = j;
     const bChar = b[j - 1];
 
     for (let i = 1; i <= aLen; i++) {
       const cost = a[i - 1] === bChar ? 0 : 1;
-      currRow[i] = Math.min(
+      const value = Math.min(
         currRow[i - 1] + 1,      // insertion
         prevRow[i] + 1,          // suppression
         prevRow[i - 1] + cost    // substitution
       );
+      currRow[i] = value;
+      if (value < rowMin) rowMin = value;
     }
 
-    for (let i = 0; i <= aLen; i++) {
-      prevRow[i] = currRow[i];
-    }
+    if (rowMin > maxDistance) return maxDistance + 1;
+
+    const tmpRow = prevRow;
+    prevRow = currRow;
+    currRow = tmpRow;
   }
 
   return prevRow[aLen];

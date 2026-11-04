@@ -532,8 +532,10 @@ function resolveIngredientName(raw: {
         maxAllowed = 1;
       }
 
-      const dist = levenshteinDistance(item.normalizedName, cleanedNorm);
-      if (maxAllowed > 0 && dist <= maxAllowed && dist < bestDistance) {
+      if (maxAllowed === 0) continue;
+      // Calcul borné : abandonné dès que le seuil autorisé est forcément dépassé.
+      const dist = levenshteinDistance(item.normalizedName, cleanedNorm, maxAllowed);
+      if (dist <= maxAllowed && dist < bestDistance) {
         bestDistance = dist;
         bestMatch = item;
       }
