@@ -90,13 +90,13 @@ function AppContent({ initialData }: AppContentProps) {
   const [currentScreen, setCurrentScreen] = useState<AppScreen>('home');
   const [viewedTabs, setViewedTabs] = useState<Record<string, boolean>>({ home: true });
 
-  // Mode immersif plein écran (Android) : masquer la barre de navigation système et réappliquer au retour au premier plan
+  // Barre de navigation Android visible au premier plan (l'application reste au-dessus de la barre système)
   useEffect(() => {
     if (Platform.OS === 'android') {
-      NavigationBar.setHidden(true);
+      NavigationBar.setHidden(false);
       const subscription = AppState.addEventListener('change', (nextAppState) => {
         if (nextAppState === 'active') {
-          NavigationBar.setHidden(true);
+          NavigationBar.setHidden(false);
         }
       });
       return () => {
@@ -399,7 +399,7 @@ function AppContent({ initialData }: AppContentProps) {
     return (
       <View style={styles.loadingContainer}>
         <StatusBar style={isDark ? 'light' : 'dark'} />
-        <NavigationBar hidden={true} style={isDark ? 'light' : 'dark'} />
+        <NavigationBar hidden={false} style={isDark ? 'light' : 'dark'} />
         <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
@@ -409,7 +409,7 @@ function AppContent({ initialData }: AppContentProps) {
     return (
       <View style={styles.container}>
         <StatusBar style={isDark ? 'light' : 'dark'} />
-        <NavigationBar hidden={true} style={isDark ? 'light' : 'dark'} />
+        <NavigationBar hidden={false} style={isDark ? 'light' : 'dark'} />
         <OnboardingScreen onComplete={handleOnboardingComplete} />
       </View>
     );
@@ -420,7 +420,7 @@ function AppContent({ initialData }: AppContentProps) {
   return (
     <View style={styles.container}>
       <StatusBar style={isDark ? 'light' : 'dark'} />
-      <NavigationBar hidden={true} style={isDark ? 'light' : 'dark'} />
+      <NavigationBar hidden={false} style={isDark ? 'light' : 'dark'} />
         {/* Écrans Principaux avec Keep-Alive (onglets persistants en mémoire, isolés et gelés si inactifs) */}
         <View style={styles.mainContent}>
           <TabPane

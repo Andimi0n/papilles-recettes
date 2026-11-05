@@ -232,7 +232,7 @@ export const InStoreShoppingModal: React.FC<InStoreShoppingModalProps> = React.m
       presentationStyle="fullScreen"
       onRequestClose={handleRequestClose}
     >
-      <NavigationBar hidden={true} />
+      <NavigationBar hidden={false} style={isDark ? 'light' : 'dark'} />
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
         {/* En-tête épuré et contrasté */}
         <View style={styles.header}>

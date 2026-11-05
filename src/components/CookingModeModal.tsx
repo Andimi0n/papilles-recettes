@@ -133,7 +133,7 @@ export const CookingModeModal: React.FC<CookingModeModalProps> = ({
 }) => {
   // Maintient l'écran du smartphone allumé pendant toute la session de cuisine
   useKeepAwake();
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
 
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [checkedIngredients, setCheckedIngredients] = useState<Record<string, boolean>>({});
@@ -435,7 +435,7 @@ export const CookingModeModal: React.FC<CookingModeModalProps> = ({
       presentationStyle="fullScreen"
       onRequestClose={handleRequestClose}
     >
-      <NavigationBar hidden={true} />
+      <NavigationBar hidden={false} style={isDark ? 'light' : 'dark'} />
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
         <View style={styles.container}>
           {/* Top Bar : Quitter, Titre & Indicateur Écran Toujours Allumé */}

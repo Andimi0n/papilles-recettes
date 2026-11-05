@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { CameraView, useCameraPermissions, Camera, BarcodeScanningResult } from 'expo-camera';
 import { NavigationBar } from 'expo-navigation-bar';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
@@ -28,6 +29,7 @@ const InnerQrScanner: React.FC<Omit<QrScannerModalProps, 'visible'>> = ({
   onRecipeScanned,
 }) => {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const [permission, requestPermission] = useCameraPermissions();
   const [torch, setTorch] = useState(false);
   const [scanned, setScanned] = useState(false);
@@ -153,7 +155,7 @@ const InnerQrScanner: React.FC<Omit<QrScannerModalProps, 'visible'>> = ({
           {/* Viseur visuel avec bords sombres */}
           <View style={styles.overlayMask}>
             {/* Barre supérieure */}
-            <View style={styles.topBar}>
+            <View style={[styles.topBar, { paddingTop: Math.max(insets.top + 8, 48) }]}>
               <TouchableOpacity
                 style={styles.iconCircleBtn}
                 onPress={onClose}
@@ -199,7 +201,7 @@ const InnerQrScanner: React.FC<Omit<QrScannerModalProps, 'visible'>> = ({
             </View>
 
             {/* Barre inférieure avec options alternatives */}
-            <View style={styles.bottomBar}>
+            <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom + 16, 48) }]}>
               <TouchableOpacity
                 style={styles.bottomActionBtn}
                 onPress={handlePickImageFromGallery}
@@ -221,7 +223,7 @@ const InnerQrScanner: React.FC<Omit<QrScannerModalProps, 'visible'>> = ({
 
             {/* Modale ou tiroir de saisie manuelle de lien */}
             {showManualPaste && (
-              <View style={[styles.pasteDrawer, { backgroundColor: colors.cardBackground }]}>
+              <View style={[styles.pasteDrawer, { backgroundColor: colors.cardBackground, paddingBottom: Math.max(insets.bottom + 16, 20) }]}>
                 <Text style={[styles.pasteTitle, { color: colors.textPrimary }]}>
                   Coller un lien Papilles
                 </Text>
@@ -271,6 +273,7 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
   onClose,
   onRecipeScanned,
 }) => {
+  const { isDark } = useTheme();
   if (!visible) return null;
 
   return (
@@ -280,7 +283,7 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
       presentationStyle="fullScreen"
       onRequestClose={onClose}
     >
-      <NavigationBar hidden={true} />
+      <NavigationBar hidden={false} style={isDark ? 'light' : 'dark'} />
       <InnerQrScanner onClose={onClose} onRecipeScanned={onRecipeScanned} />
     </Modal>
   );

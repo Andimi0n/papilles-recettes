@@ -40,7 +40,7 @@
       [
         "expo-navigation-bar",
         {
-          "hidden": true
+          "hidden": false
         }
       ],
       [
