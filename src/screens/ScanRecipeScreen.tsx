@@ -172,7 +172,7 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
           return;
         }
         result = await ImagePicker.launchCameraAsync({
-          quality: 0.8,
+          quality: 1.0,
           allowsEditing: false,
         });
       } else {

@@ -17,6 +17,7 @@ import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Recipe, Category, Difficulty, Ingredient, RecipeStep } from '../types/recipe';
 import { Colors } from '../theme/colors';
 import { styles } from './RecipeFormScreen.styles';
@@ -382,11 +383,46 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
         );
         return;
       }
-      // Note Android : allowsEditing doit rester false pour éviter le crash natif du CropActivity/OOM
+
+      // Sauvegarde défensive du brouillon si Android recycle l'activité principale
+      const currentDraftRecipe: Recipe = {
+        id: initialRecipe?.id || `rec_draft_${Date.now()}`,
+        title: title.trim(),
+        description: description.trim(),
+        servings: Math.max(1, servings),
+        prepTimeMinutes: parseInt(prepTime, 10) || 10,
+        cookTimeMinutes: parseInt(cookTime, 10) || 0,
+        difficulty,
+        category,
+        rating,
+        isVegetarian,
+        tags: tags.length > 0 ? tags : undefined,
+        userNote: userNote.trim() || undefined,
+        imageUrl: imageUrl.trim(),
+        availableImages: availableImages.length > 0 ? availableImages : undefined,
+        isFavorite: initialRecipe?.isFavorite || false,
+        createdAt: initialRecipe?.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        ingredients: ingredients.filter((i) => i.name.trim().length > 0),
+        steps: steps.filter((s) => s.instruction.trim().length > 0),
+      };
+      await AsyncStorage.setItem(
+        '@papilles_camera_recipe_draft',
+        JSON.stringify({
+          recipe: currentDraftRecipe,
+          selectedRecipeId: initialRecipe?.id || null,
+        })
+      );
+
+      // Note Android : quality 1.0 utilise RawImageExporter (zéro allocation Bitmap en heap Java, évite OOM crash)
+      // et allowsEditing: false évite le crash du CropActivity natif
       const result = await ImagePicker.launchCameraAsync({
         allowsEditing: false,
-        quality: 0.7,
+        quality: 1.0,
       });
+
+      // Nettoyer le brouillon si l'activité n'a pas été recyclée
+      await AsyncStorage.removeItem('@papilles_camera_recipe_draft');
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const rawUri = result.assets[0].uri;
@@ -401,6 +437,7 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
         }
       }
     } catch (e) {
+      await AsyncStorage.removeItem('@papilles_camera_recipe_draft').catch(() => {});
       console.log('Erreur capture photo:', e);
       Alert.alert('Erreur', 'Impossible de capturer la photo.');
     }

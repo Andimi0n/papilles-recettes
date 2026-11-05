@@ -168,7 +168,7 @@ export const ImageStorageService = {
           const manipResult = await manipulator.manipulateAsync(
             trimmed,
             [{ resize: { width: 1200 } }],
-            { compress: 0.8, format: manipulator.SaveFormat.JPEG }
+            { compress: 0.8, format: manipulator.SaveFormat?.JPEG ?? ('jpeg' as any) }
           );
           if (manipResult?.uri) {
             sourceToCopy = manipResult.uri;

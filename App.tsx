@@ -30,6 +30,9 @@ import { OnboardingScreen } from './src/screens/OnboardingScreen';
 import { createDynamicStyles, ThemeMode } from './src/theme/colors';
 import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
 import * as SplashScreen from 'expo-splash-screen';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as ImagePicker from 'expo-image-picker';
+import { ImageStorageService } from './src/services/imageStorageService';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -122,6 +125,52 @@ function AppContent({ initialData }: AppContentProps) {
   // Recette reçue en partage (via Deep Link ou scan QR code)
   const [receivedSharedRecipe, setReceivedSharedRecipe] = useState<Recipe | null>(null);
   const [isImportModalVisible, setIsImportModalVisible] = useState(false);
+
+  // Restauration d'un brouillon d'édition de recette si Android a recyclé l'activité pendant la prise de photo
+  useEffect(() => {
+    if (Platform.OS === 'android') {
+      (async () => {
+        try {
+          const draftJson = await AsyncStorage.getItem('@papilles_camera_recipe_draft');
+          if (!draftJson) return;
+
+          const draft = JSON.parse(draftJson);
+          const pendingResult = await ImagePicker.getPendingResultAsync();
+
+          let photoUri: string | null = null;
+          if (
+            pendingResult &&
+            'assets' in pendingResult &&
+            !pendingResult.canceled &&
+            pendingResult.assets &&
+            pendingResult.assets.length > 0 &&
+            pendingResult.assets[0].uri
+          ) {
+            photoUri = await ImageStorageService.persistImageLocally(pendingResult.assets[0].uri);
+          }
+
+          if (draft && draft.recipe) {
+            const restoredRecipe: Recipe = { ...draft.recipe };
+            if (photoUri) {
+              restoredRecipe.imageUrl = photoUri;
+              const currentAvail = Array.isArray(restoredRecipe.availableImages)
+                ? restoredRecipe.availableImages
+                : [];
+              restoredRecipe.availableImages = currentAvail.includes(photoUri)
+                ? currentAvail
+                : [photoUri, ...currentAvail];
+            }
+            setEditingRecipe(restoredRecipe);
+            if (draft.selectedRecipeId) setSelectedRecipeId(draft.selectedRecipeId);
+            setCurrentScreen('form');
+          }
+          await AsyncStorage.removeItem('@papilles_camera_recipe_draft');
+        } catch (e) {
+          console.warn('[App] Erreur restauration draft caméra après recyclage Android:', e);
+        }
+      })();
+    }
+  }, []);
 
   // Recharge la liste des recettes
   const reloadRecipes = useCallback(async () => {

@@ -65,7 +65,8 @@
           "cameraPermission": "Papilles utilise votre appareil photo pour photographier vos recettes et scanner vos fiches."
         }
       ],
-      "expo-sqlite"
+      "expo-sqlite",
+      "./plugins/withLargeHeap"
     ],
     "extra": {
       "eas": {
