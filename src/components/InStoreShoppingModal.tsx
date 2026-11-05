@@ -149,13 +149,46 @@ export const InStoreShoppingModal: React.FC<InStoreShoppingModalProps> = React.m
         onStockUpdated(res.fridgeItems.length);
       }
 
-      Alert.alert(
-        'Achats rangés ! 🥫',
-        `${res.movedCount} article${res.movedCount > 1 ? 's' : ''} ajouté${res.movedCount > 1 ? 's' : ''} à vos étagères.`
-      );
+      if (res.unmovedCheckedCount > 0) {
+        Alert.alert(
+          'Achats rangés ! 🥫',
+          `${res.movedCount} article${res.movedCount > 1 ? 's ajoutés' : ' ajouté'} à vos étagères.\n\n${res.unmovedCheckedCount} article${res.unmovedCheckedCount > 1 ? 's non alimentaires achetés restent cochés' : ' non alimentaire acheté reste coché'}. Les retirer de la liste ?`,
+          [
+            {
+              text: 'Les conserver',
+              style: 'cancel',
+              onPress: () => {
+                if (res.shoppingList.length === 0) {
+                  onClose();
+                }
+              },
+            },
+            {
+              text: 'Retirer de la liste',
+              style: 'destructive',
+              onPress: async () => {
+                try {
+                  const cleanedList = await StorageService.clearCompletedShoppingItems();
+                  onItemsChange(cleanedList);
+                  if (cleanedList.length === 0) {
+                    onClose();
+                  }
+                } catch {
+                  Alert.alert('Erreur', 'Impossible de retirer les articles cochés.');
+                }
+              },
+            },
+          ]
+        );
+      } else {
+        Alert.alert(
+          'Achats rangés ! 🥫',
+          `${res.movedCount} article${res.movedCount > 1 ? 's' : ''} ajouté${res.movedCount > 1 ? 's' : ''} à vos étagères.`
+        );
 
-      if (res.shoppingList.length === 0) {
-        onClose();
+        if (res.shoppingList.length === 0) {
+          onClose();
+        }
       }
     } catch {
       Alert.alert('Erreur', 'Impossible de ranger vos articles dans les étagères.');

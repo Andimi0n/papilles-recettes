@@ -812,10 +812,36 @@ const ShoppingListScreenComponent: React.FC<ShoppingListScreenProps> = ({
       const res = await StorageService.moveCheckedShoppingItemsToFridge();
       setItems(res.shoppingList);
       setFridgeCount(res.fridgeItems.length);
-      Alert.alert(
-        'Rangement terminé !',
-        `${res.movedCount} article${res.movedCount > 1 ? 's ont été rangés' : ' a été rangé'} dans vos étagères.`
-      );
+
+      if (res.unmovedCheckedCount > 0) {
+        Alert.alert(
+          'Achats rangés ! 🥫',
+          `${res.movedCount} article${res.movedCount > 1 ? 's ont été rangés' : ' a été rangé'} dans vos étagères.\n\n${res.unmovedCheckedCount} article${res.unmovedCheckedCount > 1 ? 's non alimentaires achetés restent cochés' : ' non alimentaire acheté reste coché'}. Les retirer de la liste ?`,
+          [
+            {
+              text: 'Les conserver',
+              style: 'cancel',
+            },
+            {
+              text: 'Retirer de la liste',
+              style: 'destructive',
+              onPress: async () => {
+                try {
+                  const cleaned = await StorageService.clearCompletedShoppingItems();
+                  setItems(cleaned);
+                } catch {
+                  Alert.alert('Erreur', "Impossible de retirer les articles de la liste.");
+                }
+              },
+            },
+          ]
+        );
+      } else {
+        Alert.alert(
+          'Rangement terminé ! 🥫',
+          `${res.movedCount} article${res.movedCount > 1 ? 's ont été rangés' : ' a été rangé'} dans vos étagères.`
+        );
+      }
     } catch (e) {
       Alert.alert('Erreur', "Impossible de ranger les articles dans vos étagères.");
     }

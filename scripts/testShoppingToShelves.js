@@ -117,6 +117,7 @@ async function main() {
   const res1 = await StorageService.moveCheckedShoppingItemsToFridge();
 
   assert.strictEqual(res1.movedCount, 2, 'Seuls 2 articles reconnus (Carotte, Beurre) doivent être rangés');
+  assert.strictEqual(res1.unmovedCheckedCount, 2, '2 articles non alimentaires achetés doivent être détectés non transférés');
   assert.strictEqual(res1.fridgeItems.length, 2, 'Les étagères doivent contenir exactement 2 articles');
   assert.ok(res1.fridgeItems.some((f) => f.canonicalId === 'ing_canon_carotte'));
   assert.ok(res1.fridgeItems.some((f) => f.canonicalId === 'ing_canon_beurre'));
@@ -128,6 +129,7 @@ async function main() {
   assert.ok(res1.shoppingList.some((s) => s.id === 'shop_5'), 'Pommes doit rester dans la liste');
   console.log('✓ Seuls les articles reconnus ont été déplacés dans les étagères');
   console.log('✓ Les articles non reconnus sont restés intacts dans la liste de courses');
+  console.log('✓ unmovedCheckedCount vaut bien 2 pour proposer la purge via Alert');
 
   // =========================================================================
   // TEST 2 : Rangement lorsque SEULS des articles non reconnus sont cochés
@@ -169,9 +171,18 @@ async function main() {
 
   const res3 = await StorageService.moveCheckedShoppingItemsToFridge();
   assert.strictEqual(res3.movedCount, 1, 'Seul Pommes a été rangé');
+  assert.strictEqual(res3.unmovedCheckedCount, 2, 'Les 2 articles non reconnus restent non transférés');
   assert.strictEqual(res3.fridgeItems.length, 3, 'Les étagères contiennent maintenant 3 articles');
   assert.strictEqual(res3.shoppingList.length, 2, 'Seuls Papier toilette et Lessive restent dans la liste de courses');
   console.log('✓ Pommes rangées avec succès, les 2 articles non reconnus sont restés dans les courses');
+
+  // =========================================================================
+  // TEST 4 : Purge des articles non alimentaires cochés restants
+  // =========================================================================
+  console.log('\n--- Test 4 : Purge des articles non alimentaires cochés ---');
+  const purgedList = await StorageService.clearCompletedShoppingItems();
+  assert.strictEqual(purgedList.length, 0, 'La liste de courses doit être totalement vidée après confirmation de purge');
+  console.log('✓ Purge des articles achetés restants validée à 100%');
 
   // Nettoyage
   try {

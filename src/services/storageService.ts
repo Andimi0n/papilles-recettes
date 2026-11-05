@@ -1387,13 +1387,18 @@ export const StorageService = {
    * Seuls les ingrédients reconnus par le lexique sont transférés vers les étagères.
    * Les articles non reconnus restent dans la liste de courses.
    */
-  async moveCheckedShoppingItemsToFridge(): Promise<{ shoppingList: ShoppingItem[]; fridgeItems: FridgeItem[]; movedCount: number }> {
+  async moveCheckedShoppingItemsToFridge(): Promise<{
+    shoppingList: ShoppingItem[];
+    fridgeItems: FridgeItem[];
+    movedCount: number;
+    unmovedCheckedCount: number;
+  }> {
     try {
       const currentList = await this.getShoppingList();
       const checkedItems = currentList.filter((i) => i.isChecked);
       if (checkedItems.length === 0) {
         const fridgeItems = await this.getFridgeItems();
-        return { shoppingList: currentList, fridgeItems, movedCount: 0 };
+        return { shoppingList: currentList, fridgeItems, movedCount: 0, unmovedCheckedCount: 0 };
       }
 
       // Filtrer strictement les articles reconnus par le lexique canonique
@@ -1412,7 +1417,7 @@ export const StorageService = {
 
       if (itemsToMove.length === 0) {
         const fridgeItems = await this.getFridgeItems();
-        return { shoppingList: currentList, fridgeItems, movedCount: 0 };
+        return { shoppingList: currentList, fridgeItems, movedCount: 0, unmovedCheckedCount: checkedItems.length };
       }
 
       let fridgeItems = await this.getFridgeItems();
@@ -1426,7 +1431,8 @@ export const StorageService = {
       await this.saveShoppingList(updatedShopping);
       itemsToMove.map((m) => m.item).forEach(trackShoppingItemRemoved);
 
-      return { shoppingList: updatedShopping, fridgeItems, movedCount: itemsToMove.length };
+      const unmovedCheckedCount = checkedItems.length - itemsToMove.length;
+      return { shoppingList: updatedShopping, fridgeItems, movedCount: itemsToMove.length, unmovedCheckedCount };
     } catch (e) {
       console.error('Erreur déplacement articles cochés vers frigo:', e);
       throw e;
