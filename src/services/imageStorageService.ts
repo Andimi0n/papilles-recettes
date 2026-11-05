@@ -194,6 +194,16 @@ export const ImageStorageService = {
         fs.deleteAsync(sourceToCopy, { idempotent: true }).catch(() => {});
       }
 
+      // Si le fichier source original est un fichier temporaire de cache (ex: ImagePicker / Camera),
+      // le supprimer pour libérer immédiatement les 5 à 15 Mo du fichier brut non redimensionné
+      if (
+        (trimmed.includes('/cache/') || trimmed.includes('ImagePicker')) &&
+        trimmed !== destinationUri &&
+        typeof fs.deleteAsync === 'function'
+      ) {
+        fs.deleteAsync(trimmed, { idempotent: true }).catch(() => {});
+      }
+
       return destinationUri;
     } catch (err) {
       console.warn('[ImageStorage] Échec copie permanente, fallback sur URI source:', err);
