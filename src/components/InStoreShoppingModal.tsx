@@ -17,6 +17,7 @@ import { ShoppingItem, ShoppingAisle } from '../types/shopping';
 import { FridgeItem } from '../types/fridge';
 import { StorageService } from '../services/storageService';
 import { AISLE_CONFIGS, ALL_AISLES } from '../utils/aisleClassifier';
+import { isShoppingItemRecognizedInLexicon } from '../utils/shoppingAggregator';
 import { formatQuantityWithUnit } from '../constants/units';
 import { normalizeString } from '../utils/helpers';
 import { createDynamicStyles } from '../theme/colors';
@@ -131,26 +132,24 @@ export const InStoreShoppingModal: React.FC<InStoreShoppingModalProps> = React.m
     }
   };
 
-  // Ranger les articles cochés dans les étagères
+  // Ranger les articles cochés dans les étagères (uniquement ceux reconnus par le lexique)
   const handleStorePurchasesInShelves = async () => {
-    if (completedCount === 0) return;
+    const recognizedCount = completedItems.filter(isShoppingItemRecognizedInLexicon).length;
+    if (recognizedCount === 0) return;
 
     try {
-      const namesToStore = completedItems.map((i) => i.name);
-      const updatedFridge = await StorageService.addMultipleFridgeItems(namesToStore);
-      const updatedList = await StorageService.clearCompletedShoppingItems();
-
-      onItemsChange(updatedList);
+      const res = await StorageService.moveCheckedShoppingItemsToFridge();
+      onItemsChange(res.shoppingList);
       if (onStockUpdated) {
-        onStockUpdated(updatedFridge.length);
+        onStockUpdated(res.fridgeItems.length);
       }
 
       Alert.alert(
         'Achats rangés ! 🥫',
-        `${namesToStore.length} article${namesToStore.length > 1 ? 's' : ''} ajouté${namesToStore.length > 1 ? 's' : ''} à vos étagères.`
+        `${res.movedCount} article${res.movedCount > 1 ? 's' : ''} ajouté${res.movedCount > 1 ? 's' : ''} à vos étagères.`
       );
 
-      if (updatedList.length === 0) {
+      if (res.shoppingList.length === 0) {
         onClose();
       }
     } catch {
@@ -160,10 +159,11 @@ export const InStoreShoppingModal: React.FC<InStoreShoppingModalProps> = React.m
 
   // Quitter avec proposition intelligente de rangement
   const handleRequestClose = () => {
-    if (completedCount > 0) {
+    const recognizedCount = completedItems.filter(isShoppingItemRecognizedInLexicon).length;
+    if (recognizedCount > 0) {
       Alert.alert(
         'Ranger vos achats ?',
-        `Vous avez coché ${completedCount} article${completedCount > 1 ? 's' : ''}. Souhaitez-vous les ranger dans vos étagères ?`,
+        `Vous avez coché ${recognizedCount} article${recognizedCount > 1 ? 's reconnus' : ' reconnu'}. Souhaitez-vous les ranger dans vos étagères ?`,
         [
           { text: 'Annuler', style: 'cancel' },
           {

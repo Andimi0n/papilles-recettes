@@ -34,6 +34,7 @@ export interface QualifyIngredientModalProps {
   onSelectCanonical?: (canonical: CanonicalIngredient, meta: { wasAddedAsAlias: boolean; rawName: string }) => void;
   onCreateCanonical: (newIngredient: CanonicalIngredient) => void;
   queueProgress?: { current: number; total: number };
+  cancelButtonText?: string;
 }
 
 const ALL_AISLES: ShoppingAisle[] = [
@@ -56,6 +57,7 @@ export const QualifyIngredientModal: React.FC<QualifyIngredientModalProps> = ({
   onSelectCanonical,
   onCreateCanonical,
   queueProgress,
+  cancelButtonText,
 }) => {
   const { colors, isDark } = useTheme();
   const insets = useSafeAreaInsets();
@@ -593,7 +595,9 @@ export const QualifyIngredientModal: React.FC<QualifyIngredientModalProps> = ({
                 disabled={isSubmitting}
                 activeOpacity={0.7}
               >
-                <Text style={styles.cancelBtnText}>Annuler</Text>
+                <Text style={styles.cancelBtnText}>
+                  {cancelButtonText || (context === 'shopping' ? 'Garder non ajouté' : 'Annuler')}
+                </Text>
               </TouchableOpacity>
             </View>
           </ScrollView>

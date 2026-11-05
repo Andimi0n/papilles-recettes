@@ -20,7 +20,7 @@ import {
   normalizeString,
 } from '../utils/helpers';
 import { isRecipeVegetarian, ChefMoodOption, CHEF_MOODS } from './recipeAiService';
-import { createShoppingItemFromIngredient, mergeShoppingItems } from '../utils/shoppingAggregator';
+import { createShoppingItemFromIngredient, mergeShoppingItems, getShoppingItemCanonicalIngredient } from '../utils/shoppingAggregator';
 import { parseShoppingInput } from '../utils/shoppingInputParser';
 import { classifyIngredientAisle } from '../utils/aisleClassifier';
 import { normalizeIngredient } from '../utils/ingredientNormalizer';
@@ -1383,7 +1383,9 @@ export const StorageService = {
   },
 
   /**
-   * Déplace tous les articles cochés de la liste de courses vers les étagères
+   * Déplace tous les articles cochés de la liste de courses vers les étagères.
+   * Seuls les ingrédients reconnus par le lexique sont transférés vers les étagères.
+   * Les articles non reconnus restent dans la liste de courses.
    */
   async moveCheckedShoppingItemsToFridge(): Promise<{ shoppingList: ShoppingItem[]; fridgeItems: FridgeItem[]; movedCount: number }> {
     try {
@@ -1394,16 +1396,37 @@ export const StorageService = {
         return { shoppingList: currentList, fridgeItems, movedCount: 0 };
       }
 
-      let fridgeItems = await this.getFridgeItems();
+      // Filtrer strictement les articles reconnus par le lexique canonique
+      const itemsToMove: { item: ShoppingItem; canonicalName: string; aisle?: ShoppingAisle; canonicalId?: string }[] = [];
       for (const item of checkedItems) {
-        fridgeItems = await this.addFridgeItem(item.name, item.aisle, item.canonicalId);
+        const canonical = getShoppingItemCanonicalIngredient(item);
+        if (canonical) {
+          itemsToMove.push({
+            item,
+            canonicalName: canonical.canonicalName,
+            aisle: canonical.defaultAisle || item.aisle,
+            canonicalId: canonical.id,
+          });
+        }
       }
 
-      const updatedShopping = currentList.filter((i) => !i.isChecked);
-      await this.saveShoppingList(updatedShopping);
-      checkedItems.forEach(trackShoppingItemRemoved);
+      if (itemsToMove.length === 0) {
+        const fridgeItems = await this.getFridgeItems();
+        return { shoppingList: currentList, fridgeItems, movedCount: 0 };
+      }
 
-      return { shoppingList: updatedShopping, fridgeItems, movedCount: checkedItems.length };
+      let fridgeItems = await this.getFridgeItems();
+      const movedIds = new Set(itemsToMove.map((m) => m.item.id));
+
+      for (const toMove of itemsToMove) {
+        fridgeItems = await this.addFridgeItem(toMove.canonicalName, toMove.aisle, toMove.canonicalId);
+      }
+
+      const updatedShopping = currentList.filter((i) => !movedIds.has(i.id));
+      await this.saveShoppingList(updatedShopping);
+      itemsToMove.map((m) => m.item).forEach(trackShoppingItemRemoved);
+
+      return { shoppingList: updatedShopping, fridgeItems, movedCount: itemsToMove.length };
     } catch (e) {
       console.error('Erreur déplacement articles cochés vers frigo:', e);
       throw e;

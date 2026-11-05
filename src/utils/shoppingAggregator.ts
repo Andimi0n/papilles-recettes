@@ -1,5 +1,6 @@
 import { Ingredient } from '../types/recipe';
 import { ShoppingItem, ShoppingAisle } from '../types/shopping';
+import { CanonicalIngredient } from '../types/vocabulary';
 import { classifyIngredientAisle, ALL_AISLES } from './aisleClassifier';
 import { normalizeString, scaleQuantity, generateUniqueId, convertUnicodeFractions } from './helpers';
 import { normalizeIngredient } from './ingredientNormalizer';
@@ -428,3 +429,48 @@ export function formatShoppingListForShare(items: ShoppingItem[]): string {
 
   return lines.join('\n');
 }
+
+/**
+ * Recherche et renvoie l'ingrédient canonique du lexique correspondant à un article de courses
+ * (par canonicalId prioritaire, par normalisation Lexique-First, ou par nom normalisé/alias).
+ */
+export function getShoppingItemCanonicalIngredient(
+  item: Pick<ShoppingItem, 'name' | 'canonicalId'>
+): CanonicalIngredient | null {
+  if (!item) return null;
+  const vocabMapById = VocabularyService.getSyncMapById();
+
+  // 1. Vérification par canonicalId direct si valide dans le lexique
+  if (item.canonicalId && vocabMapById.has(item.canonicalId)) {
+    return vocabMapById.get(item.canonicalId) || null;
+  }
+
+  const trimmed = (item.name || '').trim();
+  if (!trimmed) return null;
+
+  // 2. Normalisation Lexique-First
+  const norm = normalizeIngredient({ name: trimmed, canonicalId: item.canonicalId });
+  if (norm.canonicalId && vocabMapById.has(norm.canonicalId)) {
+    return vocabMapById.get(norm.canonicalId) || null;
+  }
+
+  // 3. Fallback direct par nom normalisé ou alias
+  const cleanNorm = normalizeString(trimmed);
+  const byNorm = VocabularyService.getSyncMapByNormName().get(cleanNorm);
+  if (byNorm) return byNorm;
+
+  const byAlias = VocabularyService.getSyncMapByAlias().get(cleanNorm);
+  if (byAlias) return byAlias;
+
+  return null;
+}
+
+/**
+ * Détermine si un article de courses est reconnu dans le lexique officiel de l'application.
+ */
+export function isShoppingItemRecognizedInLexicon(
+  item: Pick<ShoppingItem, 'name' | 'canonicalId'>
+): boolean {
+  return getShoppingItemCanonicalIngredient(item) !== null;
+}
+

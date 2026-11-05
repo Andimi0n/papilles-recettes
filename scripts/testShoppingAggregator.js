@@ -26,6 +26,8 @@ async function main() {
   const {
     createShoppingItemFromIngredient,
     mergeShoppingItems,
+    isShoppingItemRecognizedInLexicon,
+    getShoppingItemCanonicalIngredient,
   } = require(path.join(tmpDir, 'utils/shoppingAggregator.js'));
 
   console.log('🧪 Lancement des tests de shoppingAggregator (Arbitrages 2 & 3)...');
@@ -297,6 +299,46 @@ async function main() {
   assert.ok(carotteItems.some((i) => i.quantity === '300' && i.unit === 'g'));
   assert.ok(carotteItems.some((i) => i.quantity === '2' && !i.unit));
   console.log('✓ 300g de carottes et 2 carottes restent proprement séparées (pas de fusion arbitraire)');
+
+  // =========================================================================
+  // TEST SECTION 5 : isShoppingItemRecognizedInLexicon & Canonical Resolution
+  // =========================================================================
+  console.log('\n--- Test 5 : Reconnaissance des articles dans le lexique ---');
+
+  // 1. Article avec canonicalId valide
+  const recognizedWithId = {
+    name: 'Carotte',
+    canonicalId: 'ing_canon_carotte',
+  };
+  assert.strictEqual(isShoppingItemRecognizedInLexicon(recognizedWithId), true, 'Doit reconnaître un item avec canonicalId');
+  const canon1 = getShoppingItemCanonicalIngredient(recognizedWithId);
+  assert.ok(canon1 !== null);
+  assert.strictEqual(canon1.id, 'ing_canon_carotte');
+  console.log('✓ Article avec canonicalId reconnu avec succès');
+
+  // 2. Article sans canonicalId mais dont le nom correspond au lexique
+  const recognizedByName = {
+    name: 'crème fraîche épaisse',
+  };
+  assert.strictEqual(isShoppingItemRecognizedInLexicon(recognizedByName), true, 'Doit reconnaître la crème fraîche par son nom');
+  const canon2 = getShoppingItemCanonicalIngredient(recognizedByName);
+  assert.ok(canon2 !== null);
+  assert.strictEqual(canon2.id, 'ing_canon_creme_fraiche');
+  console.log('✓ Article sans canonicalId résolu via Lexique-First avec succès');
+
+  // 3. Article hors lexique (produit ménager, libre)
+  const unrecognized1 = {
+    name: 'Papier toilette 6 rouleaux',
+  };
+  assert.strictEqual(isShoppingItemRecognizedInLexicon(unrecognized1), false, 'Papier toilette ne doit pas être reconnu');
+  assert.strictEqual(getShoppingItemCanonicalIngredient(unrecognized1), null);
+
+  const unrecognized2 = {
+    name: 'Lessive liquide',
+  };
+  assert.strictEqual(isShoppingItemRecognizedInLexicon(unrecognized2), false, 'Lessive ne doit pas être reconnue');
+  assert.strictEqual(getShoppingItemCanonicalIngredient(unrecognized2), null);
+  console.log('✓ Articles hors lexique (non culinaires) strictement non reconnus');
 
   console.log('\n🎉 TOUS LES TESTS DE SHOPPING AGGREGATOR ONT RÉUSSI (0 ERREUR) !');
 

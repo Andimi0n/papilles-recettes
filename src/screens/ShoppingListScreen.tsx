@@ -30,7 +30,12 @@ import {
 import { styles } from './ShoppingListScreen.styles';
 import { useTheme } from '../theme/ThemeContext';
 import { AISLE_CONFIGS } from '../utils/aisleClassifier';
-import { groupItemsByAisle, formatShoppingListForShare } from '../utils/shoppingAggregator';
+import {
+  groupItemsByAisle,
+  formatShoppingListForShare,
+  isShoppingItemRecognizedInLexicon,
+  getShoppingItemCanonicalIngredient,
+} from '../utils/shoppingAggregator';
 import { normalizeString } from '../utils/helpers';
 import { filterIngredientItems, countMatchingItems, areShoppingListsEqual, areFridgeListsEqual } from '../utils/ingredientSearchMatcher';
 import { createSectionListGetItemLayout } from '../utils/sectionListLayoutHelper';
@@ -40,6 +45,7 @@ import { InStoreShoppingModal } from '../components/InStoreShoppingModal';
 import { UnifiedIngredientInput } from '../components/UnifiedIngredientInput';
 import { SwipeableShoppingItemRow } from '../components/SwipeableShoppingItemRow';
 import { EditShoppingItemModal } from '../components/EditShoppingItemModal';
+import { QualifyIngredientModal } from '../components/QualifyIngredientModal';
 import { TransferAnimationOverlay, FlyingItem } from '../components/TransferAnimationOverlay';
 import { formatQuantityWithUnit, isStandardUnit, normalizeUnit } from '../constants/units';
 
@@ -54,6 +60,7 @@ interface ShoppingListItemRowProps {
   item: ShoppingItem;
   isFirst: boolean;
   isLast: boolean;
+  isRecognized: boolean;
   onToggle: (id: string) => void;
   onDelete: (id: string) => void;
   onMoveToShelves: (item: ShoppingItem) => void;
@@ -69,6 +76,7 @@ const ShoppingListItemRow = React.memo<ShoppingListItemRowProps>(
     item,
     isFirst,
     isLast,
+    isRecognized,
     onToggle,
     onDelete,
     onMoveToShelves,
@@ -93,6 +101,7 @@ const ShoppingListItemRow = React.memo<ShoppingListItemRowProps>(
       <SwipeableShoppingItemRow
         isFirst={isFirst}
         isLast={isLast}
+        isRecognized={isRecognized}
         onMoveToShelves={handleMove}
         onTriggerTransfer={handleTriggerTransfer}
         onLongPress={handleEdit}
@@ -368,6 +377,9 @@ const ShoppingListScreenComponent: React.FC<ShoppingListScreenProps> = ({
   const [editingItem, setEditingItem] = useState<ShoppingItem | null>(null);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
 
+  // Qualification d'un article non reconnu lors du swipe vers les étagères
+  const [qualifyItem, setQualifyItem] = useState<ShoppingItem | null>(null);
+
   // Snackbar d'annulation de suppression ou basculement temporaire (4 secondes)
   interface DeletedSnackbarInfo {
     item: ShoppingItem;
@@ -508,17 +520,24 @@ const ShoppingListScreenComponent: React.FC<ShoppingListScreenProps> = ({
   const totalCount = items.length;
   const completedCount = useMemo(() => items.filter((i) => i.isChecked).length, [items]);
   const activeItems = useMemo(() => items.filter((i) => !i.isChecked), [items]);
-  const hasCompletedItems = completedCount > 0;
+
+  // Nombre d'articles cochés reconnus par le lexique canonique
+  const recognizedCompletedCount = useMemo(
+    () => items.filter((i) => i.isChecked && isShoppingItemRecognizedInLexicon(i)).length,
+    [items]
+  );
+  // Afficher la barre de rangement flottante UNIQUEMENT si au moins 1 article reconnu est coché
+  const hasRecognizedCompletedItems = recognizedCompletedCount > 0;
 
   // Animation d'apparition/disparition fluide de la barre flottante de rangement
   useEffect(() => {
     Animated.spring(bulkBarAnim, {
-      toValue: hasCompletedItems ? 1 : 0,
+      toValue: hasRecognizedCompletedItems ? 1 : 0,
       useNativeDriver: true,
       tension: 65,
       friction: 9,
     }).start();
-  }, [hasCompletedItems, bulkBarAnim]);
+  }, [hasRecognizedCompletedItems, bulkBarAnim]);
 
   const isSearching = Boolean(isSearchActive || (searchQuery && searchQuery.trim().length > 0));
 
@@ -728,20 +747,57 @@ const ShoppingListScreenComponent: React.FC<ShoppingListScreenProps> = ({
   };
 
   // Déplacer un article individuel vers les étagères (swipe vers la gauche)
-  const handleMoveToShelves = useCallback(async (item: ShoppingItem) => {
-    try {
-      const prevFridgeItems = await StorageService.getFridgeItems();
-      const updatedFridge = await StorageService.addFridgeItem(item.name, item.aisle, item.canonicalId);
-      setFridgeCount(updatedFridge.length);
-      await handleDeleteItem(item.id, 'transfer', prevFridgeItems, item);
-    } catch (_e) {
-      Alert.alert('Erreur', "Impossible de basculer l'article dans vos étagères.");
-    }
-  }, [handleDeleteItem]);
+  const handleMoveToShelves = useCallback(
+    async (item: ShoppingItem) => {
+      // Si l'article n'est pas reconnu par le lexique, ouvrir la modal pour l'ajouter au lexique (ou garder non ajouté)
+      if (!isShoppingItemRecognizedInLexicon(item)) {
+        setQualifyItem(item);
+        return;
+      }
+
+      try {
+        const prevFridgeItems = await StorageService.getFridgeItems();
+        const canonical = getShoppingItemCanonicalIngredient(item);
+        const nameToStore = canonical?.canonicalName || item.name;
+        const aisleToStore = canonical?.defaultAisle || item.aisle;
+        const canonicalIdToStore = canonical?.id || item.canonicalId;
+
+        const updatedFridge = await StorageService.addFridgeItem(nameToStore, aisleToStore, canonicalIdToStore);
+        setFridgeCount(updatedFridge.length);
+        await handleDeleteItem(item.id, 'transfer', prevFridgeItems, item);
+      } catch (_e) {
+        Alert.alert('Erreur', "Impossible de basculer l'article dans vos étagères.");
+      }
+    },
+    [handleDeleteItem]
+  );
+
+  // Qualification d'un article non reconnu lors du swipe vers les étagères
+  const handleQualifyIngredientSuccess = useCallback(
+    async (canonical: CanonicalIngredient) => {
+      if (!qualifyItem) return;
+      const targetItem = qualifyItem;
+      setQualifyItem(null);
+
+      try {
+        const prevFridgeItems = await StorageService.getFridgeItems();
+        const updatedFridge = await StorageService.addFridgeItem(
+          canonical.canonicalName,
+          canonical.defaultAisle || targetItem.aisle,
+          canonical.id
+        );
+        setFridgeCount(updatedFridge.length);
+        await handleDeleteItem(targetItem.id, 'transfer', prevFridgeItems, targetItem);
+      } catch (_e) {
+        Alert.alert('Erreur', "Impossible de basculer l'article dans vos étagères.");
+      }
+    },
+    [qualifyItem, handleDeleteItem]
+  );
 
   // Passer tous les ingrédients cochés/grisés dans mes étagères
   const handleBulkMoveCompletedToShelves = async () => {
-    if (completedCount === 0) return;
+    if (recognizedCompletedCount === 0) return;
     try {
       const res = await StorageService.moveCheckedShoppingItemsToFridge();
       setItems(res.shoppingList);
@@ -876,12 +932,14 @@ const ShoppingListScreenComponent: React.FC<ShoppingListScreenProps> = ({
     ({ item, index, section }: { item: ShoppingItem; index: number; section: { title: string; data: ShoppingItem[] } }) => {
       const isFirst = index === 0;
       const isLast = index === section.data.length - 1;
+      const isRecognized = isShoppingItemRecognizedInLexicon(item);
 
       return (
         <ShoppingListItemRow
           item={item}
           isFirst={isFirst}
           isLast={isLast}
+          isRecognized={isRecognized}
           onToggle={handleToggleItem}
           onDelete={handleDeleteItem}
           onMoveToShelves={handleMoveToShelves}
@@ -1352,7 +1410,7 @@ const ShoppingListScreenComponent: React.FC<ShoppingListScreenProps> = ({
                   style={styles.scrollArea}
                   contentContainerStyle={[
                     styles.scrollContent,
-                    completedCount > 0 ? { paddingBottom: 104 } : undefined,
+                    hasRecognizedCompletedItems ? { paddingBottom: 104 } : undefined,
                   ]}
                   showsVerticalScrollIndicator={false}
                   stickySectionHeadersEnabled={false}
@@ -1454,13 +1512,13 @@ const ShoppingListScreenComponent: React.FC<ShoppingListScreenProps> = ({
                     ],
                   },
                 ]}
-                pointerEvents={hasCompletedItems ? 'auto' : 'none'}
+                pointerEvents={hasRecognizedCompletedItems ? 'auto' : 'none'}
               >
                 <TouchableOpacity
                   style={styles.floatingBulkBarBtn}
                   onPress={handleBulkMoveCompletedToShelves}
                   activeOpacity={0.85}
-                  accessibilityLabel={`Ranger ${completedCount} article${completedCount > 1 ? 's cochés' : ' coché'} dans mes étagères`}
+                  accessibilityLabel={`Ranger ${recognizedCompletedCount} article${recognizedCompletedCount > 1 ? 's' : ''} dans mes étagères`}
                   accessibilityRole="button"
                 >
                   <View style={styles.floatingBulkBarLeft}>
@@ -1471,7 +1529,7 @@ const ShoppingListScreenComponent: React.FC<ShoppingListScreenProps> = ({
                       Ranger dans mes étagères
                     </Text>
                     <View style={styles.floatingBulkBarCountBadge}>
-                      <Text style={styles.floatingBulkBarCountText}>{completedCount}</Text>
+                      <Text style={styles.floatingBulkBarCountText}>{recognizedCompletedCount}</Text>
                     </View>
                   </View>
                   <View style={styles.floatingBulkBarArrowBox}>
@@ -1597,7 +1655,7 @@ const ShoppingListScreenComponent: React.FC<ShoppingListScreenProps> = ({
         <Animated.View
           style={[
             styles.snackbarContainer,
-            completedCount > 0 && activeTab === 'shopping' ? { bottom: 78 } : undefined,
+            hasRecognizedCompletedItems && activeTab === 'shopping' ? { bottom: 78 } : undefined,
             {
               opacity: snackbarFadeAnim,
               transform: [
@@ -1672,6 +1730,26 @@ const ShoppingListScreenComponent: React.FC<ShoppingListScreenProps> = ({
               setEditingItem(null);
             }}
             onSave={handleSaveEditedItem}
+          />
+        )}
+
+        {/* Modal de qualification si swipe d'un élément non reconnu vers les étagères */}
+        {qualifyItem && (
+          <QualifyIngredientModal
+            visible={Boolean(qualifyItem)}
+            rawName={qualifyItem.name}
+            context="shopping"
+            cancelButtonText="Garder non ajouté"
+            onClose={() => setQualifyItem(null)}
+            onSelectCanonical={(canonical) => {
+              handleQualifyIngredientSuccess(canonical);
+            }}
+            onAttachAsSynonym={(canonical) => {
+              handleQualifyIngredientSuccess(canonical);
+            }}
+            onCreateCanonical={(created) => {
+              handleQualifyIngredientSuccess(created);
+            }}
           />
         )}
 

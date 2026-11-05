@@ -17,6 +17,7 @@ interface SwipeableShoppingItemRowProps {
   isFirst: boolean;
   isLast: boolean;
   onLongPress?: () => void;
+  isRecognized?: boolean;
 }
 
 export const SwipeableShoppingItemRow: React.FC<SwipeableShoppingItemRowProps> = React.memo(({
@@ -26,6 +27,7 @@ export const SwipeableShoppingItemRow: React.FC<SwipeableShoppingItemRowProps> =
   isFirst,
   isLast,
   onLongPress,
+  isRecognized = true,
 }) => {
   const { colors } = useTheme();
   const [translateX] = useState(() => new Animated.Value(0));
@@ -115,6 +117,17 @@ export const SwipeableShoppingItemRow: React.FC<SwipeableShoppingItemRowProps> =
           (gestureState.vx < -0.4 && gestureState.dx < -30);
 
         if (isSwipedEnough) {
+          if (isRecognized === false) {
+            Animated.spring(translateX, {
+              toValue: 0,
+              friction: 8,
+              tension: 45,
+              useNativeDriver: true,
+            }).start();
+            onMoveToShelves();
+            return;
+          }
+
           setIsTriggered(true);
           const startX = gestureState.moveX || 80;
           const startY = gestureState.moveY || 300;
@@ -154,7 +167,7 @@ export const SwipeableShoppingItemRow: React.FC<SwipeableShoppingItemRowProps> =
         }
       },
     });
-  }, [translateX, rowOpacity, isTriggered, onMoveToShelves, onTriggerTransfer]);
+  }, [translateX, rowOpacity, isTriggered, onMoveToShelves, onTriggerTransfer, isRecognized]);
 
   return (
     <View
@@ -199,8 +212,14 @@ export const SwipeableShoppingItemRow: React.FC<SwipeableShoppingItemRowProps> =
             },
           ]}
         >
-          <Text style={styles.swipeActionText}>Vers mes étagères</Text>
-          <Ionicons name="layers-outline" size={20} color="#FFFFFF" />
+          <Text style={styles.swipeActionText}>
+            {isRecognized === false ? 'Ajouter au lexique' : 'Vers mes étagères'}
+          </Text>
+          <Ionicons
+            name={isRecognized === false ? 'sparkles' : 'layers-outline'}
+            size={20}
+            color="#FFFFFF"
+          />
         </Animated.View>
       </View>
 
