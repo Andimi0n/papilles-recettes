@@ -20,7 +20,7 @@ import { StorageService } from './src/services/storageService';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { RecipeDetailScreen } from './src/screens/RecipeDetailScreen';
 import { RecipeFormScreen } from './src/screens/RecipeFormScreen';
-import { ScanRecipeScreen } from './src/screens/ScanRecipeScreen';
+import { ScanRecipeScreen, CapturedPhoto } from './src/screens/ScanRecipeScreen';
 import { ShoppingListScreen } from './src/screens/ShoppingListScreen';
 import { MealPlannerScreen } from './src/screens/MealPlannerScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
@@ -126,45 +126,75 @@ function AppContent({ initialData }: AppContentProps) {
   const [receivedSharedRecipe, setReceivedSharedRecipe] = useState<Recipe | null>(null);
   const [isImportModalVisible, setIsImportModalVisible] = useState(false);
 
-  // Restauration d'un brouillon d'édition de recette si Android a recyclé l'activité pendant la prise de photo
+  // Restauration d'un brouillon d'édition ou de scan si Android a recyclé l'activité pendant la prise de photo
   useEffect(() => {
     if (Platform.OS === 'android') {
       (async () => {
         try {
-          const draftJson = await AsyncStorage.getItem('@papilles_camera_recipe_draft');
-          if (!draftJson) return;
+          const formDraftJson = await AsyncStorage.getItem('@papilles_camera_recipe_draft');
+          const scanDraftJson = await AsyncStorage.getItem('@papilles_camera_scan_draft');
+          if (!formDraftJson && !scanDraftJson) return;
 
-          const draft = JSON.parse(draftJson);
           const pendingResult = await ImagePicker.getPendingResultAsync();
 
-          let photoUri: string | null = null;
-          if (
-            pendingResult &&
-            'assets' in pendingResult &&
-            !pendingResult.canceled &&
-            pendingResult.assets &&
-            pendingResult.assets.length > 0 &&
-            pendingResult.assets[0].uri
-          ) {
-            photoUri = await ImageStorageService.persistImageLocally(pendingResult.assets[0].uri);
+          // Cas 1 : Retour sur le formulaire d'édition de recette
+          if (formDraftJson) {
+            const draft = JSON.parse(formDraftJson);
+            let photoUri: string | null = null;
+            if (
+              pendingResult &&
+              'assets' in pendingResult &&
+              !pendingResult.canceled &&
+              pendingResult.assets &&
+              pendingResult.assets.length > 0 &&
+              pendingResult.assets[0].uri
+            ) {
+              photoUri = await ImageStorageService.persistImageLocally(pendingResult.assets[0].uri);
+            }
+
+            if (draft && draft.recipe) {
+              const restoredRecipe: Recipe = { ...draft.recipe };
+              if (photoUri) {
+                restoredRecipe.imageUrl = photoUri;
+                const currentAvail = Array.isArray(restoredRecipe.availableImages)
+                  ? restoredRecipe.availableImages
+                  : [];
+                restoredRecipe.availableImages = currentAvail.includes(photoUri)
+                  ? currentAvail
+                  : [photoUri, ...currentAvail];
+              }
+              setEditingRecipe(restoredRecipe);
+              if (draft.selectedRecipeId) setSelectedRecipeId(draft.selectedRecipeId);
+              setCurrentScreen('form');
+            }
+            await AsyncStorage.removeItem('@papilles_camera_recipe_draft');
           }
 
-          if (draft && draft.recipe) {
-            const restoredRecipe: Recipe = { ...draft.recipe };
-            if (photoUri) {
-              restoredRecipe.imageUrl = photoUri;
-              const currentAvail = Array.isArray(restoredRecipe.availableImages)
-                ? restoredRecipe.availableImages
-                : [];
-              restoredRecipe.availableImages = currentAvail.includes(photoUri)
-                ? currentAvail
-                : [photoUri, ...currentAvail];
+          // Cas 2 : Retour sur l'écran de scan de recette par IA
+          if (scanDraftJson) {
+            const draft = JSON.parse(scanDraftJson);
+            let newPhotoUri: string | null = null;
+            if (
+              pendingResult &&
+              'assets' in pendingResult &&
+              !pendingResult.canceled &&
+              pendingResult.assets &&
+              pendingResult.assets.length > 0 &&
+              pendingResult.assets[0].uri
+            ) {
+              newPhotoUri = pendingResult.assets[0].uri;
             }
-            setEditingRecipe(restoredRecipe);
-            if (draft.selectedRecipeId) setSelectedRecipeId(draft.selectedRecipeId);
-            setCurrentScreen('form');
+
+            setScanInitialMode('photo');
+            if (newPhotoUri) {
+              setPendingScanPhotoUri(newPhotoUri);
+            }
+            if (Array.isArray(draft.photos)) {
+              setRestoredScanPhotos(draft.photos);
+            }
+            setCurrentScreen('scan');
+            await AsyncStorage.removeItem('@papilles_camera_scan_draft');
           }
-          await AsyncStorage.removeItem('@papilles_camera_recipe_draft');
         } catch (e) {
           console.warn('[App] Erreur restauration draft caméra après recyclage Android:', e);
         }
@@ -327,6 +357,8 @@ function AppContent({ initialData }: AppContentProps) {
   };
 
   const [scanInitialMode, setScanInitialMode] = useState<'text' | 'photo' | 'url'>('photo');
+  const [restoredScanPhotos, setRestoredScanPhotos] = useState<CapturedPhoto[]>([]);
+  const [pendingScanPhotoUri, setPendingScanPhotoUri] = useState<string | null>(null);
 
   const navigateToAddRecipe = () => {
     setRecipeCreationSource('manual');
@@ -543,8 +575,18 @@ function AppContent({ initialData }: AppContentProps) {
             <ScanRecipeScreen
               key={scanInitialMode}
               initialMode={scanInitialMode}
-              onBack={() => navigateToHome()}
-              onRecipeExtracted={handleRecipeExtractedFromScan}
+              initialPhotos={restoredScanPhotos}
+              initialPendingPhotoUri={pendingScanPhotoUri || undefined}
+              onBack={() => {
+                setRestoredScanPhotos([]);
+                setPendingScanPhotoUri(null);
+                navigateToHome();
+              }}
+              onRecipeExtracted={(r, cover) => {
+                setRestoredScanPhotos([]);
+                setPendingScanPhotoUri(null);
+                handleRecipeExtractedFromScan(r, cover);
+              }}
               onRecipeReceived={handleRecipeReceivedFromScan}
               onManualCreate={navigateToAddRecipe}
             />

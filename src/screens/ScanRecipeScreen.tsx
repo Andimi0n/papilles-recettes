@@ -15,7 +15,9 @@ import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
+import { ImageManipulator, manipulateAsync, SaveFormat } from 'expo-image-manipulator';
+import * as FileSystem from 'expo-file-system/legacy';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createDynamicStyles } from '../theme/colors';
 import { useTheme } from '../theme/ThemeContext';
 import {
@@ -32,18 +34,20 @@ import { QrScannerModal } from '../components/QrScannerModal';
 
 export type AddRecipeMode = 'text' | 'photo' | 'url';
 
+export interface CapturedPhoto {
+  id: string;
+  uri: string;
+  base64: string;
+}
+
 export interface ScanRecipeScreenProps {
   initialMode?: AddRecipeMode;
+  initialPhotos?: CapturedPhoto[];
+  initialPendingPhotoUri?: string;
   onBack: () => void;
   onRecipeExtracted: (recipeData: Partial<Recipe>, coverImageUri?: string) => void;
   onRecipeReceived?: (recipe: Recipe) => void;
   onManualCreate?: () => void;
-}
-
-interface CapturedPhoto {
-  id: string;
-  uri: string;
-  base64: string;
 }
 
 const POPULAR_PLATFORMS = [
@@ -59,6 +63,8 @@ const POPULAR_PLATFORMS = [
 
 export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
   initialMode = 'photo',
+  initialPhotos,
+  initialPendingPhotoUri,
   onBack,
   onRecipeExtracted,
   onRecipeReceived,
@@ -74,8 +80,36 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
   }
 
   // États Mode Photo
-  const [photos, setPhotos] = useState<CapturedPhoto[]>([]);
+  const [photos, setPhotos] = useState<CapturedPhoto[]>(initialPhotos || []);
   const [isAnalyzingPhotos, setIsAnalyzingPhotos] = useState(false);
+
+  // Traitement d'une photo en attente issue d'un recyclage d'activité Android intercepté par App.tsx
+  useEffect(() => {
+    if (initialPendingPhotoUri) {
+      processImage(initialPendingPhotoUri)
+        .then((p) => {
+          setPhotos((prev) => (prev.some((x) => x.id === p.id) ? prev : [...prev, p]));
+        })
+        .catch((e) => console.log('[Scan] Erreur traitement photo pending:', e));
+    }
+  }, [initialPendingPhotoUri]);
+
+  // Récupération de sécurité directe si l'écran était déjà monté
+  useEffect(() => {
+    if (Platform.OS === 'android') {
+      ImagePicker.getPendingResultAsync()
+        .then(async (result) => {
+          if (result && 'assets' in result && !result.canceled && result.assets && result.assets.length > 0) {
+            const rawUri = result.assets[0].uri;
+            if (rawUri) {
+              const processed = await processImage(rawUri);
+              setPhotos((prev) => (prev.some((x) => x.id === processed.id) ? prev : [...prev, processed]));
+            }
+          }
+        })
+        .catch(() => {});
+    }
+  }, []);
 
   // États Mode Texte
   const [rawTextInput, setRawTextInput] = useState('');
@@ -145,11 +179,27 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
 
   // Compresser et préparer l'image en base64
   const processImage = async (uri: string): Promise<CapturedPhoto> => {
-    const manipResult = await manipulateAsync(
-      uri,
-      [{ resize: { width: 1024 } }],
-      { compress: 0.55, format: SaveFormat.JPEG, base64: true }
-    );
+    let manipResult: { uri: string; base64?: string };
+    try {
+      // Décodage borné natif : downsampling inSampleSize direct à 1024px lors du décodage (évite pic RAM de 50MP)
+      const context = ImageManipulator.manipulate(uri, { maxWidth: 1024, maxHeight: 1024 });
+      const image = await context.renderAsync();
+      manipResult = await image.saveAsync({ compress: 0.55, format: SaveFormat.JPEG, base64: true });
+      context.release();
+      image.release();
+    } catch {
+      // Repli défensif sur manipulateAsync
+      manipResult = await manipulateAsync(
+        uri,
+        [{ resize: { width: 1024 } }],
+        { compress: 0.55, format: SaveFormat.JPEG, base64: true }
+      );
+    }
+
+    // Nettoyage immédiat du fichier brut original du cache (5 à 15 Mo libérés)
+    if (uri.includes('/cache/') || uri.includes('ImagePicker')) {
+      FileSystem.deleteAsync(uri, { idempotent: true }).catch(() => {});
+    }
 
     return {
       id: `photo_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
@@ -171,10 +221,20 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
           );
           return;
         }
+
+        // Sauvegarde préventive du brouillon Scan si Android recycle l'activité
+        await AsyncStorage.setItem(
+          '@papilles_camera_scan_draft',
+          JSON.stringify({ photos, mode })
+        );
+
         result = await ImagePicker.launchCameraAsync({
           quality: 1.0,
           allowsEditing: false,
         });
+
+        // Nettoyer le brouillon si l'activité est restée en vie
+        await AsyncStorage.removeItem('@papilles_camera_scan_draft');
       } else {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== 'granted') {
@@ -200,6 +260,7 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
         setPhotos((prev) => [...prev, ...newCaptured]);
       }
     } catch (e: any) {
+      await AsyncStorage.removeItem('@papilles_camera_scan_draft').catch(() => {});
       console.error('Erreur sélection photo:', e);
       Alert.alert('Erreur', 'Impossible de charger la photo.');
     }
