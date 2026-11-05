@@ -521,11 +521,21 @@ const ShoppingListScreenComponent: React.FC<ShoppingListScreenProps> = ({
   const completedCount = useMemo(() => items.filter((i) => i.isChecked).length, [items]);
   const activeItems = useMemo(() => items.filter((i) => !i.isChecked), [items]);
 
-  // Nombre d'articles cochés reconnus par le lexique canonique
-  const recognizedCompletedCount = useMemo(
-    () => items.filter((i) => i.isChecked && isShoppingItemRecognizedInLexicon(i)).length,
-    [items]
-  );
+  // Indexation O(1) des articles reconnus dans le lexique canonique
+  const { recognizedItemIds, recognizedCompletedCount } = useMemo(() => {
+    const ids = new Set<string>();
+    let count = 0;
+    for (const it of items) {
+      if (isShoppingItemRecognizedInLexicon(it)) {
+        ids.add(it.id);
+        if (it.isChecked) {
+          count++;
+        }
+      }
+    }
+    return { recognizedItemIds: ids, recognizedCompletedCount: count };
+  }, [items]);
+
   // Afficher la barre de rangement flottante UNIQUEMENT si au moins 1 article reconnu est coché
   const hasRecognizedCompletedItems = recognizedCompletedCount > 0;
 
@@ -932,7 +942,7 @@ const ShoppingListScreenComponent: React.FC<ShoppingListScreenProps> = ({
     ({ item, index, section }: { item: ShoppingItem; index: number; section: { title: string; data: ShoppingItem[] } }) => {
       const isFirst = index === 0;
       const isLast = index === section.data.length - 1;
-      const isRecognized = isShoppingItemRecognizedInLexicon(item);
+      const isRecognized = recognizedItemIds.has(item.id);
 
       return (
         <ShoppingListItemRow
@@ -951,7 +961,7 @@ const ShoppingListScreenComponent: React.FC<ShoppingListScreenProps> = ({
         />
       );
     },
-    [handleToggleItem, handleDeleteItem, handleMoveToShelves, handleTriggerTransferToShelves, handleOpenEditModal, colors.secondary, colors.border, colors.textMuted]
+    [handleToggleItem, handleDeleteItem, handleMoveToShelves, handleTriggerTransferToShelves, handleOpenEditModal, colors.secondary, colors.border, colors.textMuted, recognizedItemIds]
   );
 
   const getItemLayout = useMemo(() => {

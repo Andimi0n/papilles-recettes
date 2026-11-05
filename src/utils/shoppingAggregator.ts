@@ -448,19 +448,11 @@ export function getShoppingItemCanonicalIngredient(
   const trimmed = (item.name || '').trim();
   if (!trimmed) return null;
 
-  // 2. Normalisation Lexique-First
+  // 2. Normalisation Lexique-First (englobe exactMap O(1), alias et fuzzy matching)
   const norm = normalizeIngredient({ name: trimmed, canonicalId: item.canonicalId });
   if (norm.canonicalId && vocabMapById.has(norm.canonicalId)) {
     return vocabMapById.get(norm.canonicalId) || null;
   }
-
-  // 3. Fallback direct par nom normalisé ou alias
-  const cleanNorm = normalizeString(trimmed);
-  const byNorm = VocabularyService.getSyncMapByNormName().get(cleanNorm);
-  if (byNorm) return byNorm;
-
-  const byAlias = VocabularyService.getSyncMapByAlias().get(cleanNorm);
-  if (byAlias) return byAlias;
 
   return null;
 }

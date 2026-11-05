@@ -71,6 +71,12 @@ export const InStoreShoppingModal: React.FC<InStoreShoppingModalProps> = React.m
   const remainingCount = totalCount - completedCount;
   const progressPercent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
+  // Articles cochés reconnus par le lexique pour le rangement dans les étagères
+  const recognizedCompletedItems = useMemo(() => {
+    return completedItems.filter(isShoppingItemRecognizedInLexicon);
+  }, [completedItems]);
+  const recognizedCompletedCount = recognizedCompletedItems.length;
+
   // Filtrage selon la bascule "Masquer les pris"
   const visibleItems = useMemo(() => {
     if (!visible) return [];
@@ -134,8 +140,7 @@ export const InStoreShoppingModal: React.FC<InStoreShoppingModalProps> = React.m
 
   // Ranger les articles cochés dans les étagères (uniquement ceux reconnus par le lexique)
   const handleStorePurchasesInShelves = async () => {
-    const recognizedCount = completedItems.filter(isShoppingItemRecognizedInLexicon).length;
-    if (recognizedCount === 0) return;
+    if (recognizedCompletedCount === 0) return;
 
     try {
       const res = await StorageService.moveCheckedShoppingItemsToFridge();
@@ -159,11 +164,10 @@ export const InStoreShoppingModal: React.FC<InStoreShoppingModalProps> = React.m
 
   // Quitter avec proposition intelligente de rangement
   const handleRequestClose = () => {
-    const recognizedCount = completedItems.filter(isShoppingItemRecognizedInLexicon).length;
-    if (recognizedCount > 0) {
+    if (recognizedCompletedCount > 0) {
       Alert.alert(
         'Ranger vos achats ?',
-        `Vous avez coché ${recognizedCount} article${recognizedCount > 1 ? 's reconnus' : ' reconnu'}. Souhaitez-vous les ranger dans vos étagères ?`,
+        `Vous avez coché ${recognizedCompletedCount} article${recognizedCompletedCount > 1 ? 's reconnus' : ' reconnu'}. Souhaitez-vous les ranger dans vos étagères ?`,
         [
           { text: 'Annuler', style: 'cancel' },
           {
@@ -260,7 +264,7 @@ export const InStoreShoppingModal: React.FC<InStoreShoppingModalProps> = React.m
             style={styles.listArea}
             contentContainerStyle={[
               styles.listContent,
-              { paddingBottom: completedCount > 0 ? 150 : 95 },
+              { paddingBottom: recognizedCompletedCount > 0 ? 150 : 95 },
             ]}
             sections={sections}
             keyExtractor={(item) => item.id}
@@ -363,7 +367,7 @@ export const InStoreShoppingModal: React.FC<InStoreShoppingModalProps> = React.m
           style={styles.bottomBarWrapper}
         >
           <View style={styles.bottomBar}>
-            {completedCount > 0 && (
+            {recognizedCompletedCount > 0 && (
               <TouchableOpacity
                 style={styles.storePurchasesBtn}
                 onPress={handleStorePurchasesInShelves}
@@ -371,7 +375,7 @@ export const InStoreShoppingModal: React.FC<InStoreShoppingModalProps> = React.m
               >
                 <Ionicons name="layers" size={18} color="#FFFFFF" />
                 <Text style={styles.storePurchasesBtnText}>
-                  Ranger dans mes étagères ({completedCount})
+                  Ranger dans mes étagères ({recognizedCompletedCount})
                 </Text>
                 <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
               </TouchableOpacity>
