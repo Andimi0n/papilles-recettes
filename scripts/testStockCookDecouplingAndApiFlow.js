@@ -15,7 +15,7 @@ const path = require('path');
 
 console.log('🧪 Lancement des tests de découplage et flux Clé API (StockCookModal)...');
 
-const modalPath = path.join(__dirname, '../src/components/StockCookModal.tsx');
+const modalPath = path.join(__dirname, '../src/components/chef-ai/StockCookModal.tsx');
 const content = fs.readFileSync(modalPath, 'utf8');
 
 // 1. Titre harmonisé

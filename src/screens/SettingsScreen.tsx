@@ -29,10 +29,10 @@ import { StorageService } from '../services/storageService';
 import { RecipeAiService, ChefMoodOption } from '../services/recipeAiService';
 import { RecipePackService, ExtractedRecipePack } from '../services/recipePackService';
 import { VocabularyService } from '../services/vocabularyService';
-import { VocabularyManagerModal } from '../components/VocabularyManagerModal';
-import { AllergenFamilyPickerModal } from '../components/AllergenFamilyPickerModal';
-import { ChefMoodEditModal } from '../components/ChefMoodEditModal';
-import { UnifiedIngredientInput } from '../components/UnifiedIngredientInput';
+import { VocabularyManagerModal } from '../components/lexicon-units/VocabularyManagerModal';
+import { AllergenFamilyPickerModal } from '../components/lexicon-units/AllergenFamilyPickerModal';
+import { ChefMoodEditModal } from '../components/chef-ai/ChefMoodEditModal';
+import { UnifiedIngredientInput } from '../components/lexicon-units/UnifiedIngredientInput';
 import { Recipe } from '../types/recipe';
 import {
   ALLERGEN_FAMILIES,

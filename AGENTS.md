@@ -85,15 +85,15 @@
 - **`helpers.ts`** : Fonctions d'assainissement, calcul de portions (`scaleQuantity`), formatage de durées et identifiants uniques.
 
 #### Composants réutilisables (`src/components/`) :
-- **Flux & Navigation** : `RecipeCard.tsx`, `StarRating.tsx` (0.5–5.0 sans label parasite), `SearchBar.tsx`, `CategoryPills.tsx`, `TodayMealWidget.tsx`, `ChefAiWidget.tsx`, `EmptyState.tsx`, `TransferAnimationOverlay.tsx`.
-- **Stock & Courses** : `FridgeStockView.tsx`, `SwipeableStockItemRow.tsx`, `SwipeableShoppingItemRow.tsx`, `EditShoppingItemModal.tsx`, `InStoreShoppingModal.tsx`.
-- **Saisie & Lexique** : `UnifiedIngredientInput.tsx`, `IngredientSearchBar.tsx`, `UnitQuickPicker.tsx`, `UnitPickerModal.tsx`, `VocabularyManagerModal.tsx`, `QualifyIngredientModal.tsx`, `AllergenFamilyPickerModal.tsx`.
-- **Modales Culinaires & IA** : `StockCookModal.tsx` (Chef IA en 2 étapes : 3 idées sobres < 300 tokens puis génération complète), `ChefMoodEditModal.tsx`, `ChefFavoritePromptsModal.tsx`, `CookingModeModal.tsx`, `AdvancedFiltersModal.tsx`.
-- **Planning & Repas** : `MealCalendarModal.tsx`, `MealSlotPickerModal.tsx`, `PlanRecipeModal.tsx`, `QuickMealLogModal.tsx`.
-- **Caméra, Import & Partage** : `CameraCaptureModal.tsx` (capture photo native `expo-camera` sécurisée anti-crash OOM), `ImportRecipeModal.tsx` (importation web unifiée), `RecipePrintModal.tsx` (export PDF), `RecipeQrModal.tsx` (QR code offline), `QrScannerModal.tsx` (scanner QR), `RecipeLinkPickerModal.tsx`.
-- **Sous-dossiers modulaires** :
-  - `recipe-detail/` : `RecipeIngredientsList.tsx`, `RecipeInstructionsList.tsx`, `RecipeServingsController.tsx`.
-  - `recipe-form/` : `IngredientTableEditor.tsx`, `RecipeStepEditor.tsx`.
+- **`common/` (UI générique & flux principal)** : `CategoryPills.tsx`, `EmptyState.tsx`, `RecipeCard.tsx`, `SearchBar.tsx`, `StarRating.tsx` (0.5–5.0 sans label parasite), `AdvancedFiltersModal.tsx`.
+- **`home-widgets/` (Widgets du bandeau d'accueil)** : `ChefAiWidget.tsx`, `TodayMealWidget.tsx`.
+- **`recipe-detail/` (Fiche recette & mode cuisine)** : `RecipeIngredientsList.tsx`, `RecipeInstructionsList.tsx`, `RecipeServingsController.tsx`, `CookingModeModal.tsx`, `RecipeLinkPickerModal.tsx`.
+- **`recipe-form/` (Création & édition de recette)** : `IngredientTableEditor.tsx`, `RecipeStepEditor.tsx`.
+- **`stock-shopping/` (Hub Courses & Étagères)** : `FridgeStockView.tsx`, `SwipeableStockItemRow.tsx`, `SwipeableShoppingItemRow.tsx`, `EditShoppingItemModal.tsx`, `InStoreShoppingModal.tsx`, `TransferAnimationOverlay.tsx`.
+- **`lexicon-units/` (Saisie normalisée, unités & allergènes INCO)** : `UnifiedIngredientInput.tsx`, `IngredientSearchBar.tsx`, `UnitQuickPicker.tsx`, `UnitPickerModal.tsx`, `VocabularyManagerModal.tsx`, `QualifyIngredientModal.tsx`, `AllergenFamilyPickerModal.tsx`.
+- **`chef-ai/` (Inspiration anti-gaspi & personnalisation IA)** : `StockCookModal.tsx` (Chef IA en 2 étapes : 3 idées sobres < 300 tokens puis génération complète), `ChefMoodEditModal.tsx`, `ChefFavoritePromptsModal.tsx`.
+- **`planner/` (Planification hebdomadaire & suivi de repas)** : `MealCalendarModal.tsx`, `MealSlotPickerModal.tsx`, `PlanRecipeModal.tsx`, `QuickMealLogModal.tsx`.
+- **`import-share/` (Caméra, Web, PDF & QR Code hors-ligne)** : `CameraCaptureModal.tsx` (capture photo native `expo-camera` sécurisée anti-crash OOM), `ImportRecipeModal.tsx` (importation web unifiée), `RecipePrintModal.tsx` (export PDF), `RecipeQrModal.tsx` (QR code offline), `QrScannerModal.tsx` (scanner QR).
 
 #### Données, Constantes, Types & Configuration :
 - **`src/constants/units.ts`** : Catalogue standardisé des unités culinaires (5 catégories) et `formatQuantityWithUnit`.

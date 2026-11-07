@@ -30,9 +30,9 @@ import { MealLogEntry, MealLogMap, DayMealLogSummary } from '../types/mealLog';
 import { StorageService } from '../services/storageService';
 import { styles } from './MealPlannerScreen.styles';
 import { useTheme } from '../theme/ThemeContext';
-import { MealSlotPickerModal } from '../components/MealSlotPickerModal';
-import { QuickMealLogModal } from '../components/QuickMealLogModal';
-import { MealCalendarModal } from '../components/MealCalendarModal';
+import { MealSlotPickerModal } from '../components/planner/MealSlotPickerModal';
+import { QuickMealLogModal } from '../components/planner/QuickMealLogModal';
+import { MealCalendarModal } from '../components/planner/MealCalendarModal';
 import {
   generateUniqueId,
   getLocalDateString,

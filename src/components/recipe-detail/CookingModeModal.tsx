@@ -1,0 +1,1471 @@
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import {
+  Modal,
+  View,
+  Text,
+  TouchableOpacity,
+  ScrollView,
+  Platform,
+  Vibration,
+  Alert,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { NavigationBar } from 'expo-navigation-bar';
+import { Ionicons } from '@expo/vector-icons';
+import { useKeepAwake } from 'expo-keep-awake';
+import { Recipe, Ingredient } from '../../types/recipe';
+import { UserAllergenItem } from '../../types/vocabulary';
+import { StorageService } from '../../services/storageService';
+import { AnalyticsService } from '../../services/analyticsService';
+import { VocabularyService } from '../../services/vocabularyService';
+import { Colors, Shadows, createDynamicStyles } from '../../theme/colors';
+import { useTheme } from '../../theme/ThemeContext';
+import {
+  extractTimersFromText,
+  formatTimerSeconds,
+  scaleQuantity,
+  DetectedTimer,
+  getLocalDateString,
+  normalizeString,
+  stemWord,
+} from '../../utils/helpers';
+import { prepareUserAllergens, evaluateRecipeAllergens } from '../../utils/allergenMatcher';
+import { formatQuantityWithUnit } from '../../constants/units';
+import { isKnownDefaultPantryStaple } from '../../data/canonicalVocabulary';
+import { StarRating } from '../common/StarRating';
+
+interface CookingModeModalProps {
+  visible: boolean;
+  recipe: Recipe;
+  servings: number;
+  onClose: () => void;
+  onQuickRate?: (rating: number) => void;
+}
+
+interface RunningTimer {
+  id: string;
+  label: string;
+  stepIndex: number;
+  totalSeconds: number;
+  remainingSeconds: number;
+  isRunning: boolean;
+}
+
+const IGNORED_INGREDIENT_DETECTION_WORDS = new Set([
+  'gousse', 'gousses', 'filet', 'filets', 'tranche', 'tranches', 'morceau',
+  'morceaux', 'branche', 'branches', 'boite', 'boites', 'pincee', 'pincees',
+  'cuillere', 'cuilleres', 'verre', 'verres', 'tasse', 'tasses', 'sachet',
+  'sachets', 'trait', 'traits', 'noisette', 'noisettes', 'noix', 'zeste', 'zestes',
+]);
+
+const isIngredientPantryStaple = (ing: Ingredient): boolean => {
+  if (typeof ing.isPantryStaple === 'boolean') {
+    return ing.isPantryStaple;
+  }
+  if (ing.canonicalId) {
+    const canon = VocabularyService.getSyncMapById().get(ing.canonicalId);
+    if (canon && typeof canon.isPantryStaple === 'boolean') {
+      return canon.isPantryStaple;
+    }
+  }
+  return isKnownDefaultPantryStaple(ing.name);
+};
+
+const detectIngredientsInInstruction = (
+  instruction: string,
+  ingredients: Ingredient[],
+  vocabList: { id: string; canonicalName: string }[]
+): Ingredient[] => {
+  if (!instruction || !ingredients || ingredients.length === 0) return [];
+
+  const cleanInstruction = instruction.replace(/[.,;:!?'’]/g, ' ');
+  const stepTextNorm = normalizeString(cleanInstruction);
+  const stepWords = stepTextNorm.split(/\s+/).map(stemWord);
+
+  const detected: Ingredient[] = [];
+
+  const getCanonicalNormName = (canonicalId?: string) => {
+    if (!canonicalId) return null;
+    const canon = vocabList.find((v) => v.id === canonicalId);
+    return canon ? normalizeString(canon.canonicalName) : null;
+  };
+
+  ingredients.forEach((ing) => {
+    // Les ingrédients fonds de placard (sel, poivre, huiles...) ne doivent pas être détectés
+    if (isIngredientPantryStaple(ing)) {
+      return;
+    }
+
+    let targetNameNorm = getCanonicalNormName(ing.canonicalId);
+    if (!targetNameNorm) {
+      targetNameNorm = normalizeString(ing.name);
+    }
+
+    const ingWords = targetNameNorm
+      .split(/\s+/)
+      .map(stemWord)
+      .filter((w) => !IGNORED_INGREDIENT_DETECTION_WORDS.has(w));
+
+    // 1. Recherche par phrase complète (ex: "crème fraîche")
+    if (stepTextNorm.includes(targetNameNorm)) {
+      detected.push(ing);
+    }
+    // 2. Recherche par n'importe quel mot clé significatif stemmé
+    else {
+      const hasMatchingWord = ingWords.some((w) => w.length >= 3 && stepWords.includes(w));
+      if (hasMatchingWord) {
+        detected.push(ing);
+      }
+    }
+  });
+
+  return detected.filter((item, index, self) =>
+    index === self.findIndex((t) => (t.id && item.id ? t.id === item.id : t.name === item.name))
+  );
+};
+
+export const CookingModeModal: React.FC<CookingModeModalProps> = ({
+  visible,
+  recipe,
+  servings,
+  onClose,
+  onQuickRate,
+}) => {
+  // Maintient l'écran du smartphone allumé pendant toute la session de cuisine
+  useKeepAwake();
+  const { colors, isDark } = useTheme();
+
+  const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  const [checkedIngredients, setCheckedIngredients] = useState<Record<string, boolean>>({});
+  const [isIngredientsSheetVisible, setIsIngredientsSheetVisible] = useState(false);
+  const [activeTimers, setActiveTimers] = useState<RunningTimer[]>([]);
+  const [finishedTimerId, setFinishedTimerId] = useState<string | null>(null);
+  const [isTimerFinishedModalVisible, setIsTimerFinishedModalVisible] = useState(false);
+  const [isCompletedModalVisible, setIsCompletedModalVisible] = useState(false);
+  const [userRating, setUserRating] = useState(recipe.rating || 0);
+  const [userAllergens, setUserAllergens] = useState<UserAllergenItem[]>([]);
+  const cookingStartedAtRef = useRef<number | null>(null);
+  const cookingCompletionTrackedRef = useRef(false);
+
+  // Réinitialisation d'état lors du basculement d'affichage (Pattern officiel React)
+  const [prevVisible, setPrevVisible] = useState(visible);
+  if (visible !== prevVisible) {
+    setPrevVisible(visible);
+    if (visible) {
+      setCurrentStepIndex(0);
+      setIsCompletedModalVisible(false);
+      setUserRating(recipe.rating || 0);
+    }
+  }
+
+  // Chargement asynchrone des allergènes
+  useEffect(() => {
+    if (visible) {
+      cookingStartedAtRef.current = Date.now();
+      cookingCompletionTrackedRef.current = false;
+      void AnalyticsService.track({
+        type: 'cooking_started',
+        recipeId: recipe.id,
+        recipeTitle: recipe.title,
+        servings,
+      });
+      StorageService.getUserAllergens()
+        .then(setUserAllergens)
+        .catch(() => {});
+    }
+  }, [visible, recipe.id, recipe.title, servings]);
+
+  const preparedAllergens = useMemo(
+    () => prepareUserAllergens(userAllergens),
+    [userAllergens]
+  );
+
+  const allergenEval = useMemo(
+    () => evaluateRecipeAllergens(recipe, preparedAllergens),
+    [recipe, preparedAllergens]
+  );
+
+  const allergenIngredientIdsSet = useMemo(() => {
+    const set = new Set<string>();
+    allergenEval.allergenIngredients.forEach((a) => {
+      if (a.ingredient.id) set.add(a.ingredient.id);
+      set.add(normalizeString(a.ingredient.name));
+    });
+    return set;
+  }, [allergenEval]);
+
+  const steps = recipe.steps || [];
+  const currentStep = steps[currentStepIndex];
+
+  // Détection automatique des durées dans l'instruction de l'étape courante
+  const detectedTimers: DetectedTimer[] = useMemo(() => {
+    if (!currentStep) return [];
+    return extractTimersFromText(currentStep.instruction);
+  }, [currentStep?.instruction]);
+
+  // Détection des ingrédients pour chacune des étapes de la recette
+  const stepDetectedIngredientsList = useMemo(() => {
+    const vocab = VocabularyService.getSyncList();
+    return steps.map((s) =>
+      detectIngredientsInInstruction(s.instruction, recipe.ingredients || [], vocab)
+    );
+  }, [steps, recipe.ingredients]);
+
+  // Identifiants et clés des ingrédients déjà détectés lors des étapes antérieures
+  const previouslyDetectedIngredientKeys = useMemo(() => {
+    const keys = new Set<string>();
+    for (let i = 0; i < currentStepIndex; i++) {
+      const prevList = stepDetectedIngredientsList[i] || [];
+      for (const ing of prevList) {
+        if (ing.id) keys.add(ing.id);
+        if (ing.canonicalId) keys.add(ing.canonicalId);
+        keys.add(normalizeString(ing.name));
+      }
+    }
+    return keys;
+  }, [stepDetectedIngredientsList, currentStepIndex]);
+
+  // Ingrédients détectés dynamiquement dans l'étape courante,
+  // excluant ceux déjà apparus lors des étapes antérieures (pas de réapparition aux étapes suivantes)
+  const detectedIngredients = useMemo(() => {
+    const rawList = stepDetectedIngredientsList[currentStepIndex] || [];
+    return rawList.filter((ing) => {
+      const alreadyDetected =
+        (ing.id && previouslyDetectedIngredientKeys.has(ing.id)) ||
+        (ing.canonicalId && previouslyDetectedIngredientKeys.has(ing.canonicalId)) ||
+        previouslyDetectedIngredientKeys.has(normalizeString(ing.name));
+      return !alreadyDetected;
+    });
+  }, [stepDetectedIngredientsList, currentStepIndex, previouslyDetectedIngredientKeys]);
+
+
+
+  // Référence stable vers triggerTimerAlert (évite de recréer l'interval)
+  const triggerTimerAlertRef = useRef<() => void>(() => {});
+  // Alerte haptique et sonore lors de la fin du minuteur
+  const triggerTimerAlert = useCallback(() => {
+    // Vibration mobile (rythme d'alerte de cuisine)
+    if (Platform.OS !== 'web') {
+      Vibration.vibrate([0, 500, 200, 500, 200, 800]);
+    }
+
+    // Carillon sonore Web Audio (si sur navigateur)
+    try {
+      if (typeof window !== 'undefined' && (window.AudioContext || (window as any).webkitAudioContext)) {
+        const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+        const ctx = new AudioCtx();
+        const playTone = (freq: number, delay: number, duration: number) => {
+          setTimeout(() => {
+            try {
+              const osc = ctx.createOscillator();
+              const gain = ctx.createGain();
+              osc.type = 'sine';
+              osc.frequency.setValueAtTime(freq, ctx.currentTime);
+              gain.gain.setValueAtTime(0.3, ctx.currentTime);
+              gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+              osc.connect(gain);
+              gain.connect(ctx.destination);
+              osc.start();
+              osc.stop(ctx.currentTime + duration);
+            } catch {}
+          }, delay);
+        };
+        playTone(880, 0, 0.4);
+        playTone(1174.66, 150, 0.6);
+        playTone(1760, 400, 0.8);
+      }
+    } catch {}
+  }, []);
+
+
+  // Synchronise la ref avec le callback le plus récent (après chaque render)
+  useEffect(() => {
+    triggerTimerAlertRef.current = triggerTimerAlert;
+  });
+
+  // Interval global unique pour décrémenter tous les minuteurs actifs
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const finished: string[] = [];
+      setActiveTimers((prev) => {
+        const next = prev.map((t) => {
+          if (!t.isRunning || t.remainingSeconds <= 0) return t;
+          if (t.remainingSeconds <= 1) {
+            finished.push(t.id);
+            return { ...t, remainingSeconds: 0, isRunning: false };
+          }
+          return { ...t, remainingSeconds: t.remainingSeconds - 1 };
+        });
+        return next;
+      });
+      // Déclenche l'alerte pour le premier timer terminé ce tick
+      if (finished.length > 0) {
+        setFinishedTimerId(finished[0]);
+        setIsTimerFinishedModalVisible(true);
+        triggerTimerAlertRef.current();
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+
+  const handleStartTimer = useCallback((label: string, totalSec: number) => {
+    setActiveTimers((prev) => [
+      ...prev,
+      {
+        id: `timer_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        label,
+        stepIndex: currentStepIndex,
+        totalSeconds: totalSec,
+        remainingSeconds: totalSec,
+        isRunning: true,
+      },
+    ]);
+  }, [currentStepIndex]);
+
+  const handleToggleTimerPause = (id: string) => {
+    setActiveTimers((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, isRunning: !t.isRunning } : t))
+    );
+  };
+
+  const handleAdjustTimerMinutes = (id: string, deltaMinutes: number) => {
+    setActiveTimers((prev) =>
+      prev.map((t) => {
+        if (t.id !== id) return t;
+        const newRem = Math.max(1, t.remainingSeconds + deltaMinutes * 60);
+        return { ...t, remainingSeconds: newRem, totalSeconds: Math.max(newRem, t.totalSeconds), isRunning: true };
+      })
+    );
+  };
+
+  const handleStopTimer = (id: string) => {
+    setActiveTimers((prev) => prev.filter((t) => t.id !== id));
+  };
+
+  const handleNextStep = () => {
+    if (currentStepIndex < steps.length - 1) {
+      setCurrentStepIndex((prev) => prev + 1);
+    } else {
+      // Dernière étape atteinte
+      setIsCompletedModalVisible(true);
+      if (!cookingCompletionTrackedRef.current) {
+        cookingCompletionTrackedRef.current = true;
+        void AnalyticsService.track({
+          type: 'cooking_completed',
+          recipeId: recipe.id,
+          recipeTitle: recipe.title,
+          servings,
+          sessionDurationSeconds: Math.max(
+            0,
+            Math.floor((Date.now() - (cookingStartedAtRef.current ?? Date.now())) / 1000)
+          ),
+        });
+      }
+    }
+  };
+
+  const handlePrevStep = () => {
+    if (currentStepIndex > 0) {
+      setCurrentStepIndex((prev) => prev - 1);
+    }
+  };
+
+  const handleToggleIngredientCheck = (id: string) => {
+    setCheckedIngredients((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const handleRequestClose = () => {
+    if (activeTimers.some((t) => t.isRunning)) {
+      Alert.alert(
+        'Minuteur en cours',
+        'Un minuteur de cuisine est actuellement en cours. Voulez-vous vraiment quitter le mode pas-à-pas ?',
+        [
+          { text: 'Rester en cuisine', style: 'cancel' },
+          {
+            text: 'Quitter',
+            style: 'destructive',
+            onPress: () => {
+              setActiveTimers([]);
+              onClose();
+            },
+          },
+        ]
+      );
+    } else {
+      onClose();
+    }
+  };
+
+  const handleRatingChange = (newRating: number) => {
+    setUserRating(newRating);
+    if (onQuickRate) {
+      onQuickRate(newRating);
+    }
+  };
+
+  const handleLogCookedMeal = async (slot: 'lunch' | 'dinner') => {
+    try {
+      const todayStr = getLocalDateString();
+      await StorageService.setMealLog(todayStr, slot, {
+        title: recipe.title,
+        recipeId: recipe.id,
+        recipeImageUrl: recipe.imageUrl,
+      });
+      setIsCompletedModalVisible(false);
+      onClose();
+      Alert.alert(
+        '✅ Noté dans vos repas !',
+        `« ${recipe.title} » a été ajouté à votre suivi de ce ${slot === 'lunch' ? 'midi' : 'soir'}. Bon appétit !`
+      );
+    } catch (e) {
+      console.error('Erreur enregistrement repas cuisiné:', e);
+    }
+  };
+
+  if (!visible || steps.length === 0) return null;
+
+  const progressPercent = ((currentStepIndex + 1) / steps.length) * 100;
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="fullScreen"
+      onRequestClose={handleRequestClose}
+    >
+      <NavigationBar hidden={false} style={isDark ? 'light' : 'dark'} />
+      <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+        <View style={styles.container}>
+          {/* Top Bar : Quitter, Titre & Indicateur Écran Toujours Allumé */}
+          <View style={styles.topBar}>
+            <TouchableOpacity
+              style={styles.closeBtn}
+              onPress={handleRequestClose}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="close" size={24} color={Colors.textPrimary} />
+            </TouchableOpacity>
+
+            <View style={styles.titleCol}>
+              <Text style={styles.recipeTitle} numberOfLines={1}>
+                {recipe.title}
+              </Text>
+              <View style={styles.awakeRow}>
+                <Ionicons name="bulb-outline" size={12} color={Colors.secondary} />
+                <Text style={styles.awakeText}>Écran actif • {servings} pers.</Text>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={styles.ingredientsPillBtn}
+              onPress={() => setIsIngredientsSheetVisible(true)}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="nutrition-outline" size={16} color={Colors.primary} />
+              <Text style={styles.ingredientsPillText}>Ingrédients</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Jauge de progression segmentée */}
+          <View style={styles.progressBarContainer}>
+            <View style={[styles.progressBarFill, { width: `${progressPercent}%` }]} />
+          </View>
+
+          {/* Bandeau Minuteurs Persistants (empilés, un par minuteur actif) */}
+          {activeTimers.length > 0 && (
+            <View style={styles.timerStack}>
+              {activeTimers.map((t) => (
+                <View
+                  key={t.id}
+                  style={[
+                    styles.activeTimerBanner,
+                    t.remainingSeconds === 0 && styles.activeTimerBannerFinished,
+                  ]}
+                >
+                  <View style={styles.activeTimerLeft}>
+                    <Ionicons
+                      name={t.isRunning ? 'timer' : 'pause-circle'}
+                      size={18}
+                      color={t.remainingSeconds === 0 ? '#FFFFFF' : Colors.primary}
+                    />
+                    <View>
+                      <Text
+                        style={[
+                          styles.activeTimerDigits,
+                          t.remainingSeconds === 0 && styles.activeTimerDigitsFinished,
+                        ]}
+                      >
+                        {formatTimerSeconds(t.remainingSeconds)}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.activeTimerLabel,
+                          t.remainingSeconds === 0 && styles.activeTimerLabelFinished,
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {t.label} · Étape {t.stepIndex + 1}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.activeTimerActions}>
+                    {t.remainingSeconds > 0 ? (
+                      <>
+                        <TouchableOpacity
+                          style={styles.timerSmallBtn}
+                          onPress={() => handleToggleTimerPause(t.id)}
+                          activeOpacity={0.7}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          accessibilityLabel={t.isRunning ? 'Mettre en pause' : 'Reprendre'}
+                        >
+                          <Ionicons
+                            name={t.isRunning ? 'pause' : 'play'}
+                            size={14}
+                            color={Colors.primary}
+                          />
+                        </TouchableOpacity>
+
+                        {/* Bouton -1m */}
+                        <TouchableOpacity
+                          style={[
+                            styles.timerSmallBtn,
+                            t.remainingSeconds <= 60 && styles.timerSmallBtnDisabled,
+                          ]}
+                          onPress={() => handleAdjustTimerMinutes(t.id, -1)}
+                          disabled={t.remainingSeconds <= 60}
+                          activeOpacity={0.7}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          accessibilityLabel="Retirer 1 minute"
+                        >
+                          <Text
+                            style={[
+                              styles.timerAddMinuteText,
+                              t.remainingSeconds <= 60 && styles.timerMinuteTextDisabled,
+                            ]}
+                          >
+                            -1m
+                          </Text>
+                        </TouchableOpacity>
+
+                        {/* Bouton +1m */}
+                        <TouchableOpacity
+                          style={styles.timerSmallBtn}
+                          onPress={() => handleAdjustTimerMinutes(t.id, 1)}
+                          activeOpacity={0.7}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          accessibilityLabel="Ajouter 1 minute"
+                        >
+                          <Text style={styles.timerAddMinuteText}>+1m</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={[styles.timerSmallBtn, styles.timerStopBtn]}
+                          onPress={() => handleStopTimer(t.id)}
+                          activeOpacity={0.7}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          accessibilityLabel="Arrêter le minuteur"
+                        >
+                          <Ionicons name="stop" size={13} color={Colors.danger} />
+                        </TouchableOpacity>
+                      </>
+                    ) : (
+                      <TouchableOpacity
+                        style={styles.timerStopAlarmBtn}
+                        onPress={() => handleStopTimer(t.id)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.timerStopAlarmText}>Arrêter</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* Corps de l'étape : XXL, épuré, navigation au tap gauche/droite */}
+          <View style={styles.stepBodyWrapper}>
+            <ScrollView
+              style={styles.stepScrollView}
+              contentContainerStyle={styles.stepScrollContent}
+              showsVerticalScrollIndicator={false}
+            >
+              {/* Zone tactile GAUCHE (Étape précédente) */}
+              <TouchableOpacity
+                style={styles.tapZoneLeft}
+                onPress={handlePrevStep}
+                disabled={currentStepIndex === 0}
+                activeOpacity={1}
+                accessibilityLabel="Étape précédente"
+              />
+
+              {/* Zone tactile DROITE (Étape suivante) */}
+              <TouchableOpacity
+                style={styles.tapZoneRight}
+                onPress={handleNextStep}
+                activeOpacity={1}
+                accessibilityLabel={
+                  currentStepIndex === steps.length - 1 ? 'Terminer la recette' : 'Étape suivante'
+                }
+              />
+
+              {/* Contenu textuel et visuel ultra-épuré */}
+              <View style={styles.stepContentInner} pointerEvents="box-none">
+                {/* Zone d'affichage informative transparente aux clics (laisse passer les taps vers tapZoneLeft/Right) */}
+                <View pointerEvents="none">
+                  {/* Badge Numéro d'Étape */}
+                  <View style={styles.stepHeaderRow}>
+                    <View style={styles.stepBadge}>
+                      <Text style={styles.stepBadgeText}>
+                        Étape {currentStepIndex + 1}
+                      </Text>
+                    </View>
+                    <Text style={styles.stepCountSub}>sur {steps.length}</Text>
+                  </View>
+
+                  {/* Ingrédients détectés pour cette étape */}
+                  {detectedIngredients.length > 0 && (
+                    <View style={styles.detectedIngredientsRow}>
+                      {detectedIngredients.map((ing) => {
+                        const scaledQty = scaleQuantity(ing.quantity, recipe.servings || 4, servings);
+                        const qtyStr = scaledQty ? formatQuantityWithUnit(scaledQty, ing.unit) : '';
+
+                        return (
+                          <View key={ing.id} style={styles.ingredientChip}>
+                            <Text style={styles.ingredientChipText}>
+                              {qtyStr ? `${qtyStr} ` : ''}{ing.name}
+                            </Text>
+                          </View>
+                        );
+                      })}
+                    </View>
+                  )}
+
+                  {/* Texte de l'instruction en caractères géants */}
+                  <Text style={styles.instructionText}>
+                    {currentStep.instruction}
+                  </Text>
+                </View>
+
+                {/* Minuteur détecté automatiquement (s'il y en a un) */}
+                {detectedTimers.length > 0 && (
+                  <View style={styles.detectedTimersRow} pointerEvents="box-none">
+                    {detectedTimers.map((t) => (
+                      <TouchableOpacity
+                        key={t.id}
+                        style={styles.startTimerChip}
+                        onPress={() => handleStartTimer(t.label, t.totalSeconds)}
+                        activeOpacity={0.8}
+                      >
+                        <Ionicons name="timer" size={16} color="#FFFFFF" />
+                        <Text style={styles.startTimerChipText}>
+                          Lancer le minuteur ({t.label})
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+              </View>
+            </ScrollView>
+          </View>
+
+          {/* Navigation inférieure discrète et épurée */}
+          <View style={styles.discreetBottomBar}>
+            {currentStepIndex > 0 ? (
+              <TouchableOpacity
+                style={styles.discreetNavBtn}
+                onPress={handlePrevStep}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                activeOpacity={0.7}
+                accessibilityLabel="Étape précédente"
+              >
+                <Ionicons name="chevron-back" size={18} color={colors.textSecondary} />
+                <Text style={styles.discreetNavText}>Précédent</Text>
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.discreetNavPlaceholder} />
+            )}
+
+            <Text style={styles.discreetStepCounter}>
+              Étape {currentStepIndex + 1} / {steps.length}
+            </Text>
+
+            <TouchableOpacity
+              style={[
+                styles.discreetNavBtn,
+                currentStepIndex === steps.length - 1
+                  ? styles.discreetFinishBtn
+                  : styles.discreetNextBtn,
+              ]}
+              onPress={handleNextStep}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              activeOpacity={0.8}
+              accessibilityLabel={
+                currentStepIndex === steps.length - 1 ? 'Terminer la recette' : 'Étape suivante'
+              }
+            >
+              <Text
+                style={[
+                  styles.discreetNavText,
+                  currentStepIndex === steps.length - 1
+                    ? styles.discreetFinishText
+                    : styles.discreetNextText,
+                ]}
+              >
+                {currentStepIndex === steps.length - 1 ? 'Terminer' : 'Suivant'}
+              </Text>
+              <Ionicons
+                name={currentStepIndex === steps.length - 1 ? 'checkmark' : 'chevron-forward'}
+                size={18}
+                color={
+                  currentStepIndex === steps.length - 1 ? '#FFFFFF' : colors.primary
+                }
+              />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Modal Feuille Ingrédients Rétractable */}
+        <Modal
+          visible={isIngredientsSheetVisible}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setIsIngredientsSheetVisible(false)}
+        >
+          <View style={styles.sheetBackdrop}>
+            <View style={styles.sheetBox}>
+              <View style={styles.sheetHeader}>
+                <View style={styles.sheetTitleRow}>
+                  <Ionicons name="nutrition" size={20} color={Colors.primary} />
+                  <Text style={styles.sheetTitle}>
+                    Ingrédients ({recipe.ingredients.length})
+                  </Text>
+                </View>
+                <Text style={styles.sheetSubtitle}>
+                  Quantités calculées pour {servings} personnes
+                </Text>
+                <TouchableOpacity
+                  style={styles.sheetCloseBtn}
+                  onPress={() => setIsIngredientsSheetVisible(false)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons name="close" size={22} color={Colors.textSecondary} />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false}>
+                {recipe.ingredients.map((ing) => {
+                  const isChecked = !!checkedIngredients[ing.id];
+                  const scaledQty = scaleQuantity(ing.quantity, recipe.servings || 4, servings);
+                  const isAllergen = allergenIngredientIdsSet.has(ing.id) || allergenIngredientIdsSet.has(normalizeString(ing.name));
+
+                  return (
+                    <TouchableOpacity
+                      key={ing.id}
+                      style={[
+                        styles.sheetIngRow,
+                        isChecked && styles.sheetIngRowChecked,
+                        isAllergen && !isChecked && { backgroundColor: Colors.danger + '18', borderLeftWidth: 3, borderLeftColor: Colors.danger },
+                      ]}
+                      onPress={() => handleToggleIngredientCheck(ing.id)}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons
+                        name={isChecked ? 'checkmark-circle' : isAllergen ? 'warning' : 'ellipse-outline'}
+                        size={22}
+                        color={isChecked ? Colors.secondary : isAllergen ? Colors.danger : Colors.border}
+                        style={{ marginRight: 10 }}
+                      />
+                      <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+                        <Text
+                          style={[
+                            styles.sheetIngName,
+                            isChecked && styles.sheetIngTextChecked,
+                            isAllergen && !isChecked && { color: Colors.danger, fontWeight: '700' },
+                          ]}
+                        >
+                          {ing.name}
+                        </Text>
+                        {isAllergen && !isChecked && (
+                          <View style={{ backgroundColor: Colors.danger + '22', borderColor: Colors.danger, borderWidth: 1, paddingHorizontal: 5, paddingVertical: 1, borderRadius: 4 }}>
+                            <Text style={{ fontSize: 9, fontWeight: '700', color: Colors.danger, textTransform: 'uppercase' }}>Allergène</Text>
+                          </View>
+                        )}
+                      </View>
+                      {scaledQty ? (
+                        <Text
+                          style={[
+                            styles.sheetIngQty,
+                            isChecked && styles.sheetIngTextChecked,
+                            isAllergen && !isChecked && { color: Colors.danger, fontWeight: '700' },
+                          ]}
+                        >
+                          {formatQuantityWithUnit(scaledQty, ing.unit)}
+                        </Text>
+                      ) : null}
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+
+              <TouchableOpacity
+                style={styles.sheetDoneBtn}
+                onPress={() => setIsIngredientsSheetVisible(false)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.sheetDoneBtnText}>Revenir à la cuisine</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Modal d'Alerte Minuteur Terminé */}
+        <Modal
+          visible={isTimerFinishedModalVisible}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setIsTimerFinishedModalVisible(false)}
+        >
+          <View style={styles.alertBackdrop}>
+            <View style={styles.alertBox}>
+              <View style={styles.alertIconPulse}>
+                <Ionicons name="alarm" size={48} color="#FFFFFF" />
+              </View>
+
+              <Text style={styles.alertTitle}>Minuteur Terminé !</Text>
+              <Text style={styles.alertMessage}>
+                {(() => {
+                  const finished = activeTimers.find((t) => t.id === finishedTimerId);
+                  return finished
+                    ? `Le minuteur « ${finished.label} » (Étape ${finished.stepIndex + 1}) est écoulé.`
+                    : 'Le temps de cuisson est écoulé.';
+                })()}
+              </Text>
+
+              <TouchableOpacity
+                style={styles.alertDismissBtn}
+                onPress={() => {
+                  setIsTimerFinishedModalVisible(false);
+                  if (finishedTimerId) {
+                    setActiveTimers((prev) => prev.filter((t) => t.id !== finishedTimerId));
+                    setFinishedTimerId(null);
+                  }
+                }}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="checkmark-circle-outline" size={20} color="#FFFFFF" />
+                <Text style={styles.alertDismissText}>Arrêter la sonnerie</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Modal Félicitations / Recette Terminée */}
+        <Modal
+          visible={isCompletedModalVisible}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setIsCompletedModalVisible(false)}
+        >
+          <View style={styles.completeBackdrop}>
+            <View style={styles.completeBox}>
+              <Text style={styles.trophyEmoji}>👨‍🍳</Text>
+              <Text style={styles.completeTitle}>Bravo Chef !</Text>
+              <Text style={styles.completeSubtitle}>
+                Vous avez terminé toutes les étapes de « {recipe.title} ».
+              </Text>
+
+              {/* Notation rapide */}
+              <View style={styles.ratingCard}>
+                <Text style={styles.ratingPrompt}>Comment avez-vous trouvé ce plat ?</Text>
+                <StarRating
+                  rating={userRating}
+                  size={32}
+                  interactive={true}
+                  onRatingChange={handleRatingChange}
+                />
+              </View>
+
+              {/* Raccourci Suivi des Repas */}
+              <View style={styles.completeMealLogSection}>
+                <Text style={styles.completeMealLogTitle}>Noter dans mon suivi du jour :</Text>
+                <View style={styles.completeMealLogBtnsRow}>
+                  <TouchableOpacity
+                    style={styles.completeMealLogBtn}
+                    onPress={() => handleLogCookedMeal('lunch')}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="sunny" size={14} color={colors.primary} />
+                    <Text style={styles.completeMealLogBtnText}>Ce midi</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.completeMealLogBtn}
+                    onPress={() => handleLogCookedMeal('dinner')}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="moon" size={14} color={colors.primary} />
+                    <Text style={styles.completeMealLogBtnText}>Ce soir</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              <TouchableOpacity
+                style={styles.completeFinishBtn}
+                onPress={() => {
+                  setIsCompletedModalVisible(false);
+                  onClose();
+                }}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="restaurant" size={18} color="#FFFFFF" />
+                <Text style={styles.completeFinishBtnText}>À table ! (Retour au carnet)</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      </SafeAreaView>
+    </Modal>
+  );
+};
+
+const styles = createDynamicStyles((colors, shadows) => ({
+  safeArea: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  container: {
+    flex: 1,
+  },
+  // Top Bar
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: Colors.cardBackground,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.borderLight,
+  },
+  closeBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.surfaceAlt,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  titleCol: {
+    flex: 1,
+    marginHorizontal: 12,
+  },
+  recipeTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: Colors.textPrimary,
+  },
+  awakeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 2,
+  },
+  awakeText: {
+    fontSize: 11,
+    color: Colors.secondary,
+    fontWeight: '600',
+  },
+  ingredientsPillBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.primaryLight,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 14,
+    gap: 5,
+  },
+  ingredientsPillText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.primary,
+  },
+  // Barre de progression
+  progressBarContainer: {
+    height: 5,
+    backgroundColor: Colors.borderLight,
+    width: '100%',
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: Colors.primary,
+  },
+  // Bandeau Minuteur Persistant
+  timerStack: {
+    flexDirection: 'column',
+  },
+  activeTimerBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: Colors.primaryLight,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  activeTimerBannerFinished: {
+    backgroundColor: Colors.danger,
+  },
+  activeTimerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  activeTimerDigits: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: Colors.primary,
+    fontVariant: ['tabular-nums'],
+  },
+  activeTimerDigitsFinished: {
+    color: '#FFFFFF',
+  },
+  activeTimerLabel: {
+    fontSize: 11,
+    color: Colors.textSecondary,
+    fontWeight: '500',
+  },
+  activeTimerLabelFinished: {
+    color: '#FFFFFF',
+  },
+  activeTimerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  timerSmallBtn: {
+    backgroundColor: Colors.cardBackground,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  timerSmallBtnDisabled: {
+    opacity: 0.45,
+  },
+  timerMinuteTextDisabled: {
+    opacity: 0.4,
+  },
+  timerStopBtn: {
+    borderColor: Colors.dangerLight,
+  },
+  timerAddMinuteText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.primary,
+  },
+  timerStopAlarmBtn: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 10,
+  },
+  timerStopAlarmText: {
+    color: Colors.danger,
+    fontWeight: '800',
+    fontSize: 13,
+  },
+  // Zone du corps et navigation latérale au clic 50/50
+  stepBodyWrapper: {
+    flex: 1,
+    position: 'relative',
+  },
+  tapZoneLeft: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    width: '50%',
+    minHeight: '100%',
+    zIndex: 1,
+  },
+  tapZoneRight: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    right: 0,
+    width: '50%',
+    minHeight: '100%',
+    zIndex: 1,
+  },
+  // Navigation inférieure discrète
+  discreetBottomBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderLight,
+    backgroundColor: colors.cardBackground,
+  },
+  discreetNavBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+  },
+  discreetNavPlaceholder: {
+    width: 80,
+  },
+  discreetNavText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  discreetNextBtn: {
+    backgroundColor: colors.primaryLight,
+  },
+  discreetNextText: {
+    color: colors.primaryDark,
+    fontWeight: '700',
+  },
+  discreetFinishBtn: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 14,
+  },
+  discreetFinishText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  discreetStepCounter: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textMuted,
+  },
+  // Zone de l'instruction
+  stepScrollView: {
+    flex: 1,
+  },
+  stepScrollContent: {
+    flexGrow: 1,
+    position: 'relative',
+    paddingVertical: 24,
+    paddingHorizontal: 28,
+    paddingBottom: 40,
+    justifyContent: 'center',
+  },
+  stepContentInner: {
+    width: '100%',
+    zIndex: 2,
+  },
+  stepHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 8,
+    marginBottom: 20,
+  },
+  stepBadge: {
+    backgroundColor: colors.primaryLight,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 12,
+  },
+  stepBadgeText: {
+    color: colors.primaryDark,
+    fontWeight: '800',
+    fontSize: 14,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  stepCountSub: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
+  detectedIngredientsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 20,
+  },
+  ingredientChip: {
+    backgroundColor: colors.surfaceAlt,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  ingredientChipText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  instructionText: {
+    fontSize: 23,
+    lineHeight: 38,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    marginBottom: 28,
+  },
+  // Minuteurs détectés
+  detectedTimersRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginTop: 4,
+  },
+  startTimerChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primary,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 16,
+    gap: 8,
+    ...shadows.medium,
+  },
+  startTimerChipText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 15,
+  },
+  // Ingrédients Sheet
+  sheetBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  sheetBox: {
+    backgroundColor: Colors.cardBackground,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '75%',
+    padding: 20,
+  },
+  sheetHeader: {
+    marginBottom: 14,
+  },
+  sheetTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  sheetTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: Colors.textPrimary,
+  },
+  sheetSubtitle: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  sheetCloseBtn: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+  },
+  sheetScroll: {
+    marginBottom: 16,
+  },
+  sheetIngRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.borderLight,
+  },
+  sheetIngRowChecked: {
+    opacity: 0.6,
+  },
+  sheetIngName: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+  },
+  sheetIngQty: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.primary,
+  },
+  sheetIngTextChecked: {
+    textDecorationLine: 'line-through',
+    color: Colors.textMuted,
+  },
+  sheetDoneBtn: {
+    backgroundColor: Colors.primary,
+    borderRadius: 16,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  sheetDoneBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 15,
+  },
+  // Alerte Minuteur Terminé
+  alertBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  alertBox: {
+    backgroundColor: Colors.cardBackground,
+    borderRadius: 24,
+    padding: 24,
+    alignItems: 'center',
+    width: '100%',
+    maxWidth: 340,
+    ...Shadows.medium,
+  },
+  alertIconPulse: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: Colors.danger,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  alertTitle: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: Colors.textPrimary,
+    marginBottom: 8,
+  },
+  alertMessage: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 20,
+  },
+  alertDismissBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.danger,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 16,
+    gap: 8,
+    width: '100%',
+    justifyContent: 'center',
+  },
+  alertDismissText: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 15,
+  },
+  // Recette terminée
+  completeBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  completeBox: {
+    backgroundColor: Colors.cardBackground,
+    borderRadius: 28,
+    padding: 28,
+    alignItems: 'center',
+    width: '100%',
+    maxWidth: 360,
+    ...Shadows.medium,
+  },
+  trophyEmoji: {
+    fontSize: 54,
+    marginBottom: 12,
+  },
+  completeTitle: {
+    fontSize: 24,
+    fontWeight: '900',
+    color: Colors.textPrimary,
+    marginBottom: 6,
+  },
+  completeSubtitle: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 20,
+  },
+  ratingCard: {
+    backgroundColor: Colors.surfaceAlt,
+    borderRadius: 18,
+    padding: 16,
+    width: '100%',
+    alignItems: 'center',
+    marginBottom: 22,
+  },
+  ratingPrompt: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+    marginBottom: 10,
+  },
+  completeMealLogSection: {
+    width: '100%',
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  completeMealLogTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    marginBottom: 8,
+  },
+  completeMealLogBtnsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    width: '100%',
+  },
+  completeMealLogBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: colors.backgroundSecondary,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  completeMealLogBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  completeFinishBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.primary,
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    borderRadius: 18,
+    gap: 8,
+    width: '100%',
+    justifyContent: 'center',
+    ...Shadows.small,
+  },
+  completeFinishBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 15,
+  },
+}));

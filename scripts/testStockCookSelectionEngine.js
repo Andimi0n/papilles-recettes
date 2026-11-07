@@ -112,7 +112,7 @@ assert.strictEqual(
 console.log('✅ Logique algorithmique du cycle à 3 états et d’épinglage validée.');
 
 // 2. Vérification statique dans StockCookModal.tsx
-const modalPath = path.join(__dirname, '../src/components/StockCookModal.tsx');
+const modalPath = path.join(__dirname, '../src/components/chef-ai/StockCookModal.tsx');
 const modalContent = fs.readFileSync(modalPath, 'utf8');
 
 // Le code source actuel a `setOptionalIngredients([])` à l'ouverture,

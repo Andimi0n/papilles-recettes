@@ -29,8 +29,8 @@ import { WebRecipeService } from '../services/webRecipeService';
 import { ImageStorageService } from '../services/imageStorageService';
 import { Recipe } from '../types/recipe';
 import { generateUniqueId } from '../utils/helpers';
-import { QrScannerModal } from '../components/QrScannerModal';
-import { CameraCaptureModal } from '../components/CameraCaptureModal';
+import { QrScannerModal } from '../components/import-share/QrScannerModal';
+import { CameraCaptureModal } from '../components/import-share/CameraCaptureModal';
 
 export type AddRecipeMode = 'text' | 'photo' | 'url';
 

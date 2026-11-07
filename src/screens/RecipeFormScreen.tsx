@@ -21,19 +21,19 @@ import { Recipe, Category, Difficulty, Ingredient, RecipeStep } from '../types/r
 import { Colors } from '../theme/colors';
 import { styles } from './RecipeFormScreen.styles';
 import { useTheme } from '../theme/ThemeContext';
-import { StarRating } from '../components/StarRating';
+import { StarRating } from '../components/common/StarRating';
 import { generateUniqueId, normalizeString } from '../utils/helpers';
 import { normalizeIngredient } from '../utils/ingredientNormalizer';
 import { CanonicalIngredient } from '../types/vocabulary';
-import { CameraCaptureModal } from '../components/CameraCaptureModal';
-import { QualifyIngredientModal } from '../components/QualifyIngredientModal';
-import { UnitPickerModal } from '../components/UnitPickerModal';
+import { CameraCaptureModal } from '../components/import-share/CameraCaptureModal';
+import { QualifyIngredientModal } from '../components/lexicon-units/QualifyIngredientModal';
+import { UnitPickerModal } from '../components/lexicon-units/UnitPickerModal';
 import { formatQuantityWithUnit } from '../constants/units';
 import { UnifiedIngredientService } from '../services/unifiedIngredientService';
 import { VocabularyService } from '../services/vocabularyService';
 import { ImageStorageService } from '../services/imageStorageService';
 import { isKnownDefaultPantryStaple } from '../data/canonicalVocabulary';
-import { RecipeLinkPickerModal } from '../components/RecipeLinkPickerModal';
+import { RecipeLinkPickerModal } from '../components/recipe-detail/RecipeLinkPickerModal';
 import { IngredientTableEditor } from '../components/recipe-form/IngredientTableEditor';
 import { RecipeStepEditor } from '../components/recipe-form/RecipeStepEditor';
 import {

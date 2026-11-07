@@ -24,7 +24,7 @@ import { ScanRecipeScreen, CapturedPhoto } from './src/screens/ScanRecipeScreen'
 import { ShoppingListScreen } from './src/screens/ShoppingListScreen';
 import { MealPlannerScreen } from './src/screens/MealPlannerScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
-import { ImportRecipeModal } from './src/components/ImportRecipeModal';
+import { ImportRecipeModal } from './src/components/import-share/ImportRecipeModal';
 import { RecipeShareService } from './src/services/recipeShareService';
 import { OnboardingScreen } from './src/screens/OnboardingScreen';
 import { createDynamicStyles, ThemeMode } from './src/theme/colors';

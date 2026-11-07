@@ -39,14 +39,14 @@ import {
 import { normalizeString } from '../utils/helpers';
 import { filterIngredientItems, countMatchingItems, areShoppingListsEqual, areFridgeListsEqual } from '../utils/ingredientSearchMatcher';
 import { createSectionListGetItemLayout } from '../utils/sectionListLayoutHelper';
-import { FridgeStockView } from '../components/FridgeStockView';
-import { IngredientSearchBar } from '../components/IngredientSearchBar';
-import { InStoreShoppingModal } from '../components/InStoreShoppingModal';
-import { UnifiedIngredientInput } from '../components/UnifiedIngredientInput';
-import { SwipeableShoppingItemRow } from '../components/SwipeableShoppingItemRow';
-import { EditShoppingItemModal } from '../components/EditShoppingItemModal';
-import { QualifyIngredientModal } from '../components/QualifyIngredientModal';
-import { TransferAnimationOverlay, FlyingItem } from '../components/TransferAnimationOverlay';
+import { FridgeStockView } from '../components/stock-shopping/FridgeStockView';
+import { IngredientSearchBar } from '../components/lexicon-units/IngredientSearchBar';
+import { InStoreShoppingModal } from '../components/stock-shopping/InStoreShoppingModal';
+import { UnifiedIngredientInput } from '../components/lexicon-units/UnifiedIngredientInput';
+import { SwipeableShoppingItemRow } from '../components/stock-shopping/SwipeableShoppingItemRow';
+import { EditShoppingItemModal } from '../components/stock-shopping/EditShoppingItemModal';
+import { QualifyIngredientModal } from '../components/lexicon-units/QualifyIngredientModal';
+import { TransferAnimationOverlay, FlyingItem } from '../components/stock-shopping/TransferAnimationOverlay';
 import { formatQuantityWithUnit, isStandardUnit, normalizeUnit } from '../constants/units';
 
 interface ShoppingListScreenProps {

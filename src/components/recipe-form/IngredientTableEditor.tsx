@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Recipe, Ingredient } from '../../types/recipe';
 import { CanonicalIngredient } from '../../types/vocabulary';
-import { UnifiedIngredientInput } from '../UnifiedIngredientInput';
+import { UnifiedIngredientInput } from '../lexicon-units/UnifiedIngredientInput';
 import { UnifiedIngredientService } from '../../services/unifiedIngredientService';
 import { findAutoMatchCandidate } from '../../utils/recipeLinkMatcher';
 import { useTheme } from '../../theme/ThemeContext';

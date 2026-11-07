@@ -17,13 +17,13 @@ const path = require('path');
 console.log('🧪 Lancement des tests de validation de l\'intégration Caméra in-app...');
 
 const rootDir = path.resolve(__dirname, '..');
-const cameraModalPath = path.join(rootDir, 'src', 'components', 'CameraCaptureModal.tsx');
+const cameraModalPath = path.join(rootDir, 'src', 'components', 'import-share', 'CameraCaptureModal.tsx');
 const recipeFormPath = path.join(rootDir, 'src', 'screens', 'RecipeFormScreen.tsx');
 const scanRecipePath = path.join(rootDir, 'src', 'screens', 'ScanRecipeScreen.tsx');
 const appPath = path.join(rootDir, 'App.tsx');
 
 // Test 1 : Vérification de l'existence et du contenu de CameraCaptureModal
-assert.ok(fs.existsSync(cameraModalPath), 'CameraCaptureModal.tsx doit exister dans src/components/');
+assert.ok(fs.existsSync(cameraModalPath), 'CameraCaptureModal.tsx doit exister dans src/components/import-share/');
 const cameraModalCode = fs.readFileSync(cameraModalPath, 'utf8');
 
 assert.ok(
@@ -65,7 +65,7 @@ console.log('✓ Zéro appel à ImagePicker.launchCameraAsync dans l\'applicatio
 
 // Test 3 : Intégration dans RecipeFormScreen
 assert.ok(
-  recipeFormCode.includes('import { CameraCaptureModal } from \'../components/CameraCaptureModal\''),
+  recipeFormCode.includes('import { CameraCaptureModal } from \'../components/import-share/CameraCaptureModal\''),
   'RecipeFormScreen doit importer CameraCaptureModal'
 );
 assert.ok(
@@ -80,7 +80,7 @@ console.log('✓ RecipeFormScreen correctement raccordé à CameraCaptureModal')
 
 // Test 4 : Intégration dans ScanRecipeScreen
 assert.ok(
-  scanRecipeCode.includes('import { CameraCaptureModal } from \'../components/CameraCaptureModal\''),
+  scanRecipeCode.includes('import { CameraCaptureModal } from \'../components/import-share/CameraCaptureModal\''),
   'ScanRecipeScreen doit importer CameraCaptureModal'
 );
 assert.ok(

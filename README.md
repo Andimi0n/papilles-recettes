@@ -275,47 +275,55 @@ papilles-recettes/
     │   ├── sectionListLayoutHelper.ts# Optimisation layout SectionList (zéro lag)
     │   └── helpers.ts                # Scalaires de portions, durées et IDs
     ├── components/                   # Composants d'interface utilisateur
-    │   ├── RecipeCard.tsx            # Carte de recette dans le flux
-    │   ├── StarRating.tsx            # Notation par étoiles 0.5–5.0
-    │   ├── SearchBar.tsx             # Barre de recherche avec filtres rapides
-    │   ├── CategoryPills.tsx         # Pilules horizontales de catégories
-    │   ├── TodayMealWidget.tsx       # Widget accueil du suivi des repas du jour
-    │   ├── ChefAiWidget.tsx          # Widget accueil pour lancer le Chef IA
-    │   ├── EmptyState.tsx            # Écran d'état vide réutilisable
-    │   ├── FridgeStockView.tsx       # Vue principale "Mes étagères"
-    │   ├── SwipeableStockItemRow.tsx # Ligne d'étagère swipeable
-    │   ├── SwipeableShoppingItemRow.tsx# Ligne de courses swipeable
-    │   ├── EditShoppingItemModal.tsx # Édition manuelle d'un article de courses
-    │   ├── InStoreShoppingModal.tsx  # Mode courses en magasin immersif
-    │   ├── TransferAnimationOverlay.tsx# Animation de transfert courses -> stock
-    │   ├── UnifiedIngredientInput.tsx# Saisie assistée avec autocomplétion
-    │   ├── IngredientSearchBar.tsx   # Recherche rapide d'ingrédients
-    │   ├── UnitQuickPicker.tsx       # Sélecteur rapide d'unités fréquentes
-    │   ├── UnitPickerModal.tsx       # Modale complète des unités culinaires
-    │   ├── StockCookModal.tsx        # Modale Chef IA anti-gaspi en 2 étapes
-    │   ├── ChefMoodEditModal.tsx     # Personnalisation de l'humeur du Chef
-    │   ├── ChefFavoritePromptsModal.tsx# Prompts favoris du Chef IA
-    │   ├── CookingModeModal.tsx      # Mode cuisine pas à pas plein écran
-    │   ├── AdvancedFiltersModal.tsx  # Modale de filtres multicritères
-    │   ├── MealCalendarModal.tsx     # Calendrier interactif de planification
-    │   ├── MealSlotPickerModal.tsx   # Choix du créneau dans la semaine
-    │   ├── PlanRecipeModal.tsx       # Planification depuis la fiche recette
-    │   ├── QuickMealLogModal.tsx     # Saisie rapide d'un repas consommé
-    │   ├── CameraCaptureModal.tsx    # Capture photo native anti-crash OOM
-    │   ├── ImportRecipeModal.tsx     # Modale d'importation web universelle
-    │   ├── RecipePrintModal.tsx      # Modale de configuration d'impression PDF
-    │   ├── RecipeQrModal.tsx         # Affichage QR code hors-ligne
-    │   ├── QrScannerModal.tsx        # Scanner de QR code de recette
-    │   ├── QualifyIngredientModal.tsx# Qualification d'ingrédient hors-lexique
-    │   ├── AllergenFamilyPickerModal.tsx# Sélecteur d'allergènes INCO
-    │   ├── VocabularyManagerModal.tsx# Gestionnaire complet du lexique
-    │   ├── recipe-detail/            # Sous-composants fiche recette
+    │   ├── common/                   # UI générique & flux principal
+    │   │   ├── CategoryPills.tsx     # Pilules horizontales de catégories
+    │   │   ├── EmptyState.tsx        # Écran d'état vide réutilisable
+    │   │   ├── RecipeCard.tsx        # Carte de recette dans le flux
+    │   │   ├── SearchBar.tsx         # Barre de recherche avec filtres rapides
+    │   │   ├── StarRating.tsx        # Notation par étoiles 0.5–5.0
+    │   │   └── AdvancedFiltersModal.tsx # Modale de filtres multicritères
+    │   ├── home-widgets/             # Widgets du bandeau d'accueil
+    │   │   ├── ChefAiWidget.tsx      # Widget accueil pour lancer le Chef IA
+    │   │   └── TodayMealWidget.tsx   # Widget accueil du suivi des repas du jour
+    │   ├── recipe-detail/            # Fiche recette & mode cuisine
+    │   │   ├── CookingModeModal.tsx  # Mode cuisine pas à pas plein écran
     │   │   ├── RecipeIngredientsList.tsx
     │   │   ├── RecipeInstructionsList.tsx
+    │   │   ├── RecipeLinkPickerModal.tsx # Liens de recettes associées
     │   │   └── RecipeServingsController.tsx
-    │   └── recipe-form/              # Sous-composants formulaire recette
-    │       ├── IngredientTableEditor.tsx
-    │       └── RecipeStepEditor.tsx
+    │   ├── recipe-form/              # Formulaire de création & édition
+    │   │   ├── IngredientTableEditor.tsx
+    │   │   └── RecipeStepEditor.tsx
+    │   ├── stock-shopping/           # Hub Courses & Étagères
+    │   │   ├── EditShoppingItemModal.tsx # Édition manuelle d'un article de courses
+    │   │   ├── FridgeStockView.tsx   # Vue principale "Mes étagères"
+    │   │   ├── InStoreShoppingModal.tsx # Mode courses en magasin immersif
+    │   │   ├── SwipeableShoppingItemRow.tsx # Ligne de courses swipeable
+    │   │   ├── SwipeableStockItemRow.tsx # Ligne d'étagère swipeable
+    │   │   └── TransferAnimationOverlay.tsx # Animation de transfert courses -> stock
+    │   ├── lexicon-units/            # Saisie normalisée, unités & allergènes
+    │   │   ├── AllergenFamilyPickerModal.tsx # Sélecteur d'allergènes INCO
+    │   │   ├── IngredientSearchBar.tsx # Recherche rapide d'ingrédients
+    │   │   ├── QualifyIngredientModal.tsx # Qualification d'ingrédient hors-lexique
+    │   │   ├── UnifiedIngredientInput.tsx # Saisie assistée avec autocomplétion
+    │   │   ├── UnitPickerModal.tsx   # Modale complète des unités culinaires
+    │   │   ├── UnitQuickPicker.tsx   # Sélecteur rapide d'unités fréquentes
+    │   │   └── VocabularyManagerModal.tsx # Gestionnaire complet du lexique
+    │   ├── chef-ai/                  # Inspiration anti-gaspi & personnalisation IA
+    │   │   ├── ChefFavoritePromptsModal.tsx # Prompts favoris du Chef IA
+    │   │   ├── ChefMoodEditModal.tsx # Personnalisation de l'humeur du Chef
+    │   │   └── StockCookModal.tsx    # Modale Chef IA anti-gaspi en 2 étapes
+    │   ├── planner/                  # Planification hebdomadaire & journal de repas
+    │   │   ├── MealCalendarModal.tsx # Calendrier interactif de planification
+    │   │   ├── MealSlotPickerModal.tsx # Choix du créneau dans la semaine
+    │   │   ├── PlanRecipeModal.tsx   # Planification depuis la fiche recette
+    │   │   └── QuickMealLogModal.tsx # Saisie rapide d'un repas consommé
+    │   └── import-share/             # Caméra, Web, PDF & QR Code hors-ligne
+    │       ├── CameraCaptureModal.tsx # Capture photo native anti-crash OOM
+    │       ├── ImportRecipeModal.tsx # Modale d'importation web universelle
+    │       ├── QrScannerModal.tsx    # Scanner de QR code de recette
+    │       ├── RecipePrintModal.tsx  # Modale de configuration d'impression PDF
+    │       └── RecipeQrModal.tsx     # Affichage QR code hors-ligne
     └── screens/                      # Écrans principaux
         ├── OnboardingScreen.tsx      # Découverte initiale au premier lancement
         ├── HomeScreen.tsx            # Flux principal, bandeau et widgets

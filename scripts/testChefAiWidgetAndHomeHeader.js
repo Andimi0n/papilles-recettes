@@ -97,7 +97,7 @@ if (homeContent.includes('stockActiveBanner')) {
 }
 
 // 3. Vérification dans ChefAiWidget.tsx : stockItems et doableCount doivent être exploités
-const widgetPath = path.join(__dirname, '../src/components/ChefAiWidget.tsx');
+const widgetPath = path.join(__dirname, '../src/components/home-widgets/ChefAiWidget.tsx');
 const widgetContent = fs.readFileSync(widgetPath, 'utf8');
 
 const hasDestructuredProps =

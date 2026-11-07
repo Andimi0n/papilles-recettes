@@ -23,14 +23,14 @@ import { StorageService } from '../services/storageService';
 import { Colors } from '../theme/colors';
 import { styles } from './HomeScreen.styles';
 import { useTheme } from '../theme/ThemeContext';
-import { RecipeCard, RecipeStockProgress } from '../components/RecipeCard';
-import { SearchBar } from '../components/SearchBar';
-import { CategoryPills } from '../components/CategoryPills';
-import { EmptyState } from '../components/EmptyState';
-import { StockCookModal } from '../components/StockCookModal';
-import { AdvancedFiltersModal } from '../components/AdvancedFiltersModal';
-import { ChefAiWidget } from '../components/ChefAiWidget';
-import { QuickMealLogModal } from '../components/QuickMealLogModal';
+import { RecipeCard, RecipeStockProgress } from '../components/common/RecipeCard';
+import { SearchBar } from '../components/common/SearchBar';
+import { CategoryPills } from '../components/common/CategoryPills';
+import { EmptyState } from '../components/common/EmptyState';
+import { StockCookModal } from '../components/chef-ai/StockCookModal';
+import { AdvancedFiltersModal } from '../components/common/AdvancedFiltersModal';
+import { ChefAiWidget } from '../components/home-widgets/ChefAiWidget';
+import { QuickMealLogModal } from '../components/planner/QuickMealLogModal';
 import { normalizeString, getLocalDateString } from '../utils/helpers';
 import {
   searchRecipes,
