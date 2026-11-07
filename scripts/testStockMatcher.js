@@ -140,6 +140,51 @@ async function main() {
   assert.strictEqual(testNoix.inStock, false, 'Avoir "Muscade" en stock ne doit JAMAIS valider "Noix"');
   console.log('✓ Avoir "Muscade" ne valide PAS "Noix"');
 
+  // C. Règle culinaire hiérarchique : Œufs entiers vs Jaune vs Blanc
+  console.log('\n--- Test 2.C : Règle culinaire hiérarchique (Œufs / Jaune / Blanc) ---');
+
+  // Cas 1 : Stock avec Œufs entiers
+  const eggStock = prepareStockItems([
+    { id: 'e1', name: 'Œufs', canonicalId: 'ing_canon_ufs', aisle: 'Produits Frais & Crèmerie', createdAt: '' },
+  ]);
+  const testWholeEgg = isIngredientInStock({ id: 't1', name: '4 oeufs' }, eggStock);
+  assert.ok(testWholeEgg.inStock, 'Stock "Œufs" doit valider "4 oeufs"');
+
+  const testYolkFromWhole = isIngredientInStock({ id: 't2', name: '2 jaunes d\'oeufs' }, eggStock);
+  assert.ok(testYolkFromWhole.inStock, 'Stock "Œufs" doit valider "2 jaunes d\'oeufs"');
+
+  const testWhiteFromWhole = isIngredientInStock({ id: 't3', name: '3 blancs d\'oeufs' }, eggStock);
+  assert.ok(testWhiteFromWhole.inStock, 'Stock "Œufs" doit valider "3 blancs d\'oeufs"');
+  console.log('✓ Stock "Œufs" valide recettes avec œufs entiers, jaunes d\'œufs et blancs d\'œufs');
+
+  // Cas 2 : Stock avec uniquement Jaune d'œuf
+  const yolkOnlyStock = prepareStockItems([
+    { id: 'y1', name: 'Jaune d\'œuf', canonicalId: 'ing_canon_jaune_d_oeuf', aisle: 'Produits Frais & Crèmerie', createdAt: '' },
+  ]);
+  const testYolkFromYolk = isIngredientInStock({ id: 't4', name: 'jaune d\'oeuf' }, yolkOnlyStock);
+  assert.ok(testYolkFromYolk.inStock, 'Stock "Jaune d\'œuf" doit valider "jaune d\'oeuf"');
+
+  const testWholeFromYolk = isIngredientInStock({ id: 't5', name: '4 oeufs' }, yolkOnlyStock);
+  assert.strictEqual(testWholeFromYolk.inStock, false, 'Stock "Jaune d\'œuf" ne doit PAS valider "4 oeufs"');
+
+  const testWhiteFromYolk = isIngredientInStock({ id: 't6', name: 'blancs d\'oeufs' }, yolkOnlyStock);
+  assert.strictEqual(testWhiteFromYolk.inStock, false, 'Stock "Jaune d\'œuf" ne doit PAS valider "blancs d\'oeufs"');
+  console.log('✓ Stock "Jaune d\'œuf" valide uniquement jaune, et rejette œufs entiers et blancs');
+
+  // Cas 3 : Stock avec uniquement Blanc d'œuf
+  const whiteOnlyStock = prepareStockItems([
+    { id: 'w1', name: 'Blanc d\'œuf', canonicalId: 'ing_canon_blanc_d_oeuf', aisle: 'Produits Frais & Crèmerie', createdAt: '' },
+  ]);
+  const testWhiteFromWhite = isIngredientInStock({ id: 't7', name: 'blancs d\'oeufs' }, whiteOnlyStock);
+  assert.ok(testWhiteFromWhite.inStock, 'Stock "Blanc d\'œuf" doit valider "blancs d\'oeufs"');
+
+  const testWholeFromWhite = isIngredientInStock({ id: 't8', name: '4 oeufs' }, whiteOnlyStock);
+  assert.strictEqual(testWholeFromWhite.inStock, false, 'Stock "Blanc d\'œuf" ne doit PAS valider "4 oeufs"');
+
+  const testYolkFromWhite = isIngredientInStock({ id: 't9', name: 'jaune d\'oeuf' }, whiteOnlyStock);
+  assert.strictEqual(testYolkFromWhite.inStock, false, 'Stock "Blanc d\'œuf" ne doit PAS valider "jaune d\'oeuf"');
+  console.log('✓ Stock "Blanc d\'œuf" valide uniquement blanc, et rejette œufs entiers et jaunes');
+
   // =========================================================================
   // TEST SECTION 3 : Évaluation de Recettes Faisables vs Non Faisables
   // =========================================================================

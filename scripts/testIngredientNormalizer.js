@@ -53,6 +53,30 @@ async function main() {
     assert.strictEqual(normLegumesSurgeles.canonicalId, 'ing_canon_legumes_surgeles');
     console.log('✓ "Légumes surgelés" résolu exactement');
 
+    const normOeufs = normalizeIngredient({ name: '4 oeufs' });
+    assert.strictEqual(normOeufs.name, 'Œufs');
+    assert.strictEqual(normOeufs.canonicalId, 'ing_canon_ufs');
+    assert.strictEqual(normOeufs.quantity, '4');
+    console.log('✓ "4 oeufs" résolu vers Œufs (ing_canon_ufs)');
+
+    const normJauneOeuf = normalizeIngredient({ name: '2 jaunes d\'oeufs' });
+    assert.strictEqual(normJauneOeuf.name, 'Jaune d\'œuf');
+    assert.strictEqual(normJauneOeuf.canonicalId, 'ing_canon_jaune_d_oeuf');
+    assert.strictEqual(normJauneOeuf.quantity, '2');
+    console.log('✓ "2 jaunes d\'oeufs" résolu vers Jaune d\'œuf (ing_canon_jaune_d_oeuf)');
+
+    const normBlancOeuf = normalizeIngredient({ name: '3 blancs d\'oeufs' });
+    assert.strictEqual(normBlancOeuf.name, 'Blanc d\'œuf');
+    assert.strictEqual(normBlancOeuf.canonicalId, 'ing_canon_blanc_d_oeuf');
+    assert.strictEqual(normBlancOeuf.quantity, '3');
+    console.log('✓ "3 blancs d\'oeufs" résolu vers Blanc d\'œuf (ing_canon_blanc_d_oeuf)');
+
+    const normJaunePourDorer = normalizeIngredient({ name: '1 jaune d\'oeuf pour dorer' });
+    assert.strictEqual(normJaunePourDorer.name, 'Jaune d\'œuf');
+    assert.strictEqual(normJaunePourDorer.canonicalId, 'ing_canon_jaune_d_oeuf');
+    assert.strictEqual(normJaunePourDorer.quantity, '1');
+    console.log('✓ "1 jaune d\'oeuf pour dorer" résolu vers Jaune d\'œuf');
+
     console.log('\n--- Test 2 : normalizeIngredient (Extraction quantité/unité) ---');
 
     const normOignonBlanc = normalizeIngredient({ name: '2 oignons blancs émincés' });

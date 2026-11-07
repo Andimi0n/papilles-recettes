@@ -41,6 +41,7 @@ const LEADING_QUANTITY_REGEX = /^([0-9]+(?:\/[0-9]+)?(?:\.[0-9]+)?(?:\s*(?:-|–
 // Adjectifs et découpes superflus formulés en minuscules sans accents
 const QUALIFIER_PATTERNS: RegExp[] = [
   /\s*\([^)]*\)/g, // Parenthèses descriptives
+  /\bpour\s+dorer\b/gi,
   /\b(?:et\s+)?coupe?e?s?\s+en\s+des\b/gi,
   /\b(?:et\s+)?coupe?e?s?\s+en\s+rondelles\b/gi,
   /\b(?:et\s+)?coupe?e?s?\s+en\s+lamelles\b/gi,

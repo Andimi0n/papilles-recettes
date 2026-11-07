@@ -64,7 +64,7 @@ Application **100 % offline-first**, sécurisée, sans création de compte oblig
   - **Sélection verticale des ingrédients par rayons** : ingrédients en stock regroupés par rayons avec compteurs et raccourcis *"Tout cocher"* / *"Tout décocher"*.
   - Configuration du nombre de portions (synchronisé avec vos préférences), option 100% végétarienne et pré-remplissage direct du formulaire de recette.
 
-### 6. 🏷️ Lexique Canonique (424 Ingrédients) & Architecture "Lexique-First"
+### 6. 🏷️ Lexique Canonique (426 Ingrédients) & Architecture "Lexique-First"
 - **Pipeline de normalisation à 3 niveaux** :
   1. *Lookup $O(1)$ exact* sur les noms canoniques et alias avant tout stripping regex destructif. Les termes sensibles composés (*Crème fraîche*, *Poudre d'amande*) sont résolus immédiatement sans altération ;
   2. *Élagage des labels de qualité* (AOP, AOC, bio) avec gardes anti-faux-amis et normalisation transparente des ligatures (`œ` → `oe`, `æ` → `ae`) ;
@@ -73,7 +73,7 @@ Application **100 % offline-first**, sécurisée, sans création de compte oblig
 - **Sécurité sanitaire renforcée des 14 allergènes INCO** : détection immédiate par `canonicalId` et filet de sécurité sémantique (`INCO_FAMILY_KEY_ROOTS`) sur les ingrédients hors lexique.
 - **Démarrage instantané & Zéro ralentissement** : le lexique utilisateur est chargé avant l'assainissement des recettes ; le lexique de repli et ses index ne sont construits qu'une fois, et les ingrédients déjà résolus ne sont pas renormalisés.
 - **Propagation réactive & Cascade automatique** : toute modification du vocabulaire (détachement, fusion, modification de rayon) est répercutée instantanément sur les recettes, stocks et courses sans action manuelle.
-- **Gestionnaire de vocabulaire complet (`VocabularyManagerModal`)** : accessible dans les Paramètres pour consulter les 424 ingrédients canoniques, rechercher par rayon, qualifier un ingrédient inconnu (`QualifyIngredientModal`), gérer les indispensables de placard, renommer, ajouter des alias ou fusionner des doublons.
+- **Gestionnaire de vocabulaire complet (`VocabularyManagerModal`)** : accessible dans les Paramètres pour consulter les 426 ingrédients canoniques, rechercher par rayon, qualifier un ingrédient inconnu (`QualifyIngredientModal`), gérer les indispensables de placard, renommer, ajouter des alias ou fusionner des doublons.
 
 ### 7. 📖 Structure "Livre de Chef", Fiches Recettes & Portions Dynamiques
 - **Organisation culinaire par sections** :
@@ -163,7 +163,7 @@ La suite de tests automatisée comprend **36 suites de tests** exécutables dire
 # Lancement de toute la suite de tests automatisée
 npm test
 
-# Audit d'intégrité du lexique (424 ingrédients canoniques, 0 collision d'alias)
+# Audit d'intégrité du lexique (426 ingrédients canoniques, 0 collision d'alias)
 npm run validate:lexicon
 
 # Tests du moteur de stock & Lexique-First
@@ -246,7 +246,7 @@ papilles-recettes/
     ├── constants/
     │   └── units.ts                  # Catalogue des unités culinaires et conversions
     ├── data/
-    │   ├── canonicalVocabulary.ts    # Référentiel des 424 ingrédients canoniques
+    │   ├── canonicalVocabulary.ts    # Référentiel des 426 ingrédients canoniques
     │   └── initialRecipes.ts         # Recettes de démonstration initiales
     ├── services/                     # Logique métier & persistance
     │   ├── storageService.ts         # Coordinateur métier, cache mémoire & listeners

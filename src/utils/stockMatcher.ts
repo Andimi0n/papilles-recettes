@@ -113,11 +113,23 @@ export function isIngredientInStock(
   }
 
   // 0. Identifiant canonique direct préexistant sur l'ingrédient (O(1))
-  if (ing.canonicalId && preparedStock.canonicalIdMap.has(ing.canonicalId)) {
-    return {
-      inStock: true,
-      matchedStockName: preparedStock.canonicalIdMap.get(ing.canonicalId),
-    };
+  if (ing.canonicalId) {
+    if (preparedStock.canonicalIdMap.has(ing.canonicalId)) {
+      return {
+        inStock: true,
+        matchedStockName: preparedStock.canonicalIdMap.get(ing.canonicalId),
+      };
+    }
+    // Règle culinaire hiérarchique : des œufs entiers en stock couvrent jaune d'œuf et blanc d'œuf
+    if (
+      (ing.canonicalId === 'ing_canon_jaune_d_oeuf' || ing.canonicalId === 'ing_canon_blanc_d_oeuf') &&
+      preparedStock.canonicalIdMap.has('ing_canon_ufs')
+    ) {
+      return {
+        inStock: true,
+        matchedStockName: preparedStock.canonicalIdMap.get('ing_canon_ufs'),
+      };
+    }
   }
 
   const normIng =
@@ -132,11 +144,23 @@ export function isIngredientInStock(
     });
 
   // 1. Identifiant canonique (O(1))
-  if (normIng.canonicalId && preparedStock.canonicalIdMap.has(normIng.canonicalId)) {
-    return {
-      inStock: true,
-      matchedStockName: preparedStock.canonicalIdMap.get(normIng.canonicalId),
-    };
+  if (normIng.canonicalId) {
+    if (preparedStock.canonicalIdMap.has(normIng.canonicalId)) {
+      return {
+        inStock: true,
+        matchedStockName: preparedStock.canonicalIdMap.get(normIng.canonicalId),
+      };
+    }
+    // Règle culinaire hiérarchique : des œufs entiers en stock couvrent jaune d'œuf et blanc d'œuf
+    if (
+      (normIng.canonicalId === 'ing_canon_jaune_d_oeuf' || normIng.canonicalId === 'ing_canon_blanc_d_oeuf') &&
+      preparedStock.canonicalIdMap.has('ing_canon_ufs')
+    ) {
+      return {
+        inStock: true,
+        matchedStockName: preparedStock.canonicalIdMap.get('ing_canon_ufs'),
+      };
+    }
   }
 
   // 2. Nom canonique (O(1))

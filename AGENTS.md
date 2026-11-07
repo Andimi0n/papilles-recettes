@@ -97,7 +97,7 @@
 
 #### Données, Constantes, Types & Configuration :
 - **`src/constants/units.ts`** : Catalogue standardisé des unités culinaires (5 catégories) et `formatQuantityWithUnit`.
-- **`src/data/canonicalVocabulary.ts`** : Référentiel de **424 ingrédients canoniques** avec rayons, statuts placard et allergènes INCO.
+- **`src/data/canonicalVocabulary.ts`** : Référentiel de **426 ingrédients canoniques** avec rayons, statuts placard et allergènes INCO.
 - **`src/data/initialRecipes.ts`** : Recettes de démonstration initiales (**ignoré par défaut** via `.geminiignore`).
 - **`src/types/`** : `recipe.ts`, `shopping.ts`, `fridge.ts`, `planner.ts`, `mealLog.ts`, `vocabulary.ts`, `analytics.ts`.
 - **`plugins/withLargeHeap.js`** : Plugin de configuration Expo injectant `android:largeHeap="true"` pour immuniser l'application contre les dépassements de mémoire lors de la manipulation d'images haute définition.
@@ -177,7 +177,7 @@ npx tsc --noEmit && npx expo lint
 npm test
 
 # 3. Tests ciblés par sous-système (à lancer selon les fichiers modifiés)
-npm run validate:lexicon       # Audit d'intégrité du vocabulaire canonique (424 ingrédients, 0 collision)
+npm run validate:lexicon       # Audit d'intégrité du vocabulaire canonique (426 ingrédients, 0 collision)
 npm run test:stock             # Tests unitaires stockMatcher & résolution Lexique-First
 npm run test:shopping          # Tests unitaires shoppingAggregator, conversions & placard
 npm run test:shopping-shelves  # Tests du transfert courses -> étagères et purge non-alimentaire

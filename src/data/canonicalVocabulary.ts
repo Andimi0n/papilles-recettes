@@ -611,7 +611,19 @@ const RAW_SEED_INGREDIENTS: SeedIngredientDef[] = [
   {
     name: 'Œufs',
     aisle: 'Produits Frais & Crèmerie',
-    aliases: ['oeuf', 'oeufs', 'oeufs frais', 'oeufs entiers', 'oeuf entier', 'blanc d oeuf', 'blancs d oeufs', 'jaune d oeuf', 'jaunes d oeufs'],
+    aliases: ['oeuf', 'oeufs', 'oeufs frais', 'oeufs entiers', 'oeuf entier', 'oeufs bio', 'oeuf bio'],
+    allergen: 'oeufs',
+  },
+  {
+    name: "Jaune d'œuf",
+    aisle: 'Produits Frais & Crèmerie',
+    aliases: ['jaune d oeuf', 'jaunes d oeufs', 'jaunes d oeuf', 'jaune d oeufs', 'jaune d’oeuf', 'jaunes d’oeufs', 'jaune oeuf', 'jaunes oeufs', 'jaune d oeuf pour dorer', 'jaunes d oeufs pour dorer'],
+    allergen: 'oeufs',
+  },
+  {
+    name: "Blanc d'œuf",
+    aisle: 'Produits Frais & Crèmerie',
+    aliases: ['blanc d oeuf', 'blancs d oeufs', 'blancs d oeuf', 'blanc d oeufs', 'blanc d’oeuf', 'blancs d’oeufs', 'blanc oeuf', 'blancs oeufs', 'blanc d oeuf en neige', 'blancs d oeufs en neige', 'blancs en neige'],
     allergen: 'oeufs',
   },
   {
@@ -2504,6 +2516,10 @@ const LEGACY_SLUG_OVERRIDES: Record<string, string> = {
   'bouillon de bœuf': 'ing_canon_bouillon_de_b_uf',
   'bouillon de boeuf': 'ing_canon_bouillon_de_b_uf',
   'bouillon de b uf': 'ing_canon_bouillon_de_b_uf',
+  "jaune d'œuf": 'ing_canon_jaune_d_oeuf',
+  "jaune d'oeuf": 'ing_canon_jaune_d_oeuf',
+  "blanc d'œuf": 'ing_canon_blanc_d_oeuf',
+  "blanc d'oeuf": 'ing_canon_blanc_d_oeuf',
 };
 
 /**
