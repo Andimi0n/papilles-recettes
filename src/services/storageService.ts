@@ -448,24 +448,10 @@ export const StorageService = {
       await VocabularyService.getAll().catch(() => {});
 
       const rows = await DatabaseService.getRecipes();
-      const isSeeded = await DatabaseService.getSetting(SETTING_SCHEMA_VERSION);
 
       if (rows.length === 0) {
-        if (!isSeeded) {
-          // Premier lancement absolu : initialisation avec les recettes cultes (chargement lazy)
-          const initial = await getInitialRecipes();
-          const sanitized = initial.map(sanitizeStoredRecipe);
-          await DatabaseService.saveAllRecipes(sanitized);
-          await DatabaseService.setSetting(SETTING_SCHEMA_VERSION, CURRENT_SCHEMA_VERSION);
-          memoryCache.recipes = sanitized;
-          return sanitized;
-        }
         memoryCache.recipes = [];
         return [];
-      }
-
-      if (!isSeeded) {
-        await DatabaseService.setSetting(SETTING_SCHEMA_VERSION, CURRENT_SCHEMA_VERSION);
       }
 
       // Validation défensive runtime
@@ -476,8 +462,7 @@ export const StorageService = {
       return result;
     } catch (error) {
       console.error('Erreur lors du chargement des recettes:', error);
-      const initial = await getInitialRecipes().catch(() => []);
-      return initial;
+      return [];
     }
   },
 
@@ -718,7 +703,6 @@ export const StorageService = {
         }
       }
       await DatabaseService.deleteRecipesByPrefix('rec_top100_');
-      await DatabaseService.setSetting(SETTING_SCHEMA_VERSION, CURRENT_SCHEMA_VERSION);
       memoryCache.recipes = null;
       return this.getRecipes();
     } catch (error) {

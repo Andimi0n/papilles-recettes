@@ -72,12 +72,17 @@ async function main() {
   assert.strictEqual(defaultCount, 92, 'Le catalogue culte contient exactement 92 recettes (et non 100)');
   console.log(`✓ Nombre exact de recettes par défaut validé : ${defaultCount} recettes (non 100)`);
 
-  console.log('\n--- Test 2 : Initialisation au premier démarrage ---');
-  const initialRecipes = await StorageService.getRecipes();
-  assert.strictEqual(initialRecipes.length, 92, '92 recettes initiales doivent être chargées au premier démarrage');
-  console.log('✓ 92 recettes chargées et persistées au premier lancement');
+  console.log('\n--- Test 2 : Absence de réinjection automatique sur base vide ---');
+  const initialEmpty = await StorageService.getRecipes();
+  assert.strictEqual(initialEmpty.length, 0, 'Un carnet neuf démarre à 0 recette sans aucune réinjection automatique');
+  console.log('✓ Zéro réinjection automatique : getRecipes() renvoie un tableau vide');
 
-  console.log('\n--- Test 3 : Ajout d\'une recette utilisateur personnalisée ---');
+  console.log('\n--- Test 3 : Chargement explicite du catalogue par défaut (resetToDemoRecipes) ---');
+  const demoRecipes = await StorageService.resetToDemoRecipes();
+  assert.strictEqual(demoRecipes.length, 92, '92 recettes par défaut chargées sur demande explicite');
+  console.log('✓ 92 recettes chargées via resetToDemoRecipes()');
+
+  console.log('\n--- Test 4 : Ajout d\'une recette utilisateur personnalisée ---');
   const customRecipe = {
     id: 'rec_user_custom_cake_1',
     title: 'Gâteau au chocolat maison',
@@ -91,21 +96,22 @@ async function main() {
   assert.strictEqual(withCustom.length, 93, '93 recettes doivent être présentes (92 par défaut + 1 utilisateur)');
   console.log('✓ Recette utilisateur ajoutée avec succès (total: 93)');
 
-  console.log('\n--- Test 4 : Suppression des recettes par défaut (avec recette utilisateur) ---');
+  console.log('\n--- Test 5 : Suppression des recettes par défaut (avec recette utilisateur) ---');
   const remainingAfterDelete = await StorageService.deleteDefaultRecipes();
   assert.strictEqual(remainingAfterDelete.length, 1, 'Seule la recette personnalisée doit subsister');
   assert.strictEqual(remainingAfterDelete[0].id, 'rec_user_custom_cake_1', 'La recette restante doit être celle de l\'utilisateur');
   console.log('✓ Seule la recette utilisateur a été conservée (recettes par défaut supprimées)');
 
-  console.log('\n--- Test 5 : Suppression de la recette utilisateur (carnet totalement vide) ---');
+  console.log('\n--- Test 6 : Suppression de la recette utilisateur (carnet totalement vide) ---');
   await StorageService.deleteRecipe('rec_user_custom_cake_1');
   const emptyCarnet = await StorageService.getRecipes();
   assert.strictEqual(emptyCarnet.length, 0, 'Le carnet doit contenir 0 recette');
 
-  // Simulation d'un redémarrage de l'app (cache mémoire invalidé)
-  // getRecipes() ne doit surtout PAS réinjecter les recettes par défaut !
-  const reloadedCarnet = await StorageService.deleteDefaultRecipes();
-  assert.strictEqual(reloadedCarnet.length, 0, 'Le carnet vide ne doit pas réinjecter les recettes par défaut');
+  // Simulation d'un appel ultérieur avec cache mémoire invalidé :
+  // getRecipes() ne doit toujours rien réinjecter
+  const memoryCache = require(compiledStoragePath);
+  const reloadedCarnet = await StorageService.getRecipes();
+  assert.strictEqual(reloadedCarnet.length, 0, 'Le carnet vide reste à 0 recette sans réinjection');
   console.log('✓ Le carnet vide reste à 0 recette sans réinjection intempestive');
 
   console.log('\n--- Test 6 : Réinitialisation manuelle des recettes par défaut (resetToDemoRecipes) ---');
