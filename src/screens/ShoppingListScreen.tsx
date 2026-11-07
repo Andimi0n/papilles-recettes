@@ -743,16 +743,31 @@ const ShoppingListScreenComponent: React.FC<ShoppingListScreenProps> = ({
     }
   };
 
-  const handleSelectDropdownSuggestion = (ing: CanonicalIngredient) => {
-    const trimmed = newItemText.trim();
-    const match = trimmed.match(/^([0-9]+(?:[.,][0-9]+)?(?:\/[0-9]+)?(?:\s*(?:-|–|à|a)\s*[0-9]+(?:[.,][0-9]+)?(?:\/[0-9]+)?)?)\s*([a-zA-ZÀ-ÿ\.]*)\s*/);
-    if (match && match[1]) {
-      const qty = match[1];
-      const u = isStandardUnit(match[2]) ? normalizeUnit(match[2]) : '';
-      const prefix = [qty, u].filter(Boolean).join(' ');
-      setNewItemText(`${prefix} ${ing.canonicalName} `);
-    } else {
-      setNewItemText(`${ing.canonicalName} `);
+  const handleSelectDropdownSuggestion = async (
+    ing: CanonicalIngredient,
+    details?: { quantity?: string; unit?: string }
+  ) => {
+    try {
+      const trimmed = newItemText.trim();
+      let textToAdd = ing.canonicalName;
+      const match = trimmed.match(
+        /^([0-9]+(?:[.,][0-9]+)?(?:\/[0-9]+)?(?:\s*(?:-|–|à|a)\s*[0-9]+(?:[.,][0-9]+)?(?:\/[0-9]+)?)?|[½¼¾⅓⅔⅛⅜⅝⅞])\s*([a-zA-ZÀ-ÿ\.]*)\s*/
+      );
+      if (match && match[1]) {
+        const qty = match[1];
+        const u = isStandardUnit(match[2]) ? normalizeUnit(match[2]) : '';
+        const prefix = [qty, u].filter(Boolean).join(' ');
+        textToAdd = `${prefix} ${ing.canonicalName}`.trim();
+      } else if (details && (details.quantity || details.unit)) {
+        const prefix = [details.quantity, details.unit].filter(Boolean).join(' ');
+        textToAdd = `${prefix} ${ing.canonicalName}`.trim();
+      }
+
+      setNewItemText('');
+      const updated = await StorageService.addFreeformShoppingItem(textToAdd, ing.defaultAisle);
+      setItems(updated);
+    } catch (_e) {
+      Alert.alert('Erreur', "Impossible d'ajouter cet article.");
     }
   };
 
@@ -1348,12 +1363,12 @@ const ShoppingListScreenComponent: React.FC<ShoppingListScreenProps> = ({
                       value={newItemText}
                       onChangeText={(text) => setNewItemText(text)}
                       context="shopping"
-                      clearOnSelect={false}
+                      clearOnSelect
                       keepFocusOnSelect
                       returnKeyType="done"
                       onSubmitEditing={() => handleAddItem()}
-                      onSelectIngredient={(ing) => {
-                        handleSelectDropdownSuggestion(ing);
+                      onSelectIngredient={(ing, details) => {
+                        handleSelectDropdownSuggestion(ing, details);
                       }}
                     />
 
