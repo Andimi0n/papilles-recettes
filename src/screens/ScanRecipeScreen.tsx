@@ -17,7 +17,6 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { ImageManipulator, manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import * as FileSystem from 'expo-file-system/legacy';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createDynamicStyles } from '../theme/colors';
 import { useTheme } from '../theme/ThemeContext';
 import {
@@ -31,6 +30,7 @@ import { ImageStorageService } from '../services/imageStorageService';
 import { Recipe } from '../types/recipe';
 import { generateUniqueId } from '../utils/helpers';
 import { QrScannerModal } from '../components/QrScannerModal';
+import { CameraCaptureModal } from '../components/CameraCaptureModal';
 
 export type AddRecipeMode = 'text' | 'photo' | 'url';
 
@@ -82,34 +82,7 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
   // États Mode Photo
   const [photos, setPhotos] = useState<CapturedPhoto[]>(initialPhotos || []);
   const [isAnalyzingPhotos, setIsAnalyzingPhotos] = useState(false);
-
-  // Traitement d'une photo en attente issue d'un recyclage d'activité Android intercepté par App.tsx
-  useEffect(() => {
-    if (initialPendingPhotoUri) {
-      processImage(initialPendingPhotoUri)
-        .then((p) => {
-          setPhotos((prev) => (prev.some((x) => x.id === p.id) ? prev : [...prev, p]));
-        })
-        .catch((e) => console.log('[Scan] Erreur traitement photo pending:', e));
-    }
-  }, [initialPendingPhotoUri]);
-
-  // Récupération de sécurité directe si l'écran était déjà monté
-  useEffect(() => {
-    if (Platform.OS === 'android') {
-      ImagePicker.getPendingResultAsync()
-        .then(async (result) => {
-          if (result && 'assets' in result && !result.canceled && result.assets && result.assets.length > 0) {
-            const rawUri = result.assets[0].uri;
-            if (rawUri) {
-              const processed = await processImage(rawUri);
-              setPhotos((prev) => (prev.some((x) => x.id === processed.id) ? prev : [...prev, processed]));
-            }
-          }
-        })
-        .catch(() => {});
-    }
-  }, []);
+  const [isCameraModalVisible, setIsCameraModalVisible] = useState(false);
 
   // États Mode Texte
   const [rawTextInput, setRawTextInput] = useState('');
@@ -208,48 +181,51 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
     };
   };
 
-  const handlePickPhoto = async (fromCamera: boolean) => {
+  // Traitement d'une photo en attente (repli défensif)
+  useEffect(() => {
+    if (initialPendingPhotoUri) {
+      processImage(initialPendingPhotoUri)
+        .then((p) => {
+          setPhotos((prev) => (prev.some((x) => x.id === p.id) ? prev : [...prev, p]));
+        })
+        .catch((e) => console.log('[Scan] Erreur traitement photo pending:', e));
+    }
+  }, [initialPendingPhotoUri]);
+
+  const handleCameraPhotosCaptured = async (uris: string[]) => {
     try {
-      let result: ImagePicker.ImagePickerResult;
-
-      if (fromCamera) {
-        const { status } = await ImagePicker.requestCameraPermissionsAsync();
-        if (status !== 'granted') {
-          Alert.alert(
-            'Permission requise',
-            'Veuillez autoriser l\'accès à l\'appareil photo dans vos réglages pour scanner une recette.'
-          );
-          return;
-        }
-
-        // Sauvegarde préventive du brouillon Scan si Android recycle l'activité
-        await AsyncStorage.setItem(
-          '@papilles_camera_scan_draft',
-          JSON.stringify({ photos, mode })
-        );
-
-        result = await ImagePicker.launchCameraAsync({
-          quality: 1.0,
-          allowsEditing: false,
-        });
-
-        // Nettoyer le brouillon si l'activité est restée en vie
-        await AsyncStorage.removeItem('@papilles_camera_scan_draft');
-      } else {
-        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (status !== 'granted') {
-          Alert.alert(
-            'Permission requise',
-            'Veuillez autoriser l\'accès à vos photos dans vos réglages.'
-          );
-          return;
-        }
-        result = await ImagePicker.launchImageLibraryAsync({
-          quality: 0.8,
-          allowsMultipleSelection: true,
-          selectionLimit: 4,
-        });
+      const newCaptured: CapturedPhoto[] = [];
+      for (const uri of uris) {
+        const processed = await processImage(uri);
+        newCaptured.push(processed);
       }
+      setPhotos((prev) => [...prev, ...newCaptured]);
+    } catch (err) {
+      console.error('[Scan] Erreur traitement photos caméra:', err);
+      Alert.alert('Erreur', 'Impossible de traiter les photos capturées.');
+    }
+  };
+
+  const handlePickPhoto = async (fromCamera: boolean) => {
+    if (fromCamera) {
+      setIsCameraModalVisible(true);
+      return;
+    }
+
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(
+          'Permission requise',
+          'Veuillez autoriser l\'accès à vos photos dans vos réglages.'
+        );
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        quality: 0.8,
+        allowsMultipleSelection: true,
+        selectionLimit: Math.max(1, 4 - photos.length),
+      });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const newCaptured: CapturedPhoto[] = [];
@@ -260,8 +236,7 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
         setPhotos((prev) => [...prev, ...newCaptured]);
       }
     } catch (e: any) {
-      await AsyncStorage.removeItem('@papilles_camera_scan_draft').catch(() => {});
-      console.error('Erreur sélection photo:', e);
+      console.error('Erreur sélection photo galerie:', e);
       Alert.alert('Erreur', 'Impossible de charger la photo.');
     }
   };
@@ -1055,6 +1030,16 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
           visible={isQrScannerVisible}
           onClose={() => setIsQrScannerVisible(false)}
           onRecipeScanned={handleQrRecipeScanned}
+        />
+
+        {/* Modal Caméra in-app pour scan documentaire IA (évite les crashs Android) */}
+        <CameraCaptureModal
+          visible={isCameraModalVisible}
+          onClose={() => setIsCameraModalVisible(false)}
+          mode="scan"
+          maxPhotos={4}
+          title="Scan de recette"
+          onPhotosCaptured={handleCameraPhotosCaptured}
         />
       </KeyboardAvoidingView>
     </SafeAreaView>

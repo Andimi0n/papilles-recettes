@@ -31,8 +31,6 @@ import { createDynamicStyles, ThemeMode } from './src/theme/colors';
 import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
 import * as SplashScreen from 'expo-splash-screen';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as ImagePicker from 'expo-image-picker';
-import { ImageStorageService } from './src/services/imageStorageService';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -126,80 +124,12 @@ function AppContent({ initialData }: AppContentProps) {
   const [receivedSharedRecipe, setReceivedSharedRecipe] = useState<Recipe | null>(null);
   const [isImportModalVisible, setIsImportModalVisible] = useState(false);
 
-  // Restauration d'un brouillon d'édition ou de scan si Android a recyclé l'activité pendant la prise de photo
+  // Nettoyage préventif des anciens brouillons caméra résiduels
   useEffect(() => {
-    if (Platform.OS === 'android') {
-      (async () => {
-        try {
-          const formDraftJson = await AsyncStorage.getItem('@papilles_camera_recipe_draft');
-          const scanDraftJson = await AsyncStorage.getItem('@papilles_camera_scan_draft');
-          if (!formDraftJson && !scanDraftJson) return;
-
-          const pendingResult = await ImagePicker.getPendingResultAsync();
-
-          // Cas 1 : Retour sur le formulaire d'édition de recette
-          if (formDraftJson) {
-            const draft = JSON.parse(formDraftJson);
-            let photoUri: string | null = null;
-            if (
-              pendingResult &&
-              'assets' in pendingResult &&
-              !pendingResult.canceled &&
-              pendingResult.assets &&
-              pendingResult.assets.length > 0 &&
-              pendingResult.assets[0].uri
-            ) {
-              photoUri = await ImageStorageService.persistImageLocally(pendingResult.assets[0].uri);
-            }
-
-            if (draft && draft.recipe) {
-              const restoredRecipe: Recipe = { ...draft.recipe };
-              if (photoUri) {
-                restoredRecipe.imageUrl = photoUri;
-                const currentAvail = Array.isArray(restoredRecipe.availableImages)
-                  ? restoredRecipe.availableImages
-                  : [];
-                restoredRecipe.availableImages = currentAvail.includes(photoUri)
-                  ? currentAvail
-                  : [photoUri, ...currentAvail];
-              }
-              setEditingRecipe(restoredRecipe);
-              if (draft.selectedRecipeId) setSelectedRecipeId(draft.selectedRecipeId);
-              setCurrentScreen('form');
-            }
-            await AsyncStorage.removeItem('@papilles_camera_recipe_draft');
-          }
-
-          // Cas 2 : Retour sur l'écran de scan de recette par IA
-          if (scanDraftJson) {
-            const draft = JSON.parse(scanDraftJson);
-            let newPhotoUri: string | null = null;
-            if (
-              pendingResult &&
-              'assets' in pendingResult &&
-              !pendingResult.canceled &&
-              pendingResult.assets &&
-              pendingResult.assets.length > 0 &&
-              pendingResult.assets[0].uri
-            ) {
-              newPhotoUri = pendingResult.assets[0].uri;
-            }
-
-            setScanInitialMode('photo');
-            if (newPhotoUri) {
-              setPendingScanPhotoUri(newPhotoUri);
-            }
-            if (Array.isArray(draft.photos)) {
-              setRestoredScanPhotos(draft.photos);
-            }
-            setCurrentScreen('scan');
-            await AsyncStorage.removeItem('@papilles_camera_scan_draft');
-          }
-        } catch (e) {
-          console.warn('[App] Erreur restauration draft caméra après recyclage Android:', e);
-        }
-      })();
-    }
+    AsyncStorage.multiRemove([
+      '@papilles_camera_recipe_draft',
+      '@papilles_camera_scan_draft',
+    ]).catch(() => {});
   }, []);
 
   // Recharge la liste des recettes

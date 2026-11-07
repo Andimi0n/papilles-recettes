@@ -17,7 +17,6 @@ import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Recipe, Category, Difficulty, Ingredient, RecipeStep } from '../types/recipe';
 import { Colors } from '../theme/colors';
 import { styles } from './RecipeFormScreen.styles';
@@ -26,6 +25,7 @@ import { StarRating } from '../components/StarRating';
 import { generateUniqueId, normalizeString } from '../utils/helpers';
 import { normalizeIngredient } from '../utils/ingredientNormalizer';
 import { CanonicalIngredient } from '../types/vocabulary';
+import { CameraCaptureModal } from '../components/CameraCaptureModal';
 import { QualifyIngredientModal } from '../components/QualifyIngredientModal';
 import { UnitPickerModal } from '../components/UnitPickerModal';
 import { formatQuantityWithUnit } from '../constants/units';
@@ -322,6 +322,9 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
   const [isLinkModalVisible, setIsLinkModalVisible] = useState(false);
   const [linkModalTargetIndex, setLinkModalTargetIndex] = useState<number | null>(null);
 
+  // État Caméra in-app (évite tout recyclage d'activité Android)
+  const [isCameraModalVisible, setIsCameraModalVisible] = useState(false);
+
   const handleOpenLinkModal = (index: number) => {
     setLinkModalTargetIndex(index);
     setIsLinkModalVisible(true);
@@ -350,96 +353,23 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
   );
   const [isDraggingStep, setIsDraggingStep] = useState(false);
 
-  // Récupération sécurisée d'une photo capturée si Android a recyclé l'activité en arrière-plan
-  useEffect(() => {
-    if (Platform.OS === 'android') {
-      ImagePicker.getPendingResultAsync()
-        .then(async (result) => {
-          if (result && 'assets' in result && !result.canceled && result.assets && result.assets.length > 0) {
-            const rawUri = result.assets[0].uri;
-            if (rawUri) {
-              const permanentUri = await ImageStorageService.persistImageLocally(rawUri);
-              setImageUrl(permanentUri || rawUri);
-              setAvailableImages((prev) => {
-                const current = Array.isArray(prev) ? prev : [];
-                const target = permanentUri || rawUri;
-                return current.includes(target) ? current : [target, ...current];
-              });
-            }
-          }
-        })
-        .catch((e) => console.log('[ImagePicker] pending result error:', e));
-    }
-  }, []);
+  // Image pickers (Appareil photo in-app & Galerie)
+  const handleCaptureImage = () => {
+    setIsCameraModalVisible(true);
+  };
 
-  // Image pickers (Appareil photo & Galerie)
-  const handleCaptureImage = async () => {
+  const handleCameraPhotoCaptured = async (rawUri: string) => {
     try {
-      const permission = await ImagePicker.requestCameraPermissionsAsync();
-      if (!permission.granted) {
-        Alert.alert(
-          'Permission requise',
-          'Veuillez autoriser l\'accès à l\'appareil photo dans vos réglages pour photographier votre recette.'
-        );
-        return;
-      }
-
-      // Sauvegarde défensive du brouillon si Android recycle l'activité principale
-      const currentDraftRecipe: Recipe = {
-        id: initialRecipe?.id || `rec_draft_${Date.now()}`,
-        title: title.trim(),
-        description: description.trim(),
-        servings: Math.max(1, servings),
-        prepTimeMinutes: parseInt(prepTime, 10) || 10,
-        cookTimeMinutes: parseInt(cookTime, 10) || 0,
-        difficulty,
-        category,
-        rating,
-        isVegetarian,
-        tags: tags.length > 0 ? tags : undefined,
-        userNote: userNote.trim() || undefined,
-        imageUrl: imageUrl.trim(),
-        availableImages: availableImages.length > 0 ? availableImages : undefined,
-        isFavorite: initialRecipe?.isFavorite || false,
-        createdAt: initialRecipe?.createdAt || new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        ingredients: ingredients.filter((i) => i.name.trim().length > 0),
-        steps: steps.filter((s) => s.instruction.trim().length > 0),
-      };
-      await AsyncStorage.setItem(
-        '@papilles_camera_recipe_draft',
-        JSON.stringify({
-          recipe: currentDraftRecipe,
-          selectedRecipeId: initialRecipe?.id || null,
-        })
-      );
-
-      // Note Android : quality 1.0 utilise RawImageExporter (zéro allocation Bitmap en heap Java, évite OOM crash)
-      // et allowsEditing: false évite le crash du CropActivity natif
-      const result = await ImagePicker.launchCameraAsync({
-        allowsEditing: false,
-        quality: 1.0,
+      const permanentUri = await ImageStorageService.persistImageLocally(rawUri);
+      setImageUrl(permanentUri || rawUri);
+      setAvailableImages((prev) => {
+        const current = Array.isArray(prev) ? prev : [];
+        const target = permanentUri || rawUri;
+        return current.includes(target) ? current : [target, ...current];
       });
-
-      // Nettoyer le brouillon si l'activité n'a pas été recyclée
-      await AsyncStorage.removeItem('@papilles_camera_recipe_draft');
-
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        const rawUri = result.assets[0].uri;
-        if (rawUri) {
-          const permanentUri = await ImageStorageService.persistImageLocally(rawUri);
-          setImageUrl(permanentUri || rawUri);
-          setAvailableImages((prev) => {
-            const current = Array.isArray(prev) ? prev : [];
-            const target = permanentUri || rawUri;
-            return current.includes(target) ? current : [target, ...current];
-          });
-        }
-      }
     } catch (e) {
-      await AsyncStorage.removeItem('@papilles_camera_recipe_draft').catch(() => {});
-      console.log('Erreur capture photo:', e);
-      Alert.alert('Erreur', 'Impossible de capturer la photo.');
+      console.warn('[RecipeForm] Erreur persistance photo capturée:', e);
+      setImageUrl(rawUri);
     }
   };
 
@@ -1545,6 +1475,15 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
         setIsLinkModalVisible(false);
         setLinkModalTargetIndex(null);
       }}
+    />
+
+    {/* Modal Caméra in-app (évite tout crash de recyclage d'activité Android) */}
+    <CameraCaptureModal
+      visible={isCameraModalVisible}
+      onClose={() => setIsCameraModalVisible(false)}
+      mode="photo"
+      title="Photo de couverture"
+      onPhotoCaptured={handleCameraPhotoCaptured}
     />
   </SafeAreaView>
   );
