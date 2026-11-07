@@ -2,6 +2,8 @@
 
 Une application mobile moderne, soignée et intuitive pour gérer vos recettes, planifier vos menus de la semaine, suivre vos repas au quotidien et garder un œil sur les stocks de vos étagères et votre liste de courses.
 
+Application **100 % offline-first**, sécurisée, sans création de compte obligatoire et respectueuse de votre vie privée.
+
 ---
 
 ## ✨ Fonctionnalités principales
@@ -12,116 +14,123 @@ Une application mobile moderne, soignée et intuitive pour gérer vos recettes, 
 - **Thème Contraste Élevé** : adapté à la lisibilité et au daltonisme (CVD-Safe).
 - Choix ergonomique dans les **Paramètres** avec disposition verticale des thèmes et prévisualisation directe de la palette de couleurs à droite de chacun.
 
-### 2. 📱 Navigation Fluide & Bandeau d'Accueil Repensé
+### 2. 📱 Navigation Fluide, Onboarding & Bandeau d'Accueil
+- **Onboarding guidé** : écran de bienvenue au premier démarrage (`OnboardingScreen`) présentant les atouts clés de l'application et initialisant les réglages par défaut.
 - **Bandeau supérieur unifié** : identité visuelle complète avec le logo officiel de Papilles, titre soigné, description culinaire et accès direct aux actions clés sur un seul plan horizontal fluide :
-  - **Marmiton** (importation web immédiate par URL)
-  - **Scan & IA** (scanner photo, recto-verso et saisie texte)
-  - **Ajouter** (création manuelle d'une recette)
-- **Barre de navigation inférieure à 4 onglets** :
-  - **Recettes** : carnet complet, recherche intelligente, filtres et widget du jour.
-  - **Repas** : journal des repas du midi/soir et planification hebdomadaire.
+  - **Web** (importation immédiate par URL depuis n'importe quel site de cuisine).
+  - **Scan & IA** (scanner photo instantané, recto-verso et saisie texte).
+  - **Ajouter** (création manuelle d'une recette).
+- **Barre de navigation inférieure à 4 onglets en mémoire** :
+  - **Recettes** : carnet complet, recherche intelligente, double bandeau de filtres rétractable au scroll et widgets du jour.
+  - **Repas** : journal des repas midi/soir et menu hebdomadaire.
   - **Courses & Étagères** : stocks du frigo/placard et liste de courses avec badge des articles restants.
-  - **Paramètres** : ambiance visuelle, clé IA, portions, lexique canonique et sauvegarde.
+  - **Paramètres** : ambiance visuelle, clé IA, portions, gestionnaire de lexique, humeurs du chef et sauvegardes.
 
-### 2. 📅 Suivi des Repas Quotidien & Menu de la Semaine
+### 3. 📅 Suivi des Repas Quotidien & Menu de la Semaine
 - **Suivi des repas du jour** : saisie fluide avec autocomplétion intelligente prédictive depuis vos recettes enregistrées (scoring en direct par titre, ingrédients et catégorie) et recommandations en 1 clic.
-- **Widget Accueil** : visualisez et complétez en 1 clic les repas d'aujourd'hui directement depuis l'écran d'accueil.
+- **Widget Accueil** : visualisez et complétez en 1 clic les repas d'aujourd'hui directement depuis l'écran d'accueil (`TodayMealWidget`).
 - **Journal chronologique** : historique complet de vos repas passés avec possibilité de modification à tout moment.
-- **Menu de la semaine** : planifiez vos déjeuners et dîners du lundi au dimanche, visualisez vos menus d'un coup d'œil et exportez automatiquement les ingrédients nécessaires vers la liste de courses.
+- **Menu de la semaine** : planifiez vos déjeuners et dîners du lundi au dimanche (`MealPlannerScreen`), visualisez vos menus d'un coup d'œil et exportez automatiquement les ingrédients nécessaires vers la liste de courses.
 
-### 3. 🥫 Hub "Courses & Étagères" (Gestion des Stocks & Courses)
+### 4. 🥫 Hub "Courses & Étagères" (Gestion des Stocks & Courses)
 - **Mes étagères (Stock Frigo & Placard)** :
-  - Suivi rapide et sans friction des ingrédients disponibles chez vous.
-  - **Ajout rapide en 1 clic 100% raccord avec le lexique canonique** : suggestions basées sur les noms canoniques réels (*Œufs, Beurre, Lait, Farine, Pâtes, Riz, Huile d'olive, Tomate, Oignon, Ail, Carotte, Courgette...*), avec masquage intelligent des articles déjà en stock (tolérant singulier/pluriel) et mise en avant de vos ingrédients fréquents.
+  - Suivi rapide et sans friction des denrées disponibles chez vous.
+  - **Ajout rapide en 1 clic 100% raccord avec le lexique canonique** : suggestions basées sur les noms canoniques réels (*Œufs, Beurre, Lait, Farine, Pâtes, Riz, Huile d'olive, Tomate, Oignon, Ail, Carotte, Courgette...*), avec masquage intelligent des articles déjà en stock et mise en avant de vos ingrédients fréquents.
   - **Saisie prédictive instantanée à la chaîne** : cliquer sur une suggestion d'autocomplétion ajoute immédiatement l'ingrédient au stock, efface le champ de recherche et maintient le focus pour enchaîner plusieurs ajouts sans friction.
   - **Classification automatique par rayons** (Primeur, Crémerie, Épicerie salée/sucrée, Boucherie...).
   - **Que cuisiner aujourd'hui ?** : calcul immédiat des recettes faisables avec votre inventaire actif.
-  - Commandes verrouillées en haut d'écran pour une saisie fluide sans perte d'espace au défilement.
 - **Liste de courses catégorisée & Agrégateur intelligent** :
   - Regroupement automatique selon le rayon officiel (`defaultAisle`) du lexique canonique.
-  - **Fusion O(1) et addition arithmétique avec conversion métrique** : les articles identiques sont automatiquement fusionnés et additionnés (ex: `1 kg` + `250 g` = `1,25 kg`, `50 cl` + `1 L` = `1,5 L`).
+  - **Fusion $O(1)$ et addition arithmétique avec conversion métrique** : les articles identiques sont automatiquement fusionnés et additionnés (ex: `1 kg` + `250 g` = `1,25 kg`, `50 cl` + `1 L` = `1,5 L`).
   - **Gestion fine des fonds de placard** : exclus par défaut pour éviter d'inonder la liste ; si inclus volontairement, affichés sous leur nom seul sans micro-quantité.
   - **Exclusion stricte de l'eau** : l'ingrédient technique `Eau` n'est jamais ajouté aux courses.
-  - Cocher/décocher les articles achetés.
-  - **Passerelle intelligente** : bouton 1 tap *"Ajouter aux courses"* depuis les étagères, et *"Ranger dans mes étagères 🥫"* pour basculer vos courses achetées dans vos stocks.
+  - **Mode Courses en Magasin plein écran (`InStoreShoppingModal`)** : interface dédiée pour cocher rapidement ses articles dans les rayons avec barre de progression et interface épurée.
+  - **Passerelle intelligente & Protection des étagères** : bouton *"Ranger dans mes étagères 🥫"* pour basculer vos courses achetées dans vos stocks. Si la liste contient des articles non alimentaires ou non catalogués (produits d'entretien, essuie-tout), une modale propose automatiquement de les purger sans polluer l'inventaire culinaire.
 
-### 4. 🍳 Cuisiner avec mon stock & Suggestions du Chef IA ("Anti-gaspillage")
+### 5. 🍳 Cuisiner avec mon stock & Suggestions du Chef IA ("Anti-gaspillage")
 - **Filtrage des recettes 100% faisables avec le stock** :
-  - Calcule en temps réel (< 2ms, avec indexation O(1) et cache de normalisation) quelles recettes de votre carnet peuvent être cuisinées immédiatement avec vos aliments en stock (`stockMatcher.ts`).
+  - Calcule en temps réel (< 1 ms, avec indexation $O(1)$ et cache de normalisation) quelles recettes de votre carnet peuvent être cuisinées immédiatement avec vos aliments en stock (`stockMatcher.ts`).
   - Tolérance intelligente des fonds de placard (`isPantryStaple` : sel, poivre, eau, huiles usuelles, épices) et exclusion des ingrédients facultatifs (`isOptional`).
   - Puce d'accès direct `[En stock (X)]` dans le bandeau de filtres rétractable de l'accueil et bandeau d'état actif dans la liste.
-- **Bouton couteau-fourchette repensé (Hub Stock & Anti-gaspillage)** :
-  - Bouton interactif moderne à côté de la barre de recherche avec badge dynamique du nombre de recettes faisables ou puce active.
-  - Ouvre instantanément une modale complète d'assistance culinaire (`StockCookModal`) sans gel de l'écran, affichant le bilan du carnet, le sélecteur d'ingrédients à valoriser et les options de création.
-- **Inspiration Chef IA inédite en 2 étapes & Fallback multi-modèles (Anti-gaspillage)** :
+- **Bouton interactif Hub Stock & Anti-gaspillage** :
+  - Bouton interactif moderne à côté de la barre de recherche avec badge dynamique du nombre de recettes faisables.
+  - Ouvre une modale complète d'assistance culinaire (`StockCookModal`), affichant le bilan du carnet, le sélecteur d'ingrédients à valoriser et les options de création.
+- **Inspiration Chef IA inédite en 2 étapes & Résilience multi-modèles** :
   - **Processus en 2 étapes ludique et sans surcharge** :
-    - *Étape 1* : Taper sur *"💡 Trouver 3 idées"* génère quasi instantanément 3 propositions originales avec titre appétissant, temps estimé et accroche culinaire valorisant vos restes.
+    - *Étape 1* : Taper sur *"💡 Trouver 3 idées"* génère quasi instantanément 3 propositions originales avec titre appétissant, temps estimé et accroche culinaire valorisant vos restes (< 300 tokens).
     - *Étape 2* : Choisissez l'idée qui vous donne envie (*"Cuisiner cette recette →"*) pour obtenir la recette pas-à-pas détaillée avec dosages précis.
-  - **Sélecteur de type de plat & Anti-redondance ciblée** : choisissez entre **Entrée**, **Plat** (par défaut) ou **Dessert**. L'anti-redondance cible spécifiquement les recettes déjà faisables avec votre stock pour ce type, éliminant tout doublon sans alourdir le traitement.
+  - **Personnalisation du Chef IA** : configurez son humeur culinaire (`ChefMoodEditModal` : réconfortant, équilibré, express, gastronomique) et enregistrez des prompts favoris (`ChefFavoritePromptsModal`).
   - **Résilience absolue & Cascade de secours multi-modèles** : basculement automatique et invisible entre `gemini-3.8-flash`, `gemini-2.5-flash`, `gemini-2.0-flash` et `gemini-1.5-flash` en cas de pic de charge (503/429) sur les serveurs Google.
-  - **Sélection verticale des ingrédients par rayons** : ingrédients en stock regroupés par rayons (`Fruits & Légumes`, `Produits Frais`, `Épicerie`...) avec compteurs et raccourcis *"Tout cocher"* / *"Tout décocher"* par rayon.
+  - **Sélection verticale des ingrédients par rayons** : ingrédients en stock regroupés par rayons avec compteurs et raccourcis *"Tout cocher"* / *"Tout décocher"*.
   - Configuration du nombre de portions (synchronisé avec vos préférences), option 100% végétarienne et pré-remplissage direct du formulaire de recette.
 
-### 5. 🏷️ Lexique Canonique & Architecture "Lexique-First"
-- **Cascade inversée "Lexique-First"** : recherche exacte directe dans le lexique (noms canoniques et alias) **avant** tout élagage regex destructif. Les termes sensibles composés (*Crème fraîche*, *Légumes surgelés*, *Poudre d'amande*) sont résolus immédiatement sans altération.
-- **Identifiant transversal `canonicalId`** : étendu à `Recipe.Ingredient`, `FridgeItem` et `ShoppingItem` pour des correspondances $O(1)$ à 0 faux positif (*Pomme* !== *Pomme de terre*, *Muscade* !== *Noix*).
-- **Sécurité sanitaire renforcée des allergènes (Arbitrage 5)** : zéro faux positif sur les ingrédients répertoriés (*oignon blanc* ne déclenche pas sulfites), détection des racines sémantiques alimentaires sur les termes hors lexique (*sauce béchamel* ➔ *lait*), et indicateur ambré de précaution.
-- **Élimination automatique des synonymes et contenants** : fini les doublons entre *"boîte de petits pois"* et *"petits pois"*, *"noix de muscade"* et *"muscade"*, ou *"carotte épluchée"* et *"carotte"*.
-- **Garde-fous stricts dans le Gestionnaire de vocabulaire** : interdiction des doublons normalisés, protection des alias existants et rejet des termes génériques isolés (*rouge*, *blanc*, *sauce*...).
-- **Démarrage instantané** : au lancement, le lexique utilisateur est chargé avant l'assainissement des recettes ; le lexique de repli et ses index ne sont construits qu'une fois, les ingrédients déjà résolus (`canonicalId` + indicateurs placard/facultatif) ne sont pas renormalisés et le cache de normalisation est indépendant des quantités (*Beurre 50 g* et *Beurre 100 g* partagent la même entrée).
-- **Respect absolu des instructions** : la normalisation s'applique **exclusivement aux ingrédients** ; les étapes et instructions de préparation restent 100% fidèles et intouchées.
-- **Autocomplétion prédictive réactive** : composant de saisie avec liste déroulante suggérant les termes officiels sans altérer intempestivement le lexique.
-- **Propagation réactive & Cascade automatique** : toute modification du vocabulaire (détachement, fusion, modification de rayon) est répercutée instantanément sur les recettes, stocks et courses sans action manuelle requise.
-- **Gestionnaire de vocabulaire complet & Placard personnalisable** : accessible dans les Paramètres pour consulter les ingrédients canoniques, rechercher par rayon ou par filtre rapide `📦 Dans les placards`, définir d'un clic si un ingrédient est habituellement en placard, renommer, ajouter des alias, détacher des synonymes, fusionner des doublons ou réinitialiser.
+### 6. 🏷️ Lexique Canonique (424 Ingrédients) & Architecture "Lexique-First"
+- **Pipeline de normalisation à 3 niveaux** :
+  1. *Lookup $O(1)$ exact* sur les noms canoniques et alias avant tout stripping regex destructif. Les termes sensibles composés (*Crème fraîche*, *Poudre d'amande*) sont résolus immédiatement sans altération ;
+  2. *Élagage des labels de qualité* (AOP, AOC, bio) avec gardes anti-faux-amis et normalisation transparente des ligatures (`œ` → `oe`, `æ` → `ae`) ;
+  3. *Découplage quantité/unité et métriques accolées* (`100g de`, `25 cl de`) pour isoler proprement le nom de l'ingrédient.
+- **Identifiant transversal `canonicalId`** : partagé entre `Recipe.Ingredient`, `FridgeItem` et `ShoppingItem` pour des correspondances $O(1)$ à 0 faux positif (*Pomme* !== *Pomme de terre*, *Muscade* !== *Noix*).
+- **Sécurité sanitaire renforcée des 14 allergènes INCO** : détection immédiate par `canonicalId` et filet de sécurité sémantique (`INCO_FAMILY_KEY_ROOTS`) sur les ingrédients hors lexique.
+- **Démarrage instantané & Zéro ralentissement** : le lexique utilisateur est chargé avant l'assainissement des recettes ; le lexique de repli et ses index ne sont construits qu'une fois, et les ingrédients déjà résolus ne sont pas renormalisés.
+- **Propagation réactive & Cascade automatique** : toute modification du vocabulaire (détachement, fusion, modification de rayon) est répercutée instantanément sur les recettes, stocks et courses sans action manuelle.
+- **Gestionnaire de vocabulaire complet (`VocabularyManagerModal`)** : accessible dans les Paramètres pour consulter les 424 ingrédients canoniques, rechercher par rayon, qualifier un ingrédient inconnu (`QualifyIngredientModal`), gérer les indispensables de placard, renommer, ajouter des alias ou fusionner des doublons.
 
-### 6. 📖 Structure "Livre de Chef", Placard & Ajout Intelligent aux Courses
-- **Organisation culinaire par sections (Zéro badge bruyant)** :
-  - **Ingrédients principaux** : les denrées principales nécessaires au plat (sans descriptif parasite).
-  - **Assaisonnements & condiments** : huiles, vinaigres, assaisonnements et épices usuelles réputées déjà à la maison (descriptif placé sous le titre).
-  - **En finition & au goût** : herbes fraîches de dressage, graines, épices au goût ou touches facultatives (descriptif placé sous le titre).
-- **Fenêtre de validation avant ajout aux courses ("Ne plus noyer la liste")** : au clic sur *"Ajouter à ma liste de courses"*, une modale intuitive s'ouvre organisée sous ces mêmes sections culinaires. Les ingrédients principaux sont **cochés par défaut** ; les assaisonnements/condiments et finitions sont **décochés par défaut** (il suffit d'un tap si vous en manquez).
-- **Raccourcis rapides** : boutons *"Indispensables uniquement"*, *"Tout cocher"* et *"Tout décocher"* pour ajuster votre panier en un éclair.
-- **Formulaire de recette optimisé (Création & Édition)** :
-  - **Véritables colonnes Nom, Quantité, Unité** : en-têtes clairs et distincts au-dessus des lignes plutôt que des descriptifs encombrants répétés dans chaque champ.
-  - **Tailles proportionnées intelligentes** : plus de largeur allouée au nom de l'ingrédient, espace préservé pour la quantité et champ unité resserré et centré.
-  - **Menu de suggestions de vocabulaire élargi** : la fenêtre déroulante d'autocomplétion s'ouvre désormais en pleine largeur (jusqu'à 380px) et passe au-dessus des autres champs avec défilement fluide, garantissant une lisibilité parfaite des suggestions et du bouton de création d'ingrédient distinct.
-  - **Puces d'organisation** : associez un ingrédient à `En placard` ou `En finition (au goût)` d'un simple clic lors de la création ou modification d'une recette.
-- **Classification IA native (Gemini 3.8 Flash)** : les scans photo, textes bruts et créations de recettes par l'IA qualifient automatiquement et avec précision le statut de chaque ingrédient.
+### 7. 📖 Structure "Livre de Chef", Fiches Recettes & Portions Dynamiques
+- **Organisation culinaire par sections** :
+  - **Ingrédients principaux** : les denrées maîtresses du plat.
+  - **Assaisonnements & condiments** : huiles, vinaigres, assaisonnements réputés déjà disponibles en cuisine.
+  - **En finition & au goût** : herbes fraîches, graines, épices au goût ou touches facultatives.
+- **Ajustement dynamique des convives** : sélecteur interactif recalculant instantanément les proportions de tous les ingrédients, avec gestion des portions par défaut configurables dans les Paramètres.
+- **Liaisons entre recettes (`RecipeLinkPickerModal`)** : associez des recettes complémentaires entre elles (ex: lier une pâte brisée maison ou une sauce béchamel à votre plat principal) avec renvoi direct d'une fiche à l'autre.
+- **Convertisseur d'unités culinaires intégré** : basculez d'un tap l'affichage des ingrédients entre unités originales, mesures de masse (`g`, `kg`) ou volumes métriques (`ml`, `cl`, `L`).
+- **Ajout intelligent aux courses avec sélection granulaire** : les ingrédients principaux sont cochés par défaut ; les assaisonnements et finitions restent décochés par défaut.
+- **Formulaire de recette optimisé (`RecipeFormScreen`)** :
+  - Éditeur tabulaire clair Nom / Quantité / Unité (`IngredientTableEditor`).
+  - Saisie unifiée assistée par autocomplétion canonique (`UnifiedIngredientInput`).
+  - Puces d'organisation `En placard` et `En finition (au goût)`.
+  - Éditeur d'étapes ordonnables et liens de recettes associées (`RecipeStepEditor`).
 
-### 7. 📷 Scanner de Recettes par IA (Gemini BYOK) & Import Web
-- **Scanner Photo & Texte (IA Multimodale)** :
-  - Prenez en photo une recette de magazine ou de livre (ou choisissez depuis la galerie).
-  - **Support multi-photos** : capturez le **Recto** (titre, visuel) et le **Verso** (ingrédients & étapes détaillées, idéal pour fiches HelloFresh / Quitoque).
-  - Extraction automatique par Google Gemini (`gemini-3.8-flash`) : titre, portions, temps, ingrédients structurés et étapes.
-  - Collez également du texte brut pour le transformer en fiche recette propre.
-  - Modèle **BYOK (Bring Your Own Key)** : votre clé API Google AI Studio reste stockée localement de manière chiffrée.
-- **Import Web Marmiton** : importez instantanément n'importe quelle recette Marmiton en collant son URL.
+### 8. 📷 Scanner de Recettes par IA (Gemini BYOK) & Import Web
+- **Prise de vue native et sécurisée anti-crash OOM (`CameraCaptureModal`)** :
+  - Module caméra natif haute performance basé sur `expo-camera` avec prévisualisation plein écran, contrôle du flash et inversion d'objectif.
+  - Conçu pour prévenir les dépassements de mémoire (OOM) et les pertes d'état sur Android grâce au plugin `withLargeHeap` et à la suppression automatique des fichiers temporaires bruts du cache.
+  - **Support multi-photos Recto / Verso** : idéal pour capturer le visuel et le titre d'un côté, et la liste d'ingrédients détaillée de l'autre (fiches Quitoque, HelloFresh, magazines).
+  - Respect strict des exigences Google Play : aucune permission superflue `READ_MEDIA_IMAGES`.
+- **Extraction multimodale IA (Google Gemini)** :
+  - Extraction rapide et structurée du titre, temps de prépa/cuisson, portions, ingrédients qualifiés et étapes pas à pas.
+  - Saisie de texte brut supportée pour convertir en 1 clic un message ou une note en recette propre.
+  - Modèle **BYOK (Bring Your Own Key)** : votre clé API Google AI Studio est stockée localement de manière chiffrée avec `expo-secure-store`.
+- **Import Web Universel & Marmiton (`webRecipeService`, `marmitonService`)** :
+  - Importation instantanée par simple collage d'URL depuis Marmiton ou n'importe quel site culinaire.
+  - Validation d'URL stricte avec protection anti-SSRF (rejet des IP locales et identifiants masqués).
 
-### 8. ⭐ Système de Notation & Filtre par Étoiles
-- Notez vos recettes de 0.5 à 5.0 étoiles de façon épurée et immédiate (les étoiles et la note chiffrée suffisent, sans qualificatifs textuels superflus).
-- Astuces secrètes et notes personnelles mémorisées sur chaque fiche recette.
-- **Filtre par note minimale en fenêtre modale** : bouton dédié dans la barre d'outils secondaire (`Note` ou `≥ 4 ★` avec bouton `(x)` d'effacement rapide) ouvrant une fenêtre harmonisée avec la modale de tri, combinant un sélecteur interactif 5 étoiles et des choix rapides (Toutes les notes, ≥ 4.5, ≥ 4.0, ≥ 3.5, ≥ 3.0).
+### 9. 📤 Partage Hors-Ligne par QR Code & Impression PDF
+- **Partage sans réseau par QR Code compact (`RecipeQrModal` & `QrScannerModal`)** :
+  - Encodage ultra-compact sans perte de la recette via compression `lz-string` et rendu matriciel optimisé `toqr`.
+  - Permet de transférer instantanément une recette complète d'un smartphone à un autre sans aucune connexion Internet ni serveur tiers.
+  - Scanner de QR code intégré pour importer la recette partagée en une fraction de seconde.
+- **Impression & Export PDF haute résolution (`RecipePrintModal` & `recipePdfService`)** :
+  - Génération de fiches recettes élégantes au format A4 prêtes à imprimer ou à exporter en PDF via `expo-print` et `expo-sharing`.
+  - Personnalisation avant export : choix du nombre de convives, inclusion/exclusion de la photo de couverture, ajout d'un QR code de partage et lignes lignées pour notes manuscrites.
 
-### 9. 🥗 Double Bandeau de Filtres Rétractable & Boutons Verticaux
-- **Bandeau de marque & actions verticales** : l'identité Papilles avec son logo et ses actions rapides (*Marmiton*, *Scan & IA*, *Ajouter*) sont disposées de manière ordonnée à la verticale à droite, optimisant la largeur utile.
-- **Double bandeau de filtres rétractable au scroll fluide** : la barre des catégories (*Tous, Plats, Desserts...*) et la barre des filtres secondaires (*Végé, Note minimale, Tri, Effacer*) s'effacent automatiquement lors du défilement vers le bas pour libérer l'espace d'affichage, et réapparaissent dès qu'on remonte. Moteur haute performance exécuté sur le thread natif (`useNativeDriver: true`) avec layout de liste fixe et seuils d'hystérésis calibrés (défilement lent stabilisé sans aucun ping-pong même avec le doigt posé sur l'écran).
-- **Barre de recherche verrouillée** : la barre de recherche et le logo restent toujours accessibles en haut de l'écran.
-- **Défilement naturel du widget quotidien** : le widget *"Ce que j'ai mangé aujourd'hui"* défile avec la liste de recettes.
-- **Navigation parfaitement centrée** : intitulés des onglets (notamment *"Courses & Étagères"* sous l'icône de panier) centrés pour une lisibilité optimale.
-- **Palette active dans les paramètres** : les pastilles de couleurs sont présentées sous le nom de l'ambiance active.
+### 10. ⭐ Notation, Filtres Avancés & Mode Cuisine Interactif
+- **Système de notation épuré** : notez vos recettes de 0.5 à 5.0 étoiles de façon visuelle et mémorisez des notes secrètes.
+- **Double bandeau de filtres rétractable au scroll** :
+  - Catégories horizontales (*Tous, Plats, Desserts, Entrées...*).
+  - Filtres secondaires : recettes végétariennes, note minimale, tri par date/temps/alphabétique.
+  - Animation fluide exécutée à 60 fps sur le thread natif (`useNativeDriver: true`) avec seuils d'hystérésis calibrés.
+- **Modale de filtres avancés (`AdvancedFiltersModal`)** : combinez temps de préparation maximum, difficulté, ingrédients spécifiques et compatibilité avec votre stock.
+- **Mode Session Cuisine Interactif (`CookingModeModal`)** :
+  - Vue plein écran sans distraction empêchant la mise en veille de l'appareil.
+  - Ingrédients et étapes avec cases à cocher interactives pour suivre votre avancée pas à pas sans toucher l'écran avec les mains sales.
 
-### 8. 👨‍🍳 Mode Session Cuisine Interactif
-- Liste d'ingrédients et étapes avec cases à cocher pour suivre votre avancée pas à pas sans perdre le fil.
-- Ajustement dynamique des proportions selon le nombre de convives souhaité (avec réglage des convives par défaut via un sélecteur +/- précis dans les paramètres).
-- Partage clair et formaté de la recette via messagerie ou e-mail.
-
-### 9. 💾 100% Hors-Ligne, Scalable (SQLite) & Photos Permanentes
-- **Moteur SQLite natif (`expo-sqlite`)** : base de données relationnelle locale (`papilles.db` en mode WAL) garantissant le stockage fluide et instantané de milliers de recettes, sans le plafond de 2 Mo d'AsyncStorage.
-- **Sécurisation permanente des photos (`expo-file-system`)** : les photos prises ou sélectionnées depuis votre galerie sont automatiquement enregistrées dans le stockage permanent de l'application (`documentDirectory/recipe_photos/`), vous protégeant ainsi de tout nettoyage de cache de votre téléphone.
-- **Confidentialité totale** : aucune donnée personnelle ou recette n'est transmise à des serveurs tiers.
-- Clé d'API sécurisée avec `expo-secure-store`.
-- **Sauvegarde, Restauration & Import de Packs (JSON & ZIP)** : exportez votre collection en JSON ou importez des packs de recettes (.json ou archive .zip contenant un dossier photos/) avec fusion incrémentale sans écraser vos stocks ni vos courses, déduplication intelligente et persistance locale des visuels.
-- Réinitialisation possible avec le catalogue de recettes Marmiton de démonstration.
+### 11. 💾 100% Hors-Ligne, Scalable (SQLite) & Photos Permanentes
+- **Moteur SQLite natif (`expo-sqlite`)** : base de données relationnelle locale (`papilles.db` en mode WAL avec clés étrangères) assurant un stockage instantané et sans limite de taille arbitraire.
+- **Sécurisation permanente des photos (`expo-file-system`)** : toutes les photos (prises avec la caméra ou choisies dans la galerie) sont copiées dans le stockage permanent sécurisé (`documentDirectory/recipe_photos/`), vous protégeant contre tout nettoyage de cache par l'OS.
+- **Sauvegarde, Restauration & Import de Packs (JSON & ZIP)** :
+  - Sauvegardez l'intégralité de votre carnet en JSON.
+  - Importez des packs complets de recettes (.json ou archive .zip contenant un dossier photos/) avec fusion incrémentale intelligente sans écraser vos stocks ni vos courses, et rapport des ingrédients non catalogués avec accès direct au lexique.
+- **Télémétrie locale et privée (`analyticsService`)** : journal d'actions utilisateur strictement local (AsyncStorage, rétention glissante 90 jours / 5000 logs max), zéro tracking externe.
 
 ---
 
@@ -129,47 +138,76 @@ Une application mobile moderne, soignée et intuitive pour gérer vos recettes, 
 
 ### Prérequis
 - Node.js (v18+)
-- Application mobile **Expo Go** (sur smartphone Android ou iOS)
+- Application mobile **Expo Go** ou build de développement sur smartphone Android / iOS
 
 ### Démarrage
 ```bash
-# Lancement avec Metro bundler (mode tunnel pour contourner l'isolation réseau/Wi-Fi)
-npm start
+# Lancement avec Metro bundler (mode LAN recommandé)
+npm run lan
 
-# Mode local LAN direct
-npm run lan:wifi
+# Mode tunnel (contournement des réseaux d'entreprise ou isolations Wi-Fi)
+npm run tunnel
 
 # Aperçu direct sur navigateur web
 npm run web
+
+# Lancement ciblé Android / iOS
+npm run android
+npm run ios
 ```
 
 ### Tests & Vérification du code
+La suite de tests automatisée comprend **36 suites de tests** exécutables directement en CLI Node.js sans simulateur :
+
 ```bash
 # Lancement de toute la suite de tests automatisée
 npm test
 
-# Audit d'intégrité du lexique (135 ingrédients, 0 collision d'alias)
+# Audit d'intégrité du lexique (424 ingrédients canoniques, 0 collision d'alias)
 npm run validate:lexicon
 
-# Tests stricts du moteur de stock & Lexique-First
+# Tests du moteur de stock & Lexique-First
 npm run test:stock
 
 # Tests de l'agrégateur de courses & conversions métriques
 npm run test:shopping
 
+# Tests du transfert courses -> étagères et purge des non-alimentaires
+npm run test:shopping-shelves
+
+# Tests du normalisateur d'ingrédients à 3 niveaux
+npm run test:normalizer
+
+# Tests d'intégration et sécurité mémoire de la caméra
+npm run test:camera
+
 # Tests de conformité des allergènes INCO & racines sémantiques
 npm run test:allergens
 
-# Tests de propagation en cascade du lexique (promotions, fusions, rayons)
+# Tests de propagation en cascade du lexique
 npm run test:cascade
 
 # Tests de la sécurisation permanente des photos de recettes
 npm run test:images
 
+# Tests d'extraction et de fusion de packs de recettes (JSON / ZIP)
+npm run test:pack
+npm run test:pack-merge
+
+# Tests de l'export PDF et du partage QR code
+npm run test:pdf
+npm run test:share
+
+# Tests de l'import universel web anti-SSRF
+npm run test:web-recipe
+
 # Vérification stricte des types TypeScript (0 erreur requise)
 npx tsc --noEmit
 
-# Diagnostic du projet Expo
+# Linter de code Expo
+npm run lint
+
+# Diagnostic de santé du projet Expo
 npx expo-doctor
 ```
 
@@ -179,59 +217,112 @@ npx expo-doctor
 
 ```
 papilles-recettes/
-├── App.tsx                     # Navigation racine & gestion des onglets
-├── index.ts                    # Point d'entrée Expo
-├── app.json                    # Configuration de l'application & permissions
-├── assets/                     # Icônes et écrans de démarrage
-├── scripts/
-│   ├── fetch_top_100_marmiton.py # Script de récupération des recettes Marmiton
-│   ├── import_marmiton.js        # Convertisseur de recettes de test
-│   └── testExtractRecipe.mjs     # Test CLI pour l'extraction IA Gemini
+├── App.tsx                           # Racine de navigation mémoire, tabs & onboarding
+├── index.ts                          # Point d'entrée Expo
+├── app.json                          # Configuration Expo & permissions natives
+├── assets/                           # Icônes de l'application et splash screen
+├── plugins/
+│   └── withLargeHeap.js              # Plugin Expo Config (largeHeap Android anti-OOM)
+├── scripts/                          # Scripts de tests unitaires CLI & maintenance
+│   ├── validateCanonicalVocabulary.js# Audit d'intégrité du lexique canonique
+│   ├── testStockMatcher.js           # Tests du moteur de stock
+│   ├── testShoppingAggregator.js     # Tests de fusion des courses
+│   ├── testShoppingToShelves.js      # Tests du rangement et purge non-alimentaire
+│   ├── testIngredientNormalizer.js   # Tests du pipeline de normalisation
+│   ├── testCameraIntegration.js      # Tests de gestion mémoire caméra
+│   └── ...                           # (36 suites de tests au total)
 └── src/
-    ├── types/                  # Modèles de données TypeScript
-    │   ├── recipe.ts           # Types Recettes, Ingrédients, Étapes
-    │   ├── shopping.ts         # Types Liste de courses & Rayons
-    │   ├── fridge.ts           # Types Stocks ("Mes étagères") & Rayons
-    │   ├── planner.ts          # Types Planning des repas de la semaine
-    │   └── mealLog.ts          # Types Journal de suivi des repas quotidien
-    ├── theme/                  # Moteur de styles dynamiques
-    │   ├── colors.ts           # Palettes Jardin Botanique & Table Nocturne
-    │   └── ThemeContext.tsx    # Fournisseur de thème & bascule d'apparence
-    ├── services/               # Services métier & persistance
-    │   ├── databaseService.ts  # Persistance relationnelle SQLite (papilles.db, WAL, indexes)
-    │   ├── imageStorageService.ts # Stockage permanent des photos locales (expo-file-system)
-    │   ├── recipePackService.ts   # Extraction séquentielle de packs JSON et archives ZIP avec photos
-    │   ├── storageService.ts   # Coordinateur métier, cache mémoire & SecureStore
-    │   ├── recipeAiService.ts  # Service d'extraction Gemini multimodale
-    │   └── marmitonService.ts  # Analyseur et extracteur d'URL Marmiton
-    ├── utils/                  # Utilitaires & algorithmes
-    │   ├── aisleClassifier.ts  # Classification automatique par rayons de supermarché
-    │   ├── shoppingAggregator.ts # Fusion et calcul des ingrédients pour les courses
-    │   ├── searchEngine.ts     # Moteur de recherche et correspondance stocks/recettes
-    │   └── helpers.ts          # Fonctions de formatage et calculs
+    ├── types/                        # Modèles de données TypeScript stricts
+    │   ├── recipe.ts                 # Recettes, ingrédients, étapes, catégories
+    │   ├── shopping.ts               # Articles de courses et rayons
+    │   ├── fridge.ts                 # Articles d'étagères ("Mes étagères")
+    │   ├── planner.ts                # Menus hebdomadaires et créneaux
+    │   ├── mealLog.ts                # Journal de suivi quotidien des repas
+    │   ├── vocabulary.ts             # Ingrédients canoniques et alias
+    │   └── analytics.ts              # Événements de télémétrie locale
+    ├── theme/                        # Moteur de styles dynamiques
+    │   ├── colors.ts                 # Palettes Jardin Botanique, Table Nocturne & CVD
+    │   └── ThemeContext.tsx          # Contexte de bascule d'apparence
+    ├── constants/
+    │   └── units.ts                  # Catalogue des unités culinaires et conversions
     ├── data/
-    │   └── initialRecipes.ts   # Recettes de démonstration initiales
-    ├── components/             # Composants d'interface réutilisables
-    │   ├── RecipeCard.tsx      # Carte de recette avec visuel, difficulté et note
-    │   ├── StarRating.tsx      # Sélecteur d'étoiles interactif (0.5 à 5.0)
-    │   ├── SearchBar.tsx       # Barre de recherche avec raccourcis
-    │   ├── CategoryPills.tsx   # Filtre horizontal de catégories
-    │   ├── IngredientChip.tsx  # Badges d'ingrédients interactifs
-    │   ├── EmptyState.tsx      # Écran d'état vide
-    │   ├── FridgeStockView.tsx # Vue "Mes étagères" avec saisie fixe et recettes compatibles
-    │   ├── FridgeSearchModal.tsx # Modal de recherche par ingrédients disponibles
-    │   ├── CookingModeModal.tsx  # Mode cuisine pas à pas avec cases à cocher
-    │   ├── MealSlotPickerModal.tsx # Sélecteur de créneau pour le menu de la semaine
-    │   ├── ImportMarmitonModal.tsx # Dialogue d'importation web Marmiton
-    │   ├── QuickMealLogModal.tsx # Modal de saisie rapide du repas (midi / soir)
-    │   └── TodayMealWidget.tsx   # Widget accueil pour le suivi des repas du jour
-    └── screens/                # Écrans principaux
-        ├── HomeScreen.tsx      # Flux de recettes, bandeau unifié et recherche intelligente
-        ├── RecipeDetailScreen.tsx # Fiche recette, portions ajustables et partage
-        ├── RecipeFormScreen.tsx   # Formulaire de création / édition de recette
-        ├── ScanRecipeScreen.tsx   # Scanner IA (Photo, Recto/Verso, Texte libre)
-        ├── MealPlannerScreen.tsx  # Menu de la semaine & journal de suivi des repas
-        ├── ShoppingListScreen.tsx # Hub unifié Courses & Étagères
-        ├── SettingsScreen.tsx     # Page dédiée Paramètres, IA, thèmes, normalisation & sauvegarde
-        └── SettingsModal.tsx      # Wrapper modal pour rétro-compatibilité
+    │   ├── canonicalVocabulary.ts    # Référentiel des 424 ingrédients canoniques
+    │   └── initialRecipes.ts         # Recettes de démonstration initiales
+    ├── services/                     # Logique métier & persistance
+    │   ├── storageService.ts         # Coordinateur métier, cache mémoire & listeners
+    │   ├── databaseService.ts        # Persistance relationnelle SQLite (papilles.db, WAL)
+    │   ├── imageStorageService.ts    # Stockage permanent des photos (expo-file-system)
+    │   ├── recipePackService.ts      # Extraction de packs JSON et archives ZIP
+    │   ├── recipePdfService.ts       # Génération et export de fiches PDF (expo-print)
+    │   ├── recipeShareService.ts     # Partage QR code compressé (toqr, lz-string)
+    │   ├── vocabularyService.ts      # CRUD du lexique canonique & observateurs
+    │   ├── unifiedIngredientService.ts# Résolution et suggestions d'ingrédients
+    │   ├── recipeAiService.ts        # Extraction IA Gemini & cascade multi-modèles
+    │   ├── marmitonService.ts        # Parsing spécialisé de recettes Marmiton
+    │   ├── webRecipeService.ts       # Import web universel avec protection anti-SSRF
+    │   └── analyticsService.ts       # Télémétrie locale offline (AsyncStorage)
+    ├── utils/                        # Moteurs algorithmiques & helpers
+    │   ├── ingredientNormalizer.ts   # Pipeline Lexique-First à 3 niveaux
+    │   ├── stockMatcher.ts           # Correspondance stock/recettes (< 1 ms, O(1))
+    │   ├── shoppingAggregator.ts     # Fusion, conversions métriques & purge
+    │   ├── shoppingInputParser.ts    # Analyse syntaxique en langage naturel
+    │   ├── allergenMatcher.ts        # Détection des 14 allergènes majeurs INCO
+    │   ├── aisleClassifier.ts        # Classification automatique par rayons
+    │   ├── searchEngine.ts           # Moteur de recherche multicritère
+    │   ├── recipeLinkMatcher.ts      # Suggestions de liens entre recettes
+    │   ├── unitConverter.ts          # Conversion masse / volume / cuillères
+    │   ├── ingredientSearchMatcher.ts# Recherche optimisée d'ingrédients
+    │   ├── sectionListLayoutHelper.ts# Optimisation layout SectionList (zéro lag)
+    │   └── helpers.ts                # Scalaires de portions, durées et IDs
+    ├── components/                   # Composants d'interface utilisateur
+    │   ├── RecipeCard.tsx            # Carte de recette dans le flux
+    │   ├── StarRating.tsx            # Notation par étoiles 0.5–5.0
+    │   ├── SearchBar.tsx             # Barre de recherche avec filtres rapides
+    │   ├── CategoryPills.tsx         # Pilules horizontales de catégories
+    │   ├── TodayMealWidget.tsx       # Widget accueil du suivi des repas du jour
+    │   ├── ChefAiWidget.tsx          # Widget accueil pour lancer le Chef IA
+    │   ├── EmptyState.tsx            # Écran d'état vide réutilisable
+    │   ├── FridgeStockView.tsx       # Vue principale "Mes étagères"
+    │   ├── SwipeableStockItemRow.tsx # Ligne d'étagère swipeable
+    │   ├── SwipeableShoppingItemRow.tsx# Ligne de courses swipeable
+    │   ├── EditShoppingItemModal.tsx # Édition manuelle d'un article de courses
+    │   ├── InStoreShoppingModal.tsx  # Mode courses en magasin immersif
+    │   ├── TransferAnimationOverlay.tsx# Animation de transfert courses -> stock
+    │   ├── UnifiedIngredientInput.tsx# Saisie assistée avec autocomplétion
+    │   ├── IngredientSearchBar.tsx   # Recherche rapide d'ingrédients
+    │   ├── UnitQuickPicker.tsx       # Sélecteur rapide d'unités fréquentes
+    │   ├── UnitPickerModal.tsx       # Modale complète des unités culinaires
+    │   ├── StockCookModal.tsx        # Modale Chef IA anti-gaspi en 2 étapes
+    │   ├── ChefMoodEditModal.tsx     # Personnalisation de l'humeur du Chef
+    │   ├── ChefFavoritePromptsModal.tsx# Prompts favoris du Chef IA
+    │   ├── CookingModeModal.tsx      # Mode cuisine pas à pas plein écran
+    │   ├── AdvancedFiltersModal.tsx  # Modale de filtres multicritères
+    │   ├── MealCalendarModal.tsx     # Calendrier interactif de planification
+    │   ├── MealSlotPickerModal.tsx   # Choix du créneau dans la semaine
+    │   ├── PlanRecipeModal.tsx       # Planification depuis la fiche recette
+    │   ├── QuickMealLogModal.tsx     # Saisie rapide d'un repas consommé
+    │   ├── CameraCaptureModal.tsx    # Capture photo native anti-crash OOM
+    │   ├── ImportRecipeModal.tsx     # Modale d'importation web universelle
+    │   ├── RecipePrintModal.tsx      # Modale de configuration d'impression PDF
+    │   ├── RecipeQrModal.tsx         # Affichage QR code hors-ligne
+    │   ├── QrScannerModal.tsx        # Scanner de QR code de recette
+    │   ├── QualifyIngredientModal.tsx# Qualification d'ingrédient hors-lexique
+    │   ├── AllergenFamilyPickerModal.tsx# Sélecteur d'allergènes INCO
+    │   ├── VocabularyManagerModal.tsx# Gestionnaire complet du lexique
+    │   ├── recipe-detail/            # Sous-composants fiche recette
+    │   │   ├── RecipeIngredientsList.tsx
+    │   │   ├── RecipeInstructionsList.tsx
+    │   │   └── RecipeServingsController.tsx
+    │   └── recipe-form/              # Sous-composants formulaire recette
+    │       ├── IngredientTableEditor.tsx
+    │       └── RecipeStepEditor.tsx
+    └── screens/                      # Écrans principaux
+        ├── OnboardingScreen.tsx      # Découverte initiale au premier lancement
+        ├── HomeScreen.tsx            # Flux principal, bandeau et widgets
+        ├── RecipeDetailScreen.tsx    # Fiche recette, portions et mode cuisine
+        ├── RecipeFormScreen.tsx      # Création et modification de recettes
+        ├── ScanRecipeScreen.tsx      # Scanner IA photo/texte multimodale
+        ├── MealPlannerScreen.tsx     # Menu de la semaine & journal de repas
+        ├── ShoppingListScreen.tsx    # Hub unifié Courses & Étagères
+        └── SettingsScreen.tsx        # Paramètres, IA, lexique & sauvegardes
 ```

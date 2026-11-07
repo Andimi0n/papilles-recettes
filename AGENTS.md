@@ -1,31 +1,35 @@
 # AGENTS.md — Directives, Architecture & Règles Métier (Papilles)
 
-**Papilles** (`papilles-recettes`) est une application mobile **100 % offline-first** (React Native `0.86` / Expo SDK `57` / React `19` / TypeScript strict `6.0`) de gestion de recettes, stock frigo/placards, liste de courses intelligente, suivi nutritionnel/allergènes et planification de repas, avec IA multimodale Gemini en mode BYOK.
+**Papilles** (`papilles-recettes`) est une application mobile **100 % offline-first** (React Native `0.88` / Expo SDK `58` / React `19.3` / TypeScript strict `6.0`) de gestion de recettes, stock frigo/placards, liste de courses intelligente, suivi nutritionnel/allergènes et planification de repas, avec IA multimodale Gemini en mode BYOK.
 
 ---
 
 ## 🚨 1. RÈGLES CRITIQUES D'EXÉCUTION (À RESPECTER STRICTEMENT)
 
-1. **CODE FIRST — ZÉRO « DOC-WASHING » :**
+1. **CODE FIRST & SYNCHRONISATION DOCUMENTAIRE CIBLÉE :**
    - Toute fonctionnalité ou correction doit être **implémentée dans le code source (`src/`)**.
-   - Ne modifiez **JAMAIS** `README.md` ou `AGENTS.md` à moins que le prompt ne le demande explicitement ou qu'un nouveau fichier/service majeur ne soit créé dans `src/`.
-2. **NAVIGATION AST, ÉCONOMIE DE TOKENS & VITESSE :**
-   - **Outils de recherche rapides obligatoires (`fd`, `rg`, `ast-grep`) :** N'utilisez jamais `find`, `grep` ou `cat` sur des fichiers entiers pour explorer le code. Utilisez exclusivement :
-     - **`fd`** (ou `fdfind`) pour localiser des fichiers (ex: `fd -e ts -e tsx Stock src/`).
+   - **Mise à jour de `README.md` et `AGENTS.md` :** autorisée et requise **uniquement** lorsqu'une fonctionnalité a été **implémentée, modifiée ou supprimée** (ou si un nouveau service/fichier structurel est introduit dans `src/`). Interdite pour les petites tâches (corrections de bugs mineurs, ajustements cosmétiques, micro-refactoring).
+2. **COMMITS ATOMIQUES SYSTÉMATIQUES :**
+   - Chaque commit Git doit être **strictement atomique** (une seule responsabilité logique, autonome, auto-contenu et validé par les tests).
+   - Ne mélangez jamais plusieurs évolutions indépendantes, du refactoring cosmétique et des corrections de bugs dans un même commit.
+   - Privilégiez des messages de commit explicites et conventionnels (ex: `feat(...)`, `fix(...)`, `docs(...)`, `refactor(...)`, `test(...)`).
+3. **NAVIGATION AST, ÉCONOMIE DE TOKENS & VITESSE :**
+   - **Outils de recherche rapides obligatoires (`fd`/`fdfind`, `rg`, `ast-grep`) :** N'utilisez jamais `find`, `grep` ou `cat` sur des fichiers entiers pour explorer le code. Utilisez exclusivement :
+     - **`fdfind`** (ou `fd`) pour localiser des fichiers (ex: `fdfind -e ts -e tsx Stock src/`).
      - **`rg`** (`ripgrep`) pour rechercher du texte ou des imports rapidement (ex: `rg -n "handleVocabularyCascade" src/`).
      - **`ast-grep`** (`sg`) pour cibler la structure syntaxique TypeScript/TSX (fonctions, hooks, props, interfaces) sans lire tout le fichier (ex: `sg -p 'const { $$$ } = useTheme()' -l tsx src/`).
    - **Respect strict de `.geminiignore` :** Ne lisez **jamais** les fichiers de seed massifs (`src/data/initialRecipes.ts`, `package-lock.json`) sauf instruction explicite. Pour connaître la structure des données, lisez uniquement `src/types/`.
    - **Éditions chirurgicales :** Utilisez des patchs ciblés. Ne réécrivez jamais un fichier entier pour modifier quelques lignes.
    - **Réponses concises :** Pas de longs préambules ni de résumés narratifs. En fin de tâche, listez uniquement les fichiers modifiés et le statut des tests en 3 à 5 lignes maximum.
-3. **GESTION DES DÉPENDANCES & NATIF :**
+4. **GESTION DES DÉPENDANCES & NATIF :**
    - N'ajoutez aucune dépendance sans nécessité absolue. Si indispensable, utilisez **exclusivement** `npx expo install <package>`.
-   - **Continuous Native Generation (CNG) :** Ne modifiez jamais les dossiers `android/` ou `ios/` manuellement ; toute configuration native passe par `app.json`.
-4. **VALIDATION OBLIGATOIRE AVANT CLÔTURE :**
+   - **Continuous Native Generation (CNG) :** Ne modifiez jamais les dossiers `android/` ou `ios/` manuellement ; toute configuration native passe par `app.json` et les plugins Expo (`plugins/withLargeHeap.js`).
+5. **VALIDATION OBLIGATOIRE AVANT CLÔTURE :**
    - Avant de conclure une tâche ou de committer, exécutez systématiquement :
      ```bash
      npx tsc --noEmit && npx expo lint
      ```
-   - Si vous touchez au lexique, au stock, aux courses ou aux allergènes, exécutez le test ciblé correspondant (voir Section 5).
+   - Si vous touchez au lexique, au stock, aux courses, aux photos ou aux allergènes, exécutez le test ciblé correspondant (voir Section 5).
    - **Attention :** Ne lancez **jamais** `npm start` ou `npx expo start` en tâche bloquante dans l'agent.
 
 ---
@@ -34,37 +38,69 @@
 
 > ⚠️ **PAS D'EXPO ROUTER (`src/app/` n'existe pas).**
 > La navigation est gérée par état mémoire dans `App.tsx` via `currentScreen` (`'home' | 'planner' | 'shopping' | 'settings' | 'detail' | 'form' | 'scan'`) et `returnScreenAfterDetail` pour le retour contextuel.
+> Au premier lancement, l'onboarding initial est présenté via `OnboardingScreen.tsx` (`StorageService.hasCompletedOnboarding()`).
 
-### Cartographie de `src/` :
-- **`App.tsx`** : Racine (`SafeAreaProvider` + `ThemeProvider`), routeur d'écrans en mémoire et barre d'onglets inférieure à 4 entrées (`Recettes`, `Repas`, `Courses & Étagères`, `Paramètres`).
-- **`src/screens/`** :
-  - `HomeScreen.tsx` : Flux de recettes, barre d'actions (Marmiton, Scan IA, Ajout), recherche, double barre de filtres rétractable au scroll (`useNativeDriver: true`), widgets `ChefAiWidget` / `TodayMealWidget`.
-  - `RecipeDetailScreen.tsx` : Vue recette, ajustement dynamique des convives, sous-sections *Livre de Chef* (`Ingrédients principaux`, `Assaisonnements & condiments`, `En finition & au goût`), modale d'ajout aux courses, lancement du mode cuisine.
-  - `RecipeFormScreen.tsx` : Création/édition (saisie en tableau Nom / Quantité / Unité, puces `En placard` et `En finition`).
-  - `ScanRecipeScreen.tsx` : Extraction IA multimodale (caméra, photos recto/verso, texte brut).
-  - `ShoppingListScreen.tsx` : Hub unifié **Courses & Étagères** (switch segmenté entre stock `FridgeStockView` et liste de courses).
-  - `MealPlannerScreen.tsx` : Planning hebdomadaire (déjeuner/dîner) et journal de suivi quotidien.
-  - `SettingsScreen.tsx` (et `SettingsModal.tsx`) : Thèmes visuels, clé API Gemini, convives par défaut (1–50), gestionnaire de lexique, allergies INCO, backup JSON.
-- **`src/services/`** (Logique métier & Persistance) :
-  - `storageService.ts` : Wrapper métier et coordinateur de persistance. Gère le cache mémoire `memoryCache`, les listeners réactifs, `sanitizeStoredRecipe()`, `sanitizeImageUrl()`, la cascade du lexique `handleVocabularyCascade()` et délègue à `DatabaseService` et `ImageStorageService`.
-  - `databaseService.ts` : Couche de persistance relationnelle SQLite (`papilles.db` avec mode WAL et PRAGMA foreign_keys). Tables indexées : `recipes`, `fridge_items`, `shopping_items`, `weekly_plan`, `meal_logs`, `user_allergens`, `settings`. Gère la migration one-shot depuis AsyncStorage et le fallback automatique pour l'environnement de test Node.js.
-  - `imageStorageService.ts` : Gestionnaire de persistance permanente des photos de recettes via `expo-file-system`. Déplace les images locales du cache temporaire de l'OS vers le dossier permanent sécurisé `documentDirectory/recipe_photos/` et nettoie les photos orphelines lors de la suppression de recettes.
-  - `recipePackService.ts` : Extraction et analyse séquentielle par petits lots (protection Zip Slip) de packs de recettes JSON et archives ZIP avec photos de couverture.
-  - `vocabularyService.ts` : CRUD du lexique canonique, gestion des alias, rayons (`defaultAisle`), promotion de synonymes et propagation automatique (Observer pattern). Les accesseurs synchrones `getSyncList()` / `getSyncMap*()` renvoient, tant que le stockage n'est pas chargé, un lexique de repli **mémorisé** (construit une seule fois).
-  - `unifiedIngredientService.ts` : Résolution unifiée d'ingrédients et suggestion de synonymes.
-  - `recipeAiService.ts` : Appels REST Gemini (`v1beta`) avec cascade multi-modèles (`GEMINI_MODELS_CASCADE`: `gemini-3.8-flash` → `2.5-flash` → `2.0-flash` → `1.5-flash`), backoff exponentiel et auto-réparation JSON (`repairTruncatedJsonString`).
-  - `marmitonService.ts` : Import et parsing de recettes web Marmiton.
-- **`src/utils/`** (Moteurs algorithmiques) :
-  - `ingredientNormalizer.ts` : Pipeline **Lexique-First** (lookup O(1) sur `canonicalName` et alias *avant* tout stripping regex), cache `NORMALIZATION_CACHE` (`clearNormalizationCache()`) indexé sur le nom seul (sans quantité/unité) via `resolveIngredientName()`, la fusion quantité/unité étant appliquée ensuite.
-  - `stockMatcher.ts` : Calcul haute performance (< 1 ms, Maps pré-indexées, zéro regex dans les boucles) des recettes réalisables (`isDoable`) et `missingIngredients`.
-  - `shoppingAggregator.ts` : Fusion O(1) par `canonicalId`, conversions métriques (`g`/`kg`, `ml`/`cl`/`L`), exclusion stricte de l'eau (`Eau`), gestion des indispensables de placard (`isPantryStaple`) et export (`formatShoppingListForShare`).
-  - `shoppingInputParser.ts` : Parsing en langage naturel pour la liste de courses (`"1kg carottes"`, `"2 paquets de kinder"`, fractions Unicode `½`), supportant à la fois les items canoniques et les produits hors-lexique/ménagers.
-  - `allergenMatcher.ts` (et `aisleClassifier.ts`, `searchEngine.ts`, `helpers.ts`) : Détection des 14 allergènes majeurs INCO par `canonicalId` + filet de sécurité sémantique (`INCO_FAMILY_KEY_ROOTS`) sur les ingrédients non catalogués.
-- **`src/components/`** : `RecipeCard.tsx`, `StarRating.tsx` (0.5–5.0 sans label texte), `SearchBar.tsx`, `CategoryPills.tsx`, `IngredientChip.tsx`, `FridgeStockView.tsx`, `StockCookModal.tsx` (Chef IA en 2 étapes : 3 idées sobres < 300 tokens puis génération complète), `CookingModeModal.tsx`, `IngredientAutocompleteInput.tsx`, `UnitQuickPicker.tsx`, `UnitPickerModal.tsx`, `AllergenFamilyPickerModal.tsx`, `VocabularyManagerModal.tsx`, `MealSlotPickerModal.tsx`, `QuickMealLogModal.tsx`, `ImportMarmitonModal.tsx`, `ChefAiWidget.tsx`, `TodayMealWidget.tsx`, `EmptyState.tsx`.
-- **`src/constants/` & `src/data/`** :
-  - `constants/units.ts` : Catalogue standardisé des unités culinaires (5 catégories) et `formatQuantityWithUnit`.
-  - `data/canonicalVocabulary.ts` (~350 ingrédients canoniques) & `data/initialRecipes.ts` (recettes par défaut — **ignoré par défaut** via `.geminiignore`).
-- **`src/types/`** : `recipe.ts`, `shopping.ts`, `fridge.ts`, `planner.ts`, `mealLog.ts`, `vocabulary.ts`.
+### Cartographie exhaustive de `src/` :
+
+#### `App.tsx` & Écrans (`src/screens/`) :
+- **`App.tsx`** : Racine (`SafeAreaProvider` + `ThemeProvider`), routeur d'écrans en mémoire, gestion de l'onboarding et barre d'onglets inférieure à 4 entrées (`Recettes`, `Repas`, `Courses & Étagères`, `Paramètres`).
+- **`OnboardingScreen.tsx`** : Parcours d'accueil et découverte guidée des fonctionnalités au premier démarrage de l'application.
+- **`HomeScreen.tsx`** (`HomeScreen.styles.ts`) : Flux de recettes, barre d'actions (Marmiton/Web, Scan IA, Ajout manuel), recherche textuelle, double bandeau de filtres rétractable au scroll (`useNativeDriver: true`), widgets `TodayMealWidget` et `ChefAiWidget`.
+- **`RecipeDetailScreen.tsx`** (`RecipeDetailScreen.styles.ts`) : Fiche recette complète, ajustement dynamique des portions, sous-sections *Livre de Chef*, conversion d'unités métriques, mode cuisine pas à pas, impression/export PDF (`RecipePrintModal`), partage QR code offline (`RecipeQrModal`), liaisons de recettes associées et ajout intelligent aux courses.
+- **`RecipeFormScreen.tsx`** (`RecipeFormScreen.styles.ts`) : Création/édition (tableau Nom / Quantité / Unité via `IngredientTableEditor`, liaisons entre recettes, étapes ordonnables avec `RecipeStepEditor`, puces `En placard` et `En finition`).
+- **`ScanRecipeScreen.tsx`** : Extraction IA multimodale Gemini (capture directe avec `CameraCaptureModal`, sélection galerie, photos recto/verso, saisie texte libre).
+- **`ShoppingListScreen.tsx`** (`ShoppingListScreen.styles.ts`) : Hub unifié **Courses & Étagères** (switch segmenté entre stock `FridgeStockView` et liste de courses catégorisée par rayon), mode magasin plein écran `InStoreShoppingModal`, passerelle de rangement et proposition de purge des articles non alimentaires.
+- **`MealPlannerScreen.tsx`** (`MealPlannerScreen.styles.ts`) : Planning hebdomadaire (déjeuner/dîner du lundi au dimanche) et journal de suivi quotidien avec autocomplétion intelligente.
+- **`SettingsScreen.tsx`** (`SettingsScreen.styles.ts`) : Thèmes visuels, clé Gemini BYOK (`expo-secure-store`), convives par défaut (1–50), gestionnaire de lexique canonique, personnalisation du Chef IA (prompts favoris, humeurs), export/import de packs JSON/ZIP avec photos, statistiques locales.
+
+#### Logique métier & Persistance (`src/services/`) :
+- **`storageService.ts`** : Wrapper métier central et coordinateur de persistance. Gère le cache mémoire `memoryCache`, les listeners réactifs, `sanitizeStoredRecipe()`, `sanitizeImageUrl()`, la cascade du lexique `handleVocabularyCascade()`, l'onboarding, et délègue à `DatabaseService` et `ImageStorageService`.
+- **`databaseService.ts`** : Couche de persistance relationnelle SQLite native (`papilles.db` avec mode WAL et PRAGMA foreign_keys). Tables indexées : `recipes`, `fridge_items`, `shopping_items`, `weekly_plan`, `meal_logs`, `user_allergens`, `settings`. Supporte le fallback transparent en mémoire pour l'environnement de test CLI Node.js.
+- **`imageStorageService.ts`** : Gestionnaire de persistance permanente des photos de recettes via `expo-file-system`. Déplace les images locales du cache temporaire de l'OS vers le dossier permanent sécurisé `documentDirectory/recipe_photos/`, prévient les fuites de cache et nettoie les photos orphelines.
+- **`recipePackService.ts`** : Extraction et analyse séquentielle par petits lots (protection Zip Slip) de packs de recettes JSON et archives ZIP avec photos de couverture.
+- **`recipePdfService.ts`** : Génération de fiches recettes PDF haute résolution prêtes à imprimer ou partager (`expo-print`, `expo-sharing`) avec photo, QR code optionnel et réglage des portions.
+- **`recipeShareService.ts`** : Partage et importation offline de recettes de smartphone à smartphone via QR codes compacts compressés (`lz-string`, `toqr`) ou partage texte standard.
+- **`vocabularyService.ts`** : CRUD du lexique canonique, gestion des alias, rayons (`defaultAisle`), promotion de synonymes et propagation automatique (Observer pattern). Les accesseurs synchrones `getSyncList()` / `getSyncMap*()` renvoient un lexique de repli mémorisé à identité stable.
+- **`unifiedIngredientService.ts`** : Résolution unifiée d'ingrédients, découplage nom/quantité/unité et suggestions de synonymes.
+- **`recipeAiService.ts`** : Appels REST Gemini (`v1beta`) avec cascade multi-modèles (`GEMINI_MODELS_CASCADE`: `gemini-3.8-flash` → `2.5-flash` → `2.0-flash` → `1.5-flash`), backoff exponentiel, prompts sobres et auto-réparation JSON (`repairTruncatedJsonString`).
+- **`marmitonService.ts`** : Importation et parsing spécialisé de recettes web Marmiton par URL.
+- **`webRecipeService.ts`** : Importation universelle de recettes depuis n'importe quel site web (validation stricte anti-SSRF, scraping HTML et extraction IA structurée).
+- **`analyticsService.ts`** : Télémétrie locale offline et confidentielle (AsyncStorage, rétention glissante de 90 jours / 5 000 événements max, sans serveur externe).
+
+#### Moteurs algorithmiques (`src/utils/`) :
+- **`ingredientNormalizer.ts`** : Pipeline **Lexique-First** à 3 niveaux :
+  1. Lookup $O(1)$ exact sur noms canoniques et alias *avant* tout élagage regex destructif ;
+  2. Élagage des labels de qualité (AOP, AOC, bio) avec gardes anti-faux-amis et normalisation des ligatures (`œ` → `oe`, `æ` → `ae`) ;
+  3. Extraction des métriques accolées (`100g de`, `25 cl de`) et dissociation nom/quantité/unité. Cache `NORMALIZATION_CACHE` (`clearNormalizationCache()`) indexé sur le nom seul.
+- **`stockMatcher.ts`** : Calcul haute performance (< 1 ms, Maps pré-indexées, zéro regex dans les boucles) des recettes réalisables (`isDoable`) et des ingrédients manquants (`missingIngredients`).
+- **`shoppingAggregator.ts`** : Fusion $O(1)$ par `canonicalId`, conversions métriques (`g`/`kg`, `ml`/`cl`/`L`), exclusion stricte de l'eau (`Eau`), gestion des indispensables de placard (`isPantryStaple`) et isolation des articles non alimentaires avec proposition de purge lors du transfert vers les étagères.
+- **`shoppingInputParser.ts`** : Parsing en langage naturel pour la liste de courses (`"1kg carottes"`, `"2 paquets de riz"`, fractions Unicode `½`), gérant les ingrédients catalogués et les produits ménagers/hors-lexique.
+- **`allergenMatcher.ts`** : Détection des 14 allergènes majeurs INCO par `canonicalId` + filet de sécurité sémantique (`INCO_FAMILY_KEY_ROOTS`) sur les ingrédients non catalogués.
+- **`aisleClassifier.ts`** : Classification automatique par rayons de supermarché (`Fruits & Légumes`, `Produits Frais`, `Épicerie`...).
+- **`searchEngine.ts`** : Moteur de recherche multicritère (titre, tags, ingrédients, filtres de temps/difficulté/végé/notes).
+- **`recipeLinkMatcher.ts`** : Détection et suggestion intelligente de recettes complémentaires (liens entre un plat et sa sauce ou pâte de base).
+- **`unitConverter.ts`** : Moteur de conversion d'unités de mesure culinaires (masse `g`/`kg`, volume métrique `ml`/`cl`/`L`, cuillères).
+- **`ingredientSearchMatcher.ts`** : Moteur de recherche et de scoring prédictif pour la saisie d'ingrédients.
+- **`sectionListLayoutHelper.ts`** : Calcul haute performance d'offsets pour la virtualisation `SectionList` sans lag de mesure Yoga.
+- **`helpers.ts`** : Fonctions d'assainissement, calcul de portions (`scaleQuantity`), formatage de durées et identifiants uniques.
+
+#### Composants réutilisables (`src/components/`) :
+- **Flux & Navigation** : `RecipeCard.tsx`, `StarRating.tsx` (0.5–5.0 sans label parasite), `SearchBar.tsx`, `CategoryPills.tsx`, `TodayMealWidget.tsx`, `ChefAiWidget.tsx`, `EmptyState.tsx`, `TransferAnimationOverlay.tsx`.
+- **Stock & Courses** : `FridgeStockView.tsx`, `SwipeableStockItemRow.tsx`, `SwipeableShoppingItemRow.tsx`, `EditShoppingItemModal.tsx`, `InStoreShoppingModal.tsx`.
+- **Saisie & Lexique** : `UnifiedIngredientInput.tsx`, `IngredientSearchBar.tsx`, `UnitQuickPicker.tsx`, `UnitPickerModal.tsx`, `VocabularyManagerModal.tsx`, `QualifyIngredientModal.tsx`, `AllergenFamilyPickerModal.tsx`.
+- **Modales Culinaires & IA** : `StockCookModal.tsx` (Chef IA en 2 étapes : 3 idées sobres < 300 tokens puis génération complète), `ChefMoodEditModal.tsx`, `ChefFavoritePromptsModal.tsx`, `CookingModeModal.tsx`, `AdvancedFiltersModal.tsx`.
+- **Planning & Repas** : `MealCalendarModal.tsx`, `MealSlotPickerModal.tsx`, `PlanRecipeModal.tsx`, `QuickMealLogModal.tsx`.
+- **Caméra, Import & Partage** : `CameraCaptureModal.tsx` (capture photo native `expo-camera` sécurisée anti-crash OOM), `ImportRecipeModal.tsx` (importation web unifiée), `RecipePrintModal.tsx` (export PDF), `RecipeQrModal.tsx` (QR code offline), `QrScannerModal.tsx` (scanner QR), `RecipeLinkPickerModal.tsx`.
+- **Sous-dossiers modulaires** :
+  - `recipe-detail/` : `RecipeIngredientsList.tsx`, `RecipeInstructionsList.tsx`, `RecipeServingsController.tsx`.
+  - `recipe-form/` : `IngredientTableEditor.tsx`, `RecipeStepEditor.tsx`.
+
+#### Données, Constantes, Types & Configuration :
+- **`src/constants/units.ts`** : Catalogue standardisé des unités culinaires (5 catégories) et `formatQuantityWithUnit`.
+- **`src/data/canonicalVocabulary.ts`** : Référentiel de **424 ingrédients canoniques** avec rayons, statuts placard et allergènes INCO.
+- **`src/data/initialRecipes.ts`** : Recettes de démonstration initiales (**ignoré par défaut** via `.geminiignore`).
+- **`src/types/`** : `recipe.ts`, `shopping.ts`, `fridge.ts`, `planner.ts`, `mealLog.ts`, `vocabulary.ts`, `analytics.ts`.
+- **`plugins/withLargeHeap.js`** : Plugin de configuration Expo injectant `android:largeHeap="true"` pour immuniser l'application contre les dépassements de mémoire lors de la manipulation d'images haute définition.
 
 ---
 
@@ -75,19 +111,28 @@
    - N'appliquez la normalisation qu'aux **noms d'ingrédients** (les étapes `steps` des recettes restent 100 % intactes).
    - Dans `RecipeFormScreen`, toute modification manuelle du nom d'un ingrédient doit réévaluer `normalizeIngredient()` pour éviter un `canonicalId` obsolète.
    - Toute modification du lexique dans `VocabularyService` doit déclencher `StorageService.handleVocabularyCascade()` et `clearNormalizationCache()`.
-2. **Règles d'Unités & Stock :**
+   - La normalisation sépare strictement la quantité/unité du nom de l'ingrédient et extrait les préfixes métriques accolés (`100g de carottes` ➔ nom `carotte`, qté `100`, unité `g`).
+2. **Règles d'Unités, Stock & Courses :**
    - **Stock ("Mes étagères") :** Strictement **sans unités** pour garantir un matching ultra-rapide.
    - **Liste de courses :** Additionne les unités identiques ou métriquement compatibles (`500g` + `1kg` = `1.5kg`), mais conserve sur des lignes distinctes les unités disparates (`300g de carottes` vs `2 carottes`).
    - **Placard (`isPantryStaple`) & Eau :** `Eau` est toujours exclue des courses. Les ingrédients `isPantryStaple` (sel, poivre, huile, épices de base) et `isOptional` sont décochés par défaut lors de l'ajout d'une recette aux courses, et ignorés comme bloquants dans `stockMatcher.ts`.
-3. **Prompts IA Gemini sobres :**
+   - **Passerelle "Ranger dans mes étagères" :** Les articles alimentaires sont ajoutés au stock dédupliqué. Pour les articles non reconnus ou non alimentaires (ex: essuie-tout, savon), une modale propose explicitement de les purger pour ne pas polluer l'inventaire culinaire.
+3. **Capture Caméra, Gestion Mémoire & Google Play :**
+   - La capture photo s'effectue via `CameraCaptureModal.tsx` avec `expo-camera`.
+   - Tout fichier photo temporaire brut issu de la caméra doit être immédiatement supprimé du cache OS après redimensionnement (`ImageManipulator`) pour éviter l'épuisement du disque et les crashs OOM.
+   - `plugins/withLargeHeap.js` active `largeHeap` sur Android.
+   - La permission `READ_MEDIA_IMAGES` ne doit **jamais** être réintroduite dans `app.json` (exigence stricte de conformité Google Play).
+4. **Prompts IA Gemini sobres & Sécurité Réseau :**
    - Dans `recipeAiService.ts` et `StockCookModal.tsx`, les titres et descriptions générés par l'IA doivent rester factuels et quotidiens (interdiction des adjectifs pompeux type *"sublime"*, *"divin"*, *"crémeux"* dans les titres).
-4. **Sécurité, Persistance & Offline-First :**
+   - Cascade de résilience automatique en cas de surcharge : `gemini-3.8-flash` → `2.5-flash` → `2.0-flash` → `1.5-flash`.
+   - Dans `webRecipeService.ts`, validation d'URL stricte avec rejet des IP privées/locales et identifiants embarqués (protection anti-SSRF).
+5. **Sécurité, Persistance & Offline-First :**
    - **SQLite (`papilles.db`) :** Les recettes et collections sont persistées en tables individuelles indexées, sans limitation de taille arbitraire.
    - **Persistance des Photos :** Les photos locales (galerie, caméra) sont systématiquement migrées et stockées dans `documentDirectory/recipe_photos/` via `ImageStorageService` pour immuniser l'app contre les nettoyages de cache de l'appareil.
-   - Aucune donnée utilisateur n'est envoyée sur un serveur tiers (hors appels directs Gemini API et fetch Marmiton).
+   - Aucune donnée utilisateur n'est envoyée sur un serveur tiers (hors appels directs Gemini API et scraping web consenti).
    - Toujours passer les données chargées ou générées par IA via `sanitizeStoredRecipe()` et `sanitizeImageUrl()`.
-5. **Performance du démarrage (thread JS bloquant) :**
-   - SQLite est appelé en API synchrone : `StorageService.getRecipes()` → `rows.map(sanitizeStoredRecipe)` s'exécute d'un bloc, sans rendre la main (les `setTimeout` de secours ne peuvent pas se déclencher pendant ce temps). Tout coût par ingrédient y est multiplié par le nombre total d'ingrédients.
+6. **Performance du démarrage (thread JS bloquant) :**
+   - SQLite est appelé en API synchrone : `StorageService.getRecipes()` → `rows.map(sanitizeStoredRecipe)` s'exécute d'un bloc, sans rendre la main. Tout coût par ingrédient y est multiplié par le nombre total d'ingrédients.
    - Ne jamais reconstruire le lexique (`getInitialCanonicalVocabulary()`) ni un index dérivé à chaque appel : l'identité du tableau renvoyé par `getSyncList()` doit rester stable pour que `getVocabLookupIndex()` reste en cache.
    - `getRecipes()` attend `VocabularyService.getAll()` avant d'assainir ; `sanitizeStoredRecipe()` saute `normalizeIngredient()` pour les ingrédients déjà résolus (`canonicalId`, `isPantryStaple` et `isOptional` définis).
    - Le log `⚡ [Papilles Startup] N recettes assainies en Xms` mesure ce coût sur l'appareil.
@@ -98,7 +143,7 @@
 
 - **Langue UI :** Toutes les chaînes visibles par l'utilisateur doivent être en **français**.
 - **Thèmes dynamiques (`src/theme/colors.ts` & `ThemeContext.tsx`) :**
-  - Supporte *Jardin Botanique* (Clair), *Table Nocturne* (Sombre) et *Contraste Élevé*.
+  - Supporte *Jardin Botanique* (Clair), *Table Nocturne* (Sombre) et *Contraste Élevé* (CVD-Safe).
   - N'utilisez jamais de couleurs en dur. Utilisez systématiquement `useTheme()` et `createDynamicStyles` :
     ```tsx
     import { createDynamicStyles } from '../theme/colors';
@@ -120,7 +165,7 @@
 
 ```bash
 # 0. Exploration chirurgicale du code (À privilégier avant d'ouvrir un fichier)
-fd -e ts -e tsx <motif> src/                         # Trouver un fichier instantanément
+fdfind -e ts -e tsx <motif> src/                     # Trouver un fichier instantanément (fdfind sous Linux)
 rg -n "<symbole_ou_texte>" src/                      # Chercher les occurrences exactes avec numéros de lignes
 sg -p 'export function $FUNC($$$)' -l ts src/        # Lister les signatures de fonctions via AST (ast-grep)
 sg -p 'interface $NAME {$$$ }' -l ts src/types/     # Inspecter les interfaces TypeScript via AST
@@ -128,18 +173,26 @@ sg -p 'interface $NAME {$$$ }' -l ts src/types/     # Inspecter les interfaces T
 # 1. Vérification obligatoire avant fin de tâche (0 erreur tolérée)
 npx tsc --noEmit && npx expo lint
 
-# 2. Suite complète de tests métier (rapide, en CLI Node)
+# 2. Suite complète de tests métier (36 suites exécutées en CLI Node)
 npm test
 
 # 3. Tests ciblés par sous-système (à lancer selon les fichiers modifiés)
-npm run validate:lexicon   # Audit d'intégrité du vocabulaire canonique (0 collision)
-npm run test:stock         # Tests unitaires stockMatcher & résolution Lexique-First
-npm run test:shopping      # Tests unitaires shoppingAggregator, conversions & placard
-npm run test:allergens     # Tests unitaires sécurité allergènes INCO & racines sémantiques
-npm run test:images        # Tests unitaires persistance et isolation ImageStorageService
-npm run test:pack          # Tests unitaires extraction JSON/ZIP RecipePackService
-npm run test:pack-merge    # Tests unitaires fusion incrémentale et déduplication StorageService
+npm run validate:lexicon       # Audit d'intégrité du vocabulaire canonique (424 ingrédients, 0 collision)
+npm run test:stock             # Tests unitaires stockMatcher & résolution Lexique-First
+npm run test:shopping          # Tests unitaires shoppingAggregator, conversions & placard
+npm run test:shopping-shelves  # Tests du transfert courses -> étagères et purge non-alimentaire
+npm run test:allergens         # Tests unitaires sécurité allergènes INCO & racines sémantiques
+npm run test:cascade           # Tests de propagation en cascade des modifications de lexique
+npm run test:normalizer        # Tests du normalisateur d'ingrédients à 3 niveaux
+npm run test:camera            # Tests d'intégration et sécurité mémoire de la caméra
+npm run test:images            # Tests unitaires persistance et isolation ImageStorageService
+npm run test:pack              # Tests unitaires extraction JSON/ZIP RecipePackService
+npm run test:pack-merge        # Tests unitaires fusion incrémentale et déduplication StorageService
+npm run test:pdf               # Tests du service d'impression et export PDF
+npm run test:share             # Tests du partage et encodage/décodage QR code compact
+npm run test:web-recipe        # Tests du scraping web et validation d'URL anti-SSRF
 
 # 4. Utilitaires de maintenance (si pertinent)
-npx expo-doctor            # Diagnostic santé Expo
-npx expo install --fix     # Alignement des dépendances sur le SDK Expo
+npx expo-doctor                # Diagnostic santé Expo
+npx expo install --fix         # Alignement des dépendances sur le SDK Expo
+```
