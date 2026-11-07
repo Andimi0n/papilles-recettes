@@ -414,6 +414,8 @@ function sanitizeFridgeItem(item: any): FridgeItem | null {
   };
 }
 
+let defaultRecipesCountCache: number | null = null;
+
 /**
  * Chargement dynamique et paresseux (lazy) des recettes par défaut.
  * Évite d'embarquer et parser les 400 Ko de INITIAL_RECIPES au démarrage
@@ -421,6 +423,7 @@ function sanitizeFridgeItem(item: any): FridgeItem | null {
  */
 async function getInitialRecipes(): Promise<Recipe[]> {
   const { INITIAL_RECIPES } = await import('../data/initialRecipes');
+  defaultRecipesCountCache = INITIAL_RECIPES.length;
   return INITIAL_RECIPES;
 }
 
@@ -445,15 +448,24 @@ export const StorageService = {
       await VocabularyService.getAll().catch(() => {});
 
       const rows = await DatabaseService.getRecipes();
+      const isSeeded = await DatabaseService.getSetting(SETTING_SCHEMA_VERSION);
 
       if (rows.length === 0) {
-        // Premier lancement absolu : initialisation avec les recettes cultes (chargement lazy)
-        const initial = await getInitialRecipes();
-        const sanitized = initial.map(sanitizeStoredRecipe);
-        await DatabaseService.saveAllRecipes(sanitized);
+        if (!isSeeded) {
+          // Premier lancement absolu : initialisation avec les recettes cultes (chargement lazy)
+          const initial = await getInitialRecipes();
+          const sanitized = initial.map(sanitizeStoredRecipe);
+          await DatabaseService.saveAllRecipes(sanitized);
+          await DatabaseService.setSetting(SETTING_SCHEMA_VERSION, CURRENT_SCHEMA_VERSION);
+          memoryCache.recipes = sanitized;
+          return sanitized;
+        }
+        memoryCache.recipes = [];
+        return [];
+      }
+
+      if (!isSeeded) {
         await DatabaseService.setSetting(SETTING_SCHEMA_VERSION, CURRENT_SCHEMA_VERSION);
-        memoryCache.recipes = sanitized;
-        return sanitized;
       }
 
       // Validation défensive runtime
@@ -675,13 +687,38 @@ export const StorageService = {
   },
 
   /**
+   * Retourne le nombre de recettes par défaut du catalogue initial.
+   */
+  async getDefaultRecipesCount(): Promise<number> {
+    if (defaultRecipesCountCache !== null) {
+      return defaultRecipesCountCache;
+    }
+    const initial = await getInitialRecipes();
+    defaultRecipesCountCache = initial.length;
+    return defaultRecipesCountCache;
+  },
+
+  /**
    * Supprime toutes les recettes par défaut (préfixe `rec_top100_`)
    * et ne conserve que les recettes ajoutées par l'utilisateur.
    * Retourne la liste mise à jour.
    */
   async deleteDefaultRecipes(): Promise<Recipe[]> {
     try {
+      const allRecipes = await DatabaseService.getRecipes();
+      const defaultRecipes = allRecipes.filter((r) => r.id.startsWith('rec_top100_'));
+      for (const recipe of defaultRecipes) {
+        if (recipe.imageUrl) {
+          await ImageStorageService.cleanupRecipePhoto(recipe.imageUrl).catch(() => {});
+        }
+        if (Array.isArray(recipe.availableImages)) {
+          for (const img of recipe.availableImages) {
+            await ImageStorageService.cleanupRecipePhoto(img).catch(() => {});
+          }
+        }
+      }
       await DatabaseService.deleteRecipesByPrefix('rec_top100_');
+      await DatabaseService.setSetting(SETTING_SCHEMA_VERSION, CURRENT_SCHEMA_VERSION);
       memoryCache.recipes = null;
       return this.getRecipes();
     } catch (error) {

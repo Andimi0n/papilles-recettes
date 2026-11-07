@@ -740,10 +740,11 @@ const SettingsScreenComponent: React.FC<SettingsScreenProps> = ({
     }
   };
 
-  const handleResetDemo = () => {
+  const handleResetDemo = async () => {
+    const defaultCount = await StorageService.getDefaultRecipesCount();
     Alert.alert(
       'Réinitialiser les recettes',
-      'Voulez-vous recharger les 100 recettes cultes du chef ? Vos modifications sur ces recettes seront réinitialisées.',
+      `Voulez-vous recharger les ${defaultCount} recettes cultes du chef ? Vos modifications sur ces recettes seront réinitialisées.`,
       [
         { text: 'Annuler', style: 'cancel' },
         {
@@ -752,8 +753,10 @@ const SettingsScreenComponent: React.FC<SettingsScreenProps> = ({
           onPress: async () => {
             try {
               await StorageService.resetToDemoRecipes();
+              if (onRecipesReloadNeeded) {
+                await onRecipesReloadNeeded();
+              }
               Alert.alert('Terminé', 'Les recettes initiales ont été rechargées.');
-              if (onRecipesReloadNeeded) onRecipesReloadNeeded();
             } catch (e) {
               Alert.alert('Erreur', 'Impossible de réinitialiser.');
             }
@@ -763,10 +766,16 @@ const SettingsScreenComponent: React.FC<SettingsScreenProps> = ({
     );
   };
 
-  const handleDeleteDefaultRecipes = () => {
+  const handleDeleteDefaultRecipes = async () => {
+    const defaultRecipesInCarnet = recipes.filter((r) => r.id.startsWith('rec_top100_')).length;
+    if (defaultRecipesInCarnet === 0) {
+      Alert.alert('Information', 'Aucune recette par défaut n\'est présente dans votre carnet.');
+      return;
+    }
+
     Alert.alert(
       'Supprimer les recettes par défaut ?',
-      'Cette action supprime définitivement toutes les recettes du catalogue initial. Seules vos recettes personnelles (ajoutées ou importées) seront conservées. Continuer ?',
+      `Cette action supprime définitivement les ${defaultRecipesInCarnet} recettes du catalogue initial. Seules vos recettes personnelles (ajoutées ou importées) seront conservées. Continuer ?`,
       [
         { text: 'Annuler', style: 'cancel' },
         {
@@ -775,8 +784,10 @@ const SettingsScreenComponent: React.FC<SettingsScreenProps> = ({
           onPress: async () => {
             try {
               await StorageService.deleteDefaultRecipes();
+              if (onRecipesReloadNeeded) {
+                await onRecipesReloadNeeded();
+              }
               Alert.alert('Terminé', 'Les recettes par défaut ont été supprimées.');
-              if (onRecipesReloadNeeded) onRecipesReloadNeeded();
             } catch (e) {
               Alert.alert('Erreur', 'Impossible de supprimer les recettes par défaut.');
             }
@@ -811,11 +822,12 @@ const SettingsScreenComponent: React.FC<SettingsScreenProps> = ({
     );
   };
 
-  const handleFullFactoryReset = () => {
+  const handleFullFactoryReset = async () => {
     const defaultCount = VocabularyService.getDefaultCount();
+    const defaultRecipesCount = await StorageService.getDefaultRecipesCount();
     Alert.alert(
       'Remise à zéro complète ?',
-      `Cette action va réinitialiser l'application à son état d'origine :\n\n• Rechargement des 100 recettes par défaut normalisées\n• Rechargement des ${defaultCount} ingrédients de référence\n• Vidage complet de la liste de courses\n• Vidage complet du stock (étagères)\n• Vidage du planning hebdomadaire\n\nIdéal pour repartir sur une base 100% saine après une phase de test. Continuer ?`,
+      `Cette action va réinitialiser l'application à son état d'origine :\n\n• Rechargement des ${defaultRecipesCount} recettes par défaut normalisées\n• Rechargement des ${defaultCount} ingrédients de référence\n• Vidage complet de la liste de courses\n• Vidage complet du stock (étagères)\n• Vidage du planning hebdomadaire\n\nIdéal pour repartir sur une base 100% saine après une phase de test. Continuer ?`,
       [
         { text: 'Annuler', style: 'cancel' },
         {
@@ -839,7 +851,7 @@ const SettingsScreenComponent: React.FC<SettingsScreenProps> = ({
 
               Alert.alert(
                 'Application réinitialisée !',
-                `Votre carnet a été restauré à l'état d'usine avec les 100 recettes par défaut et le référentiel complet de ${refreshed.length} ingrédients.`
+                `Votre carnet a été restauré à l'état d'usine avec les ${defaultRecipesCount} recettes par défaut et le référentiel complet de ${refreshed.length} ingrédients.`
               );
             } catch (e: any) {
               Alert.alert('Erreur', e?.message || 'Impossible de réinitialiser.');
