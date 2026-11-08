@@ -290,8 +290,11 @@ const ShoppingListScreenComponent: React.FC<ShoppingListScreenProps> = ({
 
       Animated.spring(pageTranslateX, {
         toValue: targetX,
-        tension: 70,
-        friction: 9,
+        tension: 80,
+        friction: 10,
+        restSpeedThreshold: 1,
+        restDisplacementThreshold: 1,
+        overshootClamping: true,
         useNativeDriver: true,
       }).start(() => {
         setActiveTab(target);
@@ -1083,8 +1086,11 @@ const ShoppingListScreenComponent: React.FC<ShoppingListScreenProps> = ({
         Animated.spring(pageTranslateX, {
           toValue: targetX,
           velocity: gestureState.vx,
-          tension: 70,
-          friction: 9,
+          tension: 80,
+          friction: 10,
+          restSpeedThreshold: 1,
+          restDisplacementThreshold: 1,
+          overshootClamping: true,
           useNativeDriver: true,
         }).start(() => {
           setActiveTab(destinationTab);
@@ -1094,8 +1100,11 @@ const ShoppingListScreenComponent: React.FC<ShoppingListScreenProps> = ({
         const targetX = activeTab === 'fridge' ? 0 : -screenWidth;
         Animated.spring(pageTranslateX, {
           toValue: targetX,
-          tension: 70,
-          friction: 9,
+          tension: 80,
+          friction: 10,
+          restSpeedThreshold: 1,
+          restDisplacementThreshold: 1,
+          overshootClamping: true,
           useNativeDriver: true,
         }).start(() => {
           setActiveTab(activeTab);

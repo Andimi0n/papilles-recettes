@@ -21,10 +21,20 @@ export const styles = createDynamicStyles((colors, shadows) => ({
     fontWeight: '800',
     color: colors.textPrimary,
   },
+  headerSubtitleContainer: {
+    marginTop: 2,
+    height: 18,
+    justifyContent: 'center',
+  },
   headerSubtitle: {
     fontSize: 13,
     color: colors.textSecondary,
-    marginTop: 2,
+  },
+  headerSubtitleOverlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
   },
   clearBtn: {
     width: 38,

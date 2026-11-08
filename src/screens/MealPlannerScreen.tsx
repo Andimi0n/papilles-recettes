@@ -157,8 +157,11 @@ const MealPlannerScreenComponent: React.FC<MealPlannerScreenProps> = ({
 
       Animated.spring(pageTranslateX, {
         toValue: targetX,
-        tension: 70,
-        friction: 9,
+        tension: 80,
+        friction: 10,
+        restSpeedThreshold: 1,
+        restDisplacementThreshold: 1,
+        overshootClamping: true,
         useNativeDriver: true,
       }).start(() => {
         setActiveMainTab(target);
@@ -612,8 +615,11 @@ const MealPlannerScreenComponent: React.FC<MealPlannerScreenProps> = ({
         Animated.spring(pageTranslateX, {
           toValue: targetX,
           velocity: gestureState.vx,
-          tension: 70,
-          friction: 9,
+          tension: 80,
+          friction: 10,
+          restSpeedThreshold: 1,
+          restDisplacementThreshold: 1,
+          overshootClamping: true,
           useNativeDriver: true,
         }).start(() => {
           setActiveMainTab(destinationTab);
@@ -623,8 +629,11 @@ const MealPlannerScreenComponent: React.FC<MealPlannerScreenProps> = ({
         const targetX = activeMainTab === 'journal' ? 0 : -screenWidth;
         Animated.spring(pageTranslateX, {
           toValue: targetX,
-          tension: 70,
-          friction: 9,
+          tension: 80,
+          friction: 10,
+          restSpeedThreshold: 1,
+          restDisplacementThreshold: 1,
+          overshootClamping: true,
           useNativeDriver: true,
         }).start(() => {
           setActiveMainTab(activeMainTab);
@@ -648,17 +657,39 @@ const MealPlannerScreenComponent: React.FC<MealPlannerScreenProps> = ({
         <View style={styles.header}>
           <View style={styles.headerTitleCol}>
             <Text style={styles.headerTitle}>Repas</Text>
-            <Text style={styles.headerSubtitle}>
-              {activeMainTab === 'journal'
-                ? 'Suivi des repas midi & soir'
-                : plannedCount === 0
-                ? 'Planification des menus'
-                : `${plannedCount} sur 14 repas prévus`}
-            </Text>
+            <View style={styles.headerSubtitleContainer}>
+              <Animated.Text
+                style={[
+                  styles.headerSubtitle,
+                  { opacity: journalActiveOpacity },
+                ]}
+                numberOfLines={1}
+              >
+                Suivi des repas midi & soir
+              </Animated.Text>
+              <Animated.Text
+                style={[
+                  styles.headerSubtitle,
+                  styles.headerSubtitleOverlay,
+                  { opacity: plannerActiveOpacity },
+                ]}
+                numberOfLines={1}
+              >
+                {plannedCount === 0
+                  ? 'Planification des menus'
+                  : `${plannedCount} sur 14 repas prévus`}
+              </Animated.Text>
+            </View>
           </View>
 
-          {activeMainTab === 'planner' && plannedCount > 0 && (
-            <View style={styles.headerActionsRow}>
+          {plannedCount > 0 && (
+            <Animated.View
+              style={[
+                styles.headerActionsRow,
+                { opacity: plannerActiveOpacity },
+              ]}
+              pointerEvents={activeMainTab === 'planner' ? 'auto' : 'none'}
+            >
               <TouchableOpacity
                 style={styles.headerCartIconBtn}
                 onPress={handleGenerateShoppingList}
@@ -676,7 +707,7 @@ const MealPlannerScreenComponent: React.FC<MealPlannerScreenProps> = ({
               >
                 <Ionicons name="trash-outline" size={18} color={colors.danger} />
               </TouchableOpacity>
-            </View>
+            </Animated.View>
           )}
         </View>
 
