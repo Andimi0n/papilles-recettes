@@ -22,7 +22,7 @@ fs.mkdirSync(tmpDir, { recursive: true });
 try {
   const tscBin = path.join(__dirname, '../node_modules/.bin/tsc');
   execSync(
-    `"${tscBin}" src/types/recipe.ts src/utils/searchEngine.ts src/utils/helpers.ts src/utils/ingredientNormalizer.ts src/data/canonicalVocabulary.ts src/types/vocabulary.ts --outDir "${tmpDir}" --target ES2022 --module CommonJS --moduleResolution node --skipLibCheck --ignoreConfig --ignoreDeprecations 6.0`,
+    `"${tscBin}" src/types/recipe.ts src/utils/searchEngine.ts src/utils/helpers.ts src/utils/ingredientNormalizer.ts src/data/canonicalVocabulary.ts src/types/vocabulary.ts src/services/vocabularyService.ts src/utils/aisleClassifier.ts --outDir "${tmpDir}" --target ES2022 --module CommonJS --moduleResolution node --skipLibCheck --ignoreConfig --ignoreDeprecations 6.0`,
     { stdio: 'pipe' }
   );
 } catch (e) {
@@ -148,25 +148,45 @@ assert.strictEqual(
 
 console.log('✓ Filtrage par tags (recipeMatchesTags) validé à 100%');
 
-// 2. Tests de recherche textuelle avec tags (searchRecipes)
-console.log('\n--- Test 2 : Recherche textuelle dans les tags (searchRecipes) ---');
+// 2. Tests de recherche textuelle et exclusion des tags dans searchRecipes
+console.log('\n--- Test 2 : Recherche textuelle et exclusion des tags (searchRecipes) ---');
 
 const searchRes1 = searchRecipes([dummyRecipe1, dummyRecipe2, dummyRecipeWithoutTags], 'rapide');
-assert(searchRes1.length >= 1, 'La recherche de "rapide" doit trouver la tarte');
+assert(searchRes1.length >= 1, 'La recherche de "rapide" doit trouver la tarte via sa description');
 assert.strictEqual(
   searchRes1[0].recipe.id,
   'r1',
-  'Le tag rapide doit hisser la recette correspondante en tête'
+  'Le terme rapide doit hisser la recette correspondante en tête'
 );
 
 const searchRes2 = searchRecipes([dummyRecipe1, dummyRecipe2], 'mijoté');
 assert.strictEqual(
   searchRes2[0].recipe.id,
   'r2',
-  'La recherche de "mijoté" doit trouver le boeuf bourguignon grâce à son tag'
+  'La recherche de "mijoté" doit trouver le boeuf bourguignon via sa description'
 );
 
-console.log('✓ Détection des tags dans searchRecipes validée à 100%');
+// Vérification que les tags exclusifs ne polluent plus searchRecipes (filtrage réservé aux filtres UI)
+const dummyOnlyTagRecipe = {
+  id: 'r_tag_only',
+  title: 'Soupe d’automne',
+  description: 'Un bon velouté chaud',
+  category: 'Entrée',
+  difficulty: 'Facile',
+  prepTimeMinutes: 5,
+  cookTimeMinutes: 20,
+  servings: 2,
+  rating: 4,
+  ingredients: [{ id: 'i99', name: 'Courge' }],
+  steps: [{ id: 's99', instruction: 'Mixer', order: 1 }],
+  tags: ['SansGlutenExclusif'],
+  createdAt: '2026-03-01T12:00:00.000Z',
+  updatedAt: '2026-03-01T12:00:00.000Z',
+};
+const searchTagOnly = searchRecipes([dummyOnlyTagRecipe], 'SansGlutenExclusif');
+assert.strictEqual(searchTagOnly.length, 0, 'Les tags ne doivent plus être inclus dans le scoring de searchRecipes');
+
+console.log('✓ Détection du texte et exclusion des tags dans searchRecipes validée à 100%');
 
 // Nettoyage du dossier temporaire
 fs.rmSync(tmpDir, { recursive: true, force: true });

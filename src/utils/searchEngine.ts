@@ -1,6 +1,7 @@
 import { Recipe, Difficulty } from '../types/recipe';
 import { normalizeString, stemWord, levenshteinDistance } from './helpers';
 import { normalizeIngredient } from './ingredientNormalizer';
+import { VocabularyService } from '../services/vocabularyService';
 
 export { stemWord, levenshteinDistance };
 
@@ -155,44 +156,165 @@ export function tokenizeText(text: string): string[] {
 }
 
 /**
- * Vérifie si un token saisi par l'utilisateur correspond à un mot de la recette :
- * - Égalité exacte
- * - Préfixe (ex: "choc" -> "chocolat")
- * - Tolérance aux fautes de frappe (lettre manquante, coquille)
+ * Récupère directement le canonicalId d'un mot s'il existe dans le lexique
+ * (recherche exacte par id, nom normalisé ou alias officiel).
  */
-export function isFuzzyOrTypoMatch(queryToken: string, targetToken: string): boolean {
-  if (queryToken === targetToken) return true;
-  if (!queryToken || !targetToken) return false;
+export function getCanonicalIdForWord(word: string): string | undefined {
+  if (!word || word.length < 2) return undefined;
+  const clean = normalizeString(word);
+
+  try {
+    const vocabMapById = VocabularyService.getSyncMapById();
+    const byId = vocabMapById.get(clean);
+    if (byId) return byId.id;
+
+    const vocabMapByNorm = VocabularyService.getSyncMapByNormName();
+    const byNorm = vocabMapByNorm.get(clean);
+    if (byNorm) return byNorm.id;
+
+    const vocabMapByAlias = VocabularyService.getSyncMapByAlias();
+    const byAlias = vocabMapByAlias.get(clean);
+    if (byAlias) return byAlias.id;
+
+    // Test singulier / pluriel direct
+    const stem = stemWord(clean);
+    const byStemNorm = vocabMapByNorm.get(stem);
+    if (byStemNorm) return byStemNorm.id;
+    const byStemAlias = vocabMapByAlias.get(stem);
+    if (byStemAlias) return byStemAlias.id;
+
+    if (clean.endsWith('s') && clean.length > 3) {
+      const singular = clean.slice(0, -1);
+      const bySingular = vocabMapByNorm.get(singular) || vocabMapByAlias.get(singular);
+      if (bySingular) return bySingular.id;
+    } else {
+      const plural = clean + 's';
+      const byPlural = vocabMapByNorm.get(plural) || vocabMapByAlias.get(plural);
+      if (byPlural) return byPlural.id;
+    }
+  } catch {
+    // Environnement sans stockage
+  }
+
+  return undefined;
+}
+
+/**
+ * Vérifie si un token correspond à un mot réel et valide du lexique canonique,
+ * du thésaurus de synonymes ou des mots vides culinaires.
+ * Active le Typo Guard pour bloquer le fallback Levenshtein vers d'autres vrais mots
+ * (ex: "poire" ne doit pas matcher "poivre", "pain" ne doit pas matcher "bain").
+ */
+export function isKnownCulinaryOrLexiconWord(token: string): boolean {
+  if (!token || token.length < 2) return false;
+  const clean = normalizeString(token);
+  if (STOP_WORDS.has(clean)) return true;
+  if (SYNONYM_INDEX.has(stemWord(clean))) return true;
+
+  if (getCanonicalIdForWord(token)) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Récupère les identifiants canoniques associés à un terme recherché en utilisant
+ * le lexique canonique et les synonymes culinaires.
+ */
+export function resolveCanonicalIdsForToken(token: string, synonyms: string[] = []): Set<string> {
+  const ids = new Set<string>();
+
+  // 1. Terme direct
+  const directId = getCanonicalIdForWord(token);
+  if (directId) {
+    ids.add(directId);
+  }
+
+  // 2. Synonymes culinaires (ex: "spaghetti" -> "pates", "fromage" -> "parmesan", "mozzarella"...)
+  if (synonyms && synonyms.length > 0) {
+    for (const syn of synonyms) {
+      const synId = getCanonicalIdForWord(syn);
+      if (synId) {
+        ids.add(synId);
+      }
+    }
+  }
+
+  return ids;
+}
+
+/**
+ * Évalue la qualité de correspondance entre un token recherché et un token cible :
+ * - Match exact : 1.0 (égalité stricte ou synonyme exact)
+ * - Préfixe strict : 0.7 (la cible commence par la requête, ex: "choc" -> "chocolat")
+ * - Sous-chaîne / composé : 0.4 (la cible contient la requête, ex: "poireau" pour "poire", min 4 lettres)
+ * - Faute de frappe Levenshtein : 0.15 (lettre manquante ou coquille, si le mot n'est PAS un vrai mot connu)
+ * - Aucune correspondance : 0
+ */
+export function getTokenMatchQuality(
+  queryToken: string,
+  targetToken: string,
+  synonyms: string[] = [],
+  isKnownLexiconWord = false
+): number {
+  if (!queryToken || !targetToken) return 0;
+  if (queryToken === targetToken) return 1.0;
+
+  // Match exact via synonyme culinaire
+  if (synonyms.length > 0 && synonyms.some((s) => s === targetToken)) {
+    return 1.0;
+  }
 
   const qLen = queryToken.length;
   const tLen = targetToken.length;
 
-  // Préfixe : target commence par query (ex: "parm" -> "parmesan")
+  // 1. Préfixe strict : target commence par query (ex: "choc" -> "chocolat")
   if (qLen >= 3 && targetToken.startsWith(queryToken)) {
-    return true;
+    return 0.7;
+  }
+  if (synonyms.length > 0 && synonyms.some((s) => s.length >= 3 && targetToken.startsWith(s))) {
+    return 0.7;
   }
 
-  // Sous-chaîne directe
-  if (qLen >= 3 && targetToken.includes(queryToken)) {
-    return true;
+  // 2. Sous-mot / composé (min 4 lettres pour éviter les faux-amis courts comme "ail" dans "volaille")
+  if (qLen >= 4 && targetToken.includes(queryToken)) {
+    return 0.4;
+  }
+  if (synonyms.length > 0 && synonyms.some((s) => s.length >= 4 && targetToken.includes(s))) {
+    return 0.4;
   }
 
-  // Tolérance aux fautes de frappe (ex: "tomte" pour "tomate", "champinon" pour "champignon")
-  // Pour éviter les faux positifs, requiert au minimum 4 lettres et la même première lettre
+  // 3. Faute de frappe Levenshtein :
+  // Si le mot est un vrai mot connu du lexique (ex: "poire"), le Typo Guard bloque le Levenshtein vers "poivre"
+  if (isKnownLexiconWord) {
+    return 0;
+  }
+
+  // Tolérance aux fautes de frappe réservée aux mots inconnus (ex: "courgete", "champinon")
   if (qLen < 4 || targetToken[0] !== queryToken[0]) {
-    return false;
+    return 0;
   }
 
   const lenDiff = Math.abs(qLen - tLen);
-  if (lenDiff > 2) return false;
+  if (lenDiff > 2) return 0;
 
   const dist = levenshteinDistance(queryToken, targetToken);
 
   if (qLen <= 6) {
-    return dist <= 1; // 1 lettre manquante ou erronée
+    if (dist <= 1) return 0.15;
   } else {
-    return dist <= 2; // Jusqu'à 2 lettres pour les mots longs (ex: "courgete", "champinon")
+    if (dist <= 2) return 0.15;
   }
+
+  return 0;
+}
+
+/**
+ * Vérifie si un token saisi correspond à un mot cible (rétrocompatibilité).
+ */
+export function isFuzzyOrTypoMatch(queryToken: string, targetToken: string): boolean {
+  return getTokenMatchQuality(queryToken, targetToken) > 0;
 }
 
 /**
@@ -202,7 +324,6 @@ function isSynonymMatch(synonymToken: string, targetToken: string): boolean {
   if (synonymToken === targetToken) return true;
   if (!synonymToken || !targetToken) return false;
 
-  // Si le synonyme est composé ou si l'ingrédient contient le synonyme
   if (synonymToken.length >= 3 && targetToken.includes(synonymToken)) {
     return true;
   }
@@ -219,14 +340,12 @@ function isSynonymMatch(synonymToken: string, targetToken: string): boolean {
 export function tokenMatchesTargetTokens(queryToken: string, targetTokens: string[]): boolean {
   if (targetTokens.length === 0) return false;
 
-  // 1. Match direct ou avec tolérance faute de frappe
   for (const target of targetTokens) {
-    if (isFuzzyOrTypoMatch(queryToken, target)) {
+    if (getTokenMatchQuality(queryToken, target) > 0) {
       return true;
     }
   }
 
-  // 2. Match via synonymes culinaires (comparaison ciblée)
   const synonyms = getSynonymsForWord(queryToken);
   if (synonyms.length > 0) {
     for (const syn of synonyms) {
@@ -242,30 +361,18 @@ export function tokenMatchesTargetTokens(queryToken: string, targetTokens: strin
 }
 
 /**
- * Version ultra-performante interne évitant de re-résoudre les synonymes à chaque champ
+ * Version évitant de re-résoudre les synonymes à chaque champ
  */
-function tokenMatchesTargetTokensWithSynonyms(
+export function tokenMatchesTargetTokensWithSynonyms(
   queryToken: string,
   synonyms: string[],
   targetTokens: string[]
 ): boolean {
   if (targetTokens.length === 0) return false;
 
-  // 1. Match direct ou avec tolérance faute de frappe
   for (const target of targetTokens) {
-    if (isFuzzyOrTypoMatch(queryToken, target)) {
+    if (getTokenMatchQuality(queryToken, target, synonyms) > 0) {
       return true;
-    }
-  }
-
-  // 2. Match via synonymes culinaires pré-résolus
-  if (synonyms.length > 0) {
-    for (const syn of synonyms) {
-      for (const target of targetTokens) {
-        if (isSynonymMatch(syn, target)) {
-          return true;
-        }
-      }
     }
   }
 
@@ -280,11 +387,16 @@ export interface RecipeSearchResult {
   matchedIngredients: string[];
 }
 
+interface CachedIngredientSearchData {
+  name: string;
+  canonicalId?: string;
+  tokens: string[];
+}
+
 interface CachedRecipeSearchTokens {
   titleTokens: string[];
   descTokens: string[];
-  tagTokens: string[];
-  ingredientTokensMap: { name: string; tokens: string[] }[];
+  ingredients: CachedIngredientSearchData[];
 }
 
 /**
@@ -296,14 +408,27 @@ const RECIPE_SEARCH_INDEX_CACHE = new WeakMap<Recipe, CachedRecipeSearchTokens>(
 function getOrIndexRecipeTokens(recipe: Recipe): CachedRecipeSearchTokens {
   let cached = RECIPE_SEARCH_INDEX_CACHE.get(recipe);
   if (!cached) {
-    cached = {
-      titleTokens: tokenizeText(recipe.title),
-      descTokens: tokenizeText(recipe.description),
-      tagTokens: (recipe.tags || []).flatMap((t) => tokenizeText(t)),
-      ingredientTokensMap: recipe.ingredients.map((ing) => ({
+    const ingredients: CachedIngredientSearchData[] = (recipe.ingredients || []).map((ing) => {
+      let canonicalId = ing.canonicalId;
+      if (!canonicalId && ing.name) {
+        try {
+          const norm = normalizeIngredient({ name: ing.name });
+          canonicalId = norm.canonicalId;
+        } catch {
+          // Ignorer
+        }
+      }
+      return {
         name: ing.name,
+        canonicalId,
         tokens: tokenizeText(ing.name),
-      })),
+      };
+    });
+
+    cached = {
+      titleTokens: tokenizeText(recipe.title || ''),
+      descTokens: tokenizeText(recipe.description || ''),
+      ingredients,
     };
     RECIPE_SEARCH_INDEX_CACHE.set(recipe, cached);
   }
@@ -313,8 +438,12 @@ function getOrIndexRecipeTokens(recipe: Recipe): CachedRecipeSearchTokens {
 /**
  * Moteur de recherche intelligent de recettes.
  * - Multi-mots / multi-ingrédients (ex: "poulet tomate", "creme lardon")
- * - Tolérance aux fautes de frappe / lettres manquantes ("tomte", "courgete")
- * - Synonymes et équivalences culinaires ("patate" -> "pomme de terre", "fromage" -> "parmesan")
+ * - Titre : +30 pts par token avec pondération graduée (Exact: 1.0, Préfixe: 0.7, Sous-mot: 0.4, Typo: 0.15)
+ * - Ingrédients : +15 pts par ingrédient matché. Résolution Lexique-First par canonicalId (avec synonymes).
+ *   Si aucun canonicalId n'est trouvé pour le terme recherché, repli sur la pondération.
+ * - Description : +5 pts par token avec pondération
+ * - Tags : exclus du scoring rapide
+ * - Bonus "Tous les mots trouvés" : +50 pts (ou ratio si partiel)
  * - Tri par pertinence
  */
 export function searchRecipes(recipes: Recipe[], queryString: string): RecipeSearchResult[] {
@@ -339,49 +468,101 @@ export function searchRecipes(recipes: Recipe[], queryString: string): RecipeSea
     }));
   }
 
-  // Pré-résolution unique des synonymes pour chaque token de recherche (évite 1000+ lookups par requête)
-  const preparedQueryTokens = queryTokens.map((qToken) => ({
-    token: qToken,
-    synonyms: getSynonymsForWord(qToken),
-  }));
+  // Pré-résolution des tokens de recherche :
+  // - Synonymes culinaires
+  // - Statut dans le lexique (Typo Guard)
+  // - Résolution des canonicalId via le lexique et les synonymes
+  const preparedQueryTokens = queryTokens.map((qToken) => {
+    const synonyms = getSynonymsForWord(qToken);
+    const isKnownWord = isKnownCulinaryOrLexiconWord(qToken);
+    const canonicalIds = resolveCanonicalIdsForToken(qToken, synonyms);
+    return {
+      token: qToken,
+      synonyms,
+      isKnownWord,
+      canonicalIds,
+    };
+  });
+
+  // Résolution optionnelle pour une expression multi-mots complète (ex: "pomme de terre", "creme fraiche")
+  const fullQueryCanonicalId = queryTokens.length > 1
+    ? normalizeIngredient({ name: queryString.trim() }).canonicalId
+    : undefined;
 
   const results: RecipeSearchResult[] = [];
 
   recipes.forEach((recipe) => {
-    const { titleTokens, descTokens, tagTokens, ingredientTokensMap } =
-      getOrIndexRecipeTokens(recipe);
+    const { titleTokens, descTokens, ingredients } = getOrIndexRecipeTokens(recipe);
 
     let matchedTokensForThisRecipe = 0;
     let score = 0;
     const matchedIngNames = new Set<string>();
 
-    preparedQueryTokens.forEach(({ token: qToken, synonyms }) => {
+    preparedQueryTokens.forEach(({ token: qToken, synonyms, isKnownWord, canonicalIds }) => {
       let tokenMatchedInRecipe = false;
 
-      // 1. Titre (pondération prioritaire : 25 pts)
-      if (tokenMatchesTargetTokensWithSynonyms(qToken, synonyms, titleTokens)) {
-        score += 25;
-        tokenMatchedInRecipe = true;
-      }
-
-      // 2. Ingrédients (pondération forte : 15 pts)
-      ingredientTokensMap.forEach((ing) => {
-        if (tokenMatchesTargetTokensWithSynonyms(qToken, synonyms, ing.tokens)) {
-          score += 15;
-          tokenMatchedInRecipe = true;
-          matchedIngNames.add(ing.name);
+      // 1. Titre : +30 points par token avec pondération (Piste 2)
+      let bestTitleQuality = 0;
+      for (const tToken of titleTokens) {
+        const quality = getTokenMatchQuality(qToken, tToken, synonyms, isKnownWord);
+        if (quality > bestTitleQuality) {
+          bestTitleQuality = quality;
+          if (bestTitleQuality === 1.0) break;
         }
-      });
-
-      // 3. Description (pondération modérée : 5 pts)
-      if (tokenMatchesTargetTokensWithSynonyms(qToken, synonyms, descTokens)) {
-        score += 5;
+      }
+      if (bestTitleQuality > 0) {
+        score += 30 * bestTitleQuality;
         tokenMatchedInRecipe = true;
       }
 
-      // 4. Tags personnalisés (pondération forte : 20 pts)
-      if (tagTokens.length > 0 && tokenMatchesTargetTokensWithSynonyms(qToken, synonyms, tagTokens)) {
-        score += 20;
+      // 2. Ingrédients : +15 points par ingrédient matché
+      // Règle : lexique d'abord pour canonicalId (avec synonymes). Si non résolu, pondération.
+      if (canonicalIds.size > 0 || (fullQueryCanonicalId && queryTokens.length > 1)) {
+        // CAS A : Canonical ID trouvé via le lexique / synonymes
+        ingredients.forEach((ing) => {
+          const isCanonicalMatch = Boolean(
+            (ing.canonicalId && canonicalIds.has(ing.canonicalId)) ||
+            (fullQueryCanonicalId && ing.canonicalId === fullQueryCanonicalId)
+          );
+          // Sécurité pour ingrédient non catalogué : match exact de token uniquement
+          const isFallbackExactTokenMatch = !ing.canonicalId && ing.tokens.includes(qToken);
+
+          if (isCanonicalMatch || isFallbackExactTokenMatch) {
+            score += 15;
+            tokenMatchedInRecipe = true;
+            matchedIngNames.add(ing.name);
+          }
+        });
+      } else {
+        // CAS B : Aucun canonical ID trouvé -> repli sur la pondération
+        ingredients.forEach((ing) => {
+          let bestIngQuality = 0;
+          for (const iToken of ing.tokens) {
+            const quality = getTokenMatchQuality(qToken, iToken, synonyms, isKnownWord);
+            if (quality > bestIngQuality) {
+              bestIngQuality = quality;
+              if (bestIngQuality === 1.0) break;
+            }
+          }
+          if (bestIngQuality > 0) {
+            score += 15 * bestIngQuality;
+            tokenMatchedInRecipe = true;
+            matchedIngNames.add(ing.name);
+          }
+        });
+      }
+
+      // 3. Description : +5 points par token avec pondération
+      let bestDescQuality = 0;
+      for (const dToken of descTokens) {
+        const quality = getTokenMatchQuality(qToken, dToken, synonyms, isKnownWord);
+        if (quality > bestDescQuality) {
+          bestDescQuality = quality;
+          if (bestDescQuality === 1.0) break;
+        }
+      }
+      if (bestDescQuality > 0) {
+        score += 5 * bestDescQuality;
         tokenMatchedInRecipe = true;
       }
 
@@ -390,9 +571,11 @@ export function searchRecipes(recipes: Recipe[], queryString: string): RecipeSea
       }
     });
 
+    // 4. Tags : Enlevés du scoring (demandé explicitement)
+
     // Si au moins un terme recherché correspond
     if (matchedTokensForThisRecipe > 0) {
-      // Bonus très important si TOUS les termes recherchés sont présents
+      // Bonus très important si TOUS les termes recherchés sont présents (+50 pts)
       if (matchedTokensForThisRecipe === queryTokens.length) {
         score += 50;
       } else {
@@ -411,8 +594,13 @@ export function searchRecipes(recipes: Recipe[], queryString: string): RecipeSea
     }
   });
 
-  // Tri par score de pertinence décroissant
-  results.sort((a, b) => b.score - a.score);
+  // Tri par pertinence décroissante, puis alphabétique sur le titre
+  results.sort((a, b) => {
+    if (b.score !== a.score) {
+      return b.score - a.score;
+    }
+    return a.recipe.title.localeCompare(b.recipe.title);
+  });
 
   return results;
 }
