@@ -1,12 +1,13 @@
 /**
  * OnboardingScreen — Écran d'accueil et configuration initiale au premier lancement
  *
- * Deux étapes sobres et fluides :
- *  1. Welcome  — Présentation sobre de Papilles et de son fonctionnement local
- *  2. ApiKey   — Configuration optionnelle de la clé Gemini API (BYOK)
+ * Trois étapes sobres et fluides :
+ *  1. Welcome   — Présentation sobre de Papilles et de son fonctionnement local
+ *  2. Allergens — Configuration optionnelle des allergies (familles INCO ou aliments)
+ *  3. ApiKey    — Configuration optionnelle de la clé Gemini API (BYOK)
  */
 
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -23,8 +24,16 @@ import { Ionicons } from '@expo/vector-icons';
 import { createDynamicStyles } from '../theme/colors';
 import { useTheme } from '../theme/ThemeContext';
 import { RecipeAiService } from '../services/recipeAiService';
+import { StorageService } from '../services/storageService';
+import {
+  ALLERGEN_FAMILIES,
+  AllergenFamilyConfig,
+  UserAllergenItem,
+} from '../types/vocabulary';
+import { generateUniqueId, normalizeString } from '../utils/helpers';
+import { normalizeIngredient } from '../utils/ingredientNormalizer';
 
-type Step = 'welcome' | 'apiKey';
+type Step = 'welcome' | 'allergens' | 'apiKey';
 type KeyStatus = 'idle' | 'checking' | 'ok' | 'error';
 
 interface Props {
@@ -65,9 +74,81 @@ export function OnboardingScreen({ onComplete }: Props) {
   const [keyStatus, setKeyStatus] = useState<KeyStatus>('idle');
   const [errorMessage, setErrorMessage] = useState('');
 
+  // Allergies & Intolérances
+  const [selectedAllergens, setSelectedAllergens] = useState<UserAllergenItem[]>([]);
+  const [customAllergenInput, setCustomAllergenInput] = useState('');
+
   const inputRef = useRef<React.ElementRef<typeof TextInput>>(null);
 
-  // ─── Actions ─────────────────────────────────────────────────────────────
+  // Charger les allergènes déjà stockés s'il y en a
+  useEffect(() => {
+    StorageService.getUserAllergens()
+      .then(setSelectedAllergens)
+      .catch(() => {});
+  }, []);
+
+  // ─── Actions Allergies ───────────────────────────────────────────────────
+
+  const handleToggleFamily = useCallback((fam: AllergenFamilyConfig) => {
+    setSelectedAllergens((prev) => {
+      const exists = prev.some((a) => a.allergenFamily === fam.id);
+      if (exists) {
+        return prev.filter((a) => a.allergenFamily !== fam.id);
+      } else {
+        const newItem: UserAllergenItem = {
+          id: generateUniqueId('allg'),
+          name: fam.name,
+          allergenFamily: fam.id,
+          addedAt: new Date().toISOString(),
+        };
+        return [...prev, newItem];
+      }
+    });
+  }, []);
+
+  const handleAddCustomAllergen = useCallback(() => {
+    const clean = customAllergenInput.trim();
+    if (!clean) return;
+
+    const normClean = normalizeString(clean);
+    setSelectedAllergens((prev) => {
+      const alreadyExists = prev.some((a) => normalizeString(a.name) === normClean);
+      if (alreadyExists) return prev;
+
+      const normIng = normalizeIngredient({ name: clean });
+      const newItem: UserAllergenItem = {
+        id: generateUniqueId('allg'),
+        name: normIng.name || clean,
+        canonicalId: normIng.canonicalId,
+        allergenFamily: null,
+        addedAt: new Date().toISOString(),
+      };
+      return [...prev, newItem];
+    });
+    setCustomAllergenInput('');
+  }, [customAllergenInput]);
+
+  const handleRemoveAllergen = useCallback((item: UserAllergenItem) => {
+    setSelectedAllergens((prev) => prev.filter((a) => a.id !== item.id));
+  }, []);
+
+  const handleClearAllAllergens = useCallback(() => {
+    setSelectedAllergens([]);
+  }, []);
+
+  const handleSaveAllergensAndContinue = useCallback(async () => {
+    if (selectedAllergens.length > 0) {
+      await StorageService.saveUserAllergens(selectedAllergens);
+      await StorageService.setAllergenFilterEnabled(true);
+    }
+    setStep('apiKey');
+  }, [selectedAllergens]);
+
+  const handleSkipAllergens = useCallback(async () => {
+    setStep('apiKey');
+  }, []);
+
+  // ─── Actions Clé API ─────────────────────────────────────────────────────
 
   const handleValidateKey = useCallback(async () => {
     const trimmed = apiKeyInput.trim();
@@ -108,7 +189,7 @@ export function OnboardingScreen({ onComplete }: Props) {
     }
   }, []);
 
-  // ─── Indicateur d'étapes (Sobre) ──────────────────────────────────────────
+  // ─── Indicateur d'étapes (Sobre - 3 étapes) ────────────────────────────────
 
   const renderStepIndicator = () => (
     <View style={styles.stepIndicatorRow}>
@@ -117,6 +198,13 @@ export function OnboardingScreen({ onComplete }: Props) {
           styles.stepDot,
           step === 'welcome' ? styles.stepDotActive : styles.stepDotInactive,
           { backgroundColor: step === 'welcome' ? colors.primary : colors.borderMedium },
+        ]}
+      />
+      <View
+        style={[
+          styles.stepDot,
+          step === 'allergens' ? styles.stepDotActive : styles.stepDotInactive,
+          { backgroundColor: step === 'allergens' ? colors.primary : colors.borderMedium },
         ]}
       />
       <View
@@ -183,10 +271,10 @@ export function OnboardingScreen({ onComplete }: Props) {
           <View style={styles.actionFooter}>
             <TouchableOpacity
               style={[styles.primaryButton, { backgroundColor: colors.primary }]}
-              onPress={() => setStep('apiKey')}
+              onPress={() => setStep('allergens')}
               activeOpacity={0.85}
               accessibilityRole="button"
-              accessibilityLabel="Continuer vers la configuration"
+              accessibilityLabel="Continuer vers la configuration des allergies"
             >
               <Text style={styles.primaryButtonText}>Continuer</Text>
               <Ionicons name="arrow-forward" size={18} color="#FFFFFF" style={styles.buttonIcon} />
@@ -204,7 +292,293 @@ export function OnboardingScreen({ onComplete }: Props) {
     );
   }
 
-  // ─── Étape 2 : Configuration Clé Gemini ───────────────────────────────────
+  // ─── Étape 2 : Allergies & Intolérances ───────────────────────────────────
+
+  if (step === 'allergens') {
+    const hasSelectedAllergens = selectedAllergens.length > 0;
+
+    return (
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+        <KeyboardAvoidingView
+          style={styles.keyboardContainer}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          {/* Barre supérieure avec bouton Retour */}
+          <View style={styles.topBar}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => setStep('welcome')}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Retour à l'étape précédente"
+            >
+              <Ionicons name="chevron-back" size={22} color={colors.textPrimary} />
+              <Text style={[styles.backButtonText, { color: colors.textPrimary }]}>Retour</Text>
+            </TouchableOpacity>
+
+            {renderStepIndicator()}
+
+            <View style={styles.topBarSpacer} />
+          </View>
+
+          <ScrollView
+            contentContainerStyle={styles.scrollContainerAllergens}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            {/* En-tête de section */}
+            <View style={styles.heroSection}>
+              <View style={[styles.iconWrapper, { backgroundColor: colors.primaryLight }]}>
+                <Ionicons name="shield-checkmark-outline" size={40} color={colors.primary} />
+              </View>
+              <Text style={[styles.appTitle, { color: colors.textPrimary }]}>
+                Vos allergies & intolérances
+              </Text>
+              <Text style={[styles.appSubtitle, { color: colors.textSecondary }]}>
+                Papilles vous alertera sur vos recettes et adaptera vos listes de courses.
+              </Text>
+            </View>
+
+            {/* 14 Familles Majeures */}
+            <View style={styles.allergenSectionBlock}>
+              <Text style={[styles.allergenSectionTitle, { color: colors.textPrimary }]}>
+                14 Familles majeures (INCO)
+              </Text>
+              <Text style={[styles.allergenSectionSubtitle, { color: colors.textMuted }]}>
+                Touchez une famille pour l’ajouter ou la retirer :
+              </Text>
+
+              <View style={styles.familiesGrid}>
+                {ALLERGEN_FAMILIES.map((fam) => {
+                  const isSelected = selectedAllergens.some((a) => a.allergenFamily === fam.id);
+                  return (
+                    <TouchableOpacity
+                      key={fam.id}
+                      style={[
+                        styles.familyChip,
+                        {
+                          backgroundColor: isSelected ? colors.primaryLight : colors.cardBackground,
+                          borderColor: isSelected ? colors.primary : colors.borderLight,
+                        },
+                      ]}
+                      onPress={() => handleToggleFamily(fam)}
+                      activeOpacity={0.75}
+                      accessibilityRole="checkbox"
+                      accessibilityState={{ checked: isSelected }}
+                      accessibilityLabel={`${fam.name}, ${isSelected ? 'sélectionné' : 'non sélectionné'}`}
+                    >
+                      <Text style={styles.familyEmoji}>{fam.emoji}</Text>
+                      <Text
+                        style={[
+                          styles.familyName,
+                          {
+                            color: isSelected ? colors.primary : colors.textPrimary,
+                            fontWeight: isSelected ? '700' : '500',
+                          },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {fam.name}
+                      </Text>
+                      {isSelected && (
+                        <Ionicons
+                          name="checkmark-circle"
+                          size={16}
+                          color={colors.primary}
+                          style={styles.familyCheckIcon}
+                        />
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
+            {/* Saisie d'aliments spécifiques */}
+            <View style={styles.allergenSectionBlock}>
+              <Text style={[styles.allergenSectionTitle, { color: colors.textPrimary }]}>
+                Aliments spécifiques (facultatif)
+              </Text>
+              <Text style={[styles.allergenSectionSubtitle, { color: colors.textMuted }]}>
+                Un ingrédient particulier ? (ex: fraise, kiwi, avocat, tomate...)
+              </Text>
+
+              <View style={styles.customInputRow}>
+                <View
+                  style={[
+                    styles.customInputWrapper,
+                    {
+                      backgroundColor: colors.cardBackground,
+                      borderColor: colors.borderMedium,
+                    },
+                  ]}
+                >
+                  <TextInput
+                    style={[styles.customInput, { color: colors.textPrimary }]}
+                    placeholder="Ex: Fraise, Kiwi, Tomate..."
+                    placeholderTextColor={colors.textMuted}
+                    value={customAllergenInput}
+                    onChangeText={setCustomAllergenInput}
+                    autoCapitalize="sentences"
+                    autoCorrect={false}
+                    returnKeyType="done"
+                    onSubmitEditing={handleAddCustomAllergen}
+                    accessibilityLabel="Saisir un allergène spécifique"
+                  />
+                  {customAllergenInput.length > 0 && (
+                    <TouchableOpacity
+                      onPress={() => setCustomAllergenInput('')}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      style={styles.customInputClearIcon}
+                    >
+                      <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                <TouchableOpacity
+                  style={[
+                    styles.customAddBtn,
+                    {
+                      backgroundColor: customAllergenInput.trim()
+                        ? colors.primary
+                        : (isDark ? colors.surfaceAlt : colors.borderLight),
+                    },
+                  ]}
+                  onPress={handleAddCustomAllergen}
+                  disabled={!customAllergenInput.trim()}
+                  activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Ajouter cet allergène spécifique"
+                >
+                  <Ionicons
+                    name="add"
+                    size={22}
+                    color={customAllergenInput.trim() ? '#FFFFFF' : colors.textMuted}
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Liste des allergènes sélectionnés */}
+            {hasSelectedAllergens && (
+              <View style={styles.allergenSectionBlock}>
+                <View style={styles.selectedHeaderRow}>
+                  <Text style={[styles.selectedHeaderTitle, { color: colors.textPrimary }]}>
+                    Vos allergies sélectionnées ({selectedAllergens.length})
+                  </Text>
+                  <TouchableOpacity
+                    onPress={handleClearAllAllergens}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Text style={[styles.clearAllText, { color: colors.danger }]}>
+                      Tout effacer
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.selectedChipsWrap}>
+                  {selectedAllergens.map((item) => {
+                    const famConfig = item.allergenFamily
+                      ? ALLERGEN_FAMILIES.find((f) => f.id === item.allergenFamily)
+                      : null;
+                    const emoji = famConfig ? famConfig.emoji : '🛡️';
+
+                    return (
+                      <View
+                        key={item.id}
+                        style={[
+                          styles.selectedChip,
+                          {
+                            backgroundColor: isDark ? colors.surfaceAlt : colors.primaryLight,
+                            borderColor: colors.borderLight,
+                          },
+                        ]}
+                      >
+                        <Text style={styles.selectedChipEmoji}>{emoji}</Text>
+                        <Text
+                          style={[styles.selectedChipText, { color: colors.textPrimary }]}
+                          numberOfLines={1}
+                        >
+                          {item.name}
+                        </Text>
+                        <TouchableOpacity
+                          onPress={() => handleRemoveAllergen(item)}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          style={styles.selectedChipRemove}
+                          accessibilityLabel={`Supprimer ${item.name}`}
+                        >
+                          <Ionicons name="close-circle" size={16} color={colors.textSecondary} />
+                        </TouchableOpacity>
+                      </View>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
+
+            {/* Actions & Bouton Passer */}
+            <View style={styles.actionFooterAllergens}>
+              {hasSelectedAllergens ? (
+                <>
+                  <TouchableOpacity
+                    style={[styles.primaryButton, { backgroundColor: colors.primary }]}
+                    onPress={handleSaveAllergensAndContinue}
+                    activeOpacity={0.85}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Enregistrer ${selectedAllergens.length} allergènes et continuer`}
+                  >
+                    <Text style={styles.primaryButtonText}>
+                      Enregistrer et continuer ({selectedAllergens.length})
+                    </Text>
+                    <Ionicons
+                      name="arrow-forward"
+                      size={18}
+                      color="#FFFFFF"
+                      style={styles.buttonIcon}
+                    />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={handleSkipAllergens}
+                    activeOpacity={0.7}
+                    style={styles.skipButton}
+                    accessibilityRole="button"
+                    accessibilityLabel="Passer cette étape"
+                  >
+                    <Text style={[styles.skipButtonText, { color: colors.textSecondary }]}>
+                      Passer cette étape
+                    </Text>
+                    <Text style={[styles.skipButtonSubtext, { color: colors.textMuted }]}>
+                      Vous pourrez configurer vos allergies à tout moment dans les Paramètres.
+                    </Text>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <TouchableOpacity
+                  style={[styles.primaryButton, { backgroundColor: colors.primary }]}
+                  onPress={handleSkipAllergens}
+                  activeOpacity={0.85}
+                  accessibilityRole="button"
+                  accessibilityLabel="Je n'ai pas d'allergie, continuer"
+                >
+                  <Text style={styles.primaryButtonText}>Je n&apos;ai pas d&apos;allergie</Text>
+                  <Ionicons
+                    name="arrow-forward"
+                    size={18}
+                    color="#FFFFFF"
+                    style={styles.buttonIcon}
+                  />
+                </TouchableOpacity>
+              )}
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    );
+  }
+
+  // ─── Étape 3 : Configuration Clé Gemini ───────────────────────────────────
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
@@ -217,7 +591,7 @@ export function OnboardingScreen({ onComplete }: Props) {
           <TouchableOpacity
             style={styles.backButton}
             onPress={() => {
-              setStep('welcome');
+              setStep('allergens');
               setErrorMessage('');
             }}
             activeOpacity={0.7}
@@ -448,6 +822,12 @@ const styles = createDynamicStyles((colors, shadows) => ({
     paddingTop: 8,
     paddingBottom: 28,
   },
+  scrollContainerAllergens: {
+    flexGrow: 1,
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 28,
+  },
 
   // Navigation supérieure
   topBar: {
@@ -652,6 +1032,120 @@ const styles = createDynamicStyles((colors, shadows) => ({
     marginTop: 'auto',
     paddingTop: 12,
     gap: 12,
+  },
+  actionFooterAllergens: {
+    alignItems: 'center',
+    marginTop: 20,
+    gap: 12,
+  },
+
+  // Sections allergènes
+  allergenSectionBlock: {
+    marginBottom: 20,
+  },
+  allergenSectionTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  allergenSectionSubtitle: {
+    fontSize: 13,
+    marginBottom: 12,
+  },
+  familiesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  familyChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    minHeight: 38,
+  },
+  familyEmoji: {
+    fontSize: 15,
+    marginRight: 6,
+  },
+  familyName: {
+    fontSize: 13,
+  },
+  familyCheckIcon: {
+    marginLeft: 6,
+  },
+  customInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  customInputWrapper: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    height: 44,
+  },
+  customInput: {
+    flex: 1,
+    fontSize: 14,
+    paddingVertical: 0,
+  },
+  customInputClearIcon: {
+    paddingLeft: 6,
+    paddingVertical: 4,
+  },
+  customAddBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  selectedHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  selectedHeaderTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  clearAllText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  selectedChipsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  selectedChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    maxWidth: '100%',
+  },
+  selectedChipEmoji: {
+    fontSize: 14,
+    marginRight: 6,
+  },
+  selectedChipText: {
+    fontSize: 13,
+    fontWeight: '600',
+    maxWidth: 200,
+  },
+  selectedChipRemove: {
+    marginLeft: 6,
+    padding: 2,
   },
   primaryButton: {
     width: '100%',

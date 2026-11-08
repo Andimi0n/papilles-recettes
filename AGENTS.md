@@ -44,7 +44,7 @@
 
 #### `App.tsx` & Écrans (`src/screens/`) :
 - **`App.tsx`** : Racine (`SafeAreaProvider` + `ThemeProvider`), routeur d'écrans en mémoire, gestion de l'onboarding et barre d'onglets inférieure à 4 entrées (`Recettes`, `Repas`, `Courses & Étagères`, `Paramètres`).
-- **`OnboardingScreen.tsx`** : Parcours d'accueil et découverte guidée des fonctionnalités au premier démarrage de l'application.
+- **`OnboardingScreen.tsx`** : Parcours d'accueil en 3 étapes au premier démarrage : découverte guidée, configuration optionnelle des allergies (14 familles INCO et aliments spécifiques avec option Passer) et clé IA Gemini BYOK.
 - **`HomeScreen.tsx`** (`HomeScreen.styles.ts`) : Flux de recettes, barre d'actions (Marmiton/Web, Scan IA, Ajout manuel), recherche textuelle, double bandeau de filtres rétractable au scroll (`useNativeDriver: true`), widgets `TodayMealWidget` et `ChefAiWidget`.
 - **`RecipeDetailScreen.tsx`** (`RecipeDetailScreen.styles.ts`) : Fiche recette complète, ajustement dynamique des portions, sous-sections *Livre de Chef*, conversion d'unités métriques, mode cuisine pas à pas, impression/export PDF (`RecipePrintModal`), partage QR code offline (`RecipeQrModal`), liaisons de recettes associées et ajout intelligent aux courses.
 - **`RecipeFormScreen.tsx`** (`RecipeFormScreen.styles.ts`) : Création/édition (tableau Nom / Quantité / Unité via `IngredientTableEditor`, liaisons entre recettes, étapes ordonnables avec `RecipeStepEditor`, puces `En placard` et `En finition`).
