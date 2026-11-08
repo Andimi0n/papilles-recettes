@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { CanonicalIngredient, ALLERGEN_FAMILIES, AllergenFamily } from '../../types/vocabulary';
 import { ShoppingAisle } from '../../types/shopping';
 import { VocabularyService } from '../../services/vocabularyService';
+import { StorageService } from '../../services/storageService';
 import { AllergenFamilyPickerModal } from './AllergenFamilyPickerModal';
 import { AISLE_CONFIGS, ALL_AISLES, classifyIngredientAisle } from '../../utils/aisleClassifier';
 import { FORBIDDEN_ISOLATED_ALIASES } from '../../data/canonicalVocabulary';
@@ -55,6 +56,8 @@ export const VocabularyManagerModal: React.FC<VocabularyManagerModalProps> = ({
   const [formIsPantryStaple, setFormIsPantryStaple] = useState(false);
   const [formAllergen, setFormAllergen] = useState<AllergenFamily | null>(null);
   const [formDensity, setFormDensity] = useState('');
+  const [formIsUserAllergic, setFormIsUserAllergic] = useState(false);
+  const [isAllergenFamilyExpanded, setIsAllergenFamilyExpanded] = useState(false);
   const [isAllergenPickerOpen, setIsAllergenPickerOpen] = useState(false);
 
   // État du modal de fusion
@@ -125,6 +128,8 @@ export const VocabularyManagerModal: React.FC<VocabularyManagerModalProps> = ({
     setFormIsPantryStaple(false);
     setFormAllergen(null);
     setFormDensity('');
+    setFormIsUserAllergic(false);
+    setIsAllergenFamilyExpanded(false);
     setIsEditModalOpen(true);
   };
 
@@ -136,6 +141,20 @@ export const VocabularyManagerModal: React.FC<VocabularyManagerModalProps> = ({
     setFormIsPantryStaple(Boolean(item.isPantryStaple));
     setFormAllergen(item.allergen || null);
     setFormDensity(item.density !== undefined ? item.density.toString() : '');
+    setIsAllergenFamilyExpanded(Boolean(item.allergen));
+
+    // Vérifier si l'aliment est déjà dans les allergies de l'utilisateur
+    StorageService.getUserAllergens()
+      .then((allergens) => {
+        const isAllergic = allergens.some((a) => {
+          const nameMatch = normalizeString(a.name) === normalizeString(item.canonicalName);
+          const idMatch = Boolean(a.canonicalId && a.canonicalId === item.id);
+          return nameMatch || idMatch;
+        });
+        setFormIsUserAllergic(isAllergic);
+      })
+      .catch(() => setFormIsUserAllergic(false));
+
     setIsEditModalOpen(true);
   };
 
@@ -239,6 +258,7 @@ export const VocabularyManagerModal: React.FC<VocabularyManagerModalProps> = ({
     }
 
     try {
+      let targetId = editingItem ? editingItem.id : undefined;
       if (editingItem) {
         await VocabularyService.update(editingItem.id, {
           canonicalName: cleanName,
@@ -249,7 +269,7 @@ export const VocabularyManagerModal: React.FC<VocabularyManagerModalProps> = ({
           density: parsedDensity,
         });
       } else {
-        await VocabularyService.add({
+        const created = await VocabularyService.add({
           canonicalName: cleanName,
           defaultAisle: formAisle,
           aliases: validAliases,
@@ -258,6 +278,19 @@ export const VocabularyManagerModal: React.FC<VocabularyManagerModalProps> = ({
           allergen: formAllergen || undefined,
           density: parsedDensity,
         });
+        targetId = created.id;
+      }
+
+      // Synchronisation avec les allergies personnelles de l'utilisateur
+      if (formIsUserAllergic) {
+        await StorageService.addUserAllergen({
+          name: cleanName,
+          canonicalId: targetId,
+          allergenFamily: formAllergen || null,
+        });
+      } else if (editingItem) {
+        await StorageService.removeUserAllergen(editingItem.id);
+        await StorageService.removeUserAllergen(cleanName);
       }
 
       await loadData();
@@ -656,35 +689,118 @@ export const VocabularyManagerModal: React.FC<VocabularyManagerModalProps> = ({
                   multiline
                 />
 
-                {/* Sélecteur Famille d'allergène majeur */}
-                <Text style={styles.fieldLabel}>Famille d&apos;allergène (Règlement INCO) :</Text>
+                {/* Bouton Allergique ? */}
                 <TouchableOpacity
                   style={[
-                    styles.dialogInput,
-                    {
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      marginBottom: 14,
-                    },
+                    styles.dialogToggleRow,
+                    formIsUserAllergic && styles.dialogToggleRowAllergic,
                   ]}
-                  onPress={() => setIsAllergenPickerOpen(true)}
-                  activeOpacity={0.7}
+                  onPress={() => setFormIsUserAllergic(!formIsUserAllergic)}
+                  activeOpacity={0.8}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: formIsUserAllergic }}
+                  accessibilityLabel="Je suis allergique à cet ingrédient"
                 >
-                  {formAllergen ? (() => {
-                    const famCfg = ALLERGEN_FAMILIES.find((f) => f.id === formAllergen);
-                    return (
-                      <Text style={{ fontSize: 14, color: colors.textPrimary, fontWeight: '600' }}>
-                        {famCfg?.emoji} {famCfg?.name}
+                  <View style={styles.dialogToggleLeft}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Ionicons
+                        name="shield-outline"
+                        size={16}
+                        color={formIsUserAllergic ? colors.danger : colors.textSecondary}
+                      />
+                      <Text
+                        style={[
+                          styles.dialogToggleTitle,
+                          formIsUserAllergic && { color: colors.danger, fontWeight: '700' },
+                        ]}
+                      >
+                        Allergique ?
                       </Text>
-                    );
-                  })() : (
-                    <Text style={{ fontSize: 14, color: colors.textMuted }}>
-                      Aucun allergène majeur
+                    </View>
+                    <Text style={styles.dialogToggleSubtitle}>
+                      Ajoute directement cet aliment à vos alertes personnelles d&apos;allergènes.
                     </Text>
-                  )}
-                  <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+                  </View>
+                  <View
+                    style={[
+                      styles.switchCircle,
+                      formIsUserAllergic && {
+                        backgroundColor: colors.danger,
+                        borderColor: colors.danger,
+                      },
+                    ]}
+                  >
+                    {formIsUserAllergic && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
+                  </View>
                 </TouchableOpacity>
+
+                {/* Accordéon discret Famille d'allergène INCO */}
+                <TouchableOpacity
+                  style={styles.expandableAllergenHeader}
+                  onPress={() => setIsAllergenFamilyExpanded(!isAllergenFamilyExpanded)}
+                  activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel="Déplier ou replier la famille d'allergènes INCO"
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+                    <Ionicons
+                      name={isAllergenFamilyExpanded ? 'chevron-down' : 'chevron-forward'}
+                      size={14}
+                      color={colors.textMuted}
+                    />
+                    <Text style={[styles.expandableAllergenTitle, { color: colors.textSecondary }]}>
+                      Famille d&apos;allergènes INCO (optionnel)
+                    </Text>
+                  </View>
+                  {formAllergen && (
+                    <View style={[styles.allergenMiniBadge, { backgroundColor: colors.amberLight || '#FEF3C7' }]}>
+                      <Text style={{ fontSize: 12, color: colors.amber || '#D97706', fontWeight: '600' }}>
+                        {ALLERGEN_FAMILIES.find((f) => f.id === formAllergen)?.emoji}{' '}
+                        {ALLERGEN_FAMILIES.find((f) => f.id === formAllergen)?.name}
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+
+                {isAllergenFamilyExpanded && (
+                  <View style={styles.expandableAllergenBody}>
+                    <TouchableOpacity
+                      style={[
+                        styles.dialogInput,
+                        {
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          marginBottom: 6,
+                        },
+                      ]}
+                      onPress={() => setIsAllergenPickerOpen(true)}
+                      activeOpacity={0.7}
+                    >
+                      {formAllergen ? (() => {
+                        const famCfg = ALLERGEN_FAMILIES.find((f) => f.id === formAllergen);
+                        return (
+                          <Text style={{ fontSize: 14, color: colors.textPrimary, fontWeight: '600' }}>
+                            {famCfg?.emoji} {famCfg?.name}
+                          </Text>
+                        );
+                      })() : (
+                        <Text style={{ fontSize: 14, color: colors.textMuted }}>
+                          Aucune famille majeure associée
+                        </Text>
+                      )}
+                      <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+                    </TouchableOpacity>
+                    {formAllergen && (
+                      <TouchableOpacity
+                        onPress={() => setFormAllergen(null)}
+                        style={{ alignSelf: 'flex-start', paddingVertical: 4, marginBottom: 8 }}
+                      >
+                        <Text style={{ fontSize: 12, color: colors.danger }}>Retirer la famille INCO</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                )}
 
                 {/* Champ Densité (optionnel) */}
                 <Text style={styles.fieldLabel}>Densité en g/ml (optionnel) :</Text>
@@ -1141,6 +1257,31 @@ const styles = createDynamicStyles((colors, shadows) => ({
   dialogToggleRowActive: {
     borderColor: colors.primary,
     backgroundColor: colors.primary + '10',
+  },
+  dialogToggleRowAllergic: {
+    borderColor: colors.danger,
+    backgroundColor: colors.danger + '10',
+  },
+  expandableAllergenHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    paddingHorizontal: 4,
+    marginTop: 8,
+  },
+  expandableAllergenTitle: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  expandableAllergenBody: {
+    marginTop: 2,
+    marginBottom: 6,
+  },
+  allergenMiniBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
   },
   dialogToggleLeft: {
     flex: 1,

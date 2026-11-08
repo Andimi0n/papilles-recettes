@@ -18,6 +18,7 @@ import { ShoppingAisle } from '../../types/shopping';
 import { AISLE_CONFIGS } from '../../utils/aisleClassifier';
 import { normalizeString } from '../../utils/helpers';
 import { VocabularyService } from '../../services/vocabularyService';
+import { StorageService } from '../../services/storageService';
 import {
   UnifiedIngredientService,
   ClosestCanonicalMatch,
@@ -68,6 +69,8 @@ export const QualifyIngredientModal: React.FC<QualifyIngredientModalProps> = ({
   const [selectedAisle, setSelectedAisle] = useState<ShoppingAisle>('Épicerie & Condiments');
   const [selectedAllergen, setSelectedAllergen] = useState<AllergenFamily | null>(null);
   const [isPantryStaple, setIsPantryStaple] = useState(false);
+  const [isUserAllergic, setIsUserAllergic] = useState(false);
+  const [isAllergenFamilyExpanded, setIsAllergenFamilyExpanded] = useState(false);
   const [extraAliasesInput, setExtraAliasesInput] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -101,6 +104,8 @@ export const QualifyIngredientModal: React.FC<QualifyIngredientModalProps> = ({
     setSelectedAisle(defaults.suggestedAisle);
     setSelectedAllergen(defaults.suggestedAllergen);
     setIsPantryStaple(defaults.suggestedIsPantryStaple);
+    setIsUserAllergic(false);
+    setIsAllergenFamilyExpanded(false);
     setExtraAliasesInput('');
     setErrorMessage(null);
     setIsSubmitting(false);
@@ -207,6 +212,13 @@ export const QualifyIngredientModal: React.FC<QualifyIngredientModalProps> = ({
     setIsSubmitting(false);
 
     if (result.success && result.ingredient) {
+      if (isUserAllergic) {
+        await StorageService.addUserAllergen({
+          name: result.ingredient.canonicalName,
+          canonicalId: result.ingredient.id,
+          allergenFamily: selectedAllergen || null,
+        });
+      }
       onCreateCanonical(result.ingredient);
     } else {
       setErrorMessage(result.error || 'Impossible d\'enregistrer cet ingrédient.');
@@ -478,72 +490,128 @@ export const QualifyIngredientModal: React.FC<QualifyIngredientModalProps> = ({
                 </ScrollView>
               </View>
 
-              {/* 3. Déclaration d'allergène obligatoire (Sécurité Sanitaire) */}
+              {/* 3. Bouton Allergique ? */}
+              <View style={styles.stapleRow}>
+                <View style={styles.stapleTextGroup}>
+                  <View style={styles.stapleTitleRow}>
+                    <Ionicons
+                      name="shield-outline"
+                      size={16}
+                      color={isUserAllergic ? colors.danger : colors.primary}
+                    />
+                    <Text
+                      style={[
+                        styles.stapleTitle,
+                        isUserAllergic && { color: colors.danger, fontWeight: '700' },
+                      ]}
+                    >
+                      Allergique ?
+                    </Text>
+                  </View>
+                  <Text style={styles.stapleSubtitle}>
+                    Ajoute directement cet aliment à vos alertes personnelles d&apos;allergènes.
+                  </Text>
+                </View>
+                <Switch
+                  value={isUserAllergic}
+                  onValueChange={setIsUserAllergic}
+                  trackColor={{ false: colors.borderLight, true: colors.danger }}
+                  thumbColor="#FFFFFF"
+                />
+              </View>
+
+              {/* Accordéon discret Famille d'allergène INCO */}
               <View style={styles.formGroup}>
-                <View style={styles.allergenHeaderRow}>
-                  <Text style={styles.fieldLabel}>Déclaration d&apos;allergène (obligatoire) :</Text>
-                  {detectedAllergen && (
+                <TouchableOpacity
+                  style={styles.expandableHeaderRow}
+                  onPress={() => setIsAllergenFamilyExpanded(!isAllergenFamilyExpanded)}
+                  activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel="Déplier ou replier la famille d'allergènes INCO"
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+                    <Ionicons
+                      name={isAllergenFamilyExpanded ? 'chevron-down' : 'chevron-forward'}
+                      size={14}
+                      color={colors.textMuted}
+                    />
+                    <Text style={styles.subFieldLabel}>
+                      Famille d&apos;allergènes INCO (optionnel)
+                    </Text>
+                  </View>
+                  {selectedAllergen && (
+                    <View style={[styles.allergenMiniBadge, { backgroundColor: colors.amberLight || '#FEF3C7' }]}>
+                      <Text style={{ fontSize: 12, color: colors.amber || '#D97706', fontWeight: '600' }}>
+                        {ALLERGEN_FAMILIES.find((f) => f.id === selectedAllergen)?.emoji}{' '}
+                        {ALLERGEN_FAMILIES.find((f) => f.id === selectedAllergen)?.name}
+                      </Text>
+                    </View>
+                  )}
+                  {!selectedAllergen && detectedAllergen && (
                     <View style={styles.hintBadge}>
                       <Ionicons name="sparkles" size={11} color={colors.primary} />
                       <Text style={styles.hintBadgeText}>Suggestion détectée</Text>
                     </View>
                   )}
-                </View>
-
-                {/* Choix 1 : Aucun allergène */}
-                <TouchableOpacity
-                  style={[
-                    styles.noAllergenBtn,
-                    selectedAllergen === null && styles.noAllergenBtnSelected,
-                  ]}
-                  onPress={() => setSelectedAllergen(null)}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons
-                    name={selectedAllergen === null ? 'checkmark-circle' : 'ellipse-outline'}
-                    size={16}
-                    color={selectedAllergen === null ? colors.primary : colors.textMuted}
-                  />
-                  <Text
-                    style={[
-                      styles.noAllergenBtnText,
-                      selectedAllergen === null && styles.noAllergenBtnTextSelected,
-                    ]}
-                  >
-                    Aucun allergène majeur (produit sûr)
-                  </Text>
                 </TouchableOpacity>
 
-                {/* Choix 2 : Les 14 familles d'allergènes INCO */}
-                <Text style={styles.subFieldLabel}>Ou sélectionner la famille d&apos;allergène concernée :</Text>
-                <View style={styles.allergenWrap}>
-                  {ALLERGEN_FAMILIES.map((family) => {
-                    const isSelected = selectedAllergen === family.id;
-                    const isSuggested = detectedAllergen === family.id;
-                    return (
-                      <TouchableOpacity
-                        key={family.id}
+                {isAllergenFamilyExpanded && (
+                  <View style={{ marginTop: 8 }}>
+                    {/* Choix 1 : Aucun allergène */}
+                    <TouchableOpacity
+                      style={[
+                        styles.noAllergenBtn,
+                        selectedAllergen === null && styles.noAllergenBtnSelected,
+                      ]}
+                      onPress={() => setSelectedAllergen(null)}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons
+                        name={selectedAllergen === null ? 'checkmark-circle' : 'ellipse-outline'}
+                        size={16}
+                        color={selectedAllergen === null ? colors.primary : colors.textMuted}
+                      />
+                      <Text
                         style={[
-                          styles.allergenChip,
-                          isSelected && styles.allergenChipSelected,
-                          !isSelected && isSuggested && styles.allergenChipSuggested,
+                          styles.noAllergenBtnText,
+                          selectedAllergen === null && styles.noAllergenBtnTextSelected,
                         ]}
-                        onPress={() => setSelectedAllergen(family.id)}
-                        activeOpacity={0.7}
                       >
-                        <Text style={styles.allergenEmoji}>{family.emoji}</Text>
-                        <Text
-                          style={[
-                            styles.allergenName,
-                            isSelected && styles.allergenNameSelected,
-                          ]}
-                        >
-                          {family.name}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
+                        Aucun allergène majeur (produit sûr)
+                      </Text>
+                    </TouchableOpacity>
+
+                    {/* Choix 2 : Les 14 familles d'allergènes INCO */}
+                    <View style={styles.allergenWrap}>
+                      {ALLERGEN_FAMILIES.map((family) => {
+                        const isSelected = selectedAllergen === family.id;
+                        const isSuggested = detectedAllergen === family.id;
+                        return (
+                          <TouchableOpacity
+                            key={family.id}
+                            style={[
+                              styles.allergenChip,
+                              isSelected && styles.allergenChipSelected,
+                              !isSelected && isSuggested && styles.allergenChipSuggested,
+                            ]}
+                            onPress={() => setSelectedAllergen(isSelected ? null : family.id)}
+                            activeOpacity={0.7}
+                          >
+                            <Text style={styles.allergenEmoji}>{family.emoji}</Text>
+                            <Text
+                              style={[
+                                styles.allergenName,
+                                isSelected && styles.allergenNameSelected,
+                              ]}
+                            >
+                              {family.name}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </View>
+                )}
               </View>
 
               {/* 4. Fond de placard */}
@@ -852,6 +920,17 @@ const styles = createDynamicStyles((colors) => ({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 6,
+  },
+  expandableHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 6,
+  },
+  allergenMiniBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
   },
   hintBadge: {
     flexDirection: 'row',
