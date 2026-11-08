@@ -51,7 +51,7 @@
 - **`ScanRecipeScreen.tsx`** : Extraction IA multimodale Gemini (capture directe avec `CameraCaptureModal`, sélection galerie, photos recto/verso, saisie texte libre).
 - **`ShoppingListScreen.tsx`** (`ShoppingListScreen.styles.ts`) : Hub unifié **Courses & Étagères** (switch segmenté entre stock `FridgeStockView` et liste de courses catégorisée par rayon), mode magasin plein écran `InStoreShoppingModal`, passerelle de rangement et proposition de purge des articles non alimentaires.
 - **`MealPlannerScreen.tsx`** (`MealPlannerScreen.styles.ts`) : Planning hebdomadaire (déjeuner/dîner du lundi au dimanche) et journal de suivi quotidien avec autocomplétion intelligente.
-- **`SettingsScreen.tsx`** (`SettingsScreen.styles.ts`) : Thèmes visuels, clé Gemini BYOK (`expo-secure-store`), convives par défaut (1–50), gestionnaire de lexique canonique, personnalisation du Chef IA (prompts favoris, humeurs), export/import de packs JSON/ZIP avec photos, statistiques locales.
+- **`SettingsScreen.tsx`** (`SettingsScreen.styles.ts`) : Thèmes visuels, clé Gemini BYOK (`expo-secure-store`), convives par défaut (1–50), filtre végétarien par défaut, gestionnaire de lexique canonique, personnalisation du Chef IA (prompts favoris, humeurs), export/import de packs JSON/ZIP avec photos, statistiques locales.
 
 #### Logique métier & Persistance (`src/services/`) :
 - **`storageService.ts`** : Wrapper métier central et coordinateur de persistance. Gère le cache mémoire `memoryCache`, les listeners réactifs, `sanitizeStoredRecipe()`, `sanitizeImageUrl()`, la cascade du lexique `handleVocabularyCascade()`, l'onboarding, et délègue à `DatabaseService` et `ImageStorageService`.

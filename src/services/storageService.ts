@@ -50,6 +50,7 @@ const CURRENT_SCHEMA_VERSION = 'v4';
 const SETTING_THEME_MODE = 'theme_mode_v1';
 const SETTING_RECIPE_VIEW_MODE = 'recipe_view_mode_v1';
 const SETTING_DEFAULT_SERVINGS = 'default_servings_v1';
+const SETTING_DEFAULT_VEGETARIAN_FILTER = 'filter_vegetarian_default_v1';
 const SETTING_ALLERGEN_FILTER = 'filter_allergens_recipes_v1';
 const SETTING_ALLERGEN_EXCLUDE_AI = 'exclude_allergens_ai_v1';
 const SETTING_CHEF_FAVORITE_PROMPTS = 'chef_favorite_prompts';
@@ -2177,6 +2178,29 @@ export const StorageService = {
       await DatabaseService.setSetting(SETTING_DEFAULT_SERVINGS, String(servings));
     } catch (e) {
       console.error('Erreur sauvegarde portions par défaut:', e);
+    }
+  },
+
+  /**
+   * Récupère le réglage de filtrage végétarien par défaut (faux par défaut)
+   */
+  async getDefaultVegetarianFilter(): Promise<boolean> {
+    try {
+      const stored = await DatabaseService.getSetting(SETTING_DEFAULT_VEGETARIAN_FILTER);
+      return stored === 'true';
+    } catch {
+      return false;
+    }
+  },
+
+  /**
+   * Sauvegarde le choix du filtre végétarien par défaut
+   */
+  async saveDefaultVegetarianFilter(enabled: boolean): Promise<void> {
+    try {
+      await DatabaseService.setSetting(SETTING_DEFAULT_VEGETARIAN_FILTER, enabled ? 'true' : 'false');
+    } catch (e) {
+      console.error('Erreur sauvegarde filtre végétarien par défaut:', e);
     }
   },
 

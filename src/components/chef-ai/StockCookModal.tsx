@@ -257,12 +257,18 @@ export const StockCookModal: React.FC<StockCookModalProps> = ({
   }, [cancelCurrentAiOperation]);
 
 
-  // Charger les portions par défaut depuis le storage si configuré
+  // Charger les portions et le filtre végé par défaut depuis le storage si configuré
   useEffect(() => {
     if (!visible) return;
     let isMounted = true;
-    StorageService.getDefaultServings().then((val) => {
-      if (isMounted && val && val >= 1) setServings(val);
+    Promise.all([
+      StorageService.getDefaultServings(),
+      StorageService.getDefaultVegetarianFilter(),
+    ]).then(([val, defaultVege]) => {
+      if (isMounted) {
+        if (val && val >= 1) setServings(val);
+        if (defaultVege) setIsVegetarian(true);
+      }
     });
     return () => {
       isMounted = false;

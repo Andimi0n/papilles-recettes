@@ -128,6 +128,7 @@ const SettingsScreenComponent: React.FC<SettingsScreenProps> = ({
 
   // Préférences
   const [defaultServings, setDefaultServings] = useState(4);
+  const [isDefaultVegetarian, setIsDefaultVegetarian] = useState(false);
   const [shoppingCount, setShoppingCount] = useState(0);
   const [plannerSettings, setPlannerSettings] = useState<PlannerSettings>(DEFAULT_PLANNER_SETTINGS);
 
@@ -220,7 +221,7 @@ const SettingsScreenComponent: React.FC<SettingsScreenProps> = ({
     let isMounted = true;
     const initSettings = async () => {
       try {
-        const [key, servings, allergens, filterEnabled, excludeAi, pSettings, moods] = await Promise.all([
+        const [key, servings, allergens, filterEnabled, excludeAi, pSettings, moods, defaultVege] = await Promise.all([
           RecipeAiService.getApiKey(),
           StorageService.getDefaultServings(),
           StorageService.getUserAllergens(),
@@ -228,10 +229,12 @@ const SettingsScreenComponent: React.FC<SettingsScreenProps> = ({
           StorageService.getAiAllergenExclusionEnabled(),
           StorageService.getPlannerSettings(),
           StorageService.getChefMoods(),
+          StorageService.getDefaultVegetarianFilter(),
         ]);
         if (isMounted) {
           setApiKey(key || '');
           setDefaultServings(servings);
+          setIsDefaultVegetarian(defaultVege);
           setUserAllergens(allergens);
           setIsAllergenFilterEnabled(filterEnabled);
           setIsAiAllergenExclusionEnabled(excludeAi);
@@ -364,6 +367,11 @@ const SettingsScreenComponent: React.FC<SettingsScreenProps> = ({
   const handleSelectServings = async (servings: number) => {
     setDefaultServings(servings);
     await StorageService.saveDefaultServings(servings);
+  };
+
+  const handleToggleDefaultVegetarian = async (enabled: boolean) => {
+    setIsDefaultVegetarian(enabled);
+    await StorageService.saveDefaultVegetarianFilter(enabled);
   };
 
   // --- Gestion des Allergènes & Intolérances ---
@@ -1019,6 +1027,29 @@ const SettingsScreenComponent: React.FC<SettingsScreenProps> = ({
                   color={colors.textPrimary}
                 />
               </TouchableOpacity>
+            </View>
+
+            <View style={[styles.allergenToggleDivider, { backgroundColor: colors.borderLight, marginVertical: 14 }]} />
+
+            <View style={styles.allergenToggleRow}>
+              <View style={styles.allergenToggleTextCol}>
+                <View style={styles.allergenToggleTitleRow}>
+                  <Ionicons name="leaf" size={16} color={isDark ? '#4ADE80' : '#15803D'} style={{ marginRight: 6 }} />
+                  <Text style={[styles.allergenToggleTitle, { color: colors.textPrimary }]}>
+                    Filtrer végétarien par défaut
+                  </Text>
+                </View>
+                <Text style={[styles.allergenToggleSub, { color: colors.textMuted }]}>
+                  Active automatiquement le filtre végétarien sur l&apos;accueil et la recherche de recettes.
+                </Text>
+              </View>
+              <Switch
+                value={isDefaultVegetarian}
+                onValueChange={handleToggleDefaultVegetarian}
+                trackColor={{ false: colors.borderLight, true: colors.primary }}
+                thumbColor="#FFFFFF"
+                accessibilityLabel="Filtrer végétarien par défaut"
+              />
             </View>
           </View>
 

@@ -120,6 +120,7 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
   const [sortBy, setSortBy] = useState<SortOption>('rating_desc');
   const [minRatingFilter, setMinRatingFilter] = useState<number>(0);
   const [onlyVegetarian, setOnlyVegetarian] = useState(false);
+  const [defaultVegetarianFilter, setDefaultVegetarianFilter] = useState(false);
   const [onlyDoableWithStock, setOnlyDoableWithStock] = useState(initialOnlyDoable);
   const [viewMode, setViewMode] = useState<RecipeViewMode>(initialViewMode);
   const [prevInitialViewMode, setPrevInitialViewMode] = useState(initialViewMode);
@@ -353,17 +354,22 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
     let isMounted = true;
     const fetchInitialHomeScreenData = async () => {
       try {
-        const [meals, items, allergens, filterEnabled] = await Promise.all([
+        const [meals, items, allergens, filterEnabled, defaultVege] = await Promise.all([
           StorageService.getTodayMeals(),
           StorageService.getFridgeItems(),
           StorageService.getUserAllergens(),
           StorageService.getAllergenFilterEnabled(),
+          StorageService.getDefaultVegetarianFilter(),
         ]);
         if (isMounted) {
           setTodayMeals(meals);
           setStockItems(items);
           setUserAllergens(allergens);
           setIsAllergenFilterEnabled(filterEnabled);
+          setDefaultVegetarianFilter(defaultVege);
+          if (defaultVege) {
+            setOnlyVegetarian(true);
+          }
         }
       } catch (e) {
         console.error('Erreur chargement initial HomeScreen:', e);
@@ -387,6 +393,13 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
         await loadTodayMeals();
         await loadAllergenSettings();
         await loadStockItems();
+        const defaultVege = await StorageService.getDefaultVegetarianFilter();
+        setDefaultVegetarianFilter((prev) => {
+          if (prev !== defaultVege) {
+            setOnlyVegetarian(defaultVege);
+          }
+          return defaultVege;
+        });
       })();
     }
   }, [isActive, loadTodayMeals, loadAllergenSettings, loadStockItems]);
@@ -778,7 +791,7 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
     setSelectedDifficulties([]);
     setIngredientMatchMode('all');
     setMinRatingFilter(0);
-    setOnlyVegetarian(false);
+    setOnlyVegetarian(defaultVegetarianFilter);
     setOnlyDoableWithStock(false);
     setCurrentPage(1);
     forceShowFilterBar();

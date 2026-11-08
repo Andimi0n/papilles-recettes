@@ -80,7 +80,7 @@ Application **100 % offline-first**, sécurisée, sans création de compte oblig
   - **Ingrédients principaux** : les denrées maîtresses du plat.
   - **Assaisonnements & condiments** : huiles, vinaigres, assaisonnements réputés déjà disponibles en cuisine.
   - **En finition & au goût** : herbes fraîches, graines, épices au goût ou touches facultatives.
-- **Ajustement dynamique des convives** : sélecteur interactif recalculant instantanément les proportions de tous les ingrédients, avec gestion des portions par défaut configurables dans les Paramètres.
+- **Ajustement dynamique des convives & régimes** : sélecteur interactif recalculant instantanément les proportions de tous les ingrédients, avec gestion des portions et option de filtrage végétarien par défaut configurables dans les Paramètres.
 - **Liaisons entre recettes (`RecipeLinkPickerModal`)** : associez des recettes complémentaires entre elles (ex: lier une pâte brisée maison ou une sauce béchamel à votre plat principal) avec renvoi direct d'une fiche à l'autre.
 - **Convertisseur d'unités culinaires intégré** : basculez d'un tap l'affichage des ingrédients entre unités originales, mesures de masse (`g`, `kg`) ou volumes métriques (`ml`, `cl`, `L`).
 - **Ajout intelligent aux courses avec sélection granulaire** : les ingrédients principaux sont cochés par défaut ; les assaisonnements et finitions restent décochés par défaut.
