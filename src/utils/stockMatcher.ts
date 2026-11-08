@@ -364,12 +364,14 @@ export function evaluateRecipesWithStock(
   stockItems: FridgeItem[],
   options?: { assumePantryStaplesAvailable?: boolean }
 ): Map<string, RecipeStockEvaluation> {
-  if (recipes.length === 0 || stockItems.length === 0) {
+  if (!recipes || recipes.length === 0) {
     return new Map<string, RecipeStockEvaluation>();
   }
 
+  const safeStockItems = stockItems || [];
+
   // Clé d'invalidation numérique rapide et sans allocation intermédiaire
-  const stockFingerprint = computeStockFingerprint(stockItems);
+  const stockFingerprint = computeStockFingerprint(safeStockItems);
   const recipesFingerprint = computeRecipesFingerprint(recipes);
   const key = `${stockFingerprint}::${recipesFingerprint}::${options?.assumePantryStaplesAvailable ?? true}`;
 
@@ -377,7 +379,7 @@ export function evaluateRecipesWithStock(
     return cachedEvaluationMap;
   }
 
-  const preparedStock = prepareStockItems(stockItems);
+  const preparedStock = prepareStockItems(safeStockItems);
   const map = new Map<string, RecipeStockEvaluation>();
 
   for (let i = 0; i < recipes.length; i++) {

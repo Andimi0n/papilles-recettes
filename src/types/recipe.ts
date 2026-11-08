@@ -49,7 +49,7 @@ export interface Recipe {
   updatedAt: string;
 }
 
-export type SortOption = 'rating_desc' | 'rating_asc' | 'prep_time' | 'title' | 'recent';
+export type SortOption = 'rating_desc' | 'rating_asc' | 'prep_time' | 'title' | 'recent' | 'stock';
 
 export type RecipeViewMode = 'detailed' | 'compact' | 'grid';
 

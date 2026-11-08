@@ -1,4 +1,4 @@
-import { Recipe, Difficulty } from '../types/recipe';
+import { Recipe, Difficulty, SortOption } from '../types/recipe';
 import { normalizeString, stemWord, levenshteinDistance } from './helpers';
 import { normalizeIngredient } from './ingredientNormalizer';
 import { VocabularyService } from '../services/vocabularyService';
@@ -714,5 +714,104 @@ export function recipeMatchesTags(
     return targetTags.some((target) =>
       normalizedRecipeTags.includes(target.trim().toLowerCase())
     );
+  }
+}
+
+/**
+ * Comparateur de recettes respectant les règles métier de tri de Papilles :
+ * - Stock ('stock') : d'abord ingrédients en stock (0 manquant, puis 1, 2...),
+ *   en cas d'égalité d'abord note puis alphabétique sur le titre.
+ * - Temps de préparation ('prep_time') : temps total croissant (préparation + cuisson),
+ *   en cas d'égalité d'abord note puis alphabétique sur le titre.
+ * - Date d'ajout ('recent') : date de création décroissante,
+ *   en cas d'égalité d'abord note puis alphabétique sur le titre.
+ * - Note ('rating_desc') : note décroissante,
+ *   en cas d'égalité alphabétique sur le titre.
+ * - Titre ('title') : alphabétique sur le titre, en cas d'égalité note décroissante.
+ */
+export function compareRecipes(
+  a: Recipe,
+  b: Recipe,
+  sortBy: SortOption,
+  doableRecipesMap?: Map<string, { missingIngredients: any[] }>
+): number {
+  const compareRatingThenTitle = (): number => {
+    const ratingA = typeof a.rating === 'number' ? a.rating : 0;
+    const ratingB = typeof b.rating === 'number' ? b.rating : 0;
+    if (ratingB !== ratingA) {
+      return ratingB - ratingA;
+    }
+    return (a.title || '').localeCompare(b.title || '', 'fr', { sensitivity: 'base' });
+  };
+
+  const compareTitle = (): number => {
+    return (a.title || '').localeCompare(b.title || '', 'fr', { sensitivity: 'base' });
+  };
+
+  switch (sortBy) {
+    case 'stock': {
+      const getMissing = (r: Recipe): number => {
+        if (doableRecipesMap) {
+          const ev = doableRecipesMap.get(r.id);
+          if (ev && Array.isArray(ev.missingIngredients)) {
+            return ev.missingIngredients.length;
+          }
+        }
+        return (r.ingredients || []).filter((i) => !i.isPantryStaple && !i.isOptional).length;
+      };
+      const missingA = getMissing(a);
+      const missingB = getMissing(b);
+      if (missingA !== missingB) {
+        return missingA - missingB;
+      }
+      return compareRatingThenTitle();
+    }
+
+    case 'prep_time': {
+      const timeA = (a.prepTimeMinutes || 0) + (a.cookTimeMinutes || 0);
+      const timeB = (b.prepTimeMinutes || 0) + (b.cookTimeMinutes || 0);
+      if (timeA !== timeB) {
+        return timeA - timeB;
+      }
+      return compareRatingThenTitle();
+    }
+
+    case 'recent': {
+      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      if (dateB !== dateA) {
+        return dateB - dateA;
+      }
+      return compareRatingThenTitle();
+    }
+
+    case 'rating_desc': {
+      const ratingA = typeof a.rating === 'number' ? a.rating : 0;
+      const ratingB = typeof b.rating === 'number' ? b.rating : 0;
+      if (ratingB !== ratingA) {
+        return ratingB - ratingA;
+      }
+      return compareTitle();
+    }
+
+    case 'rating_asc': {
+      const ratingA = typeof a.rating === 'number' ? a.rating : 0;
+      const ratingB = typeof b.rating === 'number' ? b.rating : 0;
+      if (ratingA !== ratingB) {
+        return ratingA - ratingB;
+      }
+      return compareTitle();
+    }
+
+    case 'title': {
+      const titleCmp = compareTitle();
+      if (titleCmp !== 0) {
+        return titleCmp;
+      }
+      return (b.rating ?? 0) - (a.rating ?? 0);
+    }
+
+    default:
+      return compareRatingThenTitle();
   }
 }

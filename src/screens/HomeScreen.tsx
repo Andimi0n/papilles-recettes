@@ -39,6 +39,7 @@ import {
   recipeMatchesTime,
   recipeMatchesDifficulty,
   recipeMatchesTags,
+  compareRecipes,
 } from '../utils/searchEngine';
 import { evaluateRecipesWithStock, RecipeStockEvaluation } from '../utils/stockMatcher';
 import { prepareUserAllergens, recipeContainsAllergens } from '../utils/allergenMatcher';
@@ -439,7 +440,7 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
 
   // Évaluation des recettes faisables avec le stock
   const { doableRecipesMap, doableCount } = useMemo(() => {
-    if (stockItems.length === 0 || recipes.length === 0) {
+    if (recipes.length === 0) {
       return { doableRecipesMap: new Map<string, RecipeStockEvaluation>(), doableCount: 0 };
     }
     const map = evaluateRecipesWithStock(recipes, stockItems, {
@@ -674,37 +675,16 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
     // Tri (copie superficielle pour ne pas altérer baseFilteredResults)
     const sorted = [...result];
     sorted.sort((a, b) => {
-      // En cours de recherche textuelle, les résultats les plus pertinents (score élevé) sont mis en avant
-      if (isSearching) {
-        if (sortBy === 'rating_desc') {
-          // Si les notes sont différentes, respecter la note, sinon départager par score de recherche
-          if (b.recipe.rating !== a.recipe.rating) {
-            return b.recipe.rating - a.recipe.rating;
-          }
-          return b.score - a.score;
-        }
-        if (sortBy === 'recent') {
-          return b.score - a.score;
-        }
+      // En cours de recherche textuelle, si le tri récent (défaut) est actif, privilégier la pertinence textuelle
+      if (isSearching && sortBy === 'recent' && b.score !== a.score) {
+        return b.score - a.score;
       }
 
-      switch (sortBy) {
-        case 'rating_desc':
-          return b.recipe.rating - a.recipe.rating;
-        case 'rating_asc':
-          return a.recipe.rating - b.recipe.rating;
-        case 'prep_time':
-          return (a.recipe.prepTimeMinutes + a.recipe.cookTimeMinutes) - (b.recipe.prepTimeMinutes + b.recipe.cookTimeMinutes);
-        case 'title':
-          return a.recipe.title.localeCompare(b.recipe.title, 'fr');
-        case 'recent':
-        default:
-          return new Date(b.recipe.createdAt).getTime() - new Date(a.recipe.createdAt).getTime();
-      }
+      return compareRecipes(a.recipe, b.recipe, sortBy, doableRecipesMap);
     });
 
     return sorted.map((r) => r.recipe);
-  }, [baseFilteredResults, selectedCategories, isSearching, sortBy]);
+  }, [baseFilteredResults, selectedCategories, isSearching, sortBy, doableRecipesMap]);
 
   // Pagination (20 recettes par page pour une fluidité maximale)
   const totalPages = Math.max(1, Math.ceil(filteredRecipes.length / RECIPES_PER_PAGE));
@@ -1259,6 +1239,8 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
                 <Text style={styles.toolPillText}>
                   Tri : {sortBy === 'rating_desc'
                     ? 'Note'
+                    : sortBy === 'stock'
+                    ? 'Stock'
                     : sortBy === 'prep_time'
                     ? 'Temps'
                     : sortBy === 'title'
@@ -1410,12 +1392,13 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
                     onPress={() => setIsFilterModalVisible(false)}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   >
-                    <Ionicons name="close" size={20} color={Colors.textSecondary} />
+                    <Ionicons name="close" size={20} color={colors.textSecondary} />
                   </TouchableOpacity>
                 </View>
 
                 {[
                   { id: 'rating_desc', label: 'Note', icon: 'star' },
+                  { id: 'stock', label: 'Ingrédients en stock', icon: 'restaurant-outline' },
                   { id: 'prep_time', label: 'Temps de préparation', icon: 'time-outline' },
                   { id: 'recent', label: "Date d'ajout", icon: 'calendar-outline' },
                   { id: 'title', label: 'A - Z', icon: 'text-outline' },
