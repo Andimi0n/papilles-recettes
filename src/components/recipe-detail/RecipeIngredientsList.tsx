@@ -15,6 +15,7 @@ import {
 } from '../../utils/unitConverter';
 import { RecipeStockEvaluation } from '../../utils/stockMatcher';
 import { RecipeServingsController } from './RecipeServingsController';
+import { SwipeableRecipeIngredientRow } from './SwipeableRecipeIngredientRow';
 import { styles } from '../../screens/RecipeDetailScreen.styles';
 
 export interface IngredientGroup {
@@ -34,14 +35,14 @@ export interface RecipeIngredientsListProps {
   globalConversionMode: ConversionMode;
   onCycleGlobalConversion: () => void;
   ingredientGroups: { hasSubsections: boolean; groups: IngredientGroup[] };
-  checkedIngredients: Record<string, boolean>;
-  onToggleIngredientCheck: (id: string) => void;
   ingredientModes: Record<string, ConversionMode>;
   onCycleIngredientUnit: (ing: Ingredient) => void;
   allergenIngredientIdsSet: Set<string>;
   linkedPreparations: { ingredient: Ingredient; linkedRecipe: Recipe }[];
   linkedRecipesMap: Map<string, Recipe>;
   onOpenLinkedRecipe?: (recipeId: string) => void;
+  onSwipeIngredientToShopping: (ingredient: Ingredient) => void;
+  onQualifyIngredient: (ingredient: Ingredient) => void;
 }
 
 export const RecipeIngredientsList: React.FC<RecipeIngredientsListProps> = ({
@@ -53,14 +54,14 @@ export const RecipeIngredientsList: React.FC<RecipeIngredientsListProps> = ({
   globalConversionMode,
   onCycleGlobalConversion,
   ingredientGroups,
-  checkedIngredients,
-  onToggleIngredientCheck,
   ingredientModes,
   onCycleIngredientUnit,
   allergenIngredientIdsSet,
   linkedPreparations,
   linkedRecipesMap,
   onOpenLinkedRecipe,
+  onSwipeIngredientToShopping,
+  onQualifyIngredient,
 }) => {
   const { colors, isDark } = useTheme();
 
@@ -178,8 +179,9 @@ export const RecipeIngredientsList: React.FC<RecipeIngredientsListProps> = ({
             </View>
           ) : null}
 
-          {group.items.map((ing) => {
-            const isChecked = !!checkedIngredients[ing.id];
+          {group.items.map((ing, ingIdx) => {
+            const isFirst = ingIdx === 0;
+            const isLast = ingIdx === group.items.length - 1;
             const scaledQty = scaleQuantity(ing.quantity, recipe.servings || 4, currentServings);
             const isScaled = currentServings !== recipe.servings && !!ing.quantity;
             const isAllergen = allergenIngredientIdsSet.has(ing.id) || allergenIngredientIdsSet.has(normalizeString(ing.name));
@@ -214,93 +216,94 @@ export const RecipeIngredientsList: React.FC<RecipeIngredientsListProps> = ({
             }
 
             return (
-              <TouchableOpacity
+              <SwipeableRecipeIngredientRow
                 key={ing.id}
-                style={[
-                  styles.ingredientRow,
-                  isPantry && styles.ingredientRowPantry,
-                  isChecked && styles.rowChecked,
-                  isAllergen && !isChecked && styles.ingredientRowAllergen,
-                ]}
-                onPress={() => onToggleIngredientCheck(ing.id)}
-                activeOpacity={0.7}
+                isRecognized={isRecognized}
+                indicatorColor={barColor}
+                showIndicator={!isPantry}
+                isFirst={isFirst}
+                isLast={isLast}
+                onSwipeRight={() => {
+                  if (isRecognized) {
+                    onSwipeIngredientToShopping(ing);
+                  } else {
+                    onQualifyIngredient(ing);
+                  }
+                }}
               >
-                {/* Barre verticale tout à gauche indiquant le statut stock / lexique (uniquement hors assaisonnements & condiments) */}
-                {!isPantry && (
-                  <View
-                    style={[
-                      styles.ingredientStockBar,
-                      { backgroundColor: barColor },
-                    ]}
-                  />
-                )}
-                <View style={styles.ingredientCol}>
-                  <View style={styles.ingredientNameRow}>
-                    <Text
-                      style={[
-                        styles.ingredientName,
-                        isChecked && styles.textChecked,
-                        group.key === 'pantry' && styles.ingredientNamePantry,
-                        isAllergen && !isChecked && styles.ingredientNameAllergen,
-                      ]}
-                    >
-                      {ing.name}
-                    </Text>
-                    {isAllergen && !isChecked && (
-                      <View style={[styles.allergenInlineTag, { backgroundColor: colors.dangerLight, borderColor: colors.danger }]}>
-                        <Text style={[styles.allergenInlineTagText, { color: colors.danger }]}>Allergène</Text>
-                      </View>
+                <View
+                  style={[
+                    styles.ingredientRow,
+                    isPantry && styles.ingredientRowPantry,
+                    isAllergen && styles.ingredientRowAllergen,
+                  ]}
+                >
+                  <View style={styles.ingredientCol}>
+                    <View style={styles.ingredientNameRow}>
+                      <Text
+                        style={[
+                          styles.ingredientName,
+                          group.key === 'pantry' && styles.ingredientNamePantry,
+                          isAllergen && styles.ingredientNameAllergen,
+                        ]}
+                      >
+                        {ing.name}
+                      </Text>
+                      {isAllergen && (
+                        <View style={[styles.allergenInlineTag, { backgroundColor: colors.dangerLight, borderColor: colors.danger }]}>
+                          <Text style={[styles.allergenInlineTagText, { color: colors.danger }]}>Allergène</Text>
+                        </View>
+                      )}
+                    </View>
+                    {linkedRecipe && (
+                      <TouchableOpacity
+                        style={styles.linkedRecipeInlineBtn}
+                        onPress={() => onOpenLinkedRecipe?.(linkedRecipe.id)}
+                        activeOpacity={0.7}
+                        hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                      >
+                        <Ionicons name="book-outline" size={12} color={colors.primary} />
+                        <Text style={styles.linkedRecipeInlineBtnText} numberOfLines={1}>
+                          Recette maison : {linkedRecipe.title}
+                        </Text>
+                        <Ionicons name="chevron-forward" size={11} color={colors.primary} />
+                      </TouchableOpacity>
                     )}
                   </View>
-                  {linkedRecipe && (
+                  {scaledQty ? (
                     <TouchableOpacity
-                      style={styles.linkedRecipeInlineBtn}
-                      onPress={() => onOpenLinkedRecipe?.(linkedRecipe.id)}
-                      activeOpacity={0.7}
-                      hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                    >
-                      <Ionicons name="book-outline" size={12} color={colors.primary} />
-                      <Text style={styles.linkedRecipeInlineBtnText} numberOfLines={1}>
-                        Recette maison : {linkedRecipe.title}
-                      </Text>
-                      <Ionicons name="chevron-forward" size={11} color={colors.primary} />
-                    </TouchableOpacity>
-                  )}
-                </View>
-                {scaledQty ? (
-                  <TouchableOpacity
-                    disabled={!canConvert}
-                    onPress={() => onCycleIngredientUnit(ing)}
-                    activeOpacity={canConvert ? 0.6 : 1}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    style={[
-                      styles.ingredientQtyBtn,
-                      isConverted && styles.ingredientQtyBtnConverted,
-                      canConvert && styles.ingredientQtyBtnInteractive,
-                    ]}
-                  >
-                    <Text
+                      disabled={!canConvert}
+                      onPress={() => onCycleIngredientUnit(ing)}
+                      activeOpacity={canConvert ? 0.6 : 1}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                       style={[
-                        styles.ingredientQty,
-                        isScaled && styles.ingredientQtyScaled,
-                        isChecked && styles.textChecked,
-                        isConverted && styles.ingredientQtyConvertedText,
-                        isAllergen && !isChecked && { color: colors.danger, fontWeight: '700' },
+                        styles.ingredientQtyBtn,
+                        isConverted && styles.ingredientQtyBtnConverted,
+                        canConvert && styles.ingredientQtyBtnInteractive,
                       ]}
                     >
-                      {formatQuantityWithUnit(displayQty, displayUnit)}
-                    </Text>
-                    {canConvert && (
-                      <Ionicons
-                        name={isConverted ? 'swap-horizontal' : 'swap-horizontal-outline'}
-                        size={11}
-                        color={isConverted ? colors.primary : colors.textMuted}
-                        style={styles.convertIcon}
-                      />
-                    )}
-                  </TouchableOpacity>
-                ) : null}
-              </TouchableOpacity>
+                      <Text
+                        style={[
+                          styles.ingredientQty,
+                          isScaled && styles.ingredientQtyScaled,
+                          isConverted && styles.ingredientQtyConvertedText,
+                          isAllergen && { color: colors.danger, fontWeight: '700' },
+                        ]}
+                      >
+                        {formatQuantityWithUnit(displayQty, displayUnit)}
+                      </Text>
+                      {canConvert && (
+                        <Ionicons
+                          name={isConverted ? 'swap-horizontal' : 'swap-horizontal-outline'}
+                          size={11}
+                          color={isConverted ? colors.primary : colors.textMuted}
+                          style={styles.convertIcon}
+                        />
+                      )}
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+              </SwipeableRecipeIngredientRow>
             );
           })}
         </View>

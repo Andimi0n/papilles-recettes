@@ -533,6 +533,9 @@ function AppContent({ initialData }: AppContentProps) {
               onDelete={handleDeleteRecipe}
               onUpdateRating={handleUpdateRating}
               onUpdateTags={handleUpdateTags}
+              onRecipeUpdated={(updated) => {
+                setRecipes((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+              }}
               onNavigateToShoppingList={() => navigateToShopping('shopping')}
               onNavigateToPlanner={() => setCurrentScreen('planner')}
             />

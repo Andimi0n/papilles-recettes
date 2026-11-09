@@ -1,26 +1,24 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
   TouchableOpacity,
   Alert,
-  Share,
   TextInput,
   Modal,
   Platform,
   Vibration,
   KeyboardAvoidingView,
+  Animated,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useKeepAwake } from 'expo-keep-awake';
-import { Recipe } from '../types/recipe';
-import { UserAllergenItem } from '../types/vocabulary';
+import { Recipe, Ingredient } from '../types/recipe';
+import { UserAllergenItem, CanonicalIngredient } from '../types/vocabulary';
 import { StorageService } from '../services/storageService';
-import { Colors } from '../theme/colors';
 import { styles } from './RecipeDetailScreen.styles';
 import { useTheme } from '../theme/ThemeContext';
 import { StarRating } from '../components/common/StarRating';
@@ -30,13 +28,11 @@ import { RecipePrintModal } from '../components/import-share/RecipePrintModal';
 import { PlanRecipeModal } from '../components/planner/PlanRecipeModal';
 import { RecipeIngredientsList } from '../components/recipe-detail/RecipeIngredientsList';
 import { RecipeInstructionsList } from '../components/recipe-detail/RecipeInstructionsList';
-import { RecipeShareService } from '../services/recipeShareService';
+import { QualifyIngredientModal } from '../components/lexicon-units/QualifyIngredientModal';
 import {
   formatDuration,
   scaleQuantity,
-  extractTimersFromText,
   formatTimerSeconds,
-  getLocalDateString,
   normalizeString,
 } from '../utils/helpers';
 import { prepareUserAllergens, evaluateRecipeAllergens } from '../utils/allergenMatcher';
@@ -73,6 +69,7 @@ interface RecipeDetailScreenProps {
   onToggleFavorite?: (id: string) => void;
   onUpdateRating: (id: string, rating: number, userNote?: string) => void;
   onUpdateTags?: (id: string, tags: string[]) => void;
+  onRecipeUpdated?: (recipe: Recipe) => void;
   onNavigateToShoppingList?: () => void;
   onNavigateToPlanner?: () => void;
 }
@@ -87,6 +84,7 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
   onDelete,
   onUpdateRating,
   onUpdateTags,
+  onRecipeUpdated,
   onNavigateToShoppingList,
   onNavigateToPlanner,
 }) => {
@@ -95,6 +93,14 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
 
   const { isDark, colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const [prevRecipe, setPrevRecipe] = useState<Recipe>(recipe);
+  const [currentRecipe, setCurrentRecipe] = useState<Recipe>(recipe);
+
+  if (recipe !== prevRecipe) {
+    setPrevRecipe(recipe);
+    setCurrentRecipe(recipe);
+  }
+
   // Nombre de portions ajustables dynamiquement
   const [currentServings, setCurrentServings] = useState<number>(recipe.servings || 4);
   const [isAddingToShoppingList, setIsAddingToShoppingList] = useState(false);
@@ -138,7 +144,6 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
   };
 
   // Checklists locales pour la session de cuisine
-  const [checkedIngredients, setCheckedIngredients] = useState<Record<string, boolean>>({});
   const [checkedSteps, setCheckedSteps] = useState<Record<string, boolean>>({});
 
   // Allergènes de l'utilisateur et détection
@@ -155,10 +160,10 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
   }, []);
 
   const stockEvaluation = useMemo(() => {
-    if (!recipe) return null;
+    if (!currentRecipe) return null;
     const prepared = prepareStockItems(stockItems);
-    return evaluateRecipeStock(recipe, prepared, { assumePantryStaplesAvailable: true });
-  }, [recipe, stockItems]);
+    return evaluateRecipeStock(currentRecipe, prepared, { assumePantryStaplesAvailable: true });
+  }, [currentRecipe, stockItems]);
 
   const preparedAllergens = useMemo(
     () => prepareUserAllergens(userAllergens),
@@ -166,8 +171,8 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
   );
 
   const allergenEval = useMemo(
-    () => evaluateRecipeAllergens(recipe, preparedAllergens),
-    [recipe, preparedAllergens]
+    () => evaluateRecipeAllergens(currentRecipe, preparedAllergens),
+    [currentRecipe, preparedAllergens]
   );
 
   const allergenIngredientIdsSet = useMemo(() => {
@@ -244,25 +249,25 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
   const linkedRecipesMap = useMemo(() => {
     if (!allRecipes || allRecipes.length === 0) return new Map<string, Recipe>();
     const map = new Map<string, Recipe>();
-    (recipe.ingredients || []).forEach((ing) => {
-      const matched = findLinkedRecipeForIngredient(ing, allRecipes, recipe.id);
+    (currentRecipe.ingredients || []).forEach((ing) => {
+      const matched = findLinkedRecipeForIngredient(ing, allRecipes, currentRecipe.id);
       if (matched) {
         map.set(ing.id, matched);
       }
     });
     return map;
-  }, [recipe.ingredients, allRecipes, recipe.id]);
+  }, [currentRecipe.ingredients, allRecipes, currentRecipe.id]);
 
   const linkedPreparations = useMemo(() => {
     if (!allRecipes || allRecipes.length === 0) return [];
-    return getLinkedRecipesForRecipe(recipe, allRecipes);
-  }, [recipe, allRecipes]);
+    return getLinkedRecipesForRecipe(currentRecipe, allRecipes);
+  }, [currentRecipe, allRecipes]);
 
   // Regroupement culinaire par sections ("Livre de Chef")
   const ingredientGroups = useMemo(() => {
-    const main = (recipe.ingredients || []).filter((i) => !i.isPantryStaple && !i.isOptional);
-    const pantry = (recipe.ingredients || []).filter((i) => Boolean(i.isPantryStaple) && !i.isOptional);
-    const optional = (recipe.ingredients || []).filter((i) => Boolean(i.isOptional));
+    const main = (currentRecipe.ingredients || []).filter((i) => !i.isPantryStaple && !i.isOptional);
+    const pantry = (currentRecipe.ingredients || []).filter((i) => Boolean(i.isPantryStaple) && !i.isOptional);
+    const optional = (currentRecipe.ingredients || []).filter((i) => Boolean(i.isOptional));
 
     const hasSubsections = pantry.length > 0 || optional.length > 0;
 
@@ -271,7 +276,7 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
       title: string;
       subtitle?: string;
       iconName?: string;
-      items: typeof recipe.ingredients;
+      items: typeof currentRecipe.ingredients;
     }[] = [];
 
     if (main.length > 0) {
@@ -464,8 +469,101 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
   const [isNoteModalVisible, setIsNoteModalVisible] = useState(false);
   const [noteText, setNoteText] = useState(recipe.userNote || '');
 
-  const toggleIngredientCheck = (id: string) => {
-    setCheckedIngredients((prev) => ({ ...prev, [id]: !prev[id] }));
+  // Gestion de la qualification d'ingrédient hors-lexique
+  const [qualifyModalTarget, setQualifyModalTarget] = useState<Ingredient | null>(null);
+  const [isQualifyModalVisible, setIsQualifyModalVisible] = useState(false);
+
+  // Snackbar de confirmation lors du swipe vers les courses
+  const [shoppingSnackbar, setShoppingSnackbar] = useState<{ name: string } | null>(null);
+  const [snackbarFadeAnim] = useState(() => new Animated.Value(0));
+  const snackbarTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showShoppingSnackbar = (ingredient: Ingredient) => {
+    if (snackbarTimerRef.current) {
+      clearTimeout(snackbarTimerRef.current);
+      snackbarTimerRef.current = null;
+    }
+    setShoppingSnackbar({ name: ingredient.name });
+    snackbarFadeAnim.setValue(0);
+    Animated.timing(snackbarFadeAnim, {
+      toValue: 1,
+      duration: 220,
+      useNativeDriver: true,
+    }).start();
+
+    snackbarTimerRef.current = setTimeout(() => {
+      Animated.timing(snackbarFadeAnim, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }).start(() => {
+        setShoppingSnackbar(null);
+      });
+    }, 3500);
+  };
+
+  const handleDismissSnackbar = () => {
+    if (snackbarTimerRef.current) {
+      clearTimeout(snackbarTimerRef.current);
+      snackbarTimerRef.current = null;
+    }
+    Animated.timing(snackbarFadeAnim, {
+      toValue: 0,
+      duration: 180,
+      useNativeDriver: true,
+    }).start(() => {
+      setShoppingSnackbar(null);
+    });
+  };
+
+  // Action swipe droit 1 : ingrédient dans le lexique -> envoyé aux courses
+  const handleSwipeIngredientToShopping = async (ingredient: Ingredient) => {
+    try {
+      const { addedCount } = await StorageService.addRecipeToShoppingList(
+        currentRecipe,
+        currentServings,
+        [ingredient.id]
+      );
+      if (addedCount > 0) {
+        showShoppingSnackbar(ingredient);
+      }
+    } catch (_e) {
+      Alert.alert('Erreur', "Impossible d'ajouter cet ingrédient aux courses.");
+    }
+  };
+
+  // Action swipe droit 2 : ingrédient hors-lexique -> ouverture du modal de qualification
+  const handleQualifyIngredient = (ingredient: Ingredient) => {
+    setQualifyModalTarget(ingredient);
+    setIsQualifyModalVisible(true);
+  };
+
+  const handleQualifySuccess = async (canonical: CanonicalIngredient) => {
+    setIsQualifyModalVisible(false);
+    if (qualifyModalTarget) {
+      const updatedIngredients = (currentRecipe.ingredients || []).map((ing) => {
+        if (ing.id === qualifyModalTarget.id) {
+          return {
+            ...ing,
+            canonicalId: canonical.id,
+            isPantryStaple: canonical.isPantryStaple ?? ing.isPantryStaple,
+          };
+        }
+        return ing;
+      });
+      const updated: Recipe = {
+        ...currentRecipe,
+        ingredients: updatedIngredients,
+      };
+      setCurrentRecipe(updated);
+      try {
+        await StorageService.saveRecipe(updated);
+        onRecipeUpdated?.(updated);
+      } catch (e) {
+        console.error('Erreur sauvegarde recette après qualification:', e);
+      }
+    }
+    setQualifyModalTarget(null);
   };
 
   const toggleStepCheck = (id: string) => {
@@ -839,7 +937,7 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
 
           {/* Ingredients Section with Dynamic Servings Stepper */}
           <RecipeIngredientsList
-            recipe={recipe}
+            recipe={currentRecipe}
             currentServings={currentServings}
             onServingsChange={setCurrentServings}
             stockEvaluation={stockEvaluation}
@@ -847,14 +945,14 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
             globalConversionMode={globalConversionMode}
             onCycleGlobalConversion={handleCycleGlobalConversion}
             ingredientGroups={ingredientGroups}
-            checkedIngredients={checkedIngredients}
-            onToggleIngredientCheck={toggleIngredientCheck}
             ingredientModes={ingredientModes}
             onCycleIngredientUnit={handleCycleIngredientUnit}
             allergenIngredientIdsSet={allergenIngredientIdsSet}
             linkedPreparations={linkedPreparations}
             linkedRecipesMap={linkedRecipesMap}
             onOpenLinkedRecipe={onOpenLinkedRecipe}
+            onSwipeIngredientToShopping={handleSwipeIngredientToShopping}
+            onQualifyIngredient={handleQualifyIngredient}
           />
 
           {/* Steps Section */}
@@ -919,7 +1017,7 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
                   value={noteText}
                   onChangeText={setNoteText}
                   placeholder="Ex: Remplacer le beurre par de l'huile de sésame..."
-                  placeholderTextColor={Colors.textMuted}
+                  placeholderTextColor={colors.textMuted}
                   multiline
                   numberOfLines={4}
                 />
@@ -1284,6 +1382,76 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
                 .join(' • ')}
             </Text>
           </View>
+        )}
+
+        {/* Modal de qualification de l'ingrédient au lexique */}
+        {isQualifyModalVisible && qualifyModalTarget && (
+          <QualifyIngredientModal
+            visible={isQualifyModalVisible}
+            rawName={qualifyModalTarget.name}
+            context="recipe"
+            onClose={() => {
+              setIsQualifyModalVisible(false);
+              setQualifyModalTarget(null);
+            }}
+            onSelectCanonical={(canonical) => {
+              handleQualifySuccess(canonical);
+            }}
+            onAttachAsSynonym={(canonical) => {
+              handleQualifySuccess(canonical);
+            }}
+            onCreateCanonical={(canonical) => {
+              handleQualifySuccess(canonical);
+            }}
+          />
+        )}
+
+        {/* Barre Snackbar de confirmation d'ajout aux courses */}
+        {shoppingSnackbar && (
+          <Animated.View
+            style={[
+              styles.snackbarContainer,
+              {
+                opacity: snackbarFadeAnim,
+                transform: [
+                  {
+                    translateY: snackbarFadeAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [20, 0],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
+            <View style={styles.snackbarContent}>
+              <View style={styles.snackbarLeft}>
+                <Ionicons name="cart-outline" size={18} color="#FFFFFF" />
+                <Text style={styles.snackbarText} numberOfLines={1}>
+                  « {shoppingSnackbar.name} » ajouté aux courses
+                </Text>
+              </View>
+              <View style={styles.snackbarActions}>
+                {onNavigateToShoppingList && (
+                  <TouchableOpacity
+                    style={styles.snackbarUndoBtn}
+                    onPress={onNavigateToShoppingList}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.snackbarUndoText}>Voir</Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity
+                  style={styles.snackbarCloseBtn}
+                  onPress={handleDismissSnackbar}
+                  activeOpacity={0.6}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons name="close" size={16} color="rgba(255,255,255,0.7)" />
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Animated.View>
         )}
 
       </View>
