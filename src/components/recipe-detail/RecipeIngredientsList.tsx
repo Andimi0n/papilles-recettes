@@ -194,19 +194,23 @@ export const RecipeIngredientsList: React.FC<RecipeIngredientsListProps> = ({
             const isConverted = conv.isConverted;
             const canConvert = isIngredientConvertible(scaledQty, ing.unit, density);
 
+            const isPantry = group.key === 'pantry' || Boolean(ing.isPantryStaple);
             const isRecognized = lexiconRecognitionMap.get(ing.id) ?? false;
             const isInStock =
               inStockIngredientIds.has(ing.id) ||
               inStockIngredientIds.has(normalizeString(ing.name));
 
-            // Couleur de la barre d'indicateur tout à gauche
-            let barColor = colors.amber;
+            // Couleurs bien tranchées pour éviter toute confusion entre ambre et rouge :
+            // - Vert clair pour le stock disponible
+            // - Rouge clair rubis (#F43F5E / #FB7185) pour le stock manquant
+            // - Jaune d'or solaire (#EAB308 / #FBBF24) pour les ingrédients hors lexique
+            let barColor: string;
             if (!isRecognized) {
-              barColor = colors.amber;
+              barColor = isDark ? '#FBBF24' : '#EAB308';
             } else if (isInStock) {
               barColor = isDark ? '#4ADE80' : '#22C55E';
             } else {
-              barColor = isDark ? '#F87171' : '#EF4444';
+              barColor = isDark ? '#FB7185' : '#F43F5E';
             }
 
             return (
@@ -214,19 +218,22 @@ export const RecipeIngredientsList: React.FC<RecipeIngredientsListProps> = ({
                 key={ing.id}
                 style={[
                   styles.ingredientRow,
+                  isPantry && styles.ingredientRowPantry,
                   isChecked && styles.rowChecked,
                   isAllergen && !isChecked && styles.ingredientRowAllergen,
                 ]}
                 onPress={() => onToggleIngredientCheck(ing.id)}
                 activeOpacity={0.7}
               >
-                {/* Barre verticale tout à gauche indiquant le statut stock / lexique */}
-                <View
-                  style={[
-                    styles.ingredientStockBar,
-                    { backgroundColor: barColor },
-                  ]}
-                />
+                {/* Barre verticale tout à gauche indiquant le statut stock / lexique (uniquement hors assaisonnements & condiments) */}
+                {!isPantry && (
+                  <View
+                    style={[
+                      styles.ingredientStockBar,
+                      { backgroundColor: barColor },
+                    ]}
+                  />
+                )}
                 <View style={styles.ingredientCol}>
                   <View style={styles.ingredientNameRow}>
                     <Text

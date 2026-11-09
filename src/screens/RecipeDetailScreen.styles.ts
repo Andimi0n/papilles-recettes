@@ -452,6 +452,9 @@ export const styles = createDynamicStyles((colors, shadows) => ({
     borderBottomColor: Colors.borderLight,
     overflow: 'hidden',
   },
+  ingredientRowPantry: {
+    paddingLeft: 4,
+  },
   ingredientStockBar: {
     position: 'absolute',
     top: 0,

@@ -68,7 +68,12 @@ async function main() {
     isDark: false,
   };
 
-  function computeIngredientBarColor(ing, stockEvaluation, isDark = false) {
+  function computeIngredientBar(ing, groupKey, stockEvaluation, isDark = false) {
+    const isPantry = groupKey === 'pantry' || Boolean(ing.isPantryStaple);
+    if (isPantry) {
+      return { hasBar: false, isPantry: true };
+    }
+
     const vocabMapById = VocabularyService.getSyncMapById();
     const isRecognized = Boolean(
       (ing.canonicalId && vocabMapById.has(ing.canonicalId)) ||
@@ -87,13 +92,16 @@ async function main() {
 
     const isInStock = inStockSet.has(ing.id) || inStockSet.has(normalizeString(ing.name));
 
+    let barColor;
     if (!isRecognized) {
-      return { isRecognized: false, isInStock, barColor: colors.amber };
+      barColor = isDark ? '#FBBF24' : '#EAB308';
+    } else if (isInStock) {
+      barColor = isDark ? '#4ADE80' : '#22C55E';
+    } else {
+      barColor = isDark ? '#FB7185' : '#F43F5E';
     }
-    if (isInStock) {
-      return { isRecognized: true, isInStock: true, barColor: isDark ? '#4ADE80' : '#22C55E' };
-    }
-    return { isRecognized: true, isInStock: false, barColor: isDark ? '#F87171' : '#EF4444' };
+
+    return { hasBar: true, isPantry: false, isRecognized, isInStock, barColor };
   }
 
   // Stock utilisateur contenant uniquement des Carottes
@@ -117,39 +125,46 @@ async function main() {
 
   const evaluation = evaluateRecipeStock(testRecipe, preparedStock, { assumePantryStaplesAvailable: true });
 
-  // 1. Carotte : Dans le lexique ET en stock -> Vert clair
-  const resCarotte = computeIngredientBarColor(testRecipe.ingredients[0], evaluation, false);
+  // 1. Carotte : Dans le lexique ET en stock -> Barre Vert clair
+  const resCarotte = computeIngredientBar(testRecipe.ingredients[0], 'main', evaluation, false);
+  assert.strictEqual(resCarotte.hasBar, true, 'Carotte doit avoir une barre');
   assert.strictEqual(resCarotte.isRecognized, true, 'Carotte doit être reconnue dans le lexique');
   assert.strictEqual(resCarotte.isInStock, true, 'Carotte doit être en stock');
   assert.strictEqual(resCarotte.barColor, '#22C55E', 'Carotte doit avoir la barre vert clair');
-  console.log('✓ Carotte (dans le stock) -> Vert clair (#22C55E)');
+  console.log('✓ Carotte (dans le stock) -> Barre Vert clair (#22C55E)');
 
-  // 2. Poulet : Dans le lexique ET ABSENT du stock -> Rouge clair
-  const resPoulet = computeIngredientBarColor(testRecipe.ingredients[1], evaluation, false);
+  // 2. Poulet : Dans le lexique ET ABSENT du stock -> Barre Rouge clair rubis
+  const resPoulet = computeIngredientBar(testRecipe.ingredients[1], 'main', evaluation, false);
+  assert.strictEqual(resPoulet.hasBar, true, 'Poulet doit avoir une barre');
   assert.strictEqual(resPoulet.isRecognized, true, 'Poulet doit être reconnu dans le lexique');
   assert.strictEqual(resPoulet.isInStock, false, 'Poulet doit être absent du stock');
-  assert.strictEqual(resPoulet.barColor, '#EF4444', 'Poulet doit avoir la barre rouge clair');
-  console.log('✓ Poulet (absent du stock) -> Rouge clair (#EF4444)');
+  assert.strictEqual(resPoulet.barColor, '#F43F5E', 'Poulet doit avoir la barre rouge clair rubis');
+  console.log('✓ Poulet (absent du stock) -> Barre Rouge clair rubis (#F43F5E)');
 
-  // 3. Sel fin : Fond de placard -> Vert clair
-  const resSel = computeIngredientBarColor(testRecipe.ingredients[2], evaluation, false);
-  assert.strictEqual(resSel.isRecognized, true, 'Sel doit être reconnu dans le lexique');
-  assert.strictEqual(resSel.isInStock, true, 'Sel de placard doit être satisfait / en stock');
-  assert.strictEqual(resSel.barColor, '#22C55E', 'Sel doit avoir la barre vert clair');
-  console.log('✓ Sel fin (fond de placard) -> Vert clair (#22C55E)');
+  // 3. Sel fin : Assaisonnement et condiment (isPantryStaple / group pantry) -> AUCUNE BARRE
+  const resSelPantryGroup = computeIngredientBar(testRecipe.ingredients[2], 'pantry', evaluation, false);
+  assert.strictEqual(resSelPantryGroup.hasBar, false, 'Assaisonnement et condiment ne doit avoir AUCUNE barre');
+  console.log('✓ Sel fin (assaisonnement et condiment) -> AUCUNE barre');
 
-  // 4. Élixir inconnu : Hors lexique -> Jaune orangé (amber)
-  const resInconnu = computeIngredientBarColor(testRecipe.ingredients[3], evaluation, false);
+  const resSelStapleFlag = computeIngredientBar(testRecipe.ingredients[2], 'main', evaluation, false);
+  assert.strictEqual(resSelStapleFlag.hasBar, false, 'Ingrédient avec isPantryStaple ne doit avoir AUCUNE barre');
+  console.log('✓ Ingrédient isPantryStaple -> AUCUNE barre');
+
+  // 4. Élixir inconnu : Hors lexique -> Jaune d\'or solaire (distinct du rouge)
+  const resInconnu = computeIngredientBar(testRecipe.ingredients[3], 'main', evaluation, false);
+  assert.strictEqual(resInconnu.hasBar, true, 'Ingrédient principal inconnu doit avoir une barre');
   assert.strictEqual(resInconnu.isRecognized, false, 'Ingrédient inconnu ne doit pas être dans le lexique');
-  assert.strictEqual(resInconnu.barColor, '#D97706', 'Ingrédient inconnu doit avoir la barre jaune orangé (amber)');
-  console.log('✓ Élixir magique inconnu (hors lexique) -> Jaune orangé (colors.amber / #D97706)');
+  assert.strictEqual(resInconnu.barColor, '#EAB308', 'Ingrédient inconnu doit avoir la barre jaune d\'or solaire (#EAB308)');
+  console.log('✓ Élixir magique inconnu (hors lexique) -> Jaune d\'or solaire (#EAB308)');
 
   // 5. Test en mode sombre
-  const resPouletDark = computeIngredientBarColor(testRecipe.ingredients[1], evaluation, true);
-  assert.strictEqual(resPouletDark.barColor, '#F87171', 'Poulet en mode sombre doit être #F87171');
-  const resCarotteDark = computeIngredientBarColor(testRecipe.ingredients[0], evaluation, true);
-  assert.strictEqual(resCarotteDark.barColor, '#4ADE80', 'Carotte en mode sombre doit être #4ADE80');
-  console.log('✓ Mode sombre : Vert clair (#4ADE80) et Rouge clair (#F87171) validés');
+  const resPouletDark = computeIngredientBar(testRecipe.ingredients[1], 'main', evaluation, true);
+  assert.strictEqual(resPouletDark.barColor, '#FB7185', 'Poulet en mode sombre doit être #FB7185 (rouge rubis clair)');
+  const resCarotteDark = computeIngredientBar(testRecipe.ingredients[0], 'main', evaluation, true);
+  assert.strictEqual(resCarotteDark.barColor, '#4ADE80', 'Carotte en mode sombre doit être #4ADE80 (vert clair)');
+  const resInconnuDark = computeIngredientBar(testRecipe.ingredients[3], 'main', evaluation, true);
+  assert.strictEqual(resInconnuDark.barColor, '#FBBF24', 'Inconnu en mode sombre doit être #FBBF24 (jaune d\'or solaire)');
+  console.log('✓ Mode sombre : Vert clair (#4ADE80), Rouge rubis (#FB7185) et Jaune d\'or (#FBBF24) validés');
 
   // Nettoyage tmpDir
   try {
