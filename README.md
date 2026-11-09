@@ -53,7 +53,7 @@ Application **100 % offline-first**, sécurisée, sans création de compte oblig
   - Puce d'accès direct `[En stock (X)]` dans le bandeau de filtres rétractable de l'accueil et bandeau d'état actif dans la liste.
 - **Bouton interactif Hub Stock & Anti-gaspillage** :
   - Bouton interactif moderne à côté de la barre de recherche avec badge dynamique du nombre de recettes faisables.
-  - Ouvre une modale complète d'assistance culinaire (`StockCookModal`), affichant le bilan du carnet, le sélecteur d'ingrédients à valoriser et les options de création.
+  - Ouvre l'assistant culinaire Chef IA intégré dans l'écran d'ajout (`ScanRecipeScreen` en mode Chef, avec wrapper `StockCookModal`), affichant le bilan du carnet, le sélecteur d'ingrédients à valoriser et les options de création.
 - **Inspiration Chef IA inédite en 2 étapes & Résilience multi-modèles** :
   - **Processus en 2 étapes ludique et sans surcharge** :
     - *Étape 1* : Taper sur *"💡 Trouver 3 idées"* génère quasi instantanément 3 propositions originales avec titre appétissant, temps estimé et accroche culinaire valorisant vos restes (< 300 tokens).
@@ -308,7 +308,7 @@ papilles-recettes/
     │   ├── chef-ai/                  # Inspiration anti-gaspi & personnalisation IA
     │   │   ├── ChefFavoritePromptsModal.tsx # Prompts favoris du Chef IA
     │   │   ├── ChefMoodEditModal.tsx # Personnalisation de l'humeur du Chef
-    │   │   └── StockCookModal.tsx    # Modale Chef IA anti-gaspi en 2 étapes
+    │   │   └── StockCookModal.tsx    # Wrapper rétrocompatible Chef IA anti-gaspi
     │   ├── planner/                  # Planification hebdomadaire & journal de repas
     │   │   ├── MealCalendarModal.tsx # Calendrier interactif de planification
     │   │   ├── MealSlotPickerModal.tsx # Choix du créneau dans la semaine
@@ -325,7 +325,7 @@ papilles-recettes/
         ├── HomeScreen.tsx            # Flux principal, bandeau et widgets
         ├── RecipeDetailScreen.tsx    # Fiche recette, portions et mode cuisine
         ├── RecipeFormScreen.tsx      # Création et modification de recettes
-        ├── ScanRecipeScreen.tsx      # Scanner IA photo/texte multimodale
+        ├── ScanRecipeScreen.tsx      # Hub unifié ajout/scan IA (Photo, Texte, Web, Chef)
         ├── MealPlannerScreen.tsx     # Menu de la semaine & journal de repas
         ├── ShoppingListScreen.tsx    # Hub unifié Courses & Étagères
         └── SettingsScreen.tsx        # Paramètres, IA, lexique & sauvegardes

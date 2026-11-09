@@ -20,7 +20,7 @@ import { StorageService } from './src/services/storageService';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { RecipeDetailScreen } from './src/screens/RecipeDetailScreen';
 import { RecipeFormScreen } from './src/screens/RecipeFormScreen';
-import { ScanRecipeScreen, CapturedPhoto } from './src/screens/ScanRecipeScreen';
+import { ScanRecipeScreen, CapturedPhoto, AddRecipeMode } from './src/screens/ScanRecipeScreen';
 import { ShoppingListScreen } from './src/screens/ShoppingListScreen';
 import { MealPlannerScreen } from './src/screens/MealPlannerScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
@@ -286,7 +286,7 @@ function AppContent({ initialData }: AppContentProps) {
     setCurrentScreen('form');
   };
 
-  const [scanInitialMode, setScanInitialMode] = useState<'text' | 'photo' | 'url'>('photo');
+  const [scanInitialMode, setScanInitialMode] = useState<AddRecipeMode>('photo');
   const [restoredScanPhotos, setRestoredScanPhotos] = useState<CapturedPhoto[]>([]);
   const [pendingScanPhotoUri, setPendingScanPhotoUri] = useState<string | null>(null);
 
@@ -296,7 +296,7 @@ function AppContent({ initialData }: AppContentProps) {
     setCurrentScreen('form');
   };
 
-  const navigateToScan = (initialMode: 'text' | 'photo' | 'url' = 'photo') => {
+  const navigateToScan = (initialMode: AddRecipeMode = 'photo') => {
     setRecipeCreationSource('scan');
     setScanInitialMode(initialMode);
     setCurrentScreen('scan');
@@ -501,6 +501,7 @@ function AppContent({ initialData }: AppContentProps) {
               initialMode={scanInitialMode}
               initialPhotos={restoredScanPhotos}
               initialPendingPhotoUri={pendingScanPhotoUri || undefined}
+              recipes={recipes}
               onBack={() => {
                 setRestoredScanPhotos([]);
                 setPendingScanPhotoUri(null);

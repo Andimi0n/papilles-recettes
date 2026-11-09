@@ -15,8 +15,12 @@ const path = require('path');
 
 console.log('🧪 Lancement des tests de découplage et flux Clé API (StockCookModal)...');
 
+const scanScreenPath = path.join(__dirname, '../src/screens/ScanRecipeScreen.tsx');
 const modalPath = path.join(__dirname, '../src/components/chef-ai/StockCookModal.tsx');
-const content = fs.readFileSync(modalPath, 'utf8');
+const targetPath = fs.existsSync(scanScreenPath) && fs.readFileSync(scanScreenPath, 'utf8').includes('1. FORMAT DU REPAS')
+  ? scanScreenPath
+  : modalPath;
+const content = fs.readFileSync(targetPath, 'utf8');
 
 // 1. Titre harmonisé
 assert.ok(

@@ -51,7 +51,7 @@
 - **`HomeScreen.tsx`** (`HomeScreen.styles.ts`) : Flux de recettes, barre d'actions (Marmiton/Web, Scan IA, Ajout manuel, Chef IA), recherche textuelle, double bandeau de filtres rétractable au scroll (`useNativeDriver: true`).
 - **`RecipeDetailScreen.tsx`** (`RecipeDetailScreen.styles.ts`) : Fiche recette complète, ajustement dynamique des portions, sous-sections *Livre de Chef*, conversion d'unités métriques, mode cuisine pas à pas, indicateurs verticaux et affordance de swipe pour envoi intelligent aux courses ou qualification lexique (`RecipeIngredientsList`, `SwipeableRecipeIngredientRow`), impression/export PDF (`RecipePrintModal`), partage QR code offline (`RecipeQrModal`), liaisons de recettes associées et ajout intelligent aux courses.
 - **`RecipeFormScreen.tsx`** (`RecipeFormScreen.styles.ts`) : Création/édition (tableau Nom / Quantité / Unité via `IngredientTableEditor`, liaisons entre recettes, étapes ordonnables avec `RecipeStepEditor`, puces `En placard` et `En finition`).
-- **`ScanRecipeScreen.tsx`** : Extraction IA multimodale Gemini (capture directe avec `CameraCaptureModal`, sélection galerie, photos recto/verso, saisie texte libre).
+- **`ScanRecipeScreen.tsx`** : Hub unifié d'ajout et d'extraction IA à 4 onglets : Scan photo caméra/galerie (`CameraCaptureModal`), Saisie texte libre, Import par URL web, et Chef IA complet intégré (format repas, envies/humeur, sélection tactile 3 états des étagères et génération d'idées/recettes).
 - **`ShoppingListScreen.tsx`** (`ShoppingListScreen.styles.ts`) : Hub unifié **Courses & Étagères** (switch segmenté entre stock `FridgeStockView` et liste de courses catégorisée par rayon), mode magasin plein écran `InStoreShoppingModal`, passerelle de rangement et proposition de purge des articles non alimentaires.
 - **`MealPlannerScreen.tsx`** (`MealPlannerScreen.styles.ts`) : Planning hebdomadaire (déjeuner/dîner du lundi au dimanche) et journal de suivi quotidien avec autocomplétion intelligente.
 - **`SettingsScreen.tsx`** (`SettingsScreen.styles.ts`) : Thèmes visuels, clé Gemini BYOK (`expo-secure-store`), convives par défaut (1–50), filtre végétarien par défaut, gestionnaire de lexique canonique, personnalisation du Chef IA (prompts favoris, humeurs), export/import de packs JSON/ZIP avec photos, statistiques locales.
@@ -93,7 +93,7 @@
 - **`recipe-form/` (Création & édition de recette)** : `IngredientTableEditor.tsx`, `RecipeStepEditor.tsx`.
 - **`stock-shopping/` (Hub Courses & Étagères)** : `FridgeStockView.tsx`, `SwipeableStockItemRow.tsx`, `SwipeableShoppingItemRow.tsx`, `EditShoppingItemModal.tsx`, `InStoreShoppingModal.tsx`, `TransferAnimationOverlay.tsx`.
 - **`lexicon-units/` (Saisie normalisée, unités & allergènes INCO)** : `UnifiedIngredientInput.tsx`, `IngredientSearchBar.tsx`, `UnitQuickPicker.tsx`, `UnitPickerModal.tsx`, `VocabularyManagerModal.tsx`, `QualifyIngredientModal.tsx`, `AllergenFamilyPickerModal.tsx`.
-- **`chef-ai/` (Inspiration anti-gaspi & personnalisation IA)** : `StockCookModal.tsx` (Chef IA en 2 étapes : 3 idées sobres < 300 tokens puis génération complète), `ChefMoodEditModal.tsx`, `ChefFavoritePromptsModal.tsx`.
+- **`chef-ai/` (Inspiration anti-gaspi & personnalisation IA)** : `StockCookModal.tsx` (wrapper de rétrocompatibilité réexportant les types et encapsulant `ScanRecipeScreen` en mode Chef), `ChefMoodEditModal.tsx`, `ChefFavoritePromptsModal.tsx`.
 - **`planner/` (Planification hebdomadaire & suivi de repas)** : `MealCalendarModal.tsx`, `MealSlotPickerModal.tsx`, `PlanRecipeModal.tsx`, `QuickMealLogModal.tsx`.
 - **`import-share/` (Caméra, Web, PDF & QR Code hors-ligne)** : `CameraCaptureModal.tsx` (capture photo native `expo-camera` sécurisée anti-crash OOM), `ImportRecipeModal.tsx` (importation web unifiée), `RecipePrintModal.tsx` (export PDF), `RecipeQrModal.tsx` (QR code offline), `QrScannerModal.tsx` (scanner QR).
 
@@ -125,7 +125,7 @@
    - `plugins/withLargeHeap.js` active `largeHeap` sur Android.
    - La permission `READ_MEDIA_IMAGES` ne doit **jamais** être réintroduite dans `app.json` (exigence stricte de conformité Google Play).
 4. **Prompts IA Gemini sobres & Sécurité Réseau :**
-   - Dans `recipeAiService.ts` et `StockCookModal.tsx`, les titres et descriptions générés par l'IA doivent rester factuels et quotidiens (interdiction des adjectifs pompeux type *"sublime"*, *"divin"*, *"crémeux"* dans les titres).
+   - Dans `recipeAiService.ts`, `ScanRecipeScreen.tsx` et `StockCookModal.tsx`, les titres et descriptions générés par l'IA doivent rester factuels et quotidiens (interdiction des adjectifs pompeux type *"sublime"*, *"divin"*, *"crémeux"* dans les titres).
    - Cascade de résilience automatique en cas de surcharge : `gemini-3.8-flash` → `2.5-flash` → `2.0-flash` → `1.5-flash`.
    - Dans `webRecipeService.ts`, validation d'URL stricte avec rejet des IP privées/locales et identifiants embarqués (protection anti-SSRF).
 5. **Sécurité, Persistance & Offline-First :**

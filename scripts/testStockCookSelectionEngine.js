@@ -111,9 +111,13 @@ assert.strictEqual(
 
 console.log('✅ Logique algorithmique du cycle à 3 états et d’épinglage validée.');
 
-// 2. Vérification statique dans StockCookModal.tsx
+// 2. Vérification statique dans ScanRecipeScreen.tsx (fusionné depuis StockCookModal.tsx)
+const scanScreenPath = path.join(__dirname, '../src/screens/ScanRecipeScreen.tsx');
 const modalPath = path.join(__dirname, '../src/components/chef-ai/StockCookModal.tsx');
-const modalContent = fs.readFileSync(modalPath, 'utf8');
+const targetPath = fs.existsSync(scanScreenPath) && fs.readFileSync(scanScreenPath, 'utf8').includes('3. INGRÉDIENTS')
+  ? scanScreenPath
+  : modalPath;
+const modalContent = fs.readFileSync(targetPath, 'utf8');
 
 // Le code source actuel a `setOptionalIngredients([])` à l'ouverture,
 // ce qui vide tout le stock et produit l'effet page blanche.

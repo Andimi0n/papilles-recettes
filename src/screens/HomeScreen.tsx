@@ -27,6 +27,7 @@ import { EmptyState } from '../components/common/EmptyState';
 import { StockCookModal } from '../components/chef-ai/StockCookModal';
 import { AdvancedFiltersModal } from '../components/common/AdvancedFiltersModal';
 import { PageJumpModal } from '../components/common/PageJumpModal';
+import { AddRecipeMode } from './ScanRecipeScreen';
 import {
   searchRecipes,
   RecipeSearchResult,
@@ -53,7 +54,7 @@ interface HomeScreenProps {
   recipes: Recipe[];
   onSelectRecipe: (recipe: Recipe) => void;
   onAddNewRecipe: () => void;
-  onScanRecipe: (initialMode?: 'text' | 'photo' | 'url') => void;
+  onScanRecipe: (initialMode?: AddRecipeMode) => void;
   onImportRecipe?: (recipe: Recipe, source?: 'stock_ai' | 'scan') => void;
   onToggleFavorite?: (id: string) => void;
   onOpenSettings?: () => void;
@@ -288,10 +289,14 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
   }, []);
 
   const openFreshStockModal = useCallback(() => {
-    loadStockItems().catch(() => {});
-    setPreserveStockSession(false);
-    setIsStockModalVisible(true);
-  }, [loadStockItems]);
+    if (onScanRecipe) {
+      onScanRecipe('chef');
+    } else {
+      loadStockItems().catch(() => {});
+      setPreserveStockSession(false);
+      setIsStockModalVisible(true);
+    }
+  }, [onScanRecipe, loadStockItems]);
 
   useEffect(() => {
     if (reopenStockModal) {
@@ -1282,7 +1287,7 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
                   }}
                   activeOpacity={0.7}
                 >
-                  <View style={[styles.addMenuIconBox, { backgroundColor: colors.secondary + '20' }]}>
+                  <View style={[styles.addMenuIconBox, { backgroundColor: colors.secondaryLight }]}>
                     <Ionicons name="sparkles" size={22} color={colors.secondary} />
                   </View>
                   <View style={styles.addMenuTextCol}>

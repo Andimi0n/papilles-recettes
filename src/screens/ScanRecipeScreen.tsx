@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   Modal,
   KeyboardAvoidingView,
   Platform,
+  Linking,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -23,16 +24,127 @@ import {
   RecipeAiService,
   ExtractedRecipeData,
   AiConnectionStatus,
+  formatAiModelName,
+  discoverGeminiModels,
+  CHEF_MOODS,
+  ChefMoodOption,
 } from '../services/recipeAiService';
 import { UnifiedIngredientService } from '../services/unifiedIngredientService';
 import { WebRecipeService } from '../services/webRecipeService';
 import { ImageStorageService } from '../services/imageStorageService';
-import { Recipe } from '../types/recipe';
+import { StorageService } from '../services/storageService';
+import { Recipe, Category, RecipeIdea } from '../types/recipe';
+import { FridgeItem } from '../types/fridge';
+import { ShoppingAisle } from '../types/shopping';
 import { generateUniqueId } from '../utils/helpers';
+import { evaluateRecipesWithStock } from '../utils/stockMatcher';
+import { AISLE_CONFIGS, ALL_AISLES, classifyIngredientAisle } from '../utils/aisleClassifier';
 import { QrScannerModal } from '../components/import-share/QrScannerModal';
 import { CameraCaptureModal } from '../components/import-share/CameraCaptureModal';
+import { ChefFavoritePromptsModal } from '../components/chef-ai/ChefFavoritePromptsModal';
+import { UnifiedIngredientInput } from '../components/lexicon-units/UnifiedIngredientInput';
 
-export type AddRecipeMode = 'text' | 'photo' | 'url';
+export type AddRecipeMode = 'photo' | 'text' | 'url' | 'chef';
+
+export type IngredientSelectionState = 'primary' | 'optional' | 'inactive';
+
+export function cycleIngredientState(
+  currentState: IngredientSelectionState
+): IngredientSelectionState {
+  switch (currentState) {
+    case 'optional':
+      return 'primary';
+    case 'primary':
+      return 'inactive';
+    case 'inactive':
+    default:
+      return 'optional';
+  }
+}
+
+export function initializeStockIngredients(stockItems: FridgeItem[]): {
+  primaryIngredients: string[];
+  optionalIngredients: string[];
+  inactiveIngredients: string[];
+} {
+  if (!stockItems || stockItems.length === 0) {
+    return {
+      primaryIngredients: [],
+      optionalIngredients: [],
+      inactiveIngredients: [],
+    };
+  }
+  const seen = new Set<string>();
+  const names: string[] = [];
+  for (const item of stockItems) {
+    const trimmed = item.name ? item.name.trim() : '';
+    if (!trimmed) continue;
+    const lower = trimmed.toLowerCase();
+    if (!seen.has(lower)) {
+      seen.add(lower);
+      names.push(trimmed);
+    }
+  }
+  return {
+    primaryIngredients: [],
+    optionalIngredients: names,
+    inactiveIngredients: [],
+  };
+}
+
+export function organizeIngredientsForDisplay(
+  itemsWithState: { name: string; state: IngredientSelectionState }[]
+): { name: string; state: IngredientSelectionState }[] {
+  const primaries = itemsWithState.filter((i) => i.state === 'primary');
+  const optionals = itemsWithState.filter((i) => i.state === 'optional');
+  const inactives = itemsWithState.filter((i) => i.state === 'inactive');
+
+  return [...primaries, ...optionals, ...inactives];
+}
+
+export function getActiveIngredientsForAi(
+  itemsWithState: { name: string; state: IngredientSelectionState }[]
+): { primary: string[]; optional: string[] } {
+  return {
+    primary: itemsWithState.filter((i) => i.state === 'primary').map((i) => i.name),
+    optional: itemsWithState.filter((i) => i.state === 'optional').map((i) => i.name),
+  };
+}
+
+export type AllowedMealType = 'Entrée' | 'Plat' | 'Dessert' | 'Apéritif' | 'Boisson';
+
+const MEAL_TYPES: { id: AllowedMealType; label: string; iconName: string }[] = [
+  { id: 'Entrée', label: 'Entrée', iconName: 'leaf-outline' },
+  { id: 'Plat', label: 'Plat', iconName: 'restaurant-outline' },
+  { id: 'Dessert', label: 'Dessert', iconName: 'ice-cream-outline' },
+  { id: 'Apéritif', label: 'Apéritif', iconName: 'wine-outline' },
+  { id: 'Boisson', label: 'Boisson', iconName: 'cafe-outline' },
+];
+
+function formatMealTypeGenitive(type: AllowedMealType): string {
+  switch (type) {
+    case 'Entrée':
+      return "d'entrée";
+    case 'Plat':
+      return 'de plat';
+    case 'Dessert':
+      return 'de dessert';
+    case 'Apéritif':
+      return "d'apéritif";
+    case 'Boisson':
+      return 'de boisson';
+    default:
+      return `de ${(type as string).toLowerCase()}`;
+  }
+}
+
+const AI_STEPS = [
+  'Le Chef IA examine vos ingrédients en stock...',
+  'Association créative et équilibre des saveurs...',
+  'Calcul précis des proportions & assaisonnements...',
+  'Rédaction des étapes pas-à-pas...',
+  'Finalisation des secrets de cuisson...',
+];
 
 export interface CapturedPhoto {
   id: string;
@@ -44,6 +156,8 @@ export interface ScanRecipeScreenProps {
   initialMode?: AddRecipeMode;
   initialPhotos?: CapturedPhoto[];
   initialPendingPhotoUri?: string;
+  recipes?: Recipe[];
+  stockItems?: FridgeItem[];
   onBack: () => void;
   onRecipeExtracted: (recipeData: Partial<Recipe>, coverImageUri?: string) => void;
   onRecipeReceived?: (recipe: Recipe) => void;
@@ -65,12 +179,14 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
   initialMode = 'photo',
   initialPhotos,
   initialPendingPhotoUri,
+  recipes = [],
+  stockItems,
   onBack,
   onRecipeExtracted,
   onRecipeReceived,
   onManualCreate,
 }) => {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const [mode, setMode] = useState<AddRecipeMode>(initialMode);
   const [prevInitialMode, setPrevInitialMode] = useState(initialMode);
 
@@ -79,28 +195,75 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
     setMode(initialMode);
   }
 
-  // États Mode Photo
+  // =========================================================
+  // ÉTATS MODE PHOTO
+  // =========================================================
   const [photos, setPhotos] = useState<CapturedPhoto[]>(initialPhotos || []);
   const [isAnalyzingPhotos, setIsAnalyzingPhotos] = useState(false);
   const [isCameraModalVisible, setIsCameraModalVisible] = useState(false);
 
-  // États Mode Texte
+  // =========================================================
+  // ÉTATS MODE TEXTE
+  // =========================================================
   const [rawTextInput, setRawTextInput] = useState('');
   const [isAnalyzingText, setIsAnalyzingText] = useState(false);
 
-  // États Mode URL Web
+  // =========================================================
+  // ÉTATS MODE URL WEB
+  // =========================================================
   const [urlInput, setUrlInput] = useState('');
   const [isImportingUrl, setIsImportingUrl] = useState(false);
   const [importStepText, setImportStepText] = useState('');
   const [urlErrorMessage, setUrlErrorMessage] = useState<string | null>(null);
 
-  // États communs IA & Modales
+  // =========================================================
+  // ÉTATS COMMUNS IA & MODALES
+  // =========================================================
   const [loadingStep, setLoadingStep] = useState('Préparation des données...');
   const [isQrScannerVisible, setIsQrScannerVisible] = useState(false);
   const [apiKey, setApiKey] = useState<string>('');
   const [isApiKeyModalVisible, setIsApiKeyModalVisible] = useState(false);
   const [tempApiKeyInput, setTempApiKeyInput] = useState('');
   const [isKeyVisible, setIsKeyVisible] = useState(false);
+
+  // =========================================================
+  // ÉTATS CHEF IA
+  // =========================================================
+  const [chefStockItems, setChefStockItems] = useState<FridgeItem[]>(stockItems || []);
+  const [primaryIngredients, setPrimaryIngredients] = useState<string[]>([]);
+  const [optionalIngredients, setOptionalIngredients] = useState<string[]>([]);
+  const [inactiveIngredients, setInactiveIngredients] = useState<string[]>([]);
+  const [ingredientSearchText, setIngredientSearchText] = useState<string>('');
+  const [rejectedIdeaTitles, setRejectedIdeaTitles] = useState<string[]>([]);
+  const [isFavoritePromptsModalVisible, setIsFavoritePromptsModalVisible] = useState(false);
+
+  const [servings, setServings] = useState<number>(4);
+  const [isVegetarian, setIsVegetarian] = useState<boolean>(false);
+  const [mealType, setMealType] = useState<AllowedMealType>('Plat');
+  const [isMealTypeDropdownOpen, setIsMealTypeDropdownOpen] = useState<boolean>(false);
+  const [additionalPreferences, setAdditionalPreferences] = useState<string>('');
+
+  const [aiFlowStep, setAiFlowStep] = useState<
+    'config' | 'loading_ideas' | 'ideas' | 'generating_recipe'
+  >('config');
+  const [ideas, setIdeas] = useState<RecipeIdea[]>([]);
+  const [selectedIdea, setSelectedIdea] = useState<RecipeIdea | null>(null);
+  const [aiStepIndex, setAiStepIndex] = useState(0);
+  const [activeModelInfo, setActiveModelInfo] = useState<{ model: string; isFallback: boolean }>({
+    model: '',
+    isFallback: false,
+  });
+  const [chefMood, setChefMood] = useState<string>('quotidien');
+  const [availableMoods, setAvailableMoods] = useState<ChefMoodOption[]>(CHEF_MOODS);
+
+  const stepIntervalRef = useRef<any>(null);
+  const activeAbortControllerRef = useRef<AbortController | null>(null);
+  const currentOperationIdRef = useRef<number>(0);
+
+  const currentMealTypeObj = useMemo(
+    () => MEAL_TYPES.find((t) => t.id === mealType) || MEAL_TYPES[1],
+    [mealType]
+  );
 
   // Vérification de la connexion IA en direct
   const [connectionStatus, setConnectionStatus] = useState<AiConnectionStatus | null>(null);
@@ -126,8 +289,94 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
     RecipeAiService.getApiKey().then((key) => {
       setApiKey(key);
       verifyAiStatus(key);
+      if (key) discoverGeminiModels(key).catch(() => {});
     });
   }, [verifyAiStatus]);
+
+  const [prevStockItems, setPrevStockItems] = useState(stockItems);
+  if (stockItems !== prevStockItems) {
+    setPrevStockItems(stockItems);
+    if (stockItems && stockItems.length > 0) {
+      setChefStockItems(stockItems);
+      const init = initializeStockIngredients(stockItems);
+      setPrimaryIngredients(init.primaryIngredients);
+      setOptionalIngredients(init.optionalIngredients);
+      setInactiveIngredients(init.inactiveIngredients);
+    }
+  }
+
+  // Chargement des stocks pour le Chef IA si non fournis
+  useEffect(() => {
+    if (!stockItems || stockItems.length === 0) {
+      StorageService.getFridgeItems().then((items) => {
+        setChefStockItems(items);
+        const init = initializeStockIngredients(items);
+        setPrimaryIngredients(init.primaryIngredients);
+        setOptionalIngredients(init.optionalIngredients);
+        setInactiveIngredients(init.inactiveIngredients);
+      });
+    }
+  }, [stockItems]);
+
+  // Charger réglages utilisateur (portions, végé, humeurs)
+  useEffect(() => {
+    let isMounted = true;
+    Promise.all([
+      StorageService.getDefaultServings(),
+      StorageService.getDefaultVegetarianFilter(),
+      StorageService.getChefMoods(),
+    ]).then(([val, defaultVege, moods]) => {
+      if (isMounted) {
+        if (val && val >= 1) setServings(val);
+        if (defaultVege) setIsVegetarian(true);
+        if (moods && moods.length > 0) {
+          setAvailableMoods(moods);
+          setChefMood((current) => (moods.some((m) => m.id === current) ? current : moods[0].id));
+        }
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Animation des étapes IA de cuisson
+  useEffect(() => {
+    if (aiFlowStep === 'generating_recipe') {
+      stepIntervalRef.current = setInterval(() => {
+        setAiStepIndex((prev) => (prev + 1) % AI_STEPS.length);
+      }, 2300);
+    } else {
+      if (stepIntervalRef.current) {
+        clearInterval(stepIntervalRef.current);
+      }
+    }
+    return () => {
+      if (stepIntervalRef.current) {
+        clearInterval(stepIntervalRef.current);
+      }
+    };
+  }, [aiFlowStep]);
+
+  const cancelCurrentAiOperation = useCallback((targetStep?: 'config' | 'ideas') => {
+    if (activeAbortControllerRef.current) {
+      activeAbortControllerRef.current.abort();
+      activeAbortControllerRef.current = null;
+    }
+    currentOperationIdRef.current += 1;
+    if (stepIntervalRef.current) {
+      clearInterval(stepIntervalRef.current);
+    }
+    if (targetStep) {
+      setAiFlowStep(targetStep);
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      cancelCurrentAiOperation();
+    };
+  }, [cancelCurrentAiOperation]);
 
   const handleSaveApiKey = async () => {
     const trimmed = tempApiKeyInput.trim();
@@ -154,14 +403,12 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
   const processImage = async (uri: string): Promise<CapturedPhoto> => {
     let manipResult: { uri: string; base64?: string };
     try {
-      // Décodage borné natif : downsampling inSampleSize direct à 1024px lors du décodage (évite pic RAM de 50MP)
       const context = ImageManipulator.manipulate(uri, { maxWidth: 1024, maxHeight: 1024 });
       const image = await context.renderAsync();
       manipResult = await image.saveAsync({ compress: 0.55, format: SaveFormat.JPEG, base64: true });
       context.release();
       image.release();
     } catch {
-      // Repli défensif sur manipulateAsync
       manipResult = await manipulateAsync(
         uri,
         [{ resize: { width: 1024 } }],
@@ -169,7 +416,6 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
       );
     }
 
-    // Nettoyage immédiat du fichier brut original du cache (5 à 15 Mo libérés)
     if (uri.includes('/cache/') || uri.includes('ImagePicker')) {
       FileSystem.deleteAsync(uri, { idempotent: true }).catch(() => {});
     }
@@ -277,7 +523,6 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
         apiKey
       );
 
-      // Sécurisation permanente des photos scannées vers le dossier de documents
       const permanentPhotos = await Promise.all(
         photos.map((p) => ImageStorageService.persistImageLocally(p.uri))
       );
@@ -436,6 +681,435 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
     }
   };
 
+  // =========================================================
+  // GESTIONNAIRES CHEF IA
+  // =========================================================
+  const doableRecipesForCurrentType = useMemo(() => {
+    if (chefStockItems.length === 0 || recipes.length === 0) return [];
+    const map = evaluateRecipesWithStock(recipes, chefStockItems, {
+      assumePantryStaplesAvailable: true,
+    });
+    return recipes.filter((r) => map.get(r.id)?.isDoable && r.category === mealType);
+  }, [recipes, chefStockItems, mealType]);
+
+  const handleCycleIngredient = (name: string) => {
+    if (primaryIngredients.includes(name)) {
+      setPrimaryIngredients((prev) => prev.filter((i) => i !== name));
+      setInactiveIngredients((prev) => [...prev.filter((i) => i !== name), name]);
+      setRejectedIdeaTitles([]);
+    } else if (optionalIngredients.includes(name)) {
+      setOptionalIngredients((prev) => prev.filter((i) => i !== name));
+      setPrimaryIngredients((prev) => [...prev.filter((i) => i !== name), name]);
+      setRejectedIdeaTitles([]);
+    } else {
+      setInactiveIngredients((prev) => prev.filter((i) => i !== name));
+      setOptionalIngredients((prev) => [...prev.filter((i) => i !== name), name]);
+    }
+  };
+
+  const handleExcludeIngredient = (name: string) => {
+    const trimmedLower = name.trim().toLowerCase();
+    setPrimaryIngredients((prev) => prev.filter((i) => i.toLowerCase() !== trimmedLower));
+    setOptionalIngredients((prev) => prev.filter((i) => i.toLowerCase() !== trimmedLower));
+    if (!inactiveIngredients.some((i) => i.toLowerCase() === trimmedLower)) {
+      setInactiveIngredients((prev) => [...prev, name]);
+    }
+    setRejectedIdeaTitles([]);
+  };
+
+  const handleIncludeIngredient = (name: string) => {
+    const trimmedLower = name.trim().toLowerCase();
+    setInactiveIngredients((prev) => prev.filter((i) => i.toLowerCase() !== trimmedLower));
+    if (
+      !optionalIngredients.some((i) => i.toLowerCase() === trimmedLower) &&
+      !primaryIngredients.some((i) => i.toLowerCase() === trimmedLower)
+    ) {
+      setOptionalIngredients((prev) => [...prev, name]);
+    }
+    setRejectedIdeaTitles([]);
+  };
+
+  const handleAddIngredient = (name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    const trimmedLower = trimmed.toLowerCase();
+
+    if (primaryIngredients.some((i) => i.toLowerCase() === trimmedLower)) {
+      setIngredientSearchText('');
+      return;
+    }
+
+    if (optionalIngredients.some((i) => i.toLowerCase() === trimmedLower)) {
+      setOptionalIngredients((prev) => prev.filter((i) => i.toLowerCase() !== trimmedLower));
+      setPrimaryIngredients((prev) => [...prev, trimmed]);
+      setRejectedIdeaTitles([]);
+      setIngredientSearchText('');
+      return;
+    }
+
+    if (inactiveIngredients.some((i) => i.toLowerCase() === trimmedLower)) {
+      setInactiveIngredients((prev) => prev.filter((i) => i.toLowerCase() !== trimmedLower));
+      setPrimaryIngredients((prev) => [...prev, trimmed]);
+      setRejectedIdeaTitles([]);
+      setIngredientSearchText('');
+      return;
+    }
+
+    setPrimaryIngredients((prev) => [...prev, trimmed]);
+    setRejectedIdeaTitles([]);
+    setIngredientSearchText('');
+  };
+
+  const handleIncludeAll = () => {
+    setOptionalIngredients((prev) => [...prev, ...inactiveIngredients]);
+    setInactiveIngredients([]);
+  };
+
+  const handleExcludeAll = () => {
+    setInactiveIngredients((prev) => [...prev, ...primaryIngredients, ...optionalIngredients]);
+    setPrimaryIngredients([]);
+    setOptionalIngredients([]);
+    setRejectedIdeaTitles([]);
+  };
+
+  const getIngredientAisle = useCallback(
+    (name: string): ShoppingAisle => {
+      const trimmed = name.trim().toLowerCase();
+      const stockMatch = chefStockItems.find((s) => s.name?.trim().toLowerCase() === trimmed);
+      if (stockMatch?.aisle) {
+        return stockMatch.aisle;
+      }
+      return classifyIngredientAisle(name);
+    },
+    [chefStockItems]
+  );
+
+  const groupedActiveIngredients = useMemo<{
+    aisle: ShoppingAisle;
+    items: { name: string; isPrimary: boolean }[];
+  }[]>(() => {
+    const activeMap = new Map<string, { name: string; isPrimary: boolean }>();
+
+    primaryIngredients.forEach((name) => {
+      const trimmed = name.trim();
+      if (trimmed) {
+        activeMap.set(trimmed.toLowerCase(), { name: trimmed, isPrimary: true });
+      }
+    });
+
+    optionalIngredients.forEach((name) => {
+      const trimmed = name.trim();
+      if (trimmed && !activeMap.has(trimmed.toLowerCase())) {
+        activeMap.set(trimmed.toLowerCase(), { name: trimmed, isPrimary: false });
+      }
+    });
+
+    const aisleMap = new Map<ShoppingAisle, { name: string; isPrimary: boolean }[]>();
+    activeMap.forEach((item) => {
+      const aisle = getIngredientAisle(item.name);
+      const list = aisleMap.get(aisle) || [];
+      list.push(item);
+      aisleMap.set(aisle, list);
+    });
+
+    const groups: {
+      aisle: ShoppingAisle;
+      items: { name: string; isPrimary: boolean }[];
+    }[] = [];
+
+    ALL_AISLES.forEach((aisle) => {
+      const list = aisleMap.get(aisle);
+      if (list && list.length > 0) {
+        list.sort((a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }));
+        groups.push({ aisle, items: list });
+      }
+    });
+
+    aisleMap.forEach((list, aisle) => {
+      if (!ALL_AISLES.includes(aisle) && list.length > 0) {
+        list.sort((a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }));
+        groups.push({ aisle, items: list });
+      }
+    });
+
+    return groups;
+  }, [primaryIngredients, optionalIngredients, getIngredientAisle]);
+
+  const groupedInactiveIngredients = useMemo<{
+    aisle: ShoppingAisle;
+    items: string[];
+  }[]>(() => {
+    if (inactiveIngredients.length === 0) return [];
+
+    const aisleMap = new Map<ShoppingAisle, string[]>();
+    const seen = new Set<string>();
+
+    inactiveIngredients.forEach((name) => {
+      const trimmed = name.trim();
+      const lower = trimmed.toLowerCase();
+      if (trimmed && !seen.has(lower)) {
+        seen.add(lower);
+        const aisle = getIngredientAisle(trimmed);
+        const list = aisleMap.get(aisle) || [];
+        list.push(trimmed);
+        aisleMap.set(aisle, list);
+      }
+    });
+
+    const groups: { aisle: ShoppingAisle; items: string[] }[] = [];
+    ALL_AISLES.forEach((aisle) => {
+      const list = aisleMap.get(aisle);
+      if (list && list.length > 0) {
+        list.sort((a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base' }));
+        groups.push({ aisle, items: list });
+      }
+    });
+
+    aisleMap.forEach((list, aisle) => {
+      if (!ALL_AISLES.includes(aisle) && list.length > 0) {
+        list.sort((a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base' }));
+        groups.push({ aisle, items: list });
+      }
+    });
+
+    return groups;
+  }, [inactiveIngredients, getIngredientAisle]);
+
+  const activeCount = primaryIngredients.length + optionalIngredients.length;
+
+  const handleStartFetchIdeas = async () => {
+    if (primaryIngredients.length === 0 && optionalIngredients.length === 0) {
+      Alert.alert(
+        'Aucun ingrédient sélectionné',
+        'Veuillez ajouter au moins un ingrédient obligatoire ou optionnel pour inspirer le Chef IA.'
+      );
+      return;
+    }
+
+    const key = await RecipeAiService.getApiKey();
+    if (!key) {
+      setIsApiKeyModalVisible(true);
+      return;
+    }
+
+    executeFetchIdeas(key);
+  };
+
+  const executeFetchIdeas = async (key?: string, customRejected?: string[]) => {
+    cancelCurrentAiOperation();
+    const abortController = new AbortController();
+    activeAbortControllerRef.current = abortController;
+    const opId = ++currentOperationIdRef.current;
+
+    const apiKeyForModels = key || (await RecipeAiService.getApiKey());
+    if (apiKeyForModels) {
+      discoverGeminiModels(apiKeyForModels)
+        .then((m) => {
+          setActiveModelInfo((prev) => (!prev.model ? { model: m.fast[0], isFallback: false } : prev));
+        })
+        .catch(() => {});
+    }
+    setAiFlowStep('loading_ideas');
+
+    try {
+      const doableTitles = doableRecipesForCurrentType
+        .map((r) => r.title?.trim())
+        .filter(Boolean);
+
+      const aiExclusionEnabled = await StorageService.getAiAllergenExclusionEnabled();
+      let excludedAllergens: string[] = [];
+      if (aiExclusionEnabled) {
+        const userAllergens = await StorageService.getUserAllergens();
+        if (userAllergens.length > 0) {
+          excludedAllergens = userAllergens.map((a) => a.name.trim()).filter(Boolean);
+        }
+      }
+
+      const generatedIdeas = await RecipeAiService.suggestRecipeIdeasFromFridge(
+        {
+          primary: primaryIngredients,
+          optional: optionalIngredients,
+        },
+        {
+          mealType,
+          servings,
+          onlyVegetarian: isVegetarian,
+          existingDoableTitles: doableTitles,
+          rejectedIdeaTitles: customRejected || rejectedIdeaTitles,
+          excludedAllergens,
+          chefMood,
+          availableMoods,
+          additionalPreferences: additionalPreferences.trim(),
+          signal: abortController.signal,
+          onModelAttempt: (model, isFallback) => {
+            setActiveModelInfo({ model, isFallback });
+          },
+        },
+        key
+      );
+
+      if (opId !== currentOperationIdRef.current || abortController.signal.aborted) {
+        return;
+      }
+
+      if (!generatedIdeas || generatedIdeas.length === 0) {
+        throw new Error("Le Chef IA n'a pas pu proposer d'idées. Réessayez.");
+      }
+
+      setIdeas(generatedIdeas);
+      setAiFlowStep('ideas');
+    } catch (err: any) {
+      if (
+        opId !== currentOperationIdRef.current ||
+        abortController.signal.aborted ||
+        err?.name === 'AbortError'
+      ) {
+        return;
+      }
+      setAiFlowStep('config');
+      Alert.alert(
+        'Erreur Chef IA',
+        err?.message ||
+          "Impossible de générer les idées du Chef. Vérifiez votre clé API Gemini et votre connexion."
+      );
+    } finally {
+      if (activeAbortControllerRef.current === abortController) {
+        activeAbortControllerRef.current = null;
+      }
+    }
+  };
+
+  const handleRegenerateIdeas = async () => {
+    const currentTitles = ideas.map((i) => i.title.trim()).filter(Boolean);
+    const updatedRejected = [...rejectedIdeaTitles, ...currentTitles].slice(-15);
+    setRejectedIdeaTitles(updatedRejected);
+
+    const key = await RecipeAiService.getApiKey();
+    if (!key) {
+      setIsApiKeyModalVisible(true);
+      return;
+    }
+
+    executeFetchIdeas(key, updatedRejected);
+  };
+
+  const handleSelectIdea = async (idea: RecipeIdea) => {
+    setSelectedIdea(idea);
+    const key = await RecipeAiService.getApiKey();
+    if (!key) {
+      setIsApiKeyModalVisible(true);
+      return;
+    }
+    executeGenerateRecipeFromIdea(idea, key);
+  };
+
+  const executeGenerateRecipeFromIdea = async (idea: RecipeIdea, key?: string) => {
+    cancelCurrentAiOperation();
+    const abortController = new AbortController();
+    activeAbortControllerRef.current = abortController;
+    const opId = ++currentOperationIdRef.current;
+
+    const apiKeyForModels = key || (await RecipeAiService.getApiKey());
+    if (apiKeyForModels) {
+      discoverGeminiModels(apiKeyForModels)
+        .then((m) => {
+          setActiveModelInfo((prev) => (!prev.model ? { model: m.fast[0], isFallback: false } : prev));
+        })
+        .catch(() => {});
+    }
+    setAiStepIndex(0);
+    setAiFlowStep('generating_recipe');
+
+    try {
+      const allChosenIngredients = [...primaryIngredients, ...optionalIngredients];
+      const aiExclusionEnabled = await StorageService.getAiAllergenExclusionEnabled();
+      let excludedAllergens: string[] = [];
+      if (aiExclusionEnabled) {
+        const userAllergens = await StorageService.getUserAllergens();
+        if (userAllergens.length > 0) {
+          excludedAllergens = userAllergens.map((a) => a.name.trim()).filter(Boolean);
+        }
+      }
+
+      const generated = await RecipeAiService.generateRecipeFromIdea(
+        idea,
+        allChosenIngredients,
+        {
+          mealType,
+          servings,
+          onlyVegetarian: isVegetarian,
+          excludedAllergens,
+          additionalPreferences: additionalPreferences.trim(),
+          chefMood: chefMood,
+          availableMoods,
+          signal: abortController.signal,
+          onModelAttempt: (model, isFallback) => {
+            setActiveModelInfo({ model, isFallback });
+          },
+        },
+        key
+      );
+
+      if (opId !== currentOperationIdRef.current || abortController.signal.aborted) {
+        return;
+      }
+
+      const partialRecipe: Partial<Recipe> = {
+        id: generateUniqueId('rec_ai_stock'),
+        title: generated.title || idea.title,
+        description: generated.description || idea.description,
+        category: (generated.category as Category) || (mealType as Category) || 'Plat',
+        difficulty: generated.difficulty || 'Moyen',
+        prepTimeMinutes: generated.prepTimeMinutes || 15,
+        cookTimeMinutes: generated.cookTimeMinutes || 20,
+        servings: generated.servings || servings,
+        isVegetarian: generated.isVegetarian ?? isVegetarian,
+        userNote:
+          generated.userNote ||
+          `Recette inédite créée par le Chef IA avec vos aliments : ${allChosenIngredients.join(', ')}`,
+        rating: 0,
+        isFavorite: false,
+        ingredients: generated.ingredients.map((ing, idx) => ({
+          id: generateUniqueId(`ing_${idx}`),
+          name: ing.name,
+          quantity: ing.quantity || '',
+          unit: ing.unit || '',
+          isPantryStaple: ing.isPantryStaple,
+          isOptional: ing.isOptional,
+          canonicalId: (ing as any).canonicalId,
+          aisle: (ing as any).aisle,
+        })),
+        steps: generated.steps.map((st, idx) => ({
+          id: generateUniqueId(`stp_${idx}`),
+          order: st.order || idx + 1,
+          instruction: st.instruction,
+        })),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      onRecipeExtracted(partialRecipe);
+    } catch (err: any) {
+      if (
+        opId !== currentOperationIdRef.current ||
+        abortController.signal.aborted ||
+        err?.name === 'AbortError'
+      ) {
+        return;
+      }
+      setAiFlowStep('ideas');
+      Alert.alert(
+        'Erreur Chef IA',
+        err?.message ||
+          "Impossible de générer la recette pas-à-pas. Vérifiez votre clé API et réessayez."
+      );
+    } finally {
+      if (activeAbortControllerRef.current === abortController) {
+        activeAbortControllerRef.current = null;
+      }
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <KeyboardAvoidingView
@@ -445,7 +1119,19 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
         {/* Header uniforme */}
         <View style={styles.header}>
           <TouchableOpacity
-            onPress={onBack}
+            onPress={() => {
+              if (mode === 'chef') {
+                if (aiFlowStep === 'ideas') {
+                  setAiFlowStep('config');
+                  return;
+                }
+                if (aiFlowStep === 'generating_recipe' || aiFlowStep === 'loading_ideas') {
+                  cancelCurrentAiOperation('config');
+                  return;
+                }
+              }
+              onBack();
+            }}
             style={styles.backBtn}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
@@ -456,11 +1142,17 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
               {mode === 'text' && 'Texte brut'}
               {mode === 'photo' && 'Scanner une recette'}
               {mode === 'url' && 'Coller un lien web'}
+              {mode === 'chef' &&
+                (aiFlowStep === 'ideas' ? 'Inspirations du Chef' : 'Inspirations du Chef IA')}
             </Text>
             <Text style={styles.headerSubtitle}>
               {mode === 'text' && 'Extraction intelligente IA'}
               {mode === 'photo' && 'Vision multimodale IA'}
               {mode === 'url' && 'Extraction web automatique'}
+              {mode === 'chef' &&
+                (aiFlowStep === 'ideas'
+                  ? '3 idées imaginées pour vous'
+                  : 'Création sur-mesure & anti-gaspillage')}
             </Text>
           </View>
           <TouchableOpacity
@@ -479,7 +1171,7 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
           </TouchableOpacity>
         </View>
 
-        {/* Switcher segmenté à 3 entrées */}
+        {/* Switcher segmenté à 4 entrées */}
         <View style={styles.segmentContainer}>
           <TouchableOpacity
             style={[styles.segmentBtn, mode === 'text' && styles.segmentBtnActive]}
@@ -488,10 +1180,11 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
           >
             <Ionicons
               name="document-text-outline"
-              size={16}
+              size={14}
               color={mode === 'text' ? '#FFFFFF' : colors.textSecondary}
             />
             <Text
+              numberOfLines={1}
               style={[
                 styles.segmentBtnText,
                 mode === 'text' && styles.segmentBtnTextActive,
@@ -508,10 +1201,11 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
           >
             <Ionicons
               name="camera-outline"
-              size={16}
+              size={14}
               color={mode === 'photo' ? '#FFFFFF' : colors.textSecondary}
             />
             <Text
+              numberOfLines={1}
               style={[
                 styles.segmentBtnText,
                 mode === 'photo' && styles.segmentBtnTextActive,
@@ -528,10 +1222,11 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
           >
             <Ionicons
               name="globe-outline"
-              size={16}
+              size={14}
               color={mode === 'url' ? '#FFFFFF' : colors.textSecondary}
             />
             <Text
+              numberOfLines={1}
               style={[
                 styles.segmentBtnText,
                 mode === 'url' && styles.segmentBtnTextActive,
@@ -540,435 +1235,1128 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
               Coller un lien
             </Text>
           </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.segmentBtn, mode === 'chef' && styles.segmentBtnActive]}
+            onPress={() => setMode('chef')}
+            activeOpacity={0.8}
+          >
+            <Ionicons
+              name="sparkles"
+              size={14}
+              color={mode === 'chef' ? '#FFFFFF' : colors.textSecondary}
+            />
+            <Text
+              numberOfLines={1}
+              style={[
+                styles.segmentBtnText,
+                mode === 'chef' && styles.segmentBtnTextActive,
+              ]}
+            >
+              Chef IA
+            </Text>
+          </TouchableOpacity>
         </View>
 
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-        >
-          {/* Bannière Live IA (modes Texte & Photo) */}
-          {(mode === 'text' || mode === 'photo') && (
-            <>
-              {isCheckingConnection ? (
-                <View style={styles.checkingBadge}>
-                  <ActivityIndicator size="small" color={colors.primary} />
-                  <Text style={styles.checkingText}>Vérification de la connexion IA...</Text>
-                </View>
-              ) : connectionStatus?.ok ? (
-                <View style={styles.readyBadge}>
-                  <Ionicons name="checkmark-circle" size={18} color={colors.secondary} />
-                  <View style={styles.readyTextCol}>
-                    <Text style={styles.readyTitle}>Reconnaissance IA prête</Text>
-                    <Text style={styles.readySubtitle}>Gemini 3.8 Flash connecté</Text>
+        {mode === 'chef' ? (
+          /* ========================================================= */
+          /* 4. MODE CHEF IA (Intégré sans modal externe)              */
+          /* ========================================================= */
+          <View style={{ flex: 1 }}>
+            {aiFlowStep === 'generating_recipe' ? (
+              <View style={styles.aiLoadingContainer}>
+                <View style={styles.aiLoadingCard}>
+                  <View style={styles.aiSparkleIconBox}>
+                    <Ionicons name="restaurant" size={32} color="#FFFFFF" />
+                  </View>
+                  <Text style={styles.aiLoadingTitle}>
+                    {selectedIdea?.title || 'Création de votre recette'}
+                  </Text>
+                  <Text style={styles.aiLoadingStepText}>{AI_STEPS[aiStepIndex]}</Text>
+                  <ActivityIndicator
+                    size="large"
+                    color={colors.primary}
+                    style={styles.aiLoadingSpinner}
+                  />
+                  <Text style={styles.aiLoadingHint}>
+                    Dosage précis des ingrédients pour {servings} personne{servings > 1 ? 's' : ''} et rédaction des étapes pas-à-pas
+                  </Text>
+                  <View
+                    style={[
+                      styles.aiModelBadge,
+                      activeModelInfo.isFallback ? styles.aiModelBadgeFallback : styles.aiModelBadgeNormal,
+                    ]}
+                  >
+                    <Ionicons
+                      name={activeModelInfo.isFallback ? 'swap-horizontal' : 'hardware-chip-outline'}
+                      size={13}
+                      color={activeModelInfo.isFallback ? colors.amber : colors.primary}
+                    />
+                    <Text
+                      style={[
+                        styles.aiModelBadgeText,
+                        { color: activeModelInfo.isFallback ? colors.amber : colors.primary },
+                      ]}
+                    >
+                      {activeModelInfo.isFallback
+                        ? `Repli de secours : ${formatAiModelName(activeModelInfo.model || 'Gemini Flash')}`
+                        : `Modèle : ${formatAiModelName(activeModelInfo.model || 'Gemini Flash')}`}
+                    </Text>
                   </View>
                   <TouchableOpacity
-                    onPress={() => verifyAiStatus(apiKey)}
-                    style={styles.refreshBadgeBtn}
+                    style={styles.cancelLoadingBtn}
+                    onPress={() => cancelCurrentAiOperation('ideas')}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   >
-                    <Ionicons name="refresh" size={15} color={colors.secondary} />
+                    <Text style={styles.cancelLoadingBtnText}>Annuler</Text>
                   </TouchableOpacity>
                 </View>
-              ) : (
-                <View style={styles.errorCard}>
-                  <View style={styles.errorTopRow}>
+              </View>
+            ) : aiFlowStep === 'loading_ideas' ? (
+              <View style={styles.aiLoadingContainer}>
+                <View style={styles.aiLoadingCard}>
+                  <View style={[styles.aiSparkleIconBox, { backgroundColor: colors.secondary }]}>
+                    <Ionicons name="sparkles" size={32} color="#FFFFFF" />
+                  </View>
+                  <Text style={styles.aiLoadingTitle}>Inspiration en cours...</Text>
+                  <Text style={styles.aiLoadingStepText}>
+                    Le Chef imagine 3 idées gourmandes de type &laquo; {mealType} &raquo;...
+                  </Text>
+                  <ActivityIndicator
+                    size="large"
+                    color={colors.primary}
+                    style={styles.aiLoadingSpinner}
+                  />
+                  <Text style={styles.aiLoadingHint}>
+                    {doableRecipesForCurrentType.length > 0
+                      ? `Anti-doublon : ${doableRecipesForCurrentType.length} ${mealType.toLowerCase()}${doableRecipesForCurrentType.length > 1 ? 's' : ''} faisable${doableRecipesForCurrentType.length > 1 ? 's' : ''} dans votre carnet ${doableRecipesForCurrentType.length > 1 ? (mealType === 'Entrée' || mealType === 'Boisson' ? 'seront évitées' : 'seront évités') : (mealType === 'Entrée' || mealType === 'Boisson' ? 'sera évitée' : 'sera évité')}`
+                      : 'Génération originale adaptée à vos denrées en stock'}
+                  </Text>
+                  <View
+                    style={[
+                      styles.aiModelBadge,
+                      activeModelInfo.isFallback ? styles.aiModelBadgeFallback : styles.aiModelBadgeNormal,
+                    ]}
+                  >
                     <Ionicons
-                      name="close-circle"
-                      size={22}
-                      color={colors.danger}
-                      style={styles.errorIcon}
+                      name={activeModelInfo.isFallback ? 'swap-horizontal' : 'hardware-chip-outline'}
+                      size={13}
+                      color={activeModelInfo.isFallback ? colors.amber : colors.primary}
                     />
-                    <View style={styles.errorTitleCol}>
-                      <Text style={styles.errorTitle}>Reconnaissance IA indisponible</Text>
-                      <Text style={styles.errorMessage}>
-                        {connectionStatus?.message || 'Impossible de joindre le service IA'}
+                    <Text
+                      style={[
+                        styles.aiModelBadgeText,
+                        { color: activeModelInfo.isFallback ? colors.amber : colors.primary },
+                      ]}
+                    >
+                      {activeModelInfo.isFallback
+                        ? `Repli de secours : ${formatAiModelName(activeModelInfo.model || 'Gemini Flash')}`
+                        : `Modèle : ${formatAiModelName(activeModelInfo.model || 'Gemini Flash')}`}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.cancelLoadingBtn}
+                    onPress={() => cancelCurrentAiOperation('config')}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Text style={styles.cancelLoadingBtnText}>Annuler</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : aiFlowStep === 'ideas' ? (
+              <ScrollView
+                style={styles.chefScroll}
+                contentContainerStyle={styles.chefScrollContent}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+              >
+                <View style={styles.ideasHeader}>
+                  <TouchableOpacity
+                    style={styles.backToConfigBtn}
+                    onPress={() => setAiFlowStep('config')}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Ionicons name="arrow-back" size={16} color={colors.primary} />
+                    <Text style={styles.backToConfigBtnText}>Modifier ingrédients & options</Text>
+                  </TouchableOpacity>
+
+                  <View style={styles.ideasTitleRow}>
+                    <View style={[styles.cardIconBox, { backgroundColor: colors.secondary + '20' }]}>
+                      <Ionicons name="sparkles" size={18} color={colors.secondary} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.ideasTitle}>3 Inspirations du Chef IA</Text>
+                      <Text style={styles.ideasSubtitle}>
+                        Pour {servings} personne{servings > 1 ? 's' : ''} • {mealType}
+                        {isVegetarian ? ' • 100% Végétarien' : ''}
                       </Text>
                     </View>
                   </View>
-                  <View style={styles.errorActionsRow}>
+
+                  <Text style={styles.ideasInstructionText}>
+                    Choisissez la proposition qui vous donne le plus envie pour générer la recette complète :
+                  </Text>
+                </View>
+
+                {/* Cartes interactives des 3 idées */}
+                <View style={styles.ideasListContainer}>
+                  {ideas.map((idea, index) => (
                     <TouchableOpacity
-                      style={styles.errorRetryBtn}
+                      key={idea.id || index}
+                      style={styles.ideaCard}
+                      onPress={() => handleSelectIdea(idea)}
+                      activeOpacity={0.85}
+                    >
+                      <View style={styles.ideaCardTopRow}>
+                        <View style={styles.ideaBadgesRow}>
+                          <View style={styles.ideaTypeBadge}>
+                            <Text style={styles.ideaTypeBadgeText}>{mealType}</Text>
+                          </View>
+                          {idea.isVegetarian ? (
+                            <View
+                              style={[
+                                styles.ideaTypeBadge,
+                                { backgroundColor: colors.primaryLight, borderColor: colors.primary },
+                              ]}
+                            >
+                              <Text style={[styles.ideaTypeBadgeText, { color: colors.primary }]}>
+                                🌿 Végétarien
+                              </Text>
+                            </View>
+                          ) : null}
+                          {idea.estimatedTime ? (
+                            <View style={styles.ideaTimeBadge}>
+                              <Ionicons name="time-outline" size={12} color={colors.textSecondary} />
+                              <Text style={styles.ideaTimeBadgeText}>{idea.estimatedTime}</Text>
+                            </View>
+                          ) : null}
+                        </View>
+
+                        <View style={styles.ideaActionArrowCircle}>
+                          <Ionicons name="arrow-forward" size={14} color="#FFFFFF" />
+                        </View>
+                      </View>
+
+                      <Text style={styles.ideaCardTitle}>{idea.title}</Text>
+                      <Text style={styles.ideaCardDesc}>{idea.description}</Text>
+
+                      {idea.highlightIngredients && idea.highlightIngredients.length > 0 && (
+                        <View style={styles.ideaHighlightsWrap}>
+                          {idea.highlightIngredients.map((h, i) => (
+                            <View key={i} style={styles.ideaHighlightChip}>
+                              <Ionicons name="checkmark-circle" size={12} color={colors.primary} />
+                              <Text style={styles.ideaHighlightChipText}>{h}</Text>
+                            </View>
+                          ))}
+                        </View>
+                      )}
+
+                      <View style={styles.ideaCardFooter}>
+                        <Text style={styles.ideaCookBtnText}>Cuisiner cette recette</Text>
+                        <Ionicons name="chevron-forward" size={16} color={colors.primary} />
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                {/* Actions en bas des idées */}
+                <View style={styles.ideasBottomActions}>
+                  <TouchableOpacity
+                    style={styles.refreshIdeasBtn}
+                    onPress={handleRegenerateIdeas}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="refresh" size={16} color={colors.primary} />
+                    <Text style={styles.refreshIdeasBtnText}>Proposer 3 autres idées 🔄</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.changeConfigBtn}
+                    onPress={() => setAiFlowStep('config')}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="options-outline" size={16} color={colors.textSecondary} />
+                    <Text style={styles.changeConfigBtnText}>Modifier mes critères & prompt</Text>
+                  </TouchableOpacity>
+                </View>
+              </ScrollView>
+            ) : (
+              <>
+                <ScrollView
+                  style={styles.chefScroll}
+                  contentContainerStyle={styles.chefScrollContent}
+                  showsVerticalScrollIndicator={false}
+                  keyboardShouldPersistTaps="handled"
+                  onScrollBeginDrag={() => {
+                    if (isMealTypeDropdownOpen) {
+                      setIsMealTypeDropdownOpen(false);
+                    }
+                  }}
+                >
+                  {/* Guide Chef IA */}
+                  <View style={styles.guideCard}>
+                    <View style={styles.guideHeader}>
+                      <Ionicons name="sparkles" size={16} color={colors.secondary} />
+                      <Text style={styles.guideTitle}>Inspirations du Chef IA</Text>
+                    </View>
+                    <Text style={styles.guideText}>
+                      Trouvez des idées de recettes sur-mesure à partir de vos ingrédients en stock pour ne rien gaspiller et cuisiner avec plaisir au quotidien.
+                    </Text>
+                  </View>
+
+                  {/* 1. CARTE 1 : FORMAT DU REPAS */}
+                  <View style={styles.sectionCard}>
+                    <View style={styles.sectionCardHeader}>
+                      <Ionicons name="restaurant-outline" size={16} color={colors.primary} />
+                      <Text style={styles.sectionCardTitle}>1. FORMAT DU REPAS</Text>
+                    </View>
+                    <View style={styles.formatRow}>
+                      <TouchableOpacity
+                        style={[
+                          styles.mealTypeDropdownTrigger,
+                          isMealTypeDropdownOpen && styles.mealTypeDropdownTriggerActive,
+                        ]}
+                        onPress={() => setIsMealTypeDropdownOpen((prev) => !prev)}
+                        activeOpacity={0.7}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Format du repas : ${currentMealTypeObj.label}. Toucher pour changer.`}
+                      >
+                        <View style={styles.mealTypeDropdownTriggerContent}>
+                          <Ionicons
+                            name={currentMealTypeObj.iconName as any}
+                            size={15}
+                            color={colors.primary}
+                          />
+                          <Text
+                            style={styles.mealTypeDropdownTriggerText}
+                            numberOfLines={1}
+                          >
+                            {currentMealTypeObj.label}
+                          </Text>
+                        </View>
+                        <Ionicons
+                          name={isMealTypeDropdownOpen ? 'chevron-up' : 'chevron-down'}
+                          size={14}
+                          color={isMealTypeDropdownOpen ? colors.primary : colors.textSecondary}
+                        />
+                      </TouchableOpacity>
+
+                      <View style={styles.servingsCompactContainer}>
+                        <TouchableOpacity
+                          style={[
+                            styles.stepperBtnCompact,
+                            servings <= 1 && styles.stepperBtnDisabled,
+                          ]}
+                          onPress={() => setServings((prev) => Math.max(1, prev - 1))}
+                          disabled={servings <= 1}
+                          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                          accessibilityLabel="Diminuer les portions"
+                        >
+                          <Ionicons name="remove" size={13} color={colors.textPrimary} />
+                        </TouchableOpacity>
+                        <View style={styles.servingsLabelBox}>
+                          <Ionicons name="people-outline" size={12} color={colors.textSecondary} />
+                          <Text style={styles.servingsValueText}>{servings}</Text>
+                        </View>
+                        <TouchableOpacity
+                          style={[
+                            styles.stepperBtnCompact,
+                            servings >= 20 && styles.stepperBtnDisabled,
+                          ]}
+                          onPress={() => setServings((prev) => Math.min(20, prev + 1))}
+                          disabled={servings >= 20}
+                          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                          accessibilityLabel="Augmenter les portions"
+                        >
+                          <Ionicons name="add" size={13} color={colors.textPrimary} />
+                        </TouchableOpacity>
+                      </View>
+
+                      <TouchableOpacity
+                        style={[
+                          styles.veggieCompactChip,
+                          isVegetarian && styles.veggieCompactChipActive,
+                        ]}
+                        onPress={() => setIsVegetarian((prev) => !prev)}
+                        activeOpacity={0.7}
+                        accessibilityRole="checkbox"
+                        accessibilityState={{ checked: isVegetarian }}
+                        accessibilityLabel="Option 100% végétarien"
+                      >
+                        <Text
+                          style={[
+                            styles.veggieCompactText,
+                            isVegetarian && styles.veggieCompactTextActive,
+                          ]}
+                        >
+                          🌿 Végé
+                        </Text>
+                        <Ionicons
+                          name={isVegetarian ? 'checkbox' : 'square-outline'}
+                          size={15}
+                          color={isVegetarian ? colors.primary : colors.textMuted}
+                        />
+                      </TouchableOpacity>
+                    </View>
+
+                    {isMealTypeDropdownOpen && (
+                      <View style={styles.mealTypeDropdownMenu}>
+                        {MEAL_TYPES.map((t, index) => {
+                          const isSelected = mealType === t.id;
+                          const isLast = index === MEAL_TYPES.length - 1;
+                          return (
+                            <TouchableOpacity
+                              key={t.id}
+                              style={[
+                                styles.mealTypeDropdownItem,
+                                isSelected && styles.mealTypeDropdownItemActive,
+                                isLast && styles.mealTypeDropdownItemLast,
+                              ]}
+                              onPress={() => {
+                                setMealType(t.id);
+                                setIsMealTypeDropdownOpen(false);
+                                setRejectedIdeaTitles([]);
+                              }}
+                              activeOpacity={0.7}
+                              accessibilityRole="button"
+                              accessibilityLabel={`Choisir le format ${t.label}`}
+                            >
+                              <View style={styles.mealTypeDropdownItemLeft}>
+                                <View
+                                  style={[
+                                    styles.mealTypeDropdownIconBox,
+                                    isSelected && styles.mealTypeDropdownIconBoxActive,
+                                  ]}
+                                >
+                                  <Ionicons
+                                    name={t.iconName as any}
+                                    size={15}
+                                    color={isSelected ? '#FFFFFF' : colors.primary}
+                                  />
+                                </View>
+                                <Text
+                                  style={[
+                                    styles.mealTypeDropdownItemText,
+                                    isSelected && styles.mealTypeDropdownItemTextActive,
+                                  ]}
+                                >
+                                  {t.label}
+                                </Text>
+                              </View>
+                              {isSelected && (
+                                <Ionicons
+                                  name="checkmark-circle"
+                                  size={18}
+                                  color={colors.primary}
+                                />
+                              )}
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    )}
+                  </View>
+
+                  {/* 2. CARTE 2 : STYLE & ENVIES DU MOMENT */}
+                  <View style={styles.sectionCard}>
+                    <View style={styles.sectionCardHeader}>
+                      <Ionicons name="sparkles-outline" size={16} color={colors.primary} />
+                      <Text style={styles.sectionCardTitle}>2. STYLE & ENVIES DU MOMENT</Text>
+                    </View>
+
+                    <View style={styles.moodSection}>
+                      <Text style={styles.subSectionTitle}>Humeur du Chef</Text>
+                      <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={styles.moodSelectorRow}
+                      >
+                        {availableMoods.map((m) => {
+                          const isSelected = chefMood === m.id;
+                          return (
+                            <TouchableOpacity
+                              key={m.id}
+                              style={[
+                                styles.moodChip,
+                                isSelected && styles.moodChipSelected,
+                              ]}
+                              onPress={() => setChefMood(m.id)}
+                              activeOpacity={0.7}
+                            >
+                              <Ionicons
+                                name={(m.icon || 'sparkles-outline') as any}
+                                size={13}
+                                color={isSelected ? '#FFFFFF' : colors.textSecondary}
+                              />
+                              <Text
+                                style={[
+                                  styles.moodChipText,
+                                  isSelected && styles.moodChipTextSelected,
+                                ]}
+                                numberOfLines={1}
+                                ellipsizeMode="tail"
+                              >
+                                {m.label}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </ScrollView>
+                    </View>
+
+                    <View style={styles.promptInputSection}>
+                      <View style={styles.preferencesHeaderRow}>
+                        <Text style={styles.subSectionTitle}>Instructions libres</Text>
+                        <TouchableOpacity
+                          style={styles.favoritePromptBtn}
+                          onPress={() => setIsFavoritePromptsModalVisible(true)}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        >
+                          <Ionicons name="bookmark-outline" size={12} color={colors.primary} />
+                          <Text style={styles.favoritePromptBtnText}>Favoris</Text>
+                        </TouchableOpacity>
+                      </View>
+                      <View style={styles.promptInputWrapper}>
+                        <Ionicons
+                          name="sparkles"
+                          size={14}
+                          color={colors.primary}
+                          style={styles.promptSparkleIcon}
+                        />
+                        <TextInput
+                          style={styles.aiPreferencesInput}
+                          placeholder="Ex : sans four, bien épicé, crémeux..."
+                          placeholderTextColor={colors.textMuted}
+                          value={additionalPreferences}
+                          onChangeText={setAdditionalPreferences}
+                          maxLength={150}
+                        />
+                        {additionalPreferences.length > 0 && (
+                          <TouchableOpacity
+                            onPress={() => setAdditionalPreferences('')}
+                            style={styles.clearPromptBtn}
+                            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                            accessibilityLabel="Effacer les instructions"
+                          >
+                            <Ionicons name="close-circle" size={16} color={colors.textMuted} />
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    </View>
+                  </View>
+
+                  {/* 3. CARTE 3 : INGRÉDIENTS */}
+                  <View style={styles.sectionCard}>
+                    <View style={styles.sectionCardHeader}>
+                      <Ionicons name="nutrition-outline" size={16} color={colors.primary} />
+                      <Text style={styles.sectionCardTitle}>3. INGRÉDIENTS</Text>
+                    </View>
+
+                    <View style={styles.inputComposerWrapper}>
+                      <UnifiedIngredientInput
+                        value={ingredientSearchText}
+                        onChangeText={setIngredientSearchText}
+                        onSelectIngredient={(item) => {
+                          handleAddIngredient(item.canonicalName);
+                        }}
+                        onSubmitEditing={() => {
+                          if (ingredientSearchText.trim()) {
+                            handleAddIngredient(ingredientSearchText);
+                          }
+                        }}
+                        placeholder="Ajouter un ingrédient manquant ou en stock..."
+                        placeholderTextColor={colors.textMuted}
+                        context="stock"
+                        clearOnSelect
+                      />
+                    </View>
+
+                    <View style={styles.activeGuide}>
+                      <Text style={styles.subSectionTitle}>
+                        Retenus pour la recette ({activeCount})
+                      </Text>
+                      {inactiveIngredients.length > 0 && (
+                        <TouchableOpacity
+                          style={styles.smallActionBtn}
+                          onPress={handleIncludeAll}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={styles.smallActionBtnText}>Tout inclure</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+
+                    {groupedActiveIngredients.map(({ aisle, items }) => {
+                      const aisleConfig = AISLE_CONFIGS[aisle] || AISLE_CONFIGS['Autre'];
+                      return (
+                        <View key={aisle} style={styles.groupedAisleBox}>
+                          <View style={styles.aisleHeaderRow}>
+                            <View
+                              style={[
+                                styles.aisleIconBox,
+                                {
+                                  backgroundColor: isDark
+                                    ? aisleConfig.color + '26'
+                                    : aisleConfig.bgColor,
+                                },
+                              ]}
+                            >
+                              <Ionicons
+                                name={aisleConfig.iconName as any}
+                                size={12}
+                                color={aisleConfig.color}
+                              />
+                            </View>
+                            <Text style={[styles.aisleTitle, { color: aisleConfig.color }]}>
+                              {aisle}
+                            </Text>
+                            <View style={styles.aisleCountBadge}>
+                              <Text style={styles.aisleCountText}>{items.length}</Text>
+                            </View>
+                          </View>
+                          <View style={styles.chipsWrap}>
+                            {items.map(({ name, isPrimary }) => (
+                              <View
+                                key={name}
+                                style={[
+                                  styles.stockChip,
+                                  isPrimary ? styles.stockChipPrimary : styles.stockChipOptional,
+                                ]}
+                              >
+                                <TouchableOpacity
+                                  style={styles.stockChipBody}
+                                  onPress={() => handleCycleIngredient(name)}
+                                  activeOpacity={0.7}
+                                  accessibilityRole="button"
+                                  accessibilityLabel={`${name}, ${isPrimary ? 'indispensable' : 'optionnel'}. Toucher pour changer.`}
+                                >
+                                  {isPrimary && (
+                                    <View style={styles.primaryDotIndicator} />
+                                  )}
+                                  <Text
+                                    style={[
+                                      styles.stockChipText,
+                                      isPrimary
+                                        ? styles.stockChipTextPrimary
+                                        : styles.stockChipTextOptional,
+                                    ]}
+                                  >
+                                    {name}
+                                  </Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                  style={styles.stockChipCloseBtn}
+                                  onPress={() => handleExcludeIngredient(name)}
+                                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                                  accessibilityLabel={`Exclure ${name}`}
+                                >
+                                  <Ionicons
+                                    name="close"
+                                    size={13}
+                                    color={isPrimary ? '#FFFFFF' : colors.textMuted}
+                                  />
+                                </TouchableOpacity>
+                              </View>
+                            ))}
+                          </View>
+                        </View>
+                      );
+                    })}
+
+                    {inactiveIngredients.length > 0 && (
+                      <View style={styles.inactiveSection}>
+                        <View style={styles.inactiveHeader}>
+                          <Text style={styles.subSectionTitle}>
+                            Mis de côté ({inactiveIngredients.length})
+                          </Text>
+                          <TouchableOpacity
+                            style={styles.smallActionBtn}
+                            onPress={handleExcludeAll}
+                            activeOpacity={0.7}
+                          >
+                            <Text style={styles.smallActionBtnText}>Tout exclure</Text>
+                          </TouchableOpacity>
+                        </View>
+                        {groupedInactiveIngredients.map(({ aisle, items }) => {
+                          const aisleConfig = AISLE_CONFIGS[aisle] || AISLE_CONFIGS['Autre'];
+                          return (
+                            <View key={`inactive_${aisle}`} style={styles.groupedAisleBox}>
+                              <View style={styles.aisleHeaderRow}>
+                                <View
+                                  style={[
+                                    styles.aisleIconBox,
+                                    {
+                                      backgroundColor: isDark
+                                        ? aisleConfig.color + '26'
+                                        : aisleConfig.bgColor,
+                                    },
+                                  ]}
+                                >
+                                  <Ionicons
+                                    name={aisleConfig.iconName as any}
+                                    size={12}
+                                    color={aisleConfig.color}
+                                  />
+                                </View>
+                                <Text style={[styles.aisleTitle, { color: aisleConfig.color }]}>
+                                  {aisle}
+                                </Text>
+                                <View style={styles.aisleCountBadge}>
+                                  <Text style={styles.aisleCountText}>{items.length}</Text>
+                                </View>
+                              </View>
+                              <View style={styles.chipsWrap}>
+                                {items.map((name) => (
+                                  <TouchableOpacity
+                                    key={`inactive_${name}`}
+                                    style={[styles.stockChip, styles.stockChipInactive]}
+                                    onPress={() => handleIncludeIngredient(name)}
+                                    activeOpacity={0.7}
+                                    accessibilityLabel={`Réintégrer ${name}`}
+                                  >
+                                    <Ionicons name="add" size={13} color={colors.textSecondary} />
+                                    <Text style={[styles.stockChipText, styles.stockChipTextInactive]}>
+                                      {name}
+                                    </Text>
+                                  </TouchableOpacity>
+                                ))}
+                              </View>
+                            </View>
+                          );
+                        })}
+                      </View>
+                    )}
+                  </View>
+                </ScrollView>
+
+                <View style={styles.stickyFooterContainer}>
+                  <TouchableOpacity
+                    style={[
+                      styles.generateAiBtn,
+                      activeCount === 0 && styles.generateAiBtnDisabled,
+                    ]}
+                    onPress={handleStartFetchIdeas}
+                    disabled={activeCount === 0}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="sparkles" size={18} color="#FFFFFF" />
+                    <Text style={styles.generateAiBtnText}>
+                      💡 Trouver 3 idées {formatMealTypeGenitive(mealType)} ({activeCount} ingrédient{activeCount > 1 ? 's' : ''})
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+          </View>
+        ) : (
+          /* ========================================================= */
+          /* MODES STANDARD : PHOTO / TEXTE / URL                      */
+          /* ========================================================= */
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+          >
+            {/* Bannière Live IA (modes Texte & Photo) */}
+            {(mode === 'text' || mode === 'photo') && (
+              <>
+                {isCheckingConnection ? (
+                  <View style={styles.checkingBadge}>
+                    <ActivityIndicator size="small" color={colors.primary} />
+                    <Text style={styles.checkingText}>Vérification de la connexion IA...</Text>
+                  </View>
+                ) : connectionStatus?.ok ? (
+                  <View style={styles.readyBadge}>
+                    <Ionicons name="checkmark-circle" size={18} color={colors.secondary} />
+                    <View style={styles.readyTextCol}>
+                      <Text style={styles.readyTitle}>Reconnaissance IA prête</Text>
+                      <Text style={styles.readySubtitle}>Gemini 3.8 Flash connecté</Text>
+                    </View>
+                    <TouchableOpacity
                       onPress={() => verifyAiStatus(apiKey)}
-                      activeOpacity={0.8}
+                      style={styles.refreshBadgeBtn}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     >
-                      <Ionicons name="reload" size={14} color="#FFFFFF" />
-                      <Text style={styles.errorRetryBtnText}>Réessayer</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.errorKeyBtn}
-                      onPress={() => {
-                        setTempApiKeyInput(apiKey);
-                        setIsApiKeyModalVisible(true);
-                      }}
-                      activeOpacity={0.8}
-                    >
-                      <Ionicons name="key-outline" size={14} color={colors.primary} />
-                      <Text style={styles.errorKeyBtnText}>Configurer clé</Text>
+                      <Ionicons name="refresh" size={15} color={colors.secondary} />
                     </TouchableOpacity>
                   </View>
-                </View>
-              )}
-            </>
-          )}
-
-          {/* ========================================================= */}
-          {/* 1. ONGLET TEXTE BRUT */}
-          {/* ========================================================= */}
-          {mode === 'text' && (
-            <View>
-              {/* Carte guide */}
-              <View style={styles.guideCard}>
-                <View style={styles.guideHeader}>
-                  <Ionicons name="sparkles" size={16} color={colors.primary} />
-                  <Text style={styles.guideTitle}>Extraction intelligente par IA</Text>
-                </View>
-                <Text style={styles.guideText}>
-                  Collez vos notes, un message ou le texte brut d&apos;une recette. L&apos;IA structure automatiquement le titre, les portions, les temps de cuisson, les ingrédients et les étapes.
-                </Text>
-              </View>
-
-              {/* Boîte de saisie texte */}
-              <View style={styles.inputCard}>
-                <View style={styles.inputCardHeader}>
-                  <View style={styles.inputCardHeaderLeft}>
-                    <Ionicons name="document-text-outline" size={18} color={colors.primary} />
-                    <Text style={styles.inputCardHeaderTitle}>Votre recette en texte</Text>
+                ) : (
+                  <View style={styles.errorCard}>
+                    <View style={styles.errorTopRow}>
+                      <Ionicons
+                        name="close-circle"
+                        size={22}
+                        color={colors.danger}
+                        style={styles.errorIcon}
+                      />
+                      <View style={styles.errorTitleCol}>
+                        <Text style={styles.errorTitle}>
+                          {connectionStatus?.code === 'INVALID_KEY'
+                            ? 'Clé API Gemini invalide'
+                            : 'Connexion IA impossible'}
+                        </Text>
+                        <Text style={styles.errorMessage}>{connectionStatus?.message}</Text>
+                      </View>
+                    </View>
+                    <View style={styles.errorActionsRow}>
+                      <TouchableOpacity
+                        style={styles.errorFixBtn}
+                        onPress={() => {
+                          setTempApiKeyInput(apiKey);
+                          setIsApiKeyModalVisible(true);
+                        }}
+                      >
+                        <Ionicons name="key" size={14} color="#FFFFFF" />
+                        <Text style={styles.errorFixBtnText}>Changer de clé</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.errorRetryBtn}
+                        onPress={() => verifyAiStatus(apiKey)}
+                      >
+                        <Ionicons name="refresh" size={14} color={colors.textPrimary} />
+                        <Text style={styles.errorRetryBtnText}>Réessayer</Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
-                  <View style={styles.inputCardHeaderActions}>
+                )}
+              </>
+            )}
+
+            {/* ========================================================= */}
+            {/* 1. ONGLET TEXTE BRUT */}
+            {/* ========================================================= */}
+            {mode === 'text' && (
+              <View>
+                <View style={styles.guideCard}>
+                  <View style={styles.guideHeader}>
+                    <Ionicons name="document-text-outline" size={16} color={colors.primary} />
+                    <Text style={styles.guideTitle}>Copier-coller du texte brut</Text>
+                  </View>
+                  <Text style={styles.guideText}>
+                    Collez le texte brut d&apos;une recette issue d&apos;un message, d&apos;un mail, de WhatsApp ou d&apos;un livre. L&apos;IA repère automatiquement le titre, les proportions, la liste des ingrédients et les étapes.
+                  </Text>
+                </View>
+
+                <View style={styles.inputCard}>
+                  <View style={styles.inputCardHeader}>
+                    <View style={styles.inputCardHeaderLeft}>
+                      <Ionicons name="pencil-outline" size={18} color={colors.primary} />
+                      <Text style={styles.inputCardHeaderTitle}>Texte de la recette</Text>
+                    </View>
                     {rawTextInput.length > 0 && (
                       <TouchableOpacity
                         style={styles.clearQuickBtn}
                         onPress={() => setRawTextInput('')}
                         activeOpacity={0.7}
-                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                        accessibilityLabel="Effacer le texte"
                       >
-                        <Ionicons name="trash-outline" size={16} color={colors.danger} />
+                        <Ionicons name="trash-outline" size={14} color={colors.danger} />
+                        <Text style={styles.clearQuickBtnText}>Effacer</Text>
                       </TouchableOpacity>
                     )}
                   </View>
+
+                  <TextInput
+                    style={styles.textInputArea}
+                    multiline
+                    numberOfLines={10}
+                    placeholder="Collez ici le texte de votre recette...&#10;&#10;Exemple :&#10;Tarte aux pommes rustique&#10;Ingrédients : 4 pommes, 1 pâte brisée, 50g de beurre, 2 c. à soupe de cassonade...&#10;Préparation : Préchauffer le four à 180°C..."
+                    placeholderTextColor={colors.textMuted}
+                    value={rawTextInput}
+                    onChangeText={setRawTextInput}
+                    textAlignVertical="top"
+                  />
                 </View>
 
-                <TextInput
-                  style={styles.rawTextArea}
-                  value={rawTextInput}
-                  onChangeText={setRawTextInput}
-                  placeholder={"Ex: Risotto aux champignons\n300g de riz arborio, 250g de champignons, 1 échalote...\n\nFaire suer l'échalote, ajouter le riz..."}
-                  placeholderTextColor={colors.textMuted}
-                  multiline
-                  textAlignVertical="top"
-                />
+                {rawTextInput.trim().length > 0 && (
+                  <TouchableOpacity
+                    style={[
+                      styles.primaryCtaBtn,
+                      (isAnalyzingText || (connectionStatus && !connectionStatus.ok)) &&
+                        styles.primaryCtaBtnDisabled,
+                    ]}
+                    onPress={handleAnalyzeText}
+                    disabled={isAnalyzingText}
+                    activeOpacity={0.85}
+                  >
+                    {isAnalyzingText ? (
+                      <View style={styles.btnLoadingRow}>
+                        <ActivityIndicator size="small" color="#FFFFFF" />
+                        <Text style={styles.primaryCtaBtnText}>{loadingStep}</Text>
+                      </View>
+                    ) : (
+                      <View style={styles.btnLoadingRow}>
+                        <Ionicons name="sparkles" size={19} color="#FFFFFF" />
+                        <Text style={styles.primaryCtaBtnText}>Analyser et extraire la recette</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
 
-                <View style={styles.inputCardFooter}>
-                  <Text style={styles.textCountHint}>
-                    {rawTextInput.length} caractère{rawTextInput.length > 1 ? 's' : ''}
+            {/* ========================================================= */}
+            {/* 2. ONGLET SCANNER / PHOTO */}
+            {/* ========================================================= */}
+            {mode === 'photo' && (
+              <View>
+                <View style={styles.guideCard}>
+                  <View style={styles.guideHeader}>
+                    <Ionicons name="camera-outline" size={16} color={colors.primary} />
+                    <Text style={styles.guideTitle}>Capture photo (1 à 4 pages)</Text>
+                  </View>
+                  <Text style={styles.guideText}>
+                    Photographiez un livre de cuisine, une fiche manuscrite ou une recette sur un écran. Vous pouvez combiner recto/verso ou ingrédients et étapes sur des pages distinctes.
                   </Text>
                 </View>
-              </View>
 
-              {/* Bouton d'action principal */}
-              <TouchableOpacity
-                style={[
-                  styles.primaryCtaBtn,
-                  (isAnalyzingText ||
-                    !rawTextInput.trim() ||
-                    (connectionStatus && !connectionStatus.ok)) &&
-                    styles.primaryCtaBtnDisabled,
-                ]}
-                onPress={handleAnalyzeText}
-                disabled={isAnalyzingText || !rawTextInput.trim()}
-                activeOpacity={0.85}
-              >
-                {isAnalyzingText ? (
-                  <View style={styles.btnLoadingRow}>
-                    <ActivityIndicator size="small" color="#FFFFFF" />
-                    <Text style={styles.primaryCtaBtnText}>{loadingStep}</Text>
+                {photos.length === 0 ? (
+                  <View style={styles.photoEmptyPickerBox}>
+                    <View style={styles.pickerIconCircle}>
+                      <Ionicons name="camera-reverse-outline" size={36} color={colors.primary} />
+                    </View>
+                    <Text style={styles.pickerBoxTitle}>Photographier une recette</Text>
+                    <Text style={styles.pickerBoxSubtitle}>
+                      Prenez une photo bien éclairée à plat, ou sélectionnez une image de votre galerie.
+                    </Text>
+
+                    <View style={styles.pickerBtnsRow}>
+                      <TouchableOpacity
+                        style={styles.pickerPrimaryBtn}
+                        onPress={() => handlePickPhoto(true)}
+                        activeOpacity={0.85}
+                      >
+                        <Ionicons name="camera" size={20} color="#FFFFFF" />
+                        <Text style={styles.pickerPrimaryBtnText}>Prendre une photo</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={styles.pickerSecondaryBtn}
+                        onPress={() => handlePickPhoto(false)}
+                        activeOpacity={0.85}
+                      >
+                        <Ionicons name="images-outline" size={20} color={colors.primary} />
+                        <Text style={styles.pickerSecondaryBtnText}>Galerie</Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 ) : (
-                  <View style={styles.btnLoadingRow}>
-                    <Ionicons name="sparkles" size={19} color="#FFFFFF" />
-                    <Text style={styles.primaryCtaBtnText}>
-                      Structurer et créer la recette
-                    </Text>
+                  <View style={styles.photosGridContainer}>
+                    <View style={styles.photosGridHeader}>
+                      <Text style={styles.photosGridTitle}>
+                        {photos.length} photo{photos.length > 1 ? 's' : ''} sélectionnée{photos.length > 1 ? 's' : ''} (max 4)
+                      </Text>
+                      <TouchableOpacity
+                        style={styles.clearPhotosBtn}
+                        onPress={() => setPhotos([])}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons name="trash-outline" size={14} color={colors.danger} />
+                        <Text style={styles.clearPhotosBtnText}>Tout supprimer</Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    <View style={styles.photosThumbnailsRow}>
+                      {photos.map((item, idx) => (
+                        <View key={item.id} style={styles.thumbnailWrapper}>
+                          <Image
+                            source={{ uri: item.uri }}
+                            style={styles.thumbnailImg}
+                            contentFit="cover"
+                            transition={200}
+                          />
+                          <View style={styles.thumbnailPageBadge}>
+                            <Text style={styles.thumbnailPageText}>Page {idx + 1}</Text>
+                          </View>
+                          <TouchableOpacity
+                            style={styles.thumbnailRemoveBtn}
+                            onPress={() => handleRemovePhoto(item.id)}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          >
+                            <Ionicons name="close" size={14} color="#FFFFFF" />
+                          </TouchableOpacity>
+                        </View>
+                      ))}
+                    </View>
+
+                    <View style={styles.addMoreBtnsRow}>
+                      <TouchableOpacity
+                        style={styles.addMoreBtn}
+                        onPress={() => handlePickPhoto(true)}
+                        activeOpacity={0.8}
+                      >
+                        <Ionicons name="camera-outline" size={17} color={colors.primary} />
+                        <Text style={styles.addMoreBtnText}>+ Ajouter photo</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.addMoreBtn}
+                        onPress={() => handlePickPhoto(false)}
+                        activeOpacity={0.8}
+                      >
+                        <Ionicons name="images-outline" size={17} color={colors.primary} />
+                        <Text style={styles.addMoreBtnText}>+ Galerie</Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 )}
-              </TouchableOpacity>
-            </View>
-          )}
 
-          {/* ========================================================= */}
-          {/* 2. ONGLET SCANNER (PHOTO & QR) */}
-          {/* ========================================================= */}
-          {mode === 'photo' && (
-            <View>
-              {/* Carte guide */}
-              <View style={styles.guideCard}>
-                <View style={styles.guideHeader}>
-                  <Ionicons name="camera-outline" size={16} color={colors.primary} />
-                  <Text style={styles.guideTitle}>Tous formats de photo acceptés</Text>
-                </View>
-                <Text style={styles.guideText}>
-                  Prenez en photo votre recette depuis n&apos;importe quel support : livre de cuisine, fiche repas, carnet manuscrit ou capture d&apos;écran. Par défaut <Text style={styles.guideBold}>1 photo</Text> suffit, vous pouvez en ajouter d&apos;autres si la recette s&apos;étale sur plusieurs pages.
-                </Text>
-              </View>
-
-              {photos.length === 0 ? (
-                /* État initial : invitation à ajouter une photo */
-                <View style={styles.emptyHeroBox}>
-                  <View style={styles.emptyHeroIconCircle}>
-                    <Ionicons name="camera-outline" size={38} color={colors.primary} />
-                  </View>
-                  <Text style={styles.emptyHeroTitle}>Prenez en photo votre recette</Text>
-                  <Text style={styles.emptyHeroSubtitle}>
-                    Photographiez la page de votre livre ou votre fiche
-                  </Text>
-
-                  <View style={styles.heroButtonsCol}>
-                    <TouchableOpacity
-                      style={styles.heroCameraBtn}
-                      onPress={() => handlePickPhoto(true)}
-                      activeOpacity={0.85}
-                    >
-                      <Ionicons name="camera" size={20} color="#FFFFFF" />
-                      <Text style={styles.heroCameraBtnText}>Prendre une photo</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={styles.heroGalleryBtn}
-                      onPress={() => handlePickPhoto(false)}
-                      activeOpacity={0.8}
-                    >
-                      <Ionicons name="images-outline" size={20} color={colors.textPrimary} />
-                      <Text style={styles.heroGalleryBtnText}>Choisir dans la galerie</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={styles.heroQrBtn}
-                      onPress={() => setIsQrScannerVisible(true)}
-                      activeOpacity={0.85}
-                    >
-                      <Ionicons name="qr-code-outline" size={20} color={colors.primary} />
-                      <Text style={styles.heroQrBtnText}>Scanner un QR code Papilles</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              ) : (
-                /* Liste dynamique des photos capturées */
-                <View style={styles.photosSection}>
-                  <View style={styles.photosSectionHeader}>
-                    <Text style={styles.photosCountTitle}>
-                      {photos.length} photo{photos.length > 1 ? 's' : ''} sélectionnée{photos.length > 1 ? 's' : ''}
-                    </Text>
-                    <Text style={styles.photosCountHint}>
-                      La 1ère servira de photo de couverture
-                    </Text>
-                  </View>
-
-                  <View style={styles.photosGrid}>
-                    {photos.map((photo, index) => (
-                      <View key={photo.id} style={styles.photoCard}>
-                        <Image
-                          source={{ uri: photo.uri }}
-                          style={styles.photoThumb}
-                          contentFit="cover"
-                          cachePolicy="memory"
-                          transition={150}
-                        />
-                        <View style={styles.photoIndexBadge}>
-                          <Text style={styles.photoIndexBadgeText}>
-                            {index === 0 ? 'Photo 1 (couverture)' : `Photo ${index + 1}`}
-                          </Text>
-                        </View>
-                        <TouchableOpacity
-                          style={styles.removePhotoBtn}
-                          onPress={() => handleRemovePhoto(photo.id)}
-                          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                        >
-                          <Ionicons name="close" size={16} color="#FFFFFF" />
-                        </TouchableOpacity>
+                {photos.length > 0 && (
+                  <TouchableOpacity
+                    style={[
+                      styles.primaryCtaBtn,
+                      (isAnalyzingPhotos || (connectionStatus && !connectionStatus.ok)) &&
+                        styles.primaryCtaBtnDisabled,
+                    ]}
+                    onPress={handleAnalyzePhotos}
+                    disabled={isAnalyzingPhotos}
+                    activeOpacity={0.85}
+                  >
+                    {isAnalyzingPhotos ? (
+                      <View style={styles.btnLoadingRow}>
+                        <ActivityIndicator size="small" color="#FFFFFF" />
+                        <Text style={styles.primaryCtaBtnText}>{loadingStep}</Text>
                       </View>
-                    ))}
+                    ) : (
+                      <View style={styles.btnLoadingRow}>
+                        <Ionicons name="sparkles" size={19} color="#FFFFFF" />
+                        <Text style={styles.primaryCtaBtnText}>
+                          Analyser la recette ({photos.length} photo{photos.length > 1 ? 's' : ''})
+                        </Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
+
+            {/* ========================================================= */}
+            {/* 3. ONGLET COLLER UN LIEN WEB */}
+            {/* ========================================================= */}
+            {mode === 'url' && (
+              <View>
+                <View style={styles.guideCard}>
+                  <View style={styles.guideHeader}>
+                    <Ionicons name="globe-outline" size={16} color={colors.primary} />
+                    <Text style={styles.guideTitle}>Importation universelle de recette web</Text>
+                  </View>
+                  <Text style={styles.guideText}>
+                    Collez l&apos;adresse web d&apos;une recette trouvée sur Internet. Papilles extrait automatiquement la photo haute résolution, les portions, les temps de cuisson, les ingrédients normalisés et les étapes.
+                  </Text>
+                </View>
+
+                <View style={styles.inputCard}>
+                  <View style={styles.inputCardHeader}>
+                    <View style={styles.inputCardHeaderLeft}>
+                      <Ionicons name="link-outline" size={18} color={colors.primary} />
+                      <Text style={styles.inputCardHeaderTitle}>Adresse de la recette</Text>
+                    </View>
+                    {urlInput.length > 0 && (
+                      <TouchableOpacity
+                        style={styles.clearQuickBtn}
+                        onPress={() => {
+                          setUrlInput('');
+                          setUrlErrorMessage(null);
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons name="trash-outline" size={14} color={colors.danger} />
+                        <Text style={styles.clearQuickBtnText}>Effacer</Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
 
-                  <View style={styles.addMoreRow}>
-                    <TouchableOpacity
-                      style={styles.addMoreBtn}
-                      onPress={() => handlePickPhoto(true)}
-                      activeOpacity={0.8}
-                    >
-                      <Ionicons name="camera-outline" size={17} color={colors.primary} />
-                      <Text style={styles.addMoreBtnText}>+ Ajouter photo</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.addMoreBtn}
-                      onPress={() => handlePickPhoto(false)}
-                      activeOpacity={0.8}
-                    >
-                      <Ionicons name="images-outline" size={17} color={colors.primary} />
-                      <Text style={styles.addMoreBtnText}>+ Galerie</Text>
-                    </TouchableOpacity>
+                  <View style={styles.urlInputWrapper}>
+                    <Ionicons
+                      name="globe-outline"
+                      size={20}
+                      color={colors.textSecondary}
+                      style={styles.urlInputIcon}
+                    />
+                    <TextInput
+                      style={styles.urlInput}
+                      value={urlInput}
+                      onChangeText={(text) => {
+                        setUrlInput(text);
+                        if (urlErrorMessage) setUrlErrorMessage(null);
+                      }}
+                      placeholder="https://... (ex: Marmiton, 750g, CuisineAZ, blog...)"
+                      placeholderTextColor={colors.textMuted}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      keyboardType="url"
+                    />
+                  </View>
+
+                  <View style={styles.platformsBox}>
+                    <Text style={styles.platformsTitle}>Sites compatibles testés :</Text>
+                    <View style={styles.platformsChipsRow}>
+                      {POPULAR_PLATFORMS.map((site) => (
+                        <View key={site} style={styles.platformChip}>
+                          <Text style={styles.platformChipText}>{site}</Text>
+                        </View>
+                      ))}
+                    </View>
                   </View>
                 </View>
-              )}
 
-              {/* Bouton d'action principal */}
-              {photos.length > 0 && (
+                {urlErrorMessage && (
+                  <View style={styles.urlErrorCard}>
+                    <Ionicons name="alert-circle" size={18} color={colors.danger} />
+                    <Text style={styles.urlErrorText}>{urlErrorMessage}</Text>
+                  </View>
+                )}
+
                 <TouchableOpacity
                   style={[
                     styles.primaryCtaBtn,
-                    (isAnalyzingPhotos || (connectionStatus && !connectionStatus.ok)) &&
-                      styles.primaryCtaBtnDisabled,
+                    (isImportingUrl || !urlInput.trim()) && styles.primaryCtaBtnDisabled,
                   ]}
-                  onPress={handleAnalyzePhotos}
-                  disabled={isAnalyzingPhotos}
+                  onPress={handleImportUrl}
+                  disabled={isImportingUrl || !urlInput.trim()}
                   activeOpacity={0.85}
                 >
-                  {isAnalyzingPhotos ? (
+                  {isImportingUrl ? (
                     <View style={styles.btnLoadingRow}>
                       <ActivityIndicator size="small" color="#FFFFFF" />
-                      <Text style={styles.primaryCtaBtnText}>{loadingStep}</Text>
+                      <Text style={styles.primaryCtaBtnText}>{importStepText}</Text>
                     </View>
                   ) : (
                     <View style={styles.btnLoadingRow}>
-                      <Ionicons name="sparkles" size={19} color="#FFFFFF" />
-                      <Text style={styles.primaryCtaBtnText}>
-                        Analyser la recette ({photos.length} photo{photos.length > 1 ? 's' : ''})
-                      </Text>
+                      <Ionicons name="globe-outline" size={19} color="#FFFFFF" />
+                      <Text style={styles.primaryCtaBtnText}>Importer la recette</Text>
                     </View>
                   )}
                 </TouchableOpacity>
-              )}
-            </View>
-          )}
-
-          {/* ========================================================= */}
-          {/* 3. ONGLET COLLER UN LIEN WEB */}
-          {/* ========================================================= */}
-          {mode === 'url' && (
-            <View>
-              {/* Carte guide */}
-              <View style={styles.guideCard}>
-                <View style={styles.guideHeader}>
-                  <Ionicons name="globe-outline" size={16} color={colors.primary} />
-                  <Text style={styles.guideTitle}>Importation universelle de recette web</Text>
-                </View>
-                <Text style={styles.guideText}>
-                  Collez l&apos;adresse web d&apos;une recette trouvée sur Internet. Papilles extrait automatiquement la photo haute résolution, les portions, les temps de cuisson, les ingrédients normalisés et les étapes.
-                </Text>
               </View>
+            )}
 
-              {/* Boîte de saisie d'URL */}
-              <View style={styles.inputCard}>
-                <View style={styles.inputCardHeader}>
-                  <View style={styles.inputCardHeaderLeft}>
-                    <Ionicons name="link-outline" size={18} color={colors.primary} />
-                    <Text style={styles.inputCardHeaderTitle}>Adresse de la recette</Text>
-                  </View>
-                  {urlInput.length > 0 && (
-                    <TouchableOpacity
-                      style={styles.clearQuickBtn}
-                      onPress={() => {
-                        setUrlInput('');
-                        setUrlErrorMessage(null);
-                      }}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons name="trash-outline" size={14} color={colors.danger} />
-                      <Text style={styles.clearQuickBtnText}>Effacer</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-
-                <View style={styles.urlInputWrapper}>
-                  <Ionicons
-                    name="globe-outline"
-                    size={20}
-                    color={colors.textSecondary}
-                    style={styles.urlInputIcon}
-                  />
-                  <TextInput
-                    style={styles.urlInput}
-                    value={urlInput}
-                    onChangeText={(text) => {
-                      setUrlInput(text);
-                      if (urlErrorMessage) setUrlErrorMessage(null);
-                    }}
-                    placeholder="https://... (ex: Marmiton, 750g, CuisineAZ, blog...)"
-                    placeholderTextColor={colors.textMuted}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    keyboardType="url"
-                  />
-                </View>
-
-                {/* Chips des plateformes compatibles */}
-                <View style={styles.platformsBox}>
-                  <Text style={styles.platformsTitle}>Sites compatibles testés :</Text>
-                  <View style={styles.platformsChipsRow}>
-                    {POPULAR_PLATFORMS.map((site) => (
-                      <View key={site} style={styles.platformChip}>
-                        <Text style={styles.platformChipText}>{site}</Text>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              </View>
-
-              {/* Erreur éventuelle d'import */}
-              {urlErrorMessage && (
-                <View style={styles.urlErrorCard}>
-                  <Ionicons name="alert-circle" size={18} color={colors.danger} />
-                  <Text style={styles.urlErrorText}>{urlErrorMessage}</Text>
-                </View>
-              )}
-
-              {/* Bouton d'action principal */}
+            {/* Passerelle directe vers la saisie manuelle sans IA (commune aux 3 modes) */}
+            {onManualCreate && (
               <TouchableOpacity
-                style={[
-                  styles.primaryCtaBtn,
-                  (isImportingUrl || !urlInput.trim()) && styles.primaryCtaBtnDisabled,
-                ]}
-                onPress={handleImportUrl}
-                disabled={isImportingUrl || !urlInput.trim()}
-                activeOpacity={0.85}
+                style={styles.manualFallbackBtn}
+                onPress={onManualCreate}
+                activeOpacity={0.7}
               >
-                {isImportingUrl ? (
-                  <View style={styles.btnLoadingRow}>
-                    <ActivityIndicator size="small" color="#FFFFFF" />
-                    <Text style={styles.primaryCtaBtnText}>{importStepText}</Text>
-                  </View>
-                ) : (
-                  <View style={styles.btnLoadingRow}>
-                    <Ionicons name="globe-outline" size={19} color="#FFFFFF" />
-                    <Text style={styles.primaryCtaBtnText}>Importer la recette</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {/* Passerelle directe vers la saisie manuelle sans IA (commune aux 3 modes) */}
-          {onManualCreate && (
-            <TouchableOpacity
-              style={styles.manualSwitchCard}
-              onPress={onManualCreate}
-              activeOpacity={0.8}
-            >
-              <View style={styles.manualSwitchIconCircle}>
-                <Ionicons name="create-outline" size={18} color={colors.primary} />
-              </View>
-              <View style={styles.manualSwitchTextCol}>
-                <Text style={styles.manualSwitchTitle}>Passer à la saisie manuelle</Text>
-                <Text style={styles.manualSwitchSubtitle}>
-                  Créer une recette vierge à la main sans passer par l&apos;IA
+                <Ionicons name="create-outline" size={17} color={colors.textSecondary} />
+                <Text style={styles.manualFallbackBtnText}>
+                  Créer la recette manuellement (sans IA)
                 </Text>
-              </View>
-              <Ionicons name="arrow-forward" size={16} color={colors.primary} />
-            </TouchableOpacity>
-          )}
-        </ScrollView>
+              </TouchableOpacity>
+            )}
 
-        {/* Modal de configuration de la clé API */}
+            {/* Passerelle directe pour scanner un QR code offline Papilles */}
+            <TouchableOpacity
+              style={styles.qrFallbackBtn}
+              onPress={() => setIsQrScannerVisible(true)}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="qr-code-outline" size={17} color={colors.secondary} />
+              <Text style={styles.qrFallbackBtnText}>
+                Recevoir une recette par QR Code hors-ligne
+              </Text>
+            </TouchableOpacity>
+          </ScrollView>
+        )}
+
+        {/* Modal Clé API */}
         <Modal
           visible={isApiKeyModalVisible}
           transparent={true}
@@ -979,8 +2367,26 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
             <View style={styles.modalBox}>
               <Text style={styles.modalTitle}>Clé API Google Gemini</Text>
               <Text style={styles.modalSubtitle}>
-                L&apos;analyse intelligente utilise Gemini 3.8 Flash. Vous pouvez configurer votre propre clé Google AI Studio.
+                Pour inventer des recettes avec vos restes et analyser vos fiches, l&apos;application utilise l&apos;intelligence artificielle Google Gemini (modèle BYOK).
               </Text>
+
+              <TouchableOpacity
+                style={styles.apiKeyStudioBtn}
+                onPress={() =>
+                  Linking.openURL('https://aistudio.google.com/app/apikey').catch(() => {
+                    Alert.alert(
+                      'Navigateur indisponible',
+                      'Impossible d’ouvrir automatiquement la page Google AI Studio.'
+                    );
+                  })
+                }
+                activeOpacity={0.8}
+              >
+                <Ionicons name="open-outline" size={15} color={colors.primary} />
+                <Text style={styles.apiKeyStudioBtnText}>
+                  Obtenir ma clé gratuite (Google AI Studio)
+                </Text>
+              </TouchableOpacity>
 
               <View style={styles.keyInputContainer}>
                 <TextInput
@@ -1032,7 +2438,7 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
           onRecipeScanned={handleQrRecipeScanned}
         />
 
-        {/* Modal Caméra in-app pour scan documentaire IA (évite les crashs Android) */}
+        {/* Modal Caméra in-app pour scan documentaire IA */}
         <CameraCaptureModal
           visible={isCameraModalVisible}
           onClose={() => setIsCameraModalVisible(false)}
@@ -1040,6 +2446,14 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
           maxPhotos={4}
           title="Scan de recette"
           onPhotosCaptured={handleCameraPhotosCaptured}
+        />
+
+        {/* Modale des prompts favoris Chef IA */}
+        <ChefFavoritePromptsModal
+          visible={isFavoritePromptsModalVisible}
+          currentPromptText={additionalPreferences}
+          onSelectPrompt={(text) => setAdditionalPreferences(text)}
+          onClose={() => setIsFavoritePromptsModalVisible(false)}
         />
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -1106,14 +2520,14 @@ const styles = createDynamicStyles((colors, shadows) => ({
     justifyContent: 'center',
     paddingVertical: 9,
     borderRadius: 10,
-    gap: 6,
+    gap: 4,
   },
   segmentBtnActive: {
     backgroundColor: colors.primary,
     ...shadows.small,
   },
   segmentBtnText: {
-    fontSize: 12.5,
+    fontSize: 12,
     fontWeight: '600',
     color: colors.textSecondary,
   },
@@ -1198,192 +2612,151 @@ const styles = createDynamicStyles((colors, shadows) => ({
   },
   errorMessage: {
     fontSize: 12,
-    color: colors.isDark ? '#FCA5A5' : '#B91C1C',
-    marginTop: 3,
-    lineHeight: 16,
+    color: colors.danger,
+    lineHeight: 17,
+    marginTop: 2,
   },
   errorActionsRow: {
     flexDirection: 'row',
     gap: 8,
-    paddingTop: 4,
+    marginTop: 4,
+  },
+  errorFixBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.danger,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    gap: 6,
+  },
+  errorFixBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   errorRetryBtn: {
-    backgroundColor: colors.danger,
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: colors.surfaceAlt,
+    paddingVertical: 7,
     paddingHorizontal: 12,
-    paddingVertical: 6,
     borderRadius: 10,
-    gap: 5,
-  },
-  errorRetryBtnText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 12,
-  },
-  errorKeyBtn: {
-    backgroundColor: colors.cardBackground,
+    gap: 6,
     borderWidth: 1,
     borderColor: colors.border,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 10,
-    gap: 5,
   },
-  errorKeyBtnText: {
-    color: colors.primary,
-    fontWeight: '600',
+  errorRetryBtnText: {
     fontSize: 12,
+    fontWeight: '600',
+    color: colors.textPrimary,
   },
   guideCard: {
-    backgroundColor: colors.cardBackground,
-    borderRadius: 16,
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: 14,
     padding: 14,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: colors.border,
-    ...shadows.small,
+    borderColor: colors.borderLight,
   },
   guideHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
     marginBottom: 6,
   },
   guideTitle: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
     color: colors.textPrimary,
   },
   guideText: {
-    fontSize: 13,
+    fontSize: 12,
     color: colors.textSecondary,
     lineHeight: 18,
   },
-  guideBold: {
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
   inputCard: {
     backgroundColor: colors.cardBackground,
-    borderRadius: 18,
+    borderRadius: 16,
+    padding: 16,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: 14,
     marginBottom: 16,
-    ...shadows.small,
+    ...shadows.card,
   },
   inputCardHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
-    paddingBottom: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border + '50',
+    justifyContent: 'space-between',
+    marginBottom: 12,
   },
   inputCardHeaderLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
   },
   inputCardHeaderTitle: {
     fontSize: 14,
     fontWeight: '700',
     color: colors.textPrimary,
   },
-  inputCardHeaderActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  sampleQuickBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.secondaryLight,
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-    borderRadius: 8,
-    gap: 4,
-  },
-  sampleQuickBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.secondary,
-  },
   clearQuickBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    backgroundColor: colors.dangerLight,
-    borderRadius: 8,
     gap: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    backgroundColor: colors.dangerLight,
   },
   clearQuickBtnText: {
-    fontSize: 11.5,
+    fontSize: 11,
     fontWeight: '600',
     color: colors.danger,
   },
-  rawTextArea: {
-    minHeight: 180,
-    maxHeight: 280,
-    fontSize: 14,
-    lineHeight: 20,
+  textInputArea: {
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: 12,
+    padding: 14,
+    fontSize: 13,
     color: colors.textPrimary,
-    textAlignVertical: 'top',
-    paddingTop: 4,
-  },
-  inputCardFooter: {
-    marginTop: 8,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: colors.border + '40',
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-  },
-  textCountHint: {
-    fontSize: 11,
-    color: colors.textMuted,
-    fontStyle: 'italic',
+    minHeight: 180,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
   },
   primaryCtaBtn: {
     backgroundColor: colors.primary,
+    borderRadius: 14,
     paddingVertical: 14,
-    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
-    ...shadows.medium,
+    marginTop: 6,
+    ...shadows.small,
   },
   primaryCtaBtnDisabled: {
-    opacity: 0.55,
+    opacity: 0.5,
+  },
+  primaryCtaBtnText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
   },
   btnLoadingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 12,
+    gap: 10,
   },
-  primaryCtaBtnText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 15,
-  },
-  emptyHeroBox: {
+  photoEmptyPickerBox: {
     backgroundColor: colors.cardBackground,
     borderRadius: 20,
     padding: 24,
     alignItems: 'center',
-    borderWidth: 1.5,
-    borderStyle: 'dashed',
+    borderWidth: 1,
     borderColor: colors.border,
     marginBottom: 16,
+    ...shadows.card,
   },
-  emptyHeroIconCircle: {
+  pickerIconCircle: {
     width: 68,
     height: 68,
     borderRadius: 34,
@@ -1392,130 +2765,138 @@ const styles = createDynamicStyles((colors, shadows) => ({
     justifyContent: 'center',
     marginBottom: 14,
   },
-  emptyHeroTitle: {
+  pickerBoxTitle: {
     fontSize: 17,
-    fontWeight: '700',
+    fontWeight: '800',
     color: colors.textPrimary,
-    marginBottom: 4,
+    marginBottom: 6,
     textAlign: 'center',
   },
-  emptyHeroSubtitle: {
+  pickerBoxSubtitle: {
     fontSize: 13,
     color: colors.textSecondary,
-    marginBottom: 20,
     textAlign: 'center',
+    lineHeight: 18,
+    marginBottom: 20,
+    paddingHorizontal: 16,
   },
-  heroButtonsCol: {
+  pickerBtnsRow: {
+    flexDirection: 'row',
+    gap: 12,
     width: '100%',
-    gap: 10,
   },
-  heroCameraBtn: {
-    backgroundColor: colors.primary,
+  pickerPrimaryBtn: {
+    flex: 1.2,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: colors.primary,
     paddingVertical: 13,
-    borderRadius: 14,
+    borderRadius: 12,
     gap: 8,
     ...shadows.small,
   },
-  heroCameraBtnText: {
+  pickerPrimaryBtnText: {
     color: '#FFFFFF',
     fontWeight: '700',
-    fontSize: 15,
+    fontSize: 13.5,
   },
-  heroGalleryBtn: {
+  pickerSecondaryBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: colors.surfaceAlt,
+    paddingVertical: 13,
+    borderRadius: 12,
+    gap: 8,
     borderWidth: 1,
     borderColor: colors.border,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 14,
-    gap: 8,
   },
-  heroGalleryBtnText: {
-    color: colors.textPrimary,
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  heroQrBtn: {
-    backgroundColor: colors.primaryLight,
-    borderWidth: 1,
-    borderColor: colors.border,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 14,
-    gap: 8,
-  },
-  heroQrBtnText: {
+  pickerSecondaryBtnText: {
     color: colors.primary,
     fontWeight: '700',
-    fontSize: 14,
+    fontSize: 13.5,
   },
-  photosSection: {
+  photosGridContainer: {
+    backgroundColor: colors.cardBackground,
+    borderRadius: 16,
+    padding: 16,
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadows.card,
   },
-  photosSectionHeader: {
-    marginBottom: 10,
+  photosGridHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
   },
-  photosCountTitle: {
-    fontSize: 15,
+  photosGridTitle: {
+    fontSize: 13,
     fontWeight: '700',
     color: colors.textPrimary,
   },
-  photosCountHint: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginTop: 2,
+  clearPhotosBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    backgroundColor: colors.dangerLight,
   },
-  photosGrid: {
-    gap: 12,
-    marginBottom: 12,
+  clearPhotosBtnText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.danger,
   },
-  photoCard: {
-    height: 200,
-    borderRadius: 16,
+  photosThumbnailsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 14,
+  },
+  thumbnailWrapper: {
+    width: '47.5%',
+    aspectRatio: 1,
+    borderRadius: 12,
     overflow: 'hidden',
     position: 'relative',
-    backgroundColor: colors.surfaceAlt,
     borderWidth: 1,
-    borderColor: colors.border,
-    ...shadows.small,
+    borderColor: colors.borderLight,
   },
-  photoThumb: {
+  thumbnailImg: {
     width: '100%',
     height: '100%',
   },
-  photoIndexBadge: {
+  thumbnailPageBadge: {
     position: 'absolute',
-    bottom: 10,
-    left: 10,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 10,
+    bottom: 6,
+    left: 6,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
   },
-  photoIndexBadgeText: {
+  thumbnailPageText: {
     color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '600',
+    fontSize: 10.5,
+    fontWeight: '700',
   },
-  removePhotoBtn: {
+  thumbnailRemoveBtn: {
     position: 'absolute',
-    top: 10,
-    right: 10,
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    top: 6,
+    right: 6,
+    backgroundColor: 'rgba(239, 68, 68, 0.9)',
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  addMoreRow: {
+  addMoreBtnsRow: {
     flexDirection: 'row',
     gap: 10,
   },
@@ -1524,15 +2905,15 @@ const styles = createDynamicStyles((colors, shadows) => ({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 11,
-    backgroundColor: colors.cardBackground,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
+    backgroundColor: colors.surfaceAlt,
+    paddingVertical: 9,
+    borderRadius: 10,
     gap: 6,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
   },
   addMoreBtnText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
     color: colors.primary,
   },
@@ -1540,11 +2921,10 @@ const styles = createDynamicStyles((colors, shadows) => ({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.surfaceAlt,
-    borderRadius: 14,
+    borderRadius: 12,
     paddingHorizontal: 12,
-    height: 48,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.borderLight,
     marginBottom: 14,
   },
   urlInputIcon: {
@@ -1552,20 +2932,18 @@ const styles = createDynamicStyles((colors, shadows) => ({
   },
   urlInput: {
     flex: 1,
-    fontSize: 13.5,
+    paddingVertical: 12,
+    fontSize: 13,
     color: colors.textPrimary,
-    height: 48,
   },
   platformsBox: {
-    marginTop: 2,
+    marginTop: 4,
   },
   platformsTitle: {
-    fontSize: 11.5,
-    fontWeight: '700',
+    fontSize: 11,
+    fontWeight: '600',
     color: colors.textSecondary,
     marginBottom: 8,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
   },
   platformsChipsRow: {
     flexDirection: 'row',
@@ -1574,107 +2952,125 @@ const styles = createDynamicStyles((colors, shadows) => ({
   },
   platformChip: {
     backgroundColor: colors.surfaceAlt,
-    paddingHorizontal: 9,
-    paddingVertical: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: colors.borderLight,
   },
   platformChipText: {
-    fontSize: 11,
-    color: colors.textSecondary,
+    fontSize: 10.5,
     fontWeight: '600',
+    color: colors.textSecondary,
   },
   urlErrorCard: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
     backgroundColor: colors.dangerLight,
     padding: 12,
-    borderRadius: 14,
+    borderRadius: 12,
     marginBottom: 14,
     borderWidth: 1,
     borderColor: colors.danger,
-    gap: 8,
   },
   urlErrorText: {
     flex: 1,
-    fontSize: 12.5,
+    fontSize: 12,
     color: colors.danger,
-    fontWeight: '600',
-    lineHeight: 17,
+    lineHeight: 16,
   },
-  manualSwitchCard: {
+  manualFallbackBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surfaceAlt,
-    padding: 14,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginTop: 4,
-    gap: 12,
-  },
-  manualSwitchIconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.cardBackground,
-    alignItems: 'center',
     justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    marginTop: 16,
+    borderRadius: 12,
+    backgroundColor: colors.surfaceAlt,
     borderWidth: 1,
     borderColor: colors.borderLight,
   },
-  manualSwitchTextCol: {
-    flex: 1,
-  },
-  manualSwitchTitle: {
-    fontSize: 13.5,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  manualSwitchSubtitle: {
-    fontSize: 11.5,
+  manualFallbackBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
     color: colors.textSecondary,
-    marginTop: 2,
+  },
+  qrFallbackBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    marginTop: 10,
+    borderRadius: 12,
+    backgroundColor: colors.cardBackground,
+    borderWidth: 1,
+    borderColor: colors.secondary + '40',
+  },
+  qrFallbackBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.secondary,
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    alignItems: 'center',
     justifyContent: 'center',
     padding: 20,
   },
   modalBox: {
     backgroundColor: colors.cardBackground,
     borderRadius: 20,
-    padding: 20,
-    ...shadows.large,
+    padding: 22,
+    width: '100%',
+    maxWidth: 400,
+    ...shadows.card,
   },
   modalTitle: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 17,
+    fontWeight: '800',
     color: colors.textPrimary,
     marginBottom: 6,
   },
   modalSubtitle: {
-    fontSize: 13,
+    fontSize: 12.5,
     color: colors.textSecondary,
-    lineHeight: 18,
+    lineHeight: 17,
     marginBottom: 16,
+  },
+  apiKeyStudioBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    backgroundColor: colors.primaryLight,
+    borderRadius: 10,
+    marginBottom: 14,
+  },
+  apiKeyStudioBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.primary,
   },
   keyInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.surfaceAlt,
+    borderRadius: 12,
+    paddingHorizontal: 12,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 12,
-    marginBottom: 16,
-    paddingRight: 10,
+    marginBottom: 18,
   },
   keyInput: {
     flex: 1,
-    padding: 12,
-    fontSize: 14,
+    paddingVertical: 11,
+    fontSize: 13,
     color: colors.textPrimary,
   },
   eyeBtn: {
@@ -1682,27 +3078,705 @@ const styles = createDynamicStyles((colors, shadows) => ({
   },
   modalActions: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 12,
+    gap: 10,
   },
   modalCancelBtn: {
-    paddingVertical: 10,
-    paddingHorizontal: 14,
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 11,
+    borderRadius: 10,
+    backgroundColor: colors.surfaceAlt,
   },
   modalCancelText: {
-    color: colors.textSecondary,
+    fontSize: 13,
     fontWeight: '600',
-    fontSize: 14,
+    color: colors.textSecondary,
   },
   modalSaveBtn: {
+    flex: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 11,
+    borderRadius: 10,
     backgroundColor: colors.primary,
-    paddingVertical: 10,
-    paddingHorizontal: 18,
-    borderRadius: 12,
   },
   modalSaveText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+
+  // =========================================================
+  // STYLES CHEF IA
+  // =========================================================
+  chefScroll: {
+    flex: 1,
+  },
+  chefScrollContent: {
+    padding: 16,
+    paddingBottom: 110,
+  },
+  sectionCard: {
+    backgroundColor: colors.cardBackground,
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    ...shadows.card,
+  },
+  sectionCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 14,
+  },
+  sectionCardTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: colors.primary,
+    letterSpacing: 0.5,
+  },
+  formatRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  mealTypeDropdownTrigger: {
+    flex: 1.2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  mealTypeDropdownTriggerActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryLight,
+  },
+  mealTypeDropdownTriggerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flex: 1,
+  },
+  mealTypeDropdownTriggerText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  mealTypeDropdownMenu: {
+    marginTop: 10,
+    backgroundColor: colors.cardBackground,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: 'hidden',
+    ...shadows.small,
+  },
+  mealTypeDropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
+  },
+  mealTypeDropdownItemActive: {
+    backgroundColor: colors.primaryLight,
+  },
+  mealTypeDropdownItemLast: {
+    borderBottomWidth: 0,
+  },
+  mealTypeDropdownItemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  mealTypeDropdownIconBox: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: colors.surfaceAlt,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  mealTypeDropdownIconBoxActive: {
+    backgroundColor: colors.primary,
+  },
+  mealTypeDropdownItemText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  mealTypeDropdownItemTextActive: {
+    color: colors.primary,
+    fontWeight: '700',
+  },
+  servingsCompactContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: 12,
+    paddingHorizontal: 4,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: 2,
+  },
+  stepperBtnCompact: {
+    width: 26,
+    height: 26,
+    borderRadius: 8,
+    backgroundColor: colors.cardBackground,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadows.small,
+  },
+  stepperBtnDisabled: {
+    opacity: 0.35,
+  },
+  servingsLabelBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 4,
+  },
+  servingsValueText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  veggieCompactChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: 12,
+    paddingVertical: 9,
+    paddingHorizontal: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  veggieCompactChipActive: {
+    backgroundColor: colors.primaryLight,
+    borderColor: colors.primary,
+  },
+  veggieCompactText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  veggieCompactTextActive: {
+    color: colors.primary,
+    fontWeight: '700',
+  },
+  moodSection: {
+    marginBottom: 14,
+  },
+  subSectionTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.textSecondary,
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  moodSelectorRow: {
+    gap: 8,
+    paddingVertical: 2,
+  },
+  moodChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: colors.surfaceAlt,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  moodChipSelected: {
+    backgroundColor: colors.secondary,
+    borderColor: colors.secondary,
+  },
+  moodChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  moodChipTextSelected: {
     color: '#FFFFFF',
     fontWeight: '700',
+  },
+  promptInputSection: {},
+  preferencesHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  favoritePromptBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    backgroundColor: colors.primaryLight,
+  },
+  favoritePromptBtnText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  promptInputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  promptSparkleIcon: {
+    marginRight: 6,
+  },
+  aiPreferencesInput: {
+    flex: 1,
+    paddingVertical: 10,
+    fontSize: 13,
+    color: colors.textPrimary,
+  },
+  clearPromptBtn: {
+    padding: 4,
+  },
+  inputComposerWrapper: {
+    marginBottom: 14,
+  },
+  activeGuide: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  smallActionBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    backgroundColor: colors.surfaceAlt,
+  },
+  smallActionBtnText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  groupedAisleBox: {
+    marginBottom: 12,
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: 14,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  aisleHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
+  },
+  aisleIconBox: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  aisleTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    flex: 1,
+  },
+  aisleCountBadge: {
+    backgroundColor: colors.cardBackground,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  aisleCountText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.textSecondary,
+  },
+  chipsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  stockChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 10,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  stockChipPrimary: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  stockChipOptional: {
+    backgroundColor: colors.cardBackground,
+    borderColor: colors.border,
+  },
+  stockChipInactive: {
+    backgroundColor: colors.surfaceAlt,
+    borderColor: colors.borderLight,
+    opacity: 0.7,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  stockChipBody: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingLeft: 9,
+    paddingRight: 4,
+    gap: 5,
+  },
+  primaryDotIndicator: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#FFFFFF',
+  },
+  stockChipCloseBtn: {
+    paddingVertical: 6,
+    paddingRight: 8,
+    paddingLeft: 4,
+  },
+  stockChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  stockChipTextPrimary: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  stockChipTextOptional: {
+    color: colors.textPrimary,
+  },
+  stockChipTextInactive: {
+    color: colors.textSecondary,
+    fontSize: 11,
+  },
+  inactiveSection: {
+    marginTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderLight,
+    paddingTop: 12,
+  },
+  inactiveHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  stickyFooterContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: colors.cardBackground,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    ...shadows.card,
+  },
+  generateAiBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.secondary,
+    paddingVertical: 14,
+    borderRadius: 14,
+    gap: 8,
+    ...shadows.small,
+  },
+  generateAiBtnDisabled: {
+    opacity: 0.45,
+  },
+  generateAiBtnText: {
     fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  aiLoadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  aiLoadingCard: {
+    backgroundColor: colors.cardBackground,
+    borderRadius: 24,
+    padding: 28,
+    alignItems: 'center',
+    width: '100%',
+    maxWidth: 420,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadows.card,
+  },
+  aiSparkleIconBox: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 18,
+    ...shadows.small,
+  },
+  aiLoadingTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: colors.textPrimary,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  aiLoadingStepText: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 18,
+    marginBottom: 16,
+  },
+  aiLoadingSpinner: {
+    marginVertical: 12,
+  },
+  aiLoadingHint: {
+    fontSize: 11,
+    color: colors.textMuted,
+    textAlign: 'center',
+    lineHeight: 16,
+    marginBottom: 16,
+  },
+  aiModelBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
+    marginBottom: 16,
+  },
+  aiModelBadgeNormal: {
+    backgroundColor: colors.primaryLight,
+  },
+  aiModelBadgeFallback: {
+    backgroundColor: colors.dangerLight,
+  },
+  aiModelBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  cancelLoadingBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    backgroundColor: colors.surfaceAlt,
+  },
+  cancelLoadingBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  ideasHeader: {
+    marginBottom: 16,
+  },
+  backToConfigBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 12,
+  },
+  backToConfigBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  ideasTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 6,
+  },
+  cardIconBox: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ideasTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: colors.textPrimary,
+  },
+  ideasSubtitle: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  ideasInstructionText: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    lineHeight: 18,
+    marginTop: 4,
+  },
+  ideasListContainer: {
+    gap: 14,
+    marginBottom: 20,
+  },
+  ideaCard: {
+    backgroundColor: colors.cardBackground,
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    ...shadows.card,
+  },
+  ideaCardTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  ideaBadgesRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexWrap: 'wrap',
+  },
+  ideaTypeBadge: {
+    backgroundColor: colors.surfaceAlt,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  ideaTypeBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.textSecondary,
+  },
+  ideaTimeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+  },
+  ideaTimeBadgeText: {
+    fontSize: 11,
+    color: colors.textSecondary,
+  },
+  ideaActionArrowCircle: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ideaCardTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: colors.textPrimary,
+    marginBottom: 6,
+  },
+  ideaCardDesc: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    lineHeight: 18,
+    marginBottom: 12,
+  },
+  ideaHighlightsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 12,
+  },
+  ideaHighlightChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.primaryLight,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  ideaHighlightChipText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  ideaCardFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 4,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderLight,
+    paddingTop: 10,
+  },
+  ideaCookBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  ideasBottomActions: {
+    gap: 10,
+    marginBottom: 24,
+  },
+  refreshIdeasBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primaryLight,
+    paddingVertical: 12,
+    borderRadius: 12,
+    gap: 6,
+  },
+  refreshIdeasBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  changeConfigBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surfaceAlt,
+    paddingVertical: 12,
+    borderRadius: 12,
+    gap: 6,
+  },
+  changeConfigBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textSecondary,
   },
 }));
