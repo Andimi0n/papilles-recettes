@@ -1341,7 +1341,7 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
                   <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
                 </TouchableOpacity>
 
-                {/* Choix 3 : Coller un lien web */}
+                {/* Choix 3 : Web */}
                 <TouchableOpacity
                   style={styles.addMenuOption}
                   onPress={() => {
@@ -1354,7 +1354,7 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
                     <Ionicons name="globe-outline" size={22} color={colors.primary} />
                   </View>
                   <View style={styles.addMenuTextCol}>
-                    <Text style={styles.addMenuOptionTitle}>Coller un lien web</Text>
+                    <Text style={styles.addMenuOptionTitle}>Web</Text>
                     <Text style={styles.addMenuOptionSubtitle}>
                       Marmiton, 750g, blogs...
                     </Text>

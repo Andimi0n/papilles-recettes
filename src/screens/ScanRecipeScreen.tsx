@@ -1141,7 +1141,7 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
             <Text style={styles.headerTitle}>
               {mode === 'text' && 'Texte brut'}
               {mode === 'photo' && 'Scanner une recette'}
-              {mode === 'url' && 'Coller un lien web'}
+              {mode === 'url' && 'Web'}
               {mode === 'chef' &&
                 (aiFlowStep === 'ideas' ? 'Inspirations du Chef' : 'Inspirations du Chef IA')}
             </Text>
@@ -1232,7 +1232,7 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
                 mode === 'url' && styles.segmentBtnTextActive,
               ]}
             >
-              Coller un lien
+              Web
             </Text>
           </TouchableOpacity>
 
@@ -2228,7 +2228,7 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
             )}
 
             {/* ========================================================= */}
-            {/* 3. ONGLET COLLER UN LIEN WEB */}
+            {/* 3. ONGLET WEB */}
             {/* ========================================================= */}
             {mode === 'url' && (
               <View>
