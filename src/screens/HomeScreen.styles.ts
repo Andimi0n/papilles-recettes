@@ -1,4 +1,4 @@
-import { Colors, Shadows, createDynamicStyles } from '../theme/colors';
+import { createDynamicStyles } from '../theme/colors';
 
 export const styles = createDynamicStyles((colors, shadows) => ({
   safeArea: {
@@ -180,7 +180,7 @@ export const styles = createDynamicStyles((colors, shadows) => ({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: Colors.secondaryLight,
+    backgroundColor: colors.secondaryLight,
     marginHorizontal: 16,
     marginTop: 4,
     marginBottom: 8,
@@ -188,7 +188,7 @@ export const styles = createDynamicStyles((colors, shadows) => ({
     paddingHorizontal: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: Colors.secondary + '40',
+    borderColor: colors.secondary + '40',
   },
   fridgeActiveLeft: {
     flexDirection: 'row',
@@ -198,7 +198,7 @@ export const styles = createDynamicStyles((colors, shadows) => ({
   },
   fridgeActiveText: {
     fontSize: 12,
-    color: Colors.secondary,
+    color: colors.secondary,
     fontWeight: '600',
     marginLeft: 6,
   },
@@ -332,7 +332,7 @@ export const styles = createDynamicStyles((colors, shadows) => ({
   },
   smartBadgeText: {
     fontSize: 11,
-    color: Colors.primary,
+    color: colors.primary,
     fontWeight: '600',
   },
   modalBackdrop: {
@@ -406,10 +406,10 @@ export const styles = createDynamicStyles((colors, shadows) => ({
     padding: 20,
   },
   aiModalBox: {
-    backgroundColor: Colors.cardBackground,
+    backgroundColor: colors.cardBackground,
     borderRadius: 22,
     padding: 20,
-    ...Shadows.large,
+    ...shadows.large,
   },
   aiModalHeader: {
     flexDirection: 'row',
@@ -425,23 +425,23 @@ export const styles = createDynamicStyles((colors, shadows) => ({
   aiModalTitle: {
     fontSize: 18,
     fontWeight: '800',
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
   },
   aiModalSubtitle: {
     fontSize: 13,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     marginBottom: 16,
     lineHeight: 18,
   },
   aiOptionCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.surfaceAlt,
+    backgroundColor: colors.surfaceAlt,
     borderRadius: 16,
     padding: 14,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: colors.border,
   },
   aiOptionIconCircle: {
     width: 48,
@@ -464,10 +464,10 @@ export const styles = createDynamicStyles((colors, shadows) => ({
   aiOptionTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
   },
   aiOptionTag: {
-    backgroundColor: Colors.primaryLight,
+    backgroundColor: colors.primaryLight,
     paddingHorizontal: 7,
     paddingVertical: 2,
     borderRadius: 6,
@@ -475,11 +475,11 @@ export const styles = createDynamicStyles((colors, shadows) => ({
   aiOptionTagText: {
     fontSize: 10,
     fontWeight: '700',
-    color: Colors.primary,
+    color: colors.primary,
   },
   aiOptionDescription: {
     fontSize: 12,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     lineHeight: 16,
   },
   aiModalCloseBtn: {
@@ -488,7 +488,7 @@ export const styles = createDynamicStyles((colors, shadows) => ({
     marginTop: 4,
   },
   aiModalCloseBtnText: {
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     fontWeight: '600',
     fontSize: 14,
   },
@@ -506,21 +506,21 @@ export const styles = createDynamicStyles((colors, shadows) => ({
   },
   paginationCountText: {
     fontSize: 13,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     fontWeight: '500',
   },
   pagePill: {
-    backgroundColor: Colors.surfaceAlt,
+    backgroundColor: colors.surfaceAlt,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: colors.border,
   },
   pagePillText: {
     fontSize: 12,
     fontWeight: '700',
-    color: Colors.primary,
+    color: colors.primary,
   },
   paginationNavRow: {
     flexDirection: 'row',
@@ -536,15 +536,15 @@ export const styles = createDynamicStyles((colors, shadows) => ({
     paddingHorizontal: 16,
     borderRadius: 16,
     gap: 8,
-    ...Shadows.small,
+    ...shadows.small,
   },
   pageBtnPrev: {
-    backgroundColor: Colors.cardBackground,
+    backgroundColor: colors.cardBackground,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: colors.border,
   },
   pageBtnNext: {
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.primary,
   },
   pageBtnNextFull: {
     flex: 1,
@@ -552,7 +552,7 @@ export const styles = createDynamicStyles((colors, shadows) => ({
   pageBtnTextPrev: {
     fontSize: 14,
     fontWeight: '700',
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
   },
   pageBtnTextNext: {
     fontSize: 14,
@@ -566,7 +566,7 @@ export const styles = createDynamicStyles((colors, shadows) => ({
   },
   paginationEndText: {
     fontSize: 13,
-    color: Colors.textMuted,
+    color: colors.textMuted,
     fontWeight: '500',
   },
 }));

@@ -18,7 +18,6 @@ import { Recipe, Category, SortOption, Difficulty, TimeFilterMode, RecipeViewMod
 import { FridgeItem } from '../types/fridge';
 import { UserAllergenItem } from '../types/vocabulary';
 import { StorageService } from '../services/storageService';
-import { Colors } from '../theme/colors';
 import { styles } from './HomeScreen.styles';
 import { useTheme } from '../theme/ThemeContext';
 import { RecipeCard, RecipeStockProgress } from '../components/common/RecipeCard';
@@ -915,7 +914,7 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
               onPress={handlePrevPage}
               activeOpacity={0.8}
             >
-              <Ionicons name="chevron-back" size={18} color={Colors.textPrimary} />
+              <Ionicons name="chevron-back" size={18} color={colors.textPrimary} />
               <Text style={styles.pageBtnTextPrev}>Page précédente</Text>
             </TouchableOpacity>
           )}
