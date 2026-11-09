@@ -355,10 +355,6 @@ function AppContent({ initialData }: AppContentProps) {
     setEditingRecipe(null);
   };
 
-  const navigateToJournal = () => {
-    navigateToPlanner('journal');
-  };
-
   // Actions de gestion des données
   const handleSaveRecipe = async (savedRecipe: Recipe) => {
     try {
@@ -445,9 +441,7 @@ function AppContent({ initialData }: AppContentProps) {
                 onAddNewRecipe={navigateToAddRecipe}
                 onScanRecipe={navigateToScan}
                 onImportRecipe={handleRecipeImportedFromHome}
-                onQuickRate={handleUpdateRating}
                 onOpenSettings={() => setCurrentScreen('settings')}
-                onNavigateToJournal={navigateToJournal}
                 onNavigateToStock={() => navigateToShopping('fridge')}
                 initialOnlyDoable={initialHomeDoableFilter}
                 initialViewMode={initialViewMode}

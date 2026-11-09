@@ -48,7 +48,7 @@
 #### `App.tsx` & Écrans (`src/screens/`) :
 - **`App.tsx`** : Racine (`SafeAreaProvider` + `ThemeProvider`), routeur d'écrans en mémoire, gestion de l'onboarding et barre d'onglets inférieure à 4 entrées (`Recettes`, `Repas`, `Courses & Étagères`, `Paramètres`).
 - **`OnboardingScreen.tsx`** : Parcours d'accueil en 3 étapes au premier démarrage : découverte guidée, configuration optionnelle des allergies (14 familles INCO et aliments spécifiques avec option Passer) et clé IA Gemini BYOK.
-- **`HomeScreen.tsx`** (`HomeScreen.styles.ts`) : Flux de recettes, barre d'actions (Marmiton/Web, Scan IA, Ajout manuel), recherche textuelle, double bandeau de filtres rétractable au scroll (`useNativeDriver: true`), widgets `TodayMealWidget` et `ChefAiWidget`.
+- **`HomeScreen.tsx`** (`HomeScreen.styles.ts`) : Flux de recettes, barre d'actions (Marmiton/Web, Scan IA, Ajout manuel), recherche textuelle, double bandeau de filtres rétractable au scroll (`useNativeDriver: true`), widget `ChefAiWidget`.
 - **`RecipeDetailScreen.tsx`** (`RecipeDetailScreen.styles.ts`) : Fiche recette complète, ajustement dynamique des portions, sous-sections *Livre de Chef*, conversion d'unités métriques, mode cuisine pas à pas, indicateurs verticaux et affordance de swipe pour envoi intelligent aux courses ou qualification lexique (`RecipeIngredientsList`, `SwipeableRecipeIngredientRow`), impression/export PDF (`RecipePrintModal`), partage QR code offline (`RecipeQrModal`), liaisons de recettes associées et ajout intelligent aux courses.
 - **`RecipeFormScreen.tsx`** (`RecipeFormScreen.styles.ts`) : Création/édition (tableau Nom / Quantité / Unité via `IngredientTableEditor`, liaisons entre recettes, étapes ordonnables avec `RecipeStepEditor`, puces `En placard` et `En finition`).
 - **`ScanRecipeScreen.tsx`** : Extraction IA multimodale Gemini (capture directe avec `CameraCaptureModal`, sélection galerie, photos recto/verso, saisie texte libre).
@@ -89,7 +89,7 @@
 
 #### Composants réutilisables (`src/components/`) :
 - **`common/` (UI générique & flux principal)** : `CategoryPills.tsx`, `EmptyState.tsx`, `RecipeCard.tsx`, `SearchBar.tsx`, `StarRating.tsx` (0.5–5.0 sans label parasite), `AdvancedFiltersModal.tsx`.
-- **`home-widgets/` (Widgets du bandeau d'accueil)** : `ChefAiWidget.tsx`, `TodayMealWidget.tsx`.
+- **`home-widgets/` (Widgets du bandeau d'accueil)** : `ChefAiWidget.tsx`.
 - **`recipe-detail/` (Fiche recette & mode cuisine)** : `RecipeIngredientsList.tsx`, `SwipeableRecipeIngredientRow.tsx`, `RecipeInstructionsList.tsx`, `RecipeServingsController.tsx`, `CookingModeModal.tsx`, `RecipeLinkPickerModal.tsx`.
 - **`recipe-form/` (Création & édition de recette)** : `IngredientTableEditor.tsx`, `RecipeStepEditor.tsx`.
 - **`stock-shopping/` (Hub Courses & Étagères)** : `FridgeStockView.tsx`, `SwipeableStockItemRow.tsx`, `SwipeableShoppingItemRow.tsx`, `EditShoppingItemModal.tsx`, `InStoreShoppingModal.tsx`, `TransferAnimationOverlay.tsx`.

@@ -1,46 +1,16 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { FridgeItem } from '../../types/fridge';
 import { createDynamicStyles } from '../../theme/colors';
 import { useTheme } from '../../theme/ThemeContext';
 
 interface ChefAiWidgetProps {
-  stockCount?: number;
-  stockItems?: FridgeItem[];
-  doableCount?: number;
   onOpenChefAi: () => void;
   onNavigateToStock?: () => void;
 }
 
-export function formatStockPreview(stockItems?: { name: string }[], maxItems = 3): string {
-  if (!stockItems || stockItems.length === 0) return '';
-  const validNames = stockItems
-    .map((item) => (item.name ? item.name.toLowerCase().trim() : ''))
-    .filter(Boolean);
-  if (validNames.length === 0) return '';
-  const preview = validNames.slice(0, maxItems).join(', ');
-  return validNames.length > maxItems ? `Avec : ${preview}...` : `Avec : ${preview}`;
-}
-
-export function getChefAiSubtitle(stockCount: number, doableCount = 0): string {
-  if (stockCount === 0) {
-    return 'Sur-mesure avec ce que vous avez';
-  }
-  if (doableCount > 0) {
-    return doableCount > 1
-      ? `${doableCount} recettes prêtes ou inventez du sur-mesure`
-      : `1 recette prête ou inventez du sur-mesure`;
-  }
-  return 'Inventions sur-mesure anti-gaspillage';
-}
-
 export const ChefAiWidget: React.FC<ChefAiWidgetProps> = ({
-  stockCount = 0,
-  stockItems,
-  doableCount = 0,
   onOpenChefAi,
-  onNavigateToStock,
 }) => {
   const { colors } = useTheme();
 

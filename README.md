@@ -28,7 +28,6 @@ Application **100 % offline-first**, sécurisée, sans création de compte oblig
 
 ### 3. 📅 Suivi des Repas Quotidien & Menu de la Semaine
 - **Suivi des repas du jour** : saisie fluide avec autocomplétion intelligente prédictive depuis vos recettes enregistrées (scoring en direct par titre, ingrédients et catégorie) et recommandations en 1 clic.
-- **Widget Accueil** : visualisez et complétez en 1 clic les repas d'aujourd'hui directement depuis l'écran d'accueil (`TodayMealWidget`).
 - **Journal chronologique** : historique complet de vos repas passés avec possibilité de modification à tout moment.
 - **Menu de la semaine** : planifiez vos déjeuners et dîners du lundi au dimanche (`MealPlannerScreen`), visualisez vos menus d'un coup d'œil et exportez automatiquement les ingrédients nécessaires vers la liste de courses.
 
@@ -283,8 +282,7 @@ papilles-recettes/
     │   │   ├── StarRating.tsx        # Notation par étoiles 0.5–5.0
     │   │   └── AdvancedFiltersModal.tsx # Modale de filtres multicritères
     │   ├── home-widgets/             # Widgets du bandeau d'accueil
-    │   │   ├── ChefAiWidget.tsx      # Widget accueil pour lancer le Chef IA
-    │   │   └── TodayMealWidget.tsx   # Widget accueil du suivi des repas du jour
+    │   │   └── ChefAiWidget.tsx      # Widget accueil pour lancer le Chef IA
     │   ├── recipe-detail/            # Fiche recette & mode cuisine
     │   │   ├── CookingModeModal.tsx  # Mode cuisine pas à pas plein écran
     │   │   ├── RecipeIngredientsList.tsx

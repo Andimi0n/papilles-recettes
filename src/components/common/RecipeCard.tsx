@@ -22,8 +22,6 @@ export interface RecipeCardProps {
   recipe: Recipe;
   onPress: () => void;
   onToggleFavorite?: () => void;
-  onQuickRate?: (rating: number) => void;
-  highlightedIngredients?: string[]; // ingredients matched by search
   hasAllergen?: boolean;
   stockProgress?: RecipeStockProgress;
   viewMode?: RecipeViewMode;
@@ -32,8 +30,6 @@ export interface RecipeCardProps {
 const RecipeCardComponent: React.FC<RecipeCardProps> = ({
   recipe,
   onPress,
-  onQuickRate,
-  highlightedIngredients = [],
   hasAllergen = false,
   stockProgress,
   viewMode = 'detailed',
@@ -737,18 +733,6 @@ const styles = createDynamicStyles((colors, shadows) => ({
   },
 }));
 
-function areStringArraysShallowEqual(a?: string[], b?: string[]): boolean {
-  if (a === b) return true;
-  const aLen = a ? a.length : 0;
-  const bLen = b ? b.length : 0;
-  if (aLen !== bLen) return false;
-  if (aLen === 0) return true;
-  for (let i = 0; i < aLen; i++) {
-    if (a![i] !== b![i]) return false;
-  }
-  return true;
-}
-
 function areStockProgressEqual(a?: RecipeStockProgress, b?: RecipeStockProgress): boolean {
   if (a === b) return true;
   if (!a || !b) return false;
@@ -770,7 +754,6 @@ export const RecipeCard = React.memo(RecipeCardComponent, (prevProps, nextProps)
     prevProps.recipe.prepTimeMinutes === nextProps.recipe.prepTimeMinutes &&
     prevProps.recipe.cookTimeMinutes === nextProps.recipe.cookTimeMinutes &&
     prevProps.hasAllergen === nextProps.hasAllergen &&
-    areStockProgressEqual(prevProps.stockProgress, nextProps.stockProgress) &&
-    areStringArraysShallowEqual(prevProps.highlightedIngredients, nextProps.highlightedIngredients)
+    areStockProgressEqual(prevProps.stockProgress, nextProps.stockProgress)
   );
 });

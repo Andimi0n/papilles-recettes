@@ -15,8 +15,6 @@ import { FlashList, FlashListRef } from '@shopify/flash-list';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Recipe, Category, SortOption, Difficulty, TimeFilterMode, RecipeViewMode } from '../types/recipe';
-import { MealLogEntry } from '../types/mealLog';
-import { MealTime } from '../types/planner';
 import { FridgeItem } from '../types/fridge';
 import { UserAllergenItem } from '../types/vocabulary';
 import { StorageService } from '../services/storageService';
@@ -30,8 +28,6 @@ import { EmptyState } from '../components/common/EmptyState';
 import { StockCookModal } from '../components/chef-ai/StockCookModal';
 import { AdvancedFiltersModal } from '../components/common/AdvancedFiltersModal';
 import { ChefAiWidget } from '../components/home-widgets/ChefAiWidget';
-import { QuickMealLogModal } from '../components/planner/QuickMealLogModal';
-import { normalizeString, getLocalDateString } from '../utils/helpers';
 import {
   searchRecipes,
   RecipeSearchResult,
@@ -45,7 +41,6 @@ import { evaluateRecipesWithStock, RecipeStockEvaluation } from '../utils/stockM
 import { prepareUserAllergens, recipeContainsAllergens } from '../utils/allergenMatcher';
 
 const RECIPES_PER_PAGE = 20;
-const EMPTY_HIGHLIGHTED_INGREDIENTS: string[] = [];
 
 const CATEGORIES: Category[] = [
   'Tous',
@@ -63,9 +58,7 @@ interface HomeScreenProps {
   onScanRecipe: (initialMode?: 'text' | 'photo' | 'url') => void;
   onImportRecipe?: (recipe: Recipe, source?: 'stock_ai' | 'scan') => void;
   onToggleFavorite?: (id: string) => void;
-  onQuickRate: (id: string, rating: number) => void;
   onOpenSettings?: () => void;
-  onNavigateToJournal?: () => void;
   onNavigateToStock?: () => void;
   initialOnlyDoable?: boolean;
   initialViewMode?: RecipeViewMode;
@@ -81,9 +74,7 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
   onAddNewRecipe,
   onScanRecipe,
   onImportRecipe,
-  onQuickRate,
   onOpenSettings,
-  onNavigateToJournal,
   onNavigateToStock,
   initialOnlyDoable = false,
   initialViewMode = 'detailed',
@@ -288,29 +279,6 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
     [hideFilterBar, showFilterBar]
   );
 
-  // État du suivi des repas du jour (midi et soir)
-  const [todayMeals, setTodayMeals] = useState<{ lunch?: MealLogEntry; dinner?: MealLogEntry }>({});
-  const [quickLogModal, setQuickLogModal] = useState<{
-    visible: boolean;
-    date: string;
-    mealTime: MealTime;
-    entry?: MealLogEntry | null;
-  }>({
-    visible: false,
-    date: getLocalDateString(),
-    mealTime: 'lunch',
-    entry: null,
-  });
-
-  const loadTodayMeals = useCallback(async () => {
-    try {
-      const data = await StorageService.getTodayMeals();
-      setTodayMeals(data);
-    } catch (e) {
-      console.error('Erreur chargement repas du jour:', e);
-    }
-  }, []);
-
   const loadStockItems = useCallback(async () => {
     try {
       const items = await StorageService.getFridgeItems();
@@ -355,15 +323,13 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
     let isMounted = true;
     const fetchInitialHomeScreenData = async () => {
       try {
-        const [meals, items, allergens, filterEnabled, defaultVege] = await Promise.all([
-          StorageService.getTodayMeals(),
+        const [items, allergens, filterEnabled, defaultVege] = await Promise.all([
           StorageService.getFridgeItems(),
           StorageService.getUserAllergens(),
           StorageService.getAllergenFilterEnabled(),
           StorageService.getDefaultVegetarianFilter(),
         ]);
         if (isMounted) {
-          setTodayMeals(meals);
           setStockItems(items);
           setUserAllergens(allergens);
           setIsAllergenFilterEnabled(filterEnabled);
@@ -391,7 +357,6 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
     }
     if (isActive) {
       void (async () => {
-        await loadTodayMeals();
         await loadAllergenSettings();
         await loadStockItems();
         const defaultVege = await StorageService.getDefaultVegetarianFilter();
@@ -403,7 +368,7 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
         });
       })();
     }
-  }, [isActive, loadTodayMeals, loadAllergenSettings, loadStockItems]);
+  }, [isActive, loadAllergenSettings, loadStockItems]);
 
   // Synchronisation en direct avec les modifications de stock (étagères/frigo)
   useEffect(() => {
@@ -507,43 +472,6 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
     setOnlyDoableWithStock(true);
   };
 
-  const handleOpenMealSlot = (slot: MealTime) => {
-    const today = getLocalDateString();
-    setQuickLogModal({
-      visible: true,
-      date: today,
-      mealTime: slot,
-      entry: slot === 'lunch' ? todayMeals.lunch : todayMeals.dinner,
-    });
-  };
-
-  const handleSaveQuickMeal = async (
-    title: string,
-    recipeId?: string,
-    recipeImageUrl?: string,
-    note?: string
-  ) => {
-    try {
-      await StorageService.setMealLog(quickLogModal.date, quickLogModal.mealTime, {
-        title,
-        recipeId,
-        recipeImageUrl,
-        note,
-      });
-      await loadTodayMeals();
-    } catch (e) {
-      console.error('Erreur enregistrement repas rapide:', e);
-    }
-  };
-
-  const handleDeleteQuickMeal = async () => {
-    try {
-      await StorageService.setMealLog(quickLogModal.date, quickLogModal.mealTime, null);
-      await loadTodayMeals();
-    } catch (e) {
-      console.error('Erreur suppression repas rapide:', e);
-    }
-  };
 
   // Handler pour la sélection multi-catégorie (Entrée + Plat, etc.)
   const handleToggleCategory = (cat: Category) => {
@@ -563,7 +491,7 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
   };
 
   // 1. Filtrage par tous les critères actifs hors catégorie (moteur de recherche, stock, allergènes, etc.)
-  const { baseFilteredResults, matchedIngredientsMap, isSearching } = useMemo(() => {
+  const { baseFilteredResults, isSearching } = useMemo(() => {
     let searchResults: RecipeSearchResult[] = [];
     const searching = debouncedSearchQuery.trim().length > 0;
 
@@ -578,11 +506,6 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
         matchedIngredients: [],
       }));
     }
-
-    const ingMap: Record<string, string[]> = {};
-    searchResults.forEach((res) => {
-      ingMap[res.recipe.id] = res.matchedIngredients;
-    });
 
     let result = searchResults;
 
@@ -632,7 +555,6 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
 
     return {
       baseFilteredResults: result,
-      matchedIngredientsMap: ingMap,
       isSearching: searching,
     };
   }, [
@@ -711,54 +633,6 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
     }
   };
 
-  // Pré-calcul indexé des ingrédients mis en avant pour les recettes visibles (évite recalculs et allocations dans renderItem)
-  const highlightedIngredientsMapByRecipeId = useMemo(() => {
-    const map = new Map<string, string[]>();
-    const hasSearch = debouncedSearchQuery.trim().length > 0;
-    const hasSelected = selectedIngredients.length > 0;
-    const normSelected = hasSelected ? selectedIngredients.map(normalizeString) : [];
-
-    if (!hasSearch && !hasSelected && !onlyDoableWithStock) {
-      return map;
-    }
-
-    paginatedRecipes.forEach((recipe) => {
-      const fromSearch = matchedIngredientsMap[recipe.id] || EMPTY_HIGHLIGHTED_INGREDIENTS;
-      const fromDoable = onlyDoableWithStock
-        ? (doableRecipesMap.get(recipe.id)?.matchedIngredients || [])
-            .filter((m) => m.matchedBy === 'stock')
-            .map((m) => m.ingredient.name)
-        : EMPTY_HIGHLIGHTED_INGREDIENTS;
-
-      if (!hasSelected && fromDoable.length === 0) {
-        if (fromSearch.length > 0) map.set(recipe.id, fromSearch);
-        return;
-      }
-
-      const fromFridge = hasSelected
-        ? recipe.ingredients
-            .filter((ing) => {
-              const norm = normalizeString(ing.name);
-              return normSelected.some((sel) => norm.includes(sel) || sel.includes(norm));
-            })
-            .map((i) => i.name)
-        : EMPTY_HIGHLIGHTED_INGREDIENTS;
-
-      const combined = Array.from(new Set([...fromSearch, ...fromFridge, ...fromDoable]));
-      if (combined.length > 0) {
-        map.set(recipe.id, combined);
-      }
-    });
-    return map;
-  }, [
-    paginatedRecipes,
-    debouncedSearchQuery,
-    matchedIngredientsMap,
-    selectedIngredients,
-    onlyDoableWithStock,
-    doableRecipesMap,
-  ]);
-
   const handleResetAllFilters = () => {
     setSearchQuery('');
     setDebouncedSearchQuery('');
@@ -783,9 +657,6 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
       <View style={styles.listHeaderContainer}>
         {/* Widget Inspirations Chef IA (défile avec les cartes de recettes) */}
         <ChefAiWidget
-          stockCount={stockItems.length}
-          stockItems={stockItems}
-          doableCount={doableCount}
           onOpenChefAi={openFreshStockModal}
           onNavigateToStock={onNavigateToStock}
         />
@@ -979,7 +850,6 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
       </View>
     ),
     [
-      todayMeals,
       selectedIngredients,
       ingredientMatchMode,
       selectedTags,
@@ -987,7 +857,6 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
       targetTotalTime,
       timeFilterMode,
       selectedDifficulties,
-      ingredientMatchMode,
       onlyDoableWithStock,
       doableCount,
       filteredRecipes.length,
@@ -999,7 +868,6 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
       colors,
       viewMode,
       handleChangeViewMode,
-      onNavigateToJournal,
     ]
   );
 
@@ -1073,10 +941,6 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
           recipe={item}
           viewMode={viewMode}
           onPress={() => onSelectRecipe(item)}
-          onQuickRate={(rating) => onQuickRate(item.id, rating)}
-          highlightedIngredients={
-            highlightedIngredientsMapByRecipeId.get(item.id) || EMPTY_HIGHLIGHTED_INGREDIENTS
-          }
           hasAllergen={recipesWithAllergensSet.has(item.id)}
           stockProgress={stockProgressMap.get(item.id)}
         />
@@ -1084,8 +948,6 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
     },
     [
       onSelectRecipe,
-      onQuickRate,
-      highlightedIngredientsMapByRecipeId,
       recipesWithAllergensSet,
       stockProgressMap,
       viewMode,
@@ -1526,22 +1388,6 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
             setIsStockModalVisible(false);
           }}
         />
-
-        {/* Modal Saisie Rapide Libre pour le suivi des repas du jour */}
-        {quickLogModal.visible && (
-          <QuickMealLogModal
-            visible={quickLogModal.visible}
-            date={quickLogModal.date}
-            mealTime={quickLogModal.mealTime}
-            currentEntry={quickLogModal.entry}
-            recipes={recipes}
-            onSave={handleSaveQuickMeal}
-            onDelete={quickLogModal.entry ? handleDeleteQuickMeal : undefined}
-            onClose={() =>
-              setQuickLogModal((prev) => ({ ...prev, visible: false, entry: null }))
-            }
-          />
-        )}
       </View>
     </SafeAreaView>
   );
