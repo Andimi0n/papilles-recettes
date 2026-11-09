@@ -11,7 +11,13 @@ import {
   KeyboardAvoidingView,
   Platform,
   Linking,
-} from 'react-native';
+  Animated,
+  PanResponder,
+  PanResponderGestureState,
+  useWindowDimensions,
+  LayoutChangeEvent,
+  Keyboard,
+} from "react-native";
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -44,7 +50,8 @@ import { CameraCaptureModal } from '../components/import-share/CameraCaptureModa
 import { ChefFavoritePromptsModal } from '../components/chef-ai/ChefFavoritePromptsModal';
 import { UnifiedIngredientInput } from '../components/lexicon-units/UnifiedIngredientInput';
 
-export type AddRecipeMode = 'photo' | 'text' | 'url' | 'chef';
+export type AddRecipeMode = "photo" | "text" | "url" | "chef";
+export const MODES: AddRecipeMode[] = ["text", "photo", "url", "chef"];
 
 export type IngredientSelectionState = 'primary' | 'optional' | 'inactive';
 
@@ -187,13 +194,116 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
   onManualCreate,
 }) => {
   const { colors, isDark } = useTheme();
+  const { width: screenWidth } = useWindowDimensions();
   const [mode, setMode] = useState<AddRecipeMode>(initialMode);
   const [prevInitialMode, setPrevInitialMode] = useState(initialMode);
+  const [pageTranslateX] = useState(
+    () => new Animated.Value(-MODES.indexOf(initialMode) * screenWidth)
+  );
+  const [tabLayout, setTabLayout] = useState({ x: 0, y: 0, width: 0, height: 0 });
 
   if (prevInitialMode !== initialMode) {
     setPrevInitialMode(initialMode);
-    setMode(initialMode);
+    if (initialMode) {
+      setMode(initialMode);
+      const targetIndex = MODES.indexOf(initialMode);
+      pageTranslateX.setValue(-targetIndex * screenWidth);
+    }
   }
+
+  // Recalage de la translation si la largeur d'écran change
+  useEffect(() => {
+    const targetIndex = MODES.indexOf(mode);
+    pageTranslateX.setValue(-targetIndex * screenWidth);
+  }, [screenWidth, mode, pageTranslateX]);
+
+  const onFirstTabLayout = useCallback((e: LayoutChangeEvent) => {
+    const { x, y, width, height } = e.nativeEvent.layout;
+    if (width > 0 && height > 0) {
+      setTabLayout((prev) => {
+        if (
+          Math.abs(prev.x - x) < 0.5 &&
+          Math.abs(prev.y - y) < 0.5 &&
+          Math.abs(prev.width - width) < 0.5 &&
+          Math.abs(prev.height - height) < 0.5
+        ) {
+          return prev;
+        }
+        return { x, y, width, height };
+      });
+    }
+  }, []);
+
+  // Interpolation de la position de la pilule indicatrice active (0 -> 3 * tabLayout.width)
+  const indicatorTranslateX = useMemo(() => {
+    return pageTranslateX.interpolate({
+      inputRange: [-3 * screenWidth, 0],
+      outputRange: [3 * tabLayout.width, 0],
+      extrapolate: "clamp",
+    });
+  }, [pageTranslateX, screenWidth, tabLayout.width]);
+
+  // Interpolations d'opacité croisée pour les libellés et icônes des 4 onglets
+  const textActiveOpacity = useMemo(() => {
+    return pageTranslateX.interpolate({
+      inputRange: [-screenWidth, 0],
+      outputRange: [0, 1],
+      extrapolate: "clamp",
+    });
+  }, [pageTranslateX, screenWidth]);
+
+  const photoActiveOpacity = useMemo(() => {
+    return pageTranslateX.interpolate({
+      inputRange: [-2 * screenWidth, -screenWidth, 0],
+      outputRange: [0, 1, 0],
+      extrapolate: "clamp",
+    });
+  }, [pageTranslateX, screenWidth]);
+
+  const urlActiveOpacity = useMemo(() => {
+    return pageTranslateX.interpolate({
+      inputRange: [-3 * screenWidth, -2 * screenWidth, -screenWidth],
+      outputRange: [0, 1, 0],
+      extrapolate: "clamp",
+    });
+  }, [pageTranslateX, screenWidth]);
+
+  const chefActiveOpacity = useMemo(() => {
+    return pageTranslateX.interpolate({
+      inputRange: [-3 * screenWidth, -2 * screenWidth],
+      outputRange: [1, 0],
+      extrapolate: "clamp",
+    });
+  }, [pageTranslateX, screenWidth]);
+
+  // Basculement d'onglet fluide et synchronisé (spring physique)
+  const switchMode = useCallback(
+    (target: AddRecipeMode, animated = true) => {
+      if (mode === target) return;
+      Keyboard.dismiss();
+      const targetIndex = MODES.indexOf(target);
+      const targetX = -targetIndex * screenWidth;
+
+      if (!animated) {
+        pageTranslateX.setValue(targetX);
+        setMode(target);
+        return;
+      }
+
+      Animated.spring(pageTranslateX, {
+        toValue: targetX,
+        tension: 80,
+        friction: 10,
+        restSpeedThreshold: 1,
+        restDisplacementThreshold: 1,
+        overshootClamping: true,
+        useNativeDriver: true,
+      }).start(() => {
+        setMode(target);
+      });
+    },
+    [mode, screenWidth, pageTranslateX]
+  );
 
   // =========================================================
   // ÉTATS MODE PHOTO
@@ -317,6 +427,139 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
       });
     }
   }, [stockItems]);
+
+  // Swipe tactile fluide et continu (type Pager / Launcher Android)
+  const screenSwipePanResponder = useMemo(() => {
+    const shouldCapture = (gestureState: PanResponderGestureState) => {
+      if (
+        isApiKeyModalVisible ||
+        isCameraModalVisible ||
+        isQrScannerVisible ||
+        isFavoritePromptsModalVisible ||
+        isMealTypeDropdownOpen ||
+        isAnalyzingPhotos ||
+        isAnalyzingText ||
+        isImportingUrl ||
+        aiFlowStep === "generating_recipe" ||
+        aiFlowStep === "loading_ideas"
+      ) {
+        return false;
+      }
+
+      const isHorizontal =
+        Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.5;
+      if (!isHorizontal) return false;
+
+      const currentIndex = MODES.indexOf(mode);
+
+      // Sur le premier onglet (Texte) : swipe vers la gauche uniquement (dx < -15)
+      if (currentIndex === 0 && gestureState.dx < -15) {
+        return true;
+      }
+
+      // Sur le dernier onglet (Chef IA) : swipe vers la droite uniquement (dx > 15)
+      if (currentIndex === MODES.length - 1 && gestureState.dx > 15) {
+        return true;
+      }
+
+      // Sur les onglets intermédiaires (Photo, Web) : swipe gauche ou droite
+      if (currentIndex > 0 && currentIndex < MODES.length - 1 && Math.abs(gestureState.dx) > 15) {
+        return true;
+      }
+
+      return false;
+    };
+
+    return PanResponder.create({
+      onMoveShouldSetPanResponderCapture: (_, gestureState) => shouldCapture(gestureState),
+      onMoveShouldSetPanResponder: (_, gestureState) => shouldCapture(gestureState),
+      onPanResponderTerminationRequest: () => false,
+      onPanResponderGrant: () => {
+        Keyboard.dismiss();
+        pageTranslateX.stopAnimation();
+      },
+      onPanResponderMove: (_, gestureState) => {
+        const currentIndex = MODES.indexOf(mode);
+        const base = -currentIndex * screenWidth;
+        let newX = base + gestureState.dx;
+
+        // Amorti élastique doux aux limites extérieures
+        const maxLimit = -(MODES.length - 1) * screenWidth;
+        if (newX > 0) {
+          newX = newX * 0.15;
+        } else if (newX < maxLimit) {
+          const over = newX - maxLimit;
+          newX = maxLimit + over * 0.15;
+        }
+
+        pageTranslateX.setValue(newX);
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        const currentIndex = MODES.indexOf(mode);
+        let targetIndex = currentIndex;
+
+        if (
+          gestureState.dx < -screenWidth * 0.35 ||
+          (gestureState.dx < -25 && gestureState.vx < -0.35)
+        ) {
+          if (currentIndex < MODES.length - 1) {
+            targetIndex = currentIndex + 1;
+          }
+        } else if (
+          gestureState.dx > screenWidth * 0.35 ||
+          (gestureState.dx > 25 && gestureState.vx > 0.35)
+        ) {
+          if (currentIndex > 0) {
+            targetIndex = currentIndex - 1;
+          }
+        }
+
+        const destinationMode = MODES[targetIndex];
+        const targetX = -targetIndex * screenWidth;
+
+        Animated.spring(pageTranslateX, {
+          toValue: targetX,
+          velocity: gestureState.vx,
+          tension: 80,
+          friction: 10,
+          restSpeedThreshold: 1,
+          restDisplacementThreshold: 1,
+          overshootClamping: true,
+          useNativeDriver: true,
+        }).start(() => {
+          setMode(destinationMode);
+        });
+      },
+      onPanResponderTerminate: () => {
+        const currentIndex = MODES.indexOf(mode);
+        const targetX = -currentIndex * screenWidth;
+        Animated.spring(pageTranslateX, {
+          toValue: targetX,
+          tension: 80,
+          friction: 10,
+          restSpeedThreshold: 1,
+          restDisplacementThreshold: 1,
+          overshootClamping: true,
+          useNativeDriver: true,
+        }).start(() => {
+          setMode(mode);
+        });
+      },
+    });
+  }, [
+    mode,
+    isApiKeyModalVisible,
+    isCameraModalVisible,
+    isQrScannerVisible,
+    isFavoritePromptsModalVisible,
+    isMealTypeDropdownOpen,
+    isAnalyzingPhotos,
+    isAnalyzingText,
+    isImportingUrl,
+    aiFlowStep,
+    screenWidth,
+    pageTranslateX,
+  ]);
 
   // Charger réglages utilisateur (portions, végé, humeurs)
   useEffect(() => {
@@ -1110,6 +1353,102 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
     }
   };
 
+  const renderAiConnectionBanner = () => {
+    if (isCheckingConnection) {
+      return (
+        <View style={styles.checkingBadge}>
+          <ActivityIndicator size="small" color={colors.primary} />
+          <Text style={styles.checkingText}>Vérification de la connexion IA...</Text>
+        </View>
+      );
+    }
+    if (connectionStatus?.ok) {
+      return (
+        <View style={styles.readyBadge}>
+          <Ionicons name="checkmark-circle" size={18} color={colors.secondary} />
+          <View style={styles.readyTextCol}>
+            <Text style={styles.readyTitle}>Reconnaissance IA prête</Text>
+            <Text style={styles.readySubtitle}>Gemini 3.8 Flash connecté</Text>
+          </View>
+          <TouchableOpacity
+            onPress={() => verifyAiStatus(apiKey)}
+            style={styles.refreshBadgeBtn}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons name="refresh" size={15} color={colors.secondary} />
+          </TouchableOpacity>
+        </View>
+      );
+    }
+    return (
+      <View style={styles.errorCard}>
+        <View style={styles.errorTopRow}>
+          <Ionicons
+            name="close-circle"
+            size={22}
+            color={colors.danger}
+            style={styles.errorIcon}
+          />
+          <View style={styles.errorTitleCol}>
+            <Text style={styles.errorTitle}>
+              {connectionStatus?.code === "INVALID_KEY"
+                ? "Clé API Gemini invalide"
+                : "Connexion IA impossible"}
+            </Text>
+            <Text style={styles.errorMessage}>{connectionStatus?.message}</Text>
+          </View>
+        </View>
+        <View style={styles.errorActionsRow}>
+          <TouchableOpacity
+            style={styles.errorFixBtn}
+            onPress={() => {
+              setTempApiKeyInput(apiKey);
+              setIsApiKeyModalVisible(true);
+            }}
+          >
+            <Ionicons name="key" size={14} color="#FFFFFF" />
+            <Text style={styles.errorFixBtnText}>Changer de clé</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.errorRetryBtn}
+            onPress={() => verifyAiStatus(apiKey)}
+          >
+            <Ionicons name="refresh" size={14} color={colors.textPrimary} />
+            <Text style={styles.errorRetryBtnText}>Réessayer</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
+
+  const renderFallbackOptions = () => (
+    <>
+      {onManualCreate && (
+        <TouchableOpacity
+          style={styles.manualFallbackBtn}
+          onPress={onManualCreate}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="create-outline" size={17} color={colors.textSecondary} />
+          <Text style={styles.manualFallbackBtnText}>
+            Créer la recette manuellement (sans IA)
+          </Text>
+        </TouchableOpacity>
+      )}
+
+      <TouchableOpacity
+        style={styles.qrFallbackBtn}
+        onPress={() => setIsQrScannerVisible(true)}
+        activeOpacity={0.7}
+      >
+        <Ionicons name="qr-code-outline" size={17} color={colors.secondary} />
+        <Text style={styles.qrFallbackBtnText}>
+          Recevoir une recette par QR Code hors-ligne
+        </Text>
+      </TouchableOpacity>
+    </>
+  );
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <KeyboardAvoidingView
@@ -1171,98 +1510,523 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
           </TouchableOpacity>
         </View>
 
-        {/* Switcher segmenté à 4 entrées */}
-        <View style={styles.segmentContainer}>
-          <TouchableOpacity
-            style={[styles.segmentBtn, mode === 'text' && styles.segmentBtnActive]}
-            onPress={() => setMode('text')}
-            activeOpacity={0.8}
-          >
-            <Ionicons
-              name="document-text-outline"
-              size={14}
-              color={mode === 'text' ? '#FFFFFF' : colors.textSecondary}
-            />
-            <Text
-              numberOfLines={1}
-              style={[
-                styles.segmentBtnText,
-                mode === 'text' && styles.segmentBtnTextActive,
-              ]}
-            >
-              Texte brut
-            </Text>
-          </TouchableOpacity>
+        {/* Switcher d'onglets et pager avec swipe tactile fluide */}
+        <View style={{ flex: 1, overflow: "hidden" }} {...screenSwipePanResponder.panHandlers}>
+          {/* Switcher segmenté à 4 entrées */}
+          <View style={styles.segmentContainer}>
+            {tabLayout.width > 0 && (
+              <Animated.View
+                style={[
+                  styles.segmentPill,
+                  {
+                    left: tabLayout.x,
+                    top: tabLayout.y,
+                    width: tabLayout.width,
+                    height: tabLayout.height,
+                    transform: [{ translateX: indicatorTranslateX }],
+                  },
+                ]}
+              />
+            )}
 
-          <TouchableOpacity
-            style={[styles.segmentBtn, mode === 'photo' && styles.segmentBtnActive]}
-            onPress={() => setMode('photo')}
-            activeOpacity={0.8}
-          >
-            <Ionicons
-              name="camera-outline"
-              size={14}
-              color={mode === 'photo' ? '#FFFFFF' : colors.textSecondary}
-            />
-            <Text
-              numberOfLines={1}
+            {/* Onglet 1 : Texte brut */}
+            <TouchableOpacity
               style={[
-                styles.segmentBtnText,
-                mode === 'photo' && styles.segmentBtnTextActive,
+                styles.segmentBtn,
+                tabLayout.width === 0 && mode === "text" && styles.segmentBtnActive,
               ]}
+              onLayout={onFirstTabLayout}
+              onPress={() => switchMode("text")}
+              activeOpacity={0.8}
+              accessibilityLabel="Mode texte brut"
+              accessibilityRole="tab"
+              accessibilityState={{ selected: mode === "text" }}
             >
-              Scanner
-            </Text>
-          </TouchableOpacity>
+              <View style={styles.segmentBtnInner}>
+                <Ionicons name="document-text-outline" size={14} color={colors.textSecondary} />
+                <Text numberOfLines={1} style={styles.segmentBtnText}>
+                  Texte brut
+                </Text>
+              </View>
+              <Animated.View
+                style={[
+                  styles.segmentBtnInner,
+                  styles.segmentBtnOverlay,
+                  { opacity: textActiveOpacity },
+                ]}
+                pointerEvents="none"
+              >
+                <Ionicons name="document-text" size={14} color="#FFFFFF" />
+                <Text numberOfLines={1} style={[styles.segmentBtnText, styles.segmentBtnTextActive]}>
+                  Texte brut
+                </Text>
+              </Animated.View>
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.segmentBtn, mode === 'url' && styles.segmentBtnActive]}
-            onPress={() => setMode('url')}
-            activeOpacity={0.8}
-          >
-            <Ionicons
-              name="globe-outline"
-              size={14}
-              color={mode === 'url' ? '#FFFFFF' : colors.textSecondary}
-            />
-            <Text
-              numberOfLines={1}
+            {/* Onglet 2 : Scanner */}
+            <TouchableOpacity
               style={[
-                styles.segmentBtnText,
-                mode === 'url' && styles.segmentBtnTextActive,
+                styles.segmentBtn,
+                tabLayout.width === 0 && mode === "photo" && styles.segmentBtnActive,
               ]}
+              onPress={() => switchMode("photo")}
+              activeOpacity={0.8}
+              accessibilityLabel="Mode scanner une recette"
+              accessibilityRole="tab"
+              accessibilityState={{ selected: mode === "photo" }}
             >
-              Web
-            </Text>
-          </TouchableOpacity>
+              <View style={styles.segmentBtnInner}>
+                <Ionicons name="camera-outline" size={14} color={colors.textSecondary} />
+                <Text numberOfLines={1} style={styles.segmentBtnText}>
+                  Scanner
+                </Text>
+              </View>
+              <Animated.View
+                style={[
+                  styles.segmentBtnInner,
+                  styles.segmentBtnOverlay,
+                  { opacity: photoActiveOpacity },
+                ]}
+                pointerEvents="none"
+              >
+                <Ionicons name="camera" size={14} color="#FFFFFF" />
+                <Text numberOfLines={1} style={[styles.segmentBtnText, styles.segmentBtnTextActive]}>
+                  Scanner
+                </Text>
+              </Animated.View>
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.segmentBtn, mode === 'chef' && styles.segmentBtnActive]}
-            onPress={() => setMode('chef')}
-            activeOpacity={0.8}
-          >
-            <Ionicons
-              name="sparkles"
-              size={14}
-              color={mode === 'chef' ? '#FFFFFF' : colors.textSecondary}
-            />
-            <Text
-              numberOfLines={1}
+            {/* Onglet 3 : Web */}
+            <TouchableOpacity
               style={[
-                styles.segmentBtnText,
-                mode === 'chef' && styles.segmentBtnTextActive,
+                styles.segmentBtn,
+                tabLayout.width === 0 && mode === "url" && styles.segmentBtnActive,
               ]}
+              onPress={() => switchMode("url")}
+              activeOpacity={0.8}
+              accessibilityLabel="Mode importer depuis le web"
+              accessibilityRole="tab"
+              accessibilityState={{ selected: mode === "url" }}
             >
-              Chef IA
-            </Text>
-          </TouchableOpacity>
-        </View>
+              <View style={styles.segmentBtnInner}>
+                <Ionicons name="globe-outline" size={14} color={colors.textSecondary} />
+                <Text numberOfLines={1} style={styles.segmentBtnText}>
+                  Web
+                </Text>
+              </View>
+              <Animated.View
+                style={[
+                  styles.segmentBtnInner,
+                  styles.segmentBtnOverlay,
+                  { opacity: urlActiveOpacity },
+                ]}
+                pointerEvents="none"
+              >
+                <Ionicons name="globe" size={14} color="#FFFFFF" />
+                <Text numberOfLines={1} style={[styles.segmentBtnText, styles.segmentBtnTextActive]}>
+                  Web
+                </Text>
+              </Animated.View>
+            </TouchableOpacity>
 
-        {mode === 'chef' ? (
-          /* ========================================================= */
-          /* 4. MODE CHEF IA (Intégré sans modal externe)              */
-          /* ========================================================= */
-          <View style={{ flex: 1 }}>
+            {/* Onglet 4 : Chef IA */}
+            <TouchableOpacity
+              style={[
+                styles.segmentBtn,
+                tabLayout.width === 0 && mode === "chef" && styles.segmentBtnActive,
+              ]}
+              onPress={() => switchMode("chef")}
+              activeOpacity={0.8}
+              accessibilityLabel="Mode Chef IA anti-gaspillage"
+              accessibilityRole="tab"
+              accessibilityState={{ selected: mode === "chef" }}
+            >
+              <View style={styles.segmentBtnInner}>
+                <Ionicons name="sparkles-outline" size={14} color={colors.textSecondary} />
+                <Text numberOfLines={1} style={styles.segmentBtnText}>
+                  Chef IA
+                </Text>
+              </View>
+              <Animated.View
+                style={[
+                  styles.segmentBtnInner,
+                  styles.segmentBtnOverlay,
+                  { opacity: chefActiveOpacity },
+                ]}
+                pointerEvents="none"
+              >
+                <Ionicons name="sparkles" size={14} color="#FFFFFF" />
+                <Text numberOfLines={1} style={[styles.segmentBtnText, styles.segmentBtnTextActive]}>
+                  Chef IA
+                </Text>
+              </Animated.View>
+            </TouchableOpacity>
+          </View>
+
+          {/* Pager interactif continu plein écran */}
+          <Animated.View
+            style={[
+              styles.pagerTrack,
+              {
+                width: screenWidth * 4,
+                transform: [{ translateX: pageTranslateX }],
+              },
+            ]}
+          >
+            {/* VUE 1 : TEXTE BRUT */}
+            <View
+              style={[styles.pagerPage, { width: screenWidth }]}
+              aria-hidden={mode !== "text"}
+            >
+              <ScrollView
+                style={{ flex: 1 }}
+                contentContainerStyle={styles.scrollContent}
+                keyboardShouldPersistTaps="handled"
+              >
+                {renderAiConnectionBanner()}
+                {/* ========================================================= */}
+            {/* 1. ONGLET TEXTE BRUT */}
+            {/* ========================================================= */}
+            {mode === 'text' && (
+              <View>
+                <View style={styles.guideCard}>
+                  <View style={styles.guideHeader}>
+                    <Ionicons name="document-text-outline" size={16} color={colors.primary} />
+                    <Text style={styles.guideTitle}>Copier-coller du texte brut</Text>
+                  </View>
+                  <Text style={styles.guideText}>
+                    Collez le texte brut d&apos;une recette issue d&apos;un message, d&apos;un mail, de WhatsApp ou d&apos;un livre. L&apos;IA repère automatiquement le titre, les proportions, la liste des ingrédients et les étapes.
+                  </Text>
+                </View>
+
+                <View style={styles.inputCard}>
+                  <View style={styles.inputCardHeader}>
+                    <View style={styles.inputCardHeaderLeft}>
+                      <Ionicons name="pencil-outline" size={18} color={colors.primary} />
+                      <Text style={styles.inputCardHeaderTitle}>Texte de la recette</Text>
+                    </View>
+                    {rawTextInput.length > 0 && (
+                      <TouchableOpacity
+                        style={styles.clearQuickBtn}
+                        onPress={() => setRawTextInput('')}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons name="trash-outline" size={14} color={colors.danger} />
+                        <Text style={styles.clearQuickBtnText}>Effacer</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+
+                  <TextInput
+                    style={styles.textInputArea}
+                    multiline
+                    numberOfLines={10}
+                    placeholder="Collez ici le texte de votre recette...&#10;&#10;Exemple :&#10;Tarte aux pommes rustique&#10;Ingrédients : 4 pommes, 1 pâte brisée, 50g de beurre, 2 c. à soupe de cassonade...&#10;Préparation : Préchauffer le four à 180°C..."
+                    placeholderTextColor={colors.textMuted}
+                    value={rawTextInput}
+                    onChangeText={setRawTextInput}
+                    textAlignVertical="top"
+                  />
+                </View>
+
+                {rawTextInput.trim().length > 0 && (
+                  <TouchableOpacity
+                    style={[
+                      styles.primaryCtaBtn,
+                      (isAnalyzingText || (connectionStatus && !connectionStatus.ok)) &&
+                        styles.primaryCtaBtnDisabled,
+                    ]}
+                    onPress={handleAnalyzeText}
+                    disabled={isAnalyzingText}
+                    activeOpacity={0.85}
+                  >
+                    {isAnalyzingText ? (
+                      <View style={styles.btnLoadingRow}>
+                        <ActivityIndicator size="small" color="#FFFFFF" />
+                        <Text style={styles.primaryCtaBtnText}>{loadingStep}</Text>
+                      </View>
+                    ) : (
+                      <View style={styles.btnLoadingRow}>
+                        <Ionicons name="sparkles" size={19} color="#FFFFFF" />
+                        <Text style={styles.primaryCtaBtnText}>Analyser et extraire la recette</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
+                {renderFallbackOptions()}
+              </ScrollView>
+            </View>
+
+            {/* VUE 2 : SCANNER (PHOTO) */}
+            <View
+              style={[styles.pagerPage, { width: screenWidth }]}
+              aria-hidden={mode !== "photo"}
+            >
+              <ScrollView
+                style={{ flex: 1 }}
+                contentContainerStyle={styles.scrollContent}
+                keyboardShouldPersistTaps="handled"
+              >
+                {renderAiConnectionBanner()}
+                {/* ========================================================= */}
+            {/* 2. ONGLET SCANNER / PHOTO */}
+            {/* ========================================================= */}
+            {mode === 'photo' && (
+              <View>
+                <View style={styles.guideCard}>
+                  <View style={styles.guideHeader}>
+                    <Ionicons name="camera-outline" size={16} color={colors.primary} />
+                    <Text style={styles.guideTitle}>Capture photo (1 à 4 pages)</Text>
+                  </View>
+                  <Text style={styles.guideText}>
+                    Photographiez un livre de cuisine, une fiche manuscrite ou une recette sur un écran. Vous pouvez combiner recto/verso ou ingrédients et étapes sur des pages distinctes.
+                  </Text>
+                </View>
+
+                {photos.length === 0 ? (
+                  <View style={styles.photoEmptyPickerBox}>
+                    <View style={styles.pickerIconCircle}>
+                      <Ionicons name="camera-reverse-outline" size={36} color={colors.primary} />
+                    </View>
+                    <Text style={styles.pickerBoxTitle}>Photographier une recette</Text>
+                    <Text style={styles.pickerBoxSubtitle}>
+                      Prenez une photo bien éclairée à plat, ou sélectionnez une image de votre galerie.
+                    </Text>
+
+                    <View style={styles.pickerBtnsRow}>
+                      <TouchableOpacity
+                        style={styles.pickerPrimaryBtn}
+                        onPress={() => handlePickPhoto(true)}
+                        activeOpacity={0.85}
+                      >
+                        <Ionicons name="camera" size={20} color="#FFFFFF" />
+                        <Text style={styles.pickerPrimaryBtnText}>Prendre une photo</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={styles.pickerSecondaryBtn}
+                        onPress={() => handlePickPhoto(false)}
+                        activeOpacity={0.85}
+                      >
+                        <Ionicons name="images-outline" size={20} color={colors.primary} />
+                        <Text style={styles.pickerSecondaryBtnText}>Galerie</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ) : (
+                  <View style={styles.photosGridContainer}>
+                    <View style={styles.photosGridHeader}>
+                      <Text style={styles.photosGridTitle}>
+                        {photos.length} photo{photos.length > 1 ? 's' : ''} sélectionnée{photos.length > 1 ? 's' : ''} (max 4)
+                      </Text>
+                      <TouchableOpacity
+                        style={styles.clearPhotosBtn}
+                        onPress={() => setPhotos([])}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons name="trash-outline" size={14} color={colors.danger} />
+                        <Text style={styles.clearPhotosBtnText}>Tout supprimer</Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    <View style={styles.photosThumbnailsRow}>
+                      {photos.map((item, idx) => (
+                        <View key={item.id} style={styles.thumbnailWrapper}>
+                          <Image
+                            source={{ uri: item.uri }}
+                            style={styles.thumbnailImg}
+                            contentFit="cover"
+                            transition={200}
+                          />
+                          <View style={styles.thumbnailPageBadge}>
+                            <Text style={styles.thumbnailPageText}>Page {idx + 1}</Text>
+                          </View>
+                          <TouchableOpacity
+                            style={styles.thumbnailRemoveBtn}
+                            onPress={() => handleRemovePhoto(item.id)}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          >
+                            <Ionicons name="close" size={14} color="#FFFFFF" />
+                          </TouchableOpacity>
+                        </View>
+                      ))}
+                    </View>
+
+                    <View style={styles.addMoreBtnsRow}>
+                      <TouchableOpacity
+                        style={styles.addMoreBtn}
+                        onPress={() => handlePickPhoto(true)}
+                        activeOpacity={0.8}
+                      >
+                        <Ionicons name="camera-outline" size={17} color={colors.primary} />
+                        <Text style={styles.addMoreBtnText}>+ Ajouter photo</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.addMoreBtn}
+                        onPress={() => handlePickPhoto(false)}
+                        activeOpacity={0.8}
+                      >
+                        <Ionicons name="images-outline" size={17} color={colors.primary} />
+                        <Text style={styles.addMoreBtnText}>+ Galerie</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                )}
+
+                {photos.length > 0 && (
+                  <TouchableOpacity
+                    style={[
+                      styles.primaryCtaBtn,
+                      (isAnalyzingPhotos || (connectionStatus && !connectionStatus.ok)) &&
+                        styles.primaryCtaBtnDisabled,
+                    ]}
+                    onPress={handleAnalyzePhotos}
+                    disabled={isAnalyzingPhotos}
+                    activeOpacity={0.85}
+                  >
+                    {isAnalyzingPhotos ? (
+                      <View style={styles.btnLoadingRow}>
+                        <ActivityIndicator size="small" color="#FFFFFF" />
+                        <Text style={styles.primaryCtaBtnText}>{loadingStep}</Text>
+                      </View>
+                    ) : (
+                      <View style={styles.btnLoadingRow}>
+                        <Ionicons name="sparkles" size={19} color="#FFFFFF" />
+                        <Text style={styles.primaryCtaBtnText}>
+                          Analyser la recette ({photos.length} photo{photos.length > 1 ? 's' : ''})
+                        </Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
+                {renderFallbackOptions()}
+              </ScrollView>
+            </View>
+
+            {/* VUE 3 : WEB */}
+            <View
+              style={[styles.pagerPage, { width: screenWidth }]}
+              aria-hidden={mode !== "url"}
+            >
+              <ScrollView
+                style={{ flex: 1 }}
+                contentContainerStyle={styles.scrollContent}
+                keyboardShouldPersistTaps="handled"
+              >
+                {/* ========================================================= */}
+            {/* 3. ONGLET WEB */}
+            {/* ========================================================= */}
+            {mode === 'url' && (
+              <View>
+                <View style={styles.guideCard}>
+                  <View style={styles.guideHeader}>
+                    <Ionicons name="globe-outline" size={16} color={colors.primary} />
+                    <Text style={styles.guideTitle}>Importation universelle de recette web</Text>
+                  </View>
+                  <Text style={styles.guideText}>
+                    Collez l&apos;adresse web d&apos;une recette trouvée sur Internet. Papilles extrait automatiquement la photo haute résolution, les portions, les temps de cuisson, les ingrédients normalisés et les étapes.
+                  </Text>
+                </View>
+
+                <View style={styles.inputCard}>
+                  <View style={styles.inputCardHeader}>
+                    <View style={styles.inputCardHeaderLeft}>
+                      <Ionicons name="link-outline" size={18} color={colors.primary} />
+                      <Text style={styles.inputCardHeaderTitle}>Adresse de la recette</Text>
+                    </View>
+                    {urlInput.length > 0 && (
+                      <TouchableOpacity
+                        style={styles.clearQuickBtn}
+                        onPress={() => {
+                          setUrlInput('');
+                          setUrlErrorMessage(null);
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons name="trash-outline" size={14} color={colors.danger} />
+                        <Text style={styles.clearQuickBtnText}>Effacer</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+
+                  <View style={styles.urlInputWrapper}>
+                    <Ionicons
+                      name="globe-outline"
+                      size={20}
+                      color={colors.textSecondary}
+                      style={styles.urlInputIcon}
+                    />
+                    <TextInput
+                      style={styles.urlInput}
+                      value={urlInput}
+                      onChangeText={(text) => {
+                        setUrlInput(text);
+                        if (urlErrorMessage) setUrlErrorMessage(null);
+                      }}
+                      placeholder="https://... (ex: Marmiton, 750g, CuisineAZ, blog...)"
+                      placeholderTextColor={colors.textMuted}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      keyboardType="url"
+                    />
+                  </View>
+
+                  <View style={styles.platformsBox}>
+                    <Text style={styles.platformsTitle}>Sites compatibles testés :</Text>
+                    <View style={styles.platformsChipsRow}>
+                      {POPULAR_PLATFORMS.map((site) => (
+                        <View key={site} style={styles.platformChip}>
+                          <Text style={styles.platformChipText}>{site}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                </View>
+
+                {urlErrorMessage && (
+                  <View style={styles.urlErrorCard}>
+                    <Ionicons name="alert-circle" size={18} color={colors.danger} />
+                    <Text style={styles.urlErrorText}>{urlErrorMessage}</Text>
+                  </View>
+                )}
+
+                <TouchableOpacity
+                  style={[
+                    styles.primaryCtaBtn,
+                    (isImportingUrl || !urlInput.trim()) && styles.primaryCtaBtnDisabled,
+                  ]}
+                  onPress={handleImportUrl}
+                  disabled={isImportingUrl || !urlInput.trim()}
+                  activeOpacity={0.85}
+                >
+                  {isImportingUrl ? (
+                    <View style={styles.btnLoadingRow}>
+                      <ActivityIndicator size="small" color="#FFFFFF" />
+                      <Text style={styles.primaryCtaBtnText}>{importStepText}</Text>
+                    </View>
+                  ) : (
+                    <View style={styles.btnLoadingRow}>
+                      <Ionicons name="globe-outline" size={19} color="#FFFFFF" />
+                      <Text style={styles.primaryCtaBtnText}>Importer la recette</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              </View>
+            )}
+                {renderFallbackOptions()}
+              </ScrollView>
+            </View>
+
+            {/* VUE 4 : CHEF IA */}
+            <View
+              style={[styles.pagerPage, { width: screenWidth, flex: 1 }]}
+              aria-hidden={mode !== "chef"}
+            >
+              <View style={{ flex: 1 }}>
             {aiFlowStep === 'generating_recipe' ? (
               <View style={styles.aiLoadingContainer}>
                 <View style={styles.aiLoadingCard}>
@@ -1948,413 +2712,9 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
               </>
             )}
           </View>
-        ) : (
-          /* ========================================================= */
-          /* MODES STANDARD : PHOTO / TEXTE / URL                      */
-          /* ========================================================= */
-          <ScrollView
-            contentContainerStyle={styles.scrollContent}
-            keyboardShouldPersistTaps="handled"
-          >
-            {/* Bannière Live IA (modes Texte & Photo) */}
-            {(mode === 'text' || mode === 'photo') && (
-              <>
-                {isCheckingConnection ? (
-                  <View style={styles.checkingBadge}>
-                    <ActivityIndicator size="small" color={colors.primary} />
-                    <Text style={styles.checkingText}>Vérification de la connexion IA...</Text>
-                  </View>
-                ) : connectionStatus?.ok ? (
-                  <View style={styles.readyBadge}>
-                    <Ionicons name="checkmark-circle" size={18} color={colors.secondary} />
-                    <View style={styles.readyTextCol}>
-                      <Text style={styles.readyTitle}>Reconnaissance IA prête</Text>
-                      <Text style={styles.readySubtitle}>Gemini 3.8 Flash connecté</Text>
-                    </View>
-                    <TouchableOpacity
-                      onPress={() => verifyAiStatus(apiKey)}
-                      style={styles.refreshBadgeBtn}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    >
-                      <Ionicons name="refresh" size={15} color={colors.secondary} />
-                    </TouchableOpacity>
-                  </View>
-                ) : (
-                  <View style={styles.errorCard}>
-                    <View style={styles.errorTopRow}>
-                      <Ionicons
-                        name="close-circle"
-                        size={22}
-                        color={colors.danger}
-                        style={styles.errorIcon}
-                      />
-                      <View style={styles.errorTitleCol}>
-                        <Text style={styles.errorTitle}>
-                          {connectionStatus?.code === 'INVALID_KEY'
-                            ? 'Clé API Gemini invalide'
-                            : 'Connexion IA impossible'}
-                        </Text>
-                        <Text style={styles.errorMessage}>{connectionStatus?.message}</Text>
-                      </View>
-                    </View>
-                    <View style={styles.errorActionsRow}>
-                      <TouchableOpacity
-                        style={styles.errorFixBtn}
-                        onPress={() => {
-                          setTempApiKeyInput(apiKey);
-                          setIsApiKeyModalVisible(true);
-                        }}
-                      >
-                        <Ionicons name="key" size={14} color="#FFFFFF" />
-                        <Text style={styles.errorFixBtnText}>Changer de clé</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={styles.errorRetryBtn}
-                        onPress={() => verifyAiStatus(apiKey)}
-                      >
-                        <Ionicons name="refresh" size={14} color={colors.textPrimary} />
-                        <Text style={styles.errorRetryBtnText}>Réessayer</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                )}
-              </>
-            )}
-
-            {/* ========================================================= */}
-            {/* 1. ONGLET TEXTE BRUT */}
-            {/* ========================================================= */}
-            {mode === 'text' && (
-              <View>
-                <View style={styles.guideCard}>
-                  <View style={styles.guideHeader}>
-                    <Ionicons name="document-text-outline" size={16} color={colors.primary} />
-                    <Text style={styles.guideTitle}>Copier-coller du texte brut</Text>
-                  </View>
-                  <Text style={styles.guideText}>
-                    Collez le texte brut d&apos;une recette issue d&apos;un message, d&apos;un mail, de WhatsApp ou d&apos;un livre. L&apos;IA repère automatiquement le titre, les proportions, la liste des ingrédients et les étapes.
-                  </Text>
-                </View>
-
-                <View style={styles.inputCard}>
-                  <View style={styles.inputCardHeader}>
-                    <View style={styles.inputCardHeaderLeft}>
-                      <Ionicons name="pencil-outline" size={18} color={colors.primary} />
-                      <Text style={styles.inputCardHeaderTitle}>Texte de la recette</Text>
-                    </View>
-                    {rawTextInput.length > 0 && (
-                      <TouchableOpacity
-                        style={styles.clearQuickBtn}
-                        onPress={() => setRawTextInput('')}
-                        activeOpacity={0.7}
-                      >
-                        <Ionicons name="trash-outline" size={14} color={colors.danger} />
-                        <Text style={styles.clearQuickBtnText}>Effacer</Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
-
-                  <TextInput
-                    style={styles.textInputArea}
-                    multiline
-                    numberOfLines={10}
-                    placeholder="Collez ici le texte de votre recette...&#10;&#10;Exemple :&#10;Tarte aux pommes rustique&#10;Ingrédients : 4 pommes, 1 pâte brisée, 50g de beurre, 2 c. à soupe de cassonade...&#10;Préparation : Préchauffer le four à 180°C..."
-                    placeholderTextColor={colors.textMuted}
-                    value={rawTextInput}
-                    onChangeText={setRawTextInput}
-                    textAlignVertical="top"
-                  />
-                </View>
-
-                {rawTextInput.trim().length > 0 && (
-                  <TouchableOpacity
-                    style={[
-                      styles.primaryCtaBtn,
-                      (isAnalyzingText || (connectionStatus && !connectionStatus.ok)) &&
-                        styles.primaryCtaBtnDisabled,
-                    ]}
-                    onPress={handleAnalyzeText}
-                    disabled={isAnalyzingText}
-                    activeOpacity={0.85}
-                  >
-                    {isAnalyzingText ? (
-                      <View style={styles.btnLoadingRow}>
-                        <ActivityIndicator size="small" color="#FFFFFF" />
-                        <Text style={styles.primaryCtaBtnText}>{loadingStep}</Text>
-                      </View>
-                    ) : (
-                      <View style={styles.btnLoadingRow}>
-                        <Ionicons name="sparkles" size={19} color="#FFFFFF" />
-                        <Text style={styles.primaryCtaBtnText}>Analyser et extraire la recette</Text>
-                      </View>
-                    )}
-                  </TouchableOpacity>
-                )}
-              </View>
-            )}
-
-            {/* ========================================================= */}
-            {/* 2. ONGLET SCANNER / PHOTO */}
-            {/* ========================================================= */}
-            {mode === 'photo' && (
-              <View>
-                <View style={styles.guideCard}>
-                  <View style={styles.guideHeader}>
-                    <Ionicons name="camera-outline" size={16} color={colors.primary} />
-                    <Text style={styles.guideTitle}>Capture photo (1 à 4 pages)</Text>
-                  </View>
-                  <Text style={styles.guideText}>
-                    Photographiez un livre de cuisine, une fiche manuscrite ou une recette sur un écran. Vous pouvez combiner recto/verso ou ingrédients et étapes sur des pages distinctes.
-                  </Text>
-                </View>
-
-                {photos.length === 0 ? (
-                  <View style={styles.photoEmptyPickerBox}>
-                    <View style={styles.pickerIconCircle}>
-                      <Ionicons name="camera-reverse-outline" size={36} color={colors.primary} />
-                    </View>
-                    <Text style={styles.pickerBoxTitle}>Photographier une recette</Text>
-                    <Text style={styles.pickerBoxSubtitle}>
-                      Prenez une photo bien éclairée à plat, ou sélectionnez une image de votre galerie.
-                    </Text>
-
-                    <View style={styles.pickerBtnsRow}>
-                      <TouchableOpacity
-                        style={styles.pickerPrimaryBtn}
-                        onPress={() => handlePickPhoto(true)}
-                        activeOpacity={0.85}
-                      >
-                        <Ionicons name="camera" size={20} color="#FFFFFF" />
-                        <Text style={styles.pickerPrimaryBtnText}>Prendre une photo</Text>
-                      </TouchableOpacity>
-
-                      <TouchableOpacity
-                        style={styles.pickerSecondaryBtn}
-                        onPress={() => handlePickPhoto(false)}
-                        activeOpacity={0.85}
-                      >
-                        <Ionicons name="images-outline" size={20} color={colors.primary} />
-                        <Text style={styles.pickerSecondaryBtnText}>Galerie</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                ) : (
-                  <View style={styles.photosGridContainer}>
-                    <View style={styles.photosGridHeader}>
-                      <Text style={styles.photosGridTitle}>
-                        {photos.length} photo{photos.length > 1 ? 's' : ''} sélectionnée{photos.length > 1 ? 's' : ''} (max 4)
-                      </Text>
-                      <TouchableOpacity
-                        style={styles.clearPhotosBtn}
-                        onPress={() => setPhotos([])}
-                        activeOpacity={0.7}
-                      >
-                        <Ionicons name="trash-outline" size={14} color={colors.danger} />
-                        <Text style={styles.clearPhotosBtnText}>Tout supprimer</Text>
-                      </TouchableOpacity>
-                    </View>
-
-                    <View style={styles.photosThumbnailsRow}>
-                      {photos.map((item, idx) => (
-                        <View key={item.id} style={styles.thumbnailWrapper}>
-                          <Image
-                            source={{ uri: item.uri }}
-                            style={styles.thumbnailImg}
-                            contentFit="cover"
-                            transition={200}
-                          />
-                          <View style={styles.thumbnailPageBadge}>
-                            <Text style={styles.thumbnailPageText}>Page {idx + 1}</Text>
-                          </View>
-                          <TouchableOpacity
-                            style={styles.thumbnailRemoveBtn}
-                            onPress={() => handleRemovePhoto(item.id)}
-                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                          >
-                            <Ionicons name="close" size={14} color="#FFFFFF" />
-                          </TouchableOpacity>
-                        </View>
-                      ))}
-                    </View>
-
-                    <View style={styles.addMoreBtnsRow}>
-                      <TouchableOpacity
-                        style={styles.addMoreBtn}
-                        onPress={() => handlePickPhoto(true)}
-                        activeOpacity={0.8}
-                      >
-                        <Ionicons name="camera-outline" size={17} color={colors.primary} />
-                        <Text style={styles.addMoreBtnText}>+ Ajouter photo</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={styles.addMoreBtn}
-                        onPress={() => handlePickPhoto(false)}
-                        activeOpacity={0.8}
-                      >
-                        <Ionicons name="images-outline" size={17} color={colors.primary} />
-                        <Text style={styles.addMoreBtnText}>+ Galerie</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                )}
-
-                {photos.length > 0 && (
-                  <TouchableOpacity
-                    style={[
-                      styles.primaryCtaBtn,
-                      (isAnalyzingPhotos || (connectionStatus && !connectionStatus.ok)) &&
-                        styles.primaryCtaBtnDisabled,
-                    ]}
-                    onPress={handleAnalyzePhotos}
-                    disabled={isAnalyzingPhotos}
-                    activeOpacity={0.85}
-                  >
-                    {isAnalyzingPhotos ? (
-                      <View style={styles.btnLoadingRow}>
-                        <ActivityIndicator size="small" color="#FFFFFF" />
-                        <Text style={styles.primaryCtaBtnText}>{loadingStep}</Text>
-                      </View>
-                    ) : (
-                      <View style={styles.btnLoadingRow}>
-                        <Ionicons name="sparkles" size={19} color="#FFFFFF" />
-                        <Text style={styles.primaryCtaBtnText}>
-                          Analyser la recette ({photos.length} photo{photos.length > 1 ? 's' : ''})
-                        </Text>
-                      </View>
-                    )}
-                  </TouchableOpacity>
-                )}
-              </View>
-            )}
-
-            {/* ========================================================= */}
-            {/* 3. ONGLET WEB */}
-            {/* ========================================================= */}
-            {mode === 'url' && (
-              <View>
-                <View style={styles.guideCard}>
-                  <View style={styles.guideHeader}>
-                    <Ionicons name="globe-outline" size={16} color={colors.primary} />
-                    <Text style={styles.guideTitle}>Importation universelle de recette web</Text>
-                  </View>
-                  <Text style={styles.guideText}>
-                    Collez l&apos;adresse web d&apos;une recette trouvée sur Internet. Papilles extrait automatiquement la photo haute résolution, les portions, les temps de cuisson, les ingrédients normalisés et les étapes.
-                  </Text>
-                </View>
-
-                <View style={styles.inputCard}>
-                  <View style={styles.inputCardHeader}>
-                    <View style={styles.inputCardHeaderLeft}>
-                      <Ionicons name="link-outline" size={18} color={colors.primary} />
-                      <Text style={styles.inputCardHeaderTitle}>Adresse de la recette</Text>
-                    </View>
-                    {urlInput.length > 0 && (
-                      <TouchableOpacity
-                        style={styles.clearQuickBtn}
-                        onPress={() => {
-                          setUrlInput('');
-                          setUrlErrorMessage(null);
-                        }}
-                        activeOpacity={0.7}
-                      >
-                        <Ionicons name="trash-outline" size={14} color={colors.danger} />
-                        <Text style={styles.clearQuickBtnText}>Effacer</Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
-
-                  <View style={styles.urlInputWrapper}>
-                    <Ionicons
-                      name="globe-outline"
-                      size={20}
-                      color={colors.textSecondary}
-                      style={styles.urlInputIcon}
-                    />
-                    <TextInput
-                      style={styles.urlInput}
-                      value={urlInput}
-                      onChangeText={(text) => {
-                        setUrlInput(text);
-                        if (urlErrorMessage) setUrlErrorMessage(null);
-                      }}
-                      placeholder="https://... (ex: Marmiton, 750g, CuisineAZ, blog...)"
-                      placeholderTextColor={colors.textMuted}
-                      autoCapitalize="none"
-                      autoCorrect={false}
-                      keyboardType="url"
-                    />
-                  </View>
-
-                  <View style={styles.platformsBox}>
-                    <Text style={styles.platformsTitle}>Sites compatibles testés :</Text>
-                    <View style={styles.platformsChipsRow}>
-                      {POPULAR_PLATFORMS.map((site) => (
-                        <View key={site} style={styles.platformChip}>
-                          <Text style={styles.platformChipText}>{site}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  </View>
-                </View>
-
-                {urlErrorMessage && (
-                  <View style={styles.urlErrorCard}>
-                    <Ionicons name="alert-circle" size={18} color={colors.danger} />
-                    <Text style={styles.urlErrorText}>{urlErrorMessage}</Text>
-                  </View>
-                )}
-
-                <TouchableOpacity
-                  style={[
-                    styles.primaryCtaBtn,
-                    (isImportingUrl || !urlInput.trim()) && styles.primaryCtaBtnDisabled,
-                  ]}
-                  onPress={handleImportUrl}
-                  disabled={isImportingUrl || !urlInput.trim()}
-                  activeOpacity={0.85}
-                >
-                  {isImportingUrl ? (
-                    <View style={styles.btnLoadingRow}>
-                      <ActivityIndicator size="small" color="#FFFFFF" />
-                      <Text style={styles.primaryCtaBtnText}>{importStepText}</Text>
-                    </View>
-                  ) : (
-                    <View style={styles.btnLoadingRow}>
-                      <Ionicons name="globe-outline" size={19} color="#FFFFFF" />
-                      <Text style={styles.primaryCtaBtnText}>Importer la recette</Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-              </View>
-            )}
-
-            {/* Passerelle directe vers la saisie manuelle sans IA (commune aux 3 modes) */}
-            {onManualCreate && (
-              <TouchableOpacity
-                style={styles.manualFallbackBtn}
-                onPress={onManualCreate}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="create-outline" size={17} color={colors.textSecondary} />
-                <Text style={styles.manualFallbackBtnText}>
-                  Créer la recette manuellement (sans IA)
-                </Text>
-              </TouchableOpacity>
-            )}
-
-            {/* Passerelle directe pour scanner un QR code offline Papilles */}
-            <TouchableOpacity
-              style={styles.qrFallbackBtn}
-              onPress={() => setIsQrScannerVisible(true)}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="qr-code-outline" size={17} color={colors.secondary} />
-              <Text style={styles.qrFallbackBtnText}>
-                Recevoir une recette par QR Code hors-ligne
-              </Text>
-            </TouchableOpacity>
-          </ScrollView>
-        )}
+            </View>
+          </Animated.View>
+        </View>
 
         {/* Modal Clé API */}
         <Modal
@@ -2503,7 +2863,8 @@ const styles = createDynamicStyles((colors, shadows) => ({
     borderRadius: 16,
   },
   segmentContainer: {
-    flexDirection: 'row',
+    position: "relative",
+    flexDirection: "row",
     backgroundColor: colors.surfaceAlt,
     borderRadius: 14,
     padding: 4,
@@ -2513,14 +2874,32 @@ const styles = createDynamicStyles((colors, shadows) => ({
     borderWidth: 1,
     borderColor: colors.border,
   },
+  segmentPill: {
+    position: "absolute",
+    backgroundColor: colors.primary,
+    borderRadius: 10,
+    ...shadows.small,
+  },
   segmentBtn: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    position: "relative",
+    alignItems: "center",
+    justifyContent: "center",
     paddingVertical: 9,
     borderRadius: 10,
+  },
+  segmentBtnInner: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     gap: 4,
+  },
+  segmentBtnOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
   segmentBtnActive: {
     backgroundColor: colors.primary,
@@ -2528,12 +2907,21 @@ const styles = createDynamicStyles((colors, shadows) => ({
   },
   segmentBtnText: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: "600",
     color: colors.textSecondary,
   },
   segmentBtnTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '700',
+    color: "#FFFFFF",
+    fontWeight: "700",
+  },
+  pagerTrack: {
+    flex: 1,
+    flexDirection: "row",
+    alignSelf: "flex-start",
+  },
+  pagerPage: {
+    flexGrow: 0,
+    flexShrink: 0,
   },
   scrollContent: {
     padding: 16,
