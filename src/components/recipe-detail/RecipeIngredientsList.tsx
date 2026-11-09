@@ -1,13 +1,13 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { Recipe, Ingredient } from '../../types/recipe';
 import { useTheme } from '../../theme/ThemeContext';
-import { Colors } from '../../theme/colors';
 import { scaleQuantity, normalizeString } from '../../utils/helpers';
 import { formatQuantityWithUnit } from '../../constants/units';
 import { VocabularyService } from '../../services/vocabularyService';
+import { UnifiedIngredientService } from '../../services/unifiedIngredientService';
 import {
   ConversionMode,
   convertIngredientQuantity,
@@ -62,7 +62,35 @@ export const RecipeIngredientsList: React.FC<RecipeIngredientsListProps> = ({
   linkedRecipesMap,
   onOpenLinkedRecipe,
 }) => {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
+
+  // Set des identifiants et noms d'ingrédients en stock (ou fonds de placard satisfaits)
+  const inStockIngredientIds = useMemo(() => {
+    const set = new Set<string>();
+    if (!stockEvaluation) return set;
+    for (const m of stockEvaluation.matchedIngredients) {
+      if (m.matchedBy === 'stock' || m.matchedBy === 'staple') {
+        if (m.ingredient.id) set.add(m.ingredient.id);
+        set.add(normalizeString(m.ingredient.name));
+      }
+    }
+    return set;
+  }, [stockEvaluation]);
+
+  // Carte de reconnaissance dans le lexique pour chaque ingrédient
+  const lexiconRecognitionMap = useMemo(() => {
+    const map = new Map<string, boolean>();
+    const vocabMapById = VocabularyService.getSyncMapById();
+    const allIngredients = recipe.ingredients || [];
+    for (const ing of allIngredients) {
+      const isRecognized = Boolean(
+        (ing.canonicalId && vocabMapById.has(ing.canonicalId)) ||
+        UnifiedIngredientService.resolveRecognizedIngredient(ing.name).isRecognized
+      );
+      map.set(ing.id, isRecognized);
+    }
+    return map;
+  }, [recipe.ingredients]);
 
   return (
     <View style={styles.sectionCard}>
@@ -166,6 +194,21 @@ export const RecipeIngredientsList: React.FC<RecipeIngredientsListProps> = ({
             const isConverted = conv.isConverted;
             const canConvert = isIngredientConvertible(scaledQty, ing.unit, density);
 
+            const isRecognized = lexiconRecognitionMap.get(ing.id) ?? false;
+            const isInStock =
+              inStockIngredientIds.has(ing.id) ||
+              inStockIngredientIds.has(normalizeString(ing.name));
+
+            // Couleur de la barre d'indicateur tout à gauche
+            let barColor = colors.amber;
+            if (!isRecognized) {
+              barColor = colors.amber;
+            } else if (isInStock) {
+              barColor = isDark ? '#4ADE80' : '#22C55E';
+            } else {
+              barColor = isDark ? '#F87171' : '#EF4444';
+            }
+
             return (
               <TouchableOpacity
                 key={ing.id}
@@ -177,11 +220,12 @@ export const RecipeIngredientsList: React.FC<RecipeIngredientsListProps> = ({
                 onPress={() => onToggleIngredientCheck(ing.id)}
                 activeOpacity={0.7}
               >
-                <Ionicons
-                  name={isChecked ? 'checkmark-circle' : isAllergen ? 'warning' : 'ellipse-outline'}
-                  size={22}
-                  color={isChecked ? Colors.secondary : isAllergen ? colors.danger : Colors.border}
-                  style={styles.checkIcon}
+                {/* Barre verticale tout à gauche indiquant le statut stock / lexique */}
+                <View
+                  style={[
+                    styles.ingredientStockBar,
+                    { backgroundColor: barColor },
+                  ]}
                 />
                 <View style={styles.ingredientCol}>
                   <View style={styles.ingredientNameRow}>

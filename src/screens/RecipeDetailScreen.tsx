@@ -155,7 +155,7 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
   }, []);
 
   const stockEvaluation = useMemo(() => {
-    if (stockItems.length === 0 || !recipe) return null;
+    if (!recipe) return null;
     const prepared = prepareStockItems(stockItems);
     return evaluateRecipeStock(recipe, prepared, { assumePantryStaplesAvailable: true });
   }, [recipe, stockItems]);
