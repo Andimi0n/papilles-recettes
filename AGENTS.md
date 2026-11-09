@@ -31,6 +31,9 @@
      ```
    - Si vous touchez au lexique, au stock, aux courses, aux photos ou aux allergènes, exécutez le test ciblé correspondant (voir Section 5).
    - **Attention :** Ne lancez **jamais** `npm start` ou `npx expo start` en tâche bloquante dans l'agent.
+6. **RÈGLE D'OR DE PRÉSERVATION DES DONNÉES PERSONNELLES :**
+   - La règle d'or est de **ne jamais détruire de données personnelles silencieusement**.
+   - Si ce que vous êtes en train d'implémenter semble entraîner une telle suppression (ex: écrasement d'une recette existante lors d'un import, réinitialisation de stock, purge d'ingrédients personnalisés), faites-le savoir explicitement à l'utilisateur et demandez-lui confirmation avant de continuer.
 
 ---
 
@@ -54,7 +57,7 @@
 - **`SettingsScreen.tsx`** (`SettingsScreen.styles.ts`) : Thèmes visuels, clé Gemini BYOK (`expo-secure-store`), convives par défaut (1–50), filtre végétarien par défaut, gestionnaire de lexique canonique, personnalisation du Chef IA (prompts favoris, humeurs), export/import de packs JSON/ZIP avec photos, statistiques locales.
 
 #### Logique métier & Persistance (`src/services/`) :
-- **`storageService.ts`** : Wrapper métier central et coordinateur de persistance. Gère le cache mémoire `memoryCache`, les listeners réactifs, `sanitizeStoredRecipe()`, `sanitizeImageUrl()`, la cascade du lexique `handleVocabularyCascade()`, l'onboarding, et délègue à `DatabaseService` et `ImageStorageService`.
+- **`storageService.ts`** : Wrapper métier central et coordinateur de persistance. Gère le cache mémoire `memoryCache`, les listeners réactifs, `sanitizeStoredRecipe()`, `sanitizeImageUrl()`, la cascade du lexique `handleVocabularyCascade()`, l'onboarding, l'import dédoublé de packs de recettes (`mergeRecipePack` : skip des doublons stricts par titre et hash d'étapes sans écrasement de données personnelles), et délègue à `DatabaseService` et `ImageStorageService`.
 - **`databaseService.ts`** : Couche de persistance relationnelle SQLite native (`papilles.db` avec mode WAL et PRAGMA foreign_keys). Tables indexées : `recipes`, `fridge_items`, `shopping_items`, `weekly_plan`, `meal_logs`, `user_allergens`, `settings`. Supporte le fallback transparent en mémoire pour l'environnement de test CLI Node.js.
 - **`imageStorageService.ts`** : Gestionnaire de persistance permanente des photos de recettes via `expo-file-system`. Déplace les images locales du cache temporaire de l'OS vers le dossier permanent sécurisé `documentDirectory/recipe_photos/`, prévient les fuites de cache et nettoie les photos orphelines.
 - **`recipePackService.ts`** : Extraction et analyse séquentielle par petits lots (protection Zip Slip) de packs de recettes JSON et archives ZIP avec photos de couverture.
@@ -129,6 +132,7 @@
 5. **Sécurité, Persistance & Offline-First :**
    - **SQLite (`papilles.db`) :** Les recettes et collections sont persistées en tables individuelles indexées, sans limitation de taille arbitraire.
    - **Persistance des Photos :** Les photos locales (galerie, caméra) sont systématiquement migrées et stockées dans `documentDirectory/recipe_photos/` via `ImageStorageService` pour immuniser l'app contre les nettoyages de cache de l'appareil.
+   - **Import de packs de recettes (`mergeRecipePack`) :** Ne jamais écraser de recettes existantes. Détection de doublons stricts par titre normalisé et hash d'étapes (`computeRecipeStepsHash`). Les doublons stricts sont ignorés (`skippedCount`), tandis que les recettes ayant le même titre mais des étapes différentes sont ajoutées avec leur propre identifiant unique.
    - Aucune donnée utilisateur n'est envoyée sur un serveur tiers (hors appels directs Gemini API et scraping web consenti).
    - Toujours passer les données chargées ou générées par IA via `sanitizeStoredRecipe()` et `sanitizeImageUrl()`.
 6. **Performance du démarrage (thread JS bloquant) :**

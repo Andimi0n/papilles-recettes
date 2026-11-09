@@ -95,6 +95,39 @@ export function stemWord(word: string): string {
 }
 
 /**
+ * Calcule une empreinte numérique (hash djb2) rapide et normalisée des étapes d'une recette.
+ * Ignore la casse, les accents, la ponctuation et les espaces superflus pour comparer
+ * strictement les instructions culinaires (sans dépendre des identifiants ou de l'ordre interne).
+ */
+export function computeRecipeStepsHash(steps?: any[]): string {
+  if (!Array.isArray(steps) || steps.length === 0) return '0_0';
+  let hash = 5381;
+  let count = 0;
+
+  for (let i = 0; i < steps.length; i++) {
+    const st = steps[i];
+    const rawInstruction = typeof st === 'string'
+      ? st
+      : typeof st?.instruction === 'string'
+      ? st.instruction
+      : typeof st?.step === 'string'
+      ? st.step
+      : typeof st?.text === 'string'
+      ? st.text
+      : '';
+    const norm = normalizeString(rawInstruction).trim().toLowerCase().replace(/\s+/g, ' ');
+    if (norm) {
+      count++;
+      for (let j = 0; j < norm.length; j++) {
+        hash = ((hash << 5) + hash) ^ norm.charCodeAt(j);
+      }
+    }
+  }
+
+  return `${count}_${hash >>> 0}`;
+}
+
+/**
  * Formate une durée en minutes en texte lisible (ex: "25 min" ou "1h15")
  */
 export function formatDuration(minutes: number): string {

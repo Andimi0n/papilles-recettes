@@ -604,7 +604,16 @@ const SettingsScreenComponent: React.FC<SettingsScreenProps> = ({
     const coverage = totalIng > 0 ? Math.round((canonIng / totalIng) * 100) : 100;
     const unmatchedNames: string[] = result.unmatchedIngredientNames || [];
 
-    let msg = `🎉 ${result.addedCount} nouvelle(s) recette(s) ajoutée(s)\n🔄 ${result.updatedCount} recette(s) mise(s) à jour\n🖼️ ${result.photosCount} photo(s) liée(s)`;
+    let msg = `🎉 ${result.addedCount} nouvelle(s) recette(s) ajoutée(s)`;
+    if (result.skippedCount > 0) {
+      msg += `\n⏭️ ${result.skippedCount} doublon(s) strict(s) ignoré(s)`;
+    }
+    if (result.updatedCount > 0) {
+      msg += `\n🔄 ${result.updatedCount} recette(s) mise(s) à jour`;
+    }
+    if (result.photosCount > 0) {
+      msg += `\n🖼️ ${result.photosCount} photo(s) liée(s)`;
+    }
     if (totalIng > 0) {
       msg += `\n📊 ${coverage}% des ingrédients reconnus canoniquement`;
     }

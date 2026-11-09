@@ -15,7 +15,7 @@ async function main() {
   try {
     const tscBin = path.join(__dirname, '../node_modules/.bin/tsc');
     execSync(
-      `"${tscBin}" src/services/storageService.ts src/services/recipePackService.ts src/services/databaseService.ts src/services/imageStorageService.ts src/services/vocabularyService.ts src/utils/ingredientNormalizer.ts src/utils/shoppingAggregator.ts src/utils/stockMatcher.ts src/data/canonicalVocabulary.ts src/data/initialRecipes.ts src/services/recipeAiService.ts --outDir "${tmpDir}" --module commonjs --target es2020 --skipLibCheck --esModuleInterop --ignoreConfig`,
+      `"${tscBin}" src/services/storageService.ts src/services/recipePackService.ts src/services/databaseService.ts src/services/imageStorageService.ts src/services/vocabularyService.ts src/utils/ingredientNormalizer.ts src/utils/shoppingAggregator.ts src/utils/stockMatcher.ts src/data/canonicalVocabulary.ts src/data/initialRecipes.ts src/services/recipeAiService.ts src/utils/helpers.ts --outDir "${tmpDir}" --module commonjs --target es2020 --skipLibCheck --esModuleInterop --ignoreConfig`,
       { stdio: 'pipe' }
     );
   } catch (err) {
@@ -63,7 +63,7 @@ async function main() {
     const emptyResult = await StorageService.mergeRecipePack({ recipes: [], images: new Map() });
     assert.strictEqual(emptyResult.success, false, 'Doit échouer si le pack est vide');
 
-    console.log('\n--- Test 2 : Fusion avec déduplication et conservation du stock ---');
+    console.log('\n--- Test 2 : Détection doublon strict (skip) et ajout dédoublé si étapes différentes ---');
     const initialRecipes = [
       {
         id: 'rec_exist_1',
@@ -85,6 +85,15 @@ async function main() {
 
     const incomingPack = {
       recipes: [
+        // 1. Doublon strict (même titre, mêmes étapes) -> Doit être ignoré (skip)
+        {
+          id: 'colliding_exact_dup',
+          title: 'Gratin dauphinois',
+          servings: 8,
+          ingredients: [{ name: 'Pomme de terre', quantity: '2', unit: 'kg' }],
+          steps: ['Couper', 'Cuire'],
+        },
+        // 2. Même titre mais étapes différentes -> Doit être ajouté en recette distincte
         {
           id: 'colliding_or_new_id_1',
           title: 'Gratin dauphinois',
@@ -92,6 +101,7 @@ async function main() {
           ingredients: [{ name: 'Pomme de terre', quantity: '1.5', unit: 'kg' }],
           steps: ['Nouvelles étapes'],
         },
+        // 3. Recette inédite -> Doit être ajoutée
         {
           id: 'rec_inédite_2',
           title: 'Tarte tatin aux poires',
@@ -106,16 +116,24 @@ async function main() {
 
     const mergeRes = await StorageService.mergeRecipePack(incomingPack);
     assert.strictEqual(mergeRes.success, true, 'La fusion doit réussir');
-    assert.strictEqual(mergeRes.addedCount, 1, '1 recette ajoutée');
-    assert.strictEqual(mergeRes.updatedCount, 1, '1 recette mise à jour');
+    assert.strictEqual(mergeRes.addedCount, 2, '2 recettes ajoutées (1 avec mêmes titre mais étapes diff + 1 inédite)');
+    assert.strictEqual(mergeRes.skippedCount, 1, '1 doublon strict ignoré');
+    assert.strictEqual(mergeRes.updatedCount, 0, 'Aucune recette écrasée');
     assert.ok(mergeRes.photosCount >= 1, 'Au moins 1 photo liée');
 
     const finalRecipes = await StorageService.getRecipes();
-    assert.strictEqual(finalRecipes.length, 2, 'Exactement 2 recettes au total');
+    assert.strictEqual(finalRecipes.length, 3, 'Exactement 3 recettes au total (1 initiale intacte + 2 ajoutées)');
 
-    const updatedGratin = finalRecipes.find((r) => r.id === 'rec_exist_1');
-    assert.ok(updatedGratin, 'Le Gratin existant doit avoir conservé son id rec_exist_1');
-    assert.strictEqual(updatedGratin.servings, 6, 'Portions mises à jour à 6');
+    const originalGratin = finalRecipes.find((r) => r.id === 'rec_exist_1');
+    assert.ok(originalGratin, 'Le Gratin existant doit avoir conservé son id rec_exist_1');
+    assert.strictEqual(originalGratin.servings, 4, 'Portions initiales intactes (non écrasées)');
+    assert.deepStrictEqual(originalGratin.steps.map(s => s.instruction || s), ['Couper', 'Cuire'], 'Étapes initiales intactes');
+
+    const newGratinVariants = finalRecipes.filter((r) => r.title.toLowerCase().includes('gratin dauphinois'));
+    assert.strictEqual(newGratinVariants.length, 2, 'Deux variantes de Gratin dauphinois doivent coexister');
+    const variantGratin = newGratinVariants.find((r) => r.id !== 'rec_exist_1');
+    assert.ok(variantGratin, 'Le Gratin avec nouvelles étapes doit avoir un nouvel id');
+    assert.strictEqual(variantGratin.servings, 6, 'Portions de la variante ajoutée à 6');
 
     const newTarte = finalRecipes.find((r) => r.title === 'Tarte tatin aux poires');
     assert.ok(newTarte, 'La Tarte doit exister');

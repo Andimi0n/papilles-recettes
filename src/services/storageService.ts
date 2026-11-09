@@ -18,6 +18,7 @@ import {
   formatMealLogDateFrench,
   getDayOfWeekFromDateString,
   normalizeString,
+  computeRecipeStepsHash,
 } from '../utils/helpers';
 import { isRecipeVegetarian, ChefMoodOption, CHEF_MOODS } from './recipeAiService';
 import { createShoppingItemFromIngredient, mergeShoppingItems, getShoppingItemCanonicalIngredient } from '../utils/shoppingAggregator';
@@ -35,6 +36,7 @@ export interface RecipePackMergeResult {
   success: boolean;
   addedCount: number;
   updatedCount: number;
+  skippedCount: number;
   photosCount: number;
   totalIngredientsCount?: number;
   canonicalIngredientsCount?: number;
@@ -2620,7 +2622,9 @@ export const StorageService = {
   /**
    * Importe et fusionne un pack de recettes (JSON ou archive ZIP avec photos)
    * sans écraser le stock, la liste de courses ni le journal des repas.
-   * Déduplique par titre normalisé et assainit chaque recette via sanitizeStoredRecipe().
+   * Déduplique strictement par titre normalisé et hash d'étapes (les doublons stricts sont ignorés).
+   * Les recettes ayant le même titre mais des étapes différentes sont ajoutées comme recettes distinctes.
+   * Assainit chaque recette via sanitizeStoredRecipe().
    */
   async mergeRecipePack(
     pack: ExtractedRecipePack,
@@ -2632,6 +2636,7 @@ export const StorageService = {
           success: false,
           addedCount: 0,
           updatedCount: 0,
+          skippedCount: 0,
           photosCount: 0,
           error: 'Le pack ne contient aucune recette valide à importer.',
         };
@@ -2639,7 +2644,7 @@ export const StorageService = {
 
       const current = await this.getRecipes();
       const existingById = new Map<string, Recipe>();
-      const existingByNormalizedTitle = new Map<string, Recipe>();
+      const existingByNormalizedTitle = new Map<string, { recipe: Recipe; stepsHash?: string }[]>();
       const usedIds = new Set<string>();
 
       current.forEach((r) => {
@@ -2647,12 +2652,18 @@ export const StorageService = {
         usedIds.add(r.id);
         const norm = normalizeString(r.title || '').trim().toLowerCase();
         if (norm) {
-          existingByNormalizedTitle.set(norm, r);
+          let list = existingByNormalizedTitle.get(norm);
+          if (!list) {
+            list = [];
+            existingByNormalizedTitle.set(norm, list);
+          }
+          list.push({ recipe: r });
         }
       });
 
       let addedCount = 0;
       let updatedCount = 0;
+      let skippedCount = 0;
       let photosCount = 0;
       let totalIngredientsCount = 0;
       let canonicalIngredientsCount = 0;
@@ -2669,7 +2680,31 @@ export const StorageService = {
         const sanitized = sanitizeStoredRecipe(rawRecipe);
         const normTitle = normalizeString(sanitized.title || '').trim().toLowerCase();
 
-        // Comptabilisation de la couverture du lexique canonique
+        // 1. Détection des doublons stricts (même titre + mêmes étapes via hash)
+        let isStrictDuplicate = false;
+        if (normTitle && existingByNormalizedTitle.has(normTitle)) {
+          const candidateEntries = existingByNormalizedTitle.get(normTitle)!;
+          const incomingStepsHash = computeRecipeStepsHash(sanitized.steps);
+          for (const entry of candidateEntries) {
+            if (!entry.stepsHash) {
+              entry.stepsHash = computeRecipeStepsHash(entry.recipe.steps);
+            }
+            if (entry.stepsHash === incomingStepsHash) {
+              isStrictDuplicate = true;
+              break;
+            }
+          }
+        }
+
+        if (isStrictDuplicate) {
+          skippedCount++;
+          if (onProgress) {
+            onProgress(i + 1, totalToProcess);
+          }
+          continue;
+        }
+
+        // 2. Comptabilisation de la couverture du lexique canonique pour la recette ajoutée
         if (Array.isArray(sanitized.ingredients)) {
           for (const ing of sanitized.ingredients) {
             totalIngredientsCount++;
@@ -2688,7 +2723,7 @@ export const StorageService = {
           }
         }
 
-        // 1. Recherche de photo principale dans le pack
+        // 3. Recherche de photo principale dans le pack
         let photoUri: string | null = null;
         const extraPhotos: string[] = [];
 
@@ -2731,7 +2766,7 @@ export const StorageService = {
             }
           }
 
-          // 1b. Recherche de photos additionnelles (availableImages)
+          // Recherche de photos additionnelles (availableImages)
           if (Array.isArray(rawRecipe.availableImages)) {
             for (const extraRef of rawRecipe.availableImages) {
               if (typeof extraRef !== 'string' || !extraRef.trim()) continue;
@@ -2748,47 +2783,31 @@ export const StorageService = {
 
         const resolvedAvailableImages = extraPhotos.length > 0 ? extraPhotos : sanitized.availableImages;
 
-        // 2. Déduplication par titre normalisé
-        const existingRecipe = normTitle ? existingByNormalizedTitle.get(normTitle) : undefined;
-
-        if (existingRecipe) {
-          // Mise à jour de la recette existante en conservant son ID
-          const targetIndex = mergedList.findIndex((r) => r.id === existingRecipe.id);
-          if (targetIndex !== -1) {
-            const updatedRecipe: Recipe = {
-              ...sanitized,
-              id: existingRecipe.id,
-              // Conserver la photo existante si aucune nouvelle photo n'a été trouvée
-              imageUrl: photoUri || sanitized.imageUrl || existingRecipe.imageUrl,
-              availableImages: resolvedAvailableImages || existingRecipe.availableImages,
-            };
-            mergedList[targetIndex] = updatedRecipe;
-            existingById.set(existingRecipe.id, updatedRecipe);
-            existingByNormalizedTitle.set(normTitle, updatedRecipe);
-            updatedCount++;
-          }
-        } else {
-          // Recette inédite : attribution d'un nouvel identifiant unique si collision ou manquant
-          let newId = sanitized.id;
-          if (!newId || usedIds.has(newId)) {
-            newId = generateUniqueId('rec');
-          }
-          usedIds.add(newId);
-
-          const newRecipe: Recipe = {
-            ...sanitized,
-            id: newId,
-            imageUrl: photoUri || sanitized.imageUrl,
-            availableImages: resolvedAvailableImages,
-          };
-
-          mergedList.push(newRecipe);
-          existingById.set(newId, newRecipe);
-          if (normTitle) {
-            existingByNormalizedTitle.set(normTitle, newRecipe);
-          }
-          addedCount++;
+        // 4. Attribution d'un identifiant unique et ajout au carnet
+        let newId = sanitized.id;
+        if (!newId || usedIds.has(newId)) {
+          newId = generateUniqueId('rec');
         }
+        usedIds.add(newId);
+
+        const newRecipe: Recipe = {
+          ...sanitized,
+          id: newId,
+          imageUrl: photoUri || sanitized.imageUrl,
+          availableImages: resolvedAvailableImages,
+        };
+
+        mergedList.push(newRecipe);
+        existingById.set(newId, newRecipe);
+        if (normTitle) {
+          let list = existingByNormalizedTitle.get(normTitle);
+          if (!list) {
+            list = [];
+            existingByNormalizedTitle.set(normTitle, list);
+          }
+          list.push({ recipe: newRecipe, stepsHash: computeRecipeStepsHash(newRecipe.steps) });
+        }
+        addedCount++;
 
         if (onProgress) {
           onProgress(i + 1, totalToProcess);
@@ -2802,6 +2821,7 @@ export const StorageService = {
         success: true,
         addedCount,
         updatedCount,
+        skippedCount,
         photosCount,
         totalIngredientsCount,
         canonicalIngredientsCount,
@@ -2815,6 +2835,7 @@ export const StorageService = {
         success: false,
         addedCount: 0,
         updatedCount: 0,
+        skippedCount: 0,
         photosCount: 0,
         totalIngredientsCount: 0,
         canonicalIngredientsCount: 0,
