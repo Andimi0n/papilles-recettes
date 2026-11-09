@@ -1278,28 +1278,7 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
                   </TouchableOpacity>
                 </View>
 
-                {/* Choix 1 : Chef IA */}
-                <TouchableOpacity
-                  style={styles.addMenuOption}
-                  onPress={() => {
-                    setIsAddMenuVisible(false);
-                    openFreshStockModal();
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <View style={[styles.addMenuIconBox, { backgroundColor: colors.secondaryLight }]}>
-                    <Ionicons name="sparkles" size={22} color={colors.secondary} />
-                  </View>
-                  <View style={styles.addMenuTextCol}>
-                    <Text style={styles.addMenuOptionTitle}>Chef IA</Text>
-                    <Text style={styles.addMenuOptionSubtitle}>
-                      3 idées de recettes
-                    </Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-                </TouchableOpacity>
-
-                {/* Choix 2 : Texte brut */}
+                {/* Choix 1 : Texte brut */}
                 <TouchableOpacity
                   style={styles.addMenuOption}
                   onPress={() => {
@@ -1357,6 +1336,27 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
                     <Text style={styles.addMenuOptionTitle}>Web</Text>
                     <Text style={styles.addMenuOptionSubtitle}>
                       Marmiton, 750g, blogs...
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+                </TouchableOpacity>
+
+                {/* Choix 4 : Chef IA */}
+                <TouchableOpacity
+                  style={styles.addMenuOption}
+                  onPress={() => {
+                    setIsAddMenuVisible(false);
+                    openFreshStockModal();
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.addMenuIconBox, { backgroundColor: colors.secondaryLight }]}>
+                    <Ionicons name="sparkles" size={22} color={colors.secondary} />
+                  </View>
+                  <View style={styles.addMenuTextCol}>
+                    <Text style={styles.addMenuOptionTitle}>Chef IA</Text>
+                    <Text style={styles.addMenuOptionSubtitle}>
+                      3 idées de recettes
                     </Text>
                   </View>
                   <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />

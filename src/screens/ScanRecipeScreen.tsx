@@ -12,11 +12,11 @@ import {
   Platform,
   Linking,
   Animated,
-  PanResponder,
-  PanResponderGestureState,
   useWindowDimensions,
   LayoutChangeEvent,
   Keyboard,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
 } from "react-native";
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -197,25 +197,40 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
   const { width: screenWidth } = useWindowDimensions();
   const [mode, setMode] = useState<AddRecipeMode>(initialMode);
   const [prevInitialMode, setPrevInitialMode] = useState(initialMode);
-  const [pageTranslateX] = useState(
-    () => new Animated.Value(-MODES.indexOf(initialMode) * screenWidth)
+  const pagerRef = useRef<React.ElementRef<typeof ScrollView>>(null);
+  const prevScreenWidth = useRef(screenWidth);
+
+  const [scrollX] = useState(
+    () => new Animated.Value(MODES.indexOf(initialMode) * screenWidth)
   );
   const [tabLayout, setTabLayout] = useState({ x: 0, y: 0, width: 0, height: 0 });
 
-  if (prevInitialMode !== initialMode) {
+  if (initialMode && initialMode !== prevInitialMode) {
     setPrevInitialMode(initialMode);
-    if (initialMode) {
-      setMode(initialMode);
-      const targetIndex = MODES.indexOf(initialMode);
-      pageTranslateX.setValue(-targetIndex * screenWidth);
-    }
+    setMode(initialMode);
   }
+
+  useEffect(() => {
+    if (initialMode) {
+      const targetIndex = MODES.indexOf(initialMode);
+      pagerRef.current?.scrollTo({
+        x: targetIndex * screenWidth,
+        animated: false,
+      });
+    }
+  }, [initialMode, screenWidth]);
 
   // Recalage de la translation si la largeur d'écran change
   useEffect(() => {
-    const targetIndex = MODES.indexOf(mode);
-    pageTranslateX.setValue(-targetIndex * screenWidth);
-  }, [screenWidth, mode, pageTranslateX]);
+    if (prevScreenWidth.current !== screenWidth) {
+      prevScreenWidth.current = screenWidth;
+      const targetIndex = MODES.indexOf(mode);
+      pagerRef.current?.scrollTo({
+        x: targetIndex * screenWidth,
+        animated: false,
+      });
+    }
+  }, [screenWidth, mode]);
 
   const onFirstTabLayout = useCallback((e: LayoutChangeEvent) => {
     const { x, y, width, height } = e.nativeEvent.layout;
@@ -236,73 +251,59 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
 
   // Interpolation de la position de la pilule indicatrice active (0 -> 3 * tabLayout.width)
   const indicatorTranslateX = useMemo(() => {
-    return pageTranslateX.interpolate({
-      inputRange: [-3 * screenWidth, 0],
-      outputRange: [3 * tabLayout.width, 0],
+    return scrollX.interpolate({
+      inputRange: [0, 3 * screenWidth],
+      outputRange: [0, 3 * tabLayout.width],
       extrapolate: "clamp",
     });
-  }, [pageTranslateX, screenWidth, tabLayout.width]);
+  }, [scrollX, screenWidth, tabLayout.width]);
 
   // Interpolations d'opacité croisée pour les libellés et icônes des 4 onglets
   const textActiveOpacity = useMemo(() => {
-    return pageTranslateX.interpolate({
-      inputRange: [-screenWidth, 0],
-      outputRange: [0, 1],
-      extrapolate: "clamp",
-    });
-  }, [pageTranslateX, screenWidth]);
-
-  const photoActiveOpacity = useMemo(() => {
-    return pageTranslateX.interpolate({
-      inputRange: [-2 * screenWidth, -screenWidth, 0],
-      outputRange: [0, 1, 0],
-      extrapolate: "clamp",
-    });
-  }, [pageTranslateX, screenWidth]);
-
-  const urlActiveOpacity = useMemo(() => {
-    return pageTranslateX.interpolate({
-      inputRange: [-3 * screenWidth, -2 * screenWidth, -screenWidth],
-      outputRange: [0, 1, 0],
-      extrapolate: "clamp",
-    });
-  }, [pageTranslateX, screenWidth]);
-
-  const chefActiveOpacity = useMemo(() => {
-    return pageTranslateX.interpolate({
-      inputRange: [-3 * screenWidth, -2 * screenWidth],
+    return scrollX.interpolate({
+      inputRange: [0, screenWidth],
       outputRange: [1, 0],
       extrapolate: "clamp",
     });
-  }, [pageTranslateX, screenWidth]);
+  }, [scrollX, screenWidth]);
 
-  // Basculement d'onglet fluide et synchronisé (spring physique)
+  const photoActiveOpacity = useMemo(() => {
+    return scrollX.interpolate({
+      inputRange: [0, screenWidth, 2 * screenWidth],
+      outputRange: [0, 1, 0],
+      extrapolate: "clamp",
+    });
+  }, [scrollX, screenWidth]);
+
+  const urlActiveOpacity = useMemo(() => {
+    return scrollX.interpolate({
+      inputRange: [screenWidth, 2 * screenWidth, 3 * screenWidth],
+      outputRange: [0, 1, 0],
+      extrapolate: "clamp",
+    });
+  }, [scrollX, screenWidth]);
+
+  const chefActiveOpacity = useMemo(() => {
+    return scrollX.interpolate({
+      inputRange: [2 * screenWidth, 3 * screenWidth],
+      outputRange: [0, 1],
+      extrapolate: "clamp",
+    });
+  }, [scrollX, screenWidth]);
+
+  // Basculement d'onglet fluide et synchronisé
   const switchMode = useCallback(
     (target: AddRecipeMode, animated = true) => {
       if (mode === target) return;
       Keyboard.dismiss();
       const targetIndex = MODES.indexOf(target);
-      const targetX = -targetIndex * screenWidth;
-
-      if (!animated) {
-        pageTranslateX.setValue(targetX);
-        setMode(target);
-        return;
-      }
-
-      Animated.spring(pageTranslateX, {
-        toValue: targetX,
-        tension: 80,
-        friction: 10,
-        restSpeedThreshold: 1,
-        restDisplacementThreshold: 1,
-        overshootClamping: true,
-        useNativeDriver: true,
-      }).start(() => {
-        setMode(target);
+      setMode(target);
+      pagerRef.current?.scrollTo({
+        x: targetIndex * screenWidth,
+        animated,
       });
     },
-    [mode, screenWidth, pageTranslateX]
+    [mode, screenWidth]
   );
 
   // =========================================================
@@ -340,9 +341,10 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
   // ÉTATS CHEF IA
   // =========================================================
   const [chefStockItems, setChefStockItems] = useState<FridgeItem[]>(stockItems || []);
-  const [primaryIngredients, setPrimaryIngredients] = useState<string[]>([]);
-  const [optionalIngredients, setOptionalIngredients] = useState<string[]>([]);
-  const [inactiveIngredients, setInactiveIngredients] = useState<string[]>([]);
+  const initialStock = useMemo(() => initializeStockIngredients(stockItems || []), [stockItems]);
+  const [primaryIngredients, setPrimaryIngredients] = useState<string[]>(initialStock.primaryIngredients);
+  const [optionalIngredients, setOptionalIngredients] = useState<string[]>(initialStock.optionalIngredients);
+  const [inactiveIngredients, setInactiveIngredients] = useState<string[]>(initialStock.inactiveIngredients);
   const [ingredientSearchText, setIngredientSearchText] = useState<string>('');
   const [rejectedIdeaTitles, setRejectedIdeaTitles] = useState<string[]>([]);
   const [isFavoritePromptsModalVisible, setIsFavoritePromptsModalVisible] = useState(false);
@@ -428,138 +430,47 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
     }
   }, [stockItems]);
 
-  // Swipe tactile fluide et continu (type Pager / Launcher Android)
-  const screenSwipePanResponder = useMemo(() => {
-    const shouldCapture = (gestureState: PanResponderGestureState) => {
-      if (
-        isApiKeyModalVisible ||
-        isCameraModalVisible ||
-        isQrScannerVisible ||
-        isFavoritePromptsModalVisible ||
-        isMealTypeDropdownOpen ||
-        isAnalyzingPhotos ||
-        isAnalyzingText ||
-        isImportingUrl ||
-        aiFlowStep === "generating_recipe" ||
-        aiFlowStep === "loading_ideas"
-      ) {
-        return false;
+  // Détection de blocage du swipe (modales ouvertes ou génération IA en cours)
+  const isSwipeBlocked =
+    isApiKeyModalVisible ||
+    isCameraModalVisible ||
+    isQrScannerVisible ||
+    isFavoritePromptsModalVisible ||
+    isMealTypeDropdownOpen ||
+    isAnalyzingPhotos ||
+    isAnalyzingText ||
+    isImportingUrl ||
+    aiFlowStep === "generating_recipe" ||
+    aiFlowStep === "loading_ideas";
+
+  const updateModeFromOffset = useCallback(
+    (offsetX: number) => {
+      const targetIndex = Math.round(offsetX / screenWidth);
+      const clampedIndex = Math.max(0, Math.min(MODES.length - 1, targetIndex));
+      const targetMode = MODES[clampedIndex];
+      if (targetMode !== mode) {
+        setMode(targetMode);
       }
+    },
+    [screenWidth, mode]
+  );
 
-      const isHorizontal =
-        Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.5;
-      if (!isHorizontal) return false;
+  const onMomentumScrollEnd = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      updateModeFromOffset(e.nativeEvent.contentOffset.x);
+    },
+    [updateModeFromOffset]
+  );
 
-      const currentIndex = MODES.indexOf(mode);
-
-      // Sur le premier onglet (Texte) : swipe vers la gauche uniquement (dx < -15)
-      if (currentIndex === 0 && gestureState.dx < -15) {
-        return true;
+  const onScrollEndDrag = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const velocity = e.nativeEvent.velocity?.x ?? 0;
+      if (Math.abs(velocity) < 0.05) {
+        updateModeFromOffset(e.nativeEvent.contentOffset.x);
       }
-
-      // Sur le dernier onglet (Chef IA) : swipe vers la droite uniquement (dx > 15)
-      if (currentIndex === MODES.length - 1 && gestureState.dx > 15) {
-        return true;
-      }
-
-      // Sur les onglets intermédiaires (Photo, Web) : swipe gauche ou droite
-      if (currentIndex > 0 && currentIndex < MODES.length - 1 && Math.abs(gestureState.dx) > 15) {
-        return true;
-      }
-
-      return false;
-    };
-
-    return PanResponder.create({
-      onMoveShouldSetPanResponderCapture: (_, gestureState) => shouldCapture(gestureState),
-      onMoveShouldSetPanResponder: (_, gestureState) => shouldCapture(gestureState),
-      onPanResponderTerminationRequest: () => false,
-      onPanResponderGrant: () => {
-        Keyboard.dismiss();
-        pageTranslateX.stopAnimation();
-      },
-      onPanResponderMove: (_, gestureState) => {
-        const currentIndex = MODES.indexOf(mode);
-        const base = -currentIndex * screenWidth;
-        let newX = base + gestureState.dx;
-
-        // Amorti élastique doux aux limites extérieures
-        const maxLimit = -(MODES.length - 1) * screenWidth;
-        if (newX > 0) {
-          newX = newX * 0.15;
-        } else if (newX < maxLimit) {
-          const over = newX - maxLimit;
-          newX = maxLimit + over * 0.15;
-        }
-
-        pageTranslateX.setValue(newX);
-      },
-      onPanResponderRelease: (_, gestureState) => {
-        const currentIndex = MODES.indexOf(mode);
-        let targetIndex = currentIndex;
-
-        if (
-          gestureState.dx < -screenWidth * 0.35 ||
-          (gestureState.dx < -25 && gestureState.vx < -0.35)
-        ) {
-          if (currentIndex < MODES.length - 1) {
-            targetIndex = currentIndex + 1;
-          }
-        } else if (
-          gestureState.dx > screenWidth * 0.35 ||
-          (gestureState.dx > 25 && gestureState.vx > 0.35)
-        ) {
-          if (currentIndex > 0) {
-            targetIndex = currentIndex - 1;
-          }
-        }
-
-        const destinationMode = MODES[targetIndex];
-        const targetX = -targetIndex * screenWidth;
-
-        Animated.spring(pageTranslateX, {
-          toValue: targetX,
-          velocity: gestureState.vx,
-          tension: 80,
-          friction: 10,
-          restSpeedThreshold: 1,
-          restDisplacementThreshold: 1,
-          overshootClamping: true,
-          useNativeDriver: true,
-        }).start(() => {
-          setMode(destinationMode);
-        });
-      },
-      onPanResponderTerminate: () => {
-        const currentIndex = MODES.indexOf(mode);
-        const targetX = -currentIndex * screenWidth;
-        Animated.spring(pageTranslateX, {
-          toValue: targetX,
-          tension: 80,
-          friction: 10,
-          restSpeedThreshold: 1,
-          restDisplacementThreshold: 1,
-          overshootClamping: true,
-          useNativeDriver: true,
-        }).start(() => {
-          setMode(mode);
-        });
-      },
-    });
-  }, [
-    mode,
-    isApiKeyModalVisible,
-    isCameraModalVisible,
-    isQrScannerVisible,
-    isFavoritePromptsModalVisible,
-    isMealTypeDropdownOpen,
-    isAnalyzingPhotos,
-    isAnalyzingText,
-    isImportingUrl,
-    aiFlowStep,
-    screenWidth,
-    pageTranslateX,
-  ]);
+    },
+    [updateModeFromOffset]
+  );
 
   // Charger réglages utilisateur (portions, végé, humeurs)
   useEffect(() => {
@@ -613,7 +524,7 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
     if (targetStep) {
       setAiFlowStep(targetStep);
     }
-  }, []);
+  }, [setAiFlowStep]);
 
   useEffect(() => {
     return () => {
@@ -1354,31 +1265,8 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
   };
 
   const renderAiConnectionBanner = () => {
-    if (isCheckingConnection) {
-      return (
-        <View style={styles.checkingBadge}>
-          <ActivityIndicator size="small" color={colors.primary} />
-          <Text style={styles.checkingText}>Vérification de la connexion IA...</Text>
-        </View>
-      );
-    }
-    if (connectionStatus?.ok) {
-      return (
-        <View style={styles.readyBadge}>
-          <Ionicons name="checkmark-circle" size={18} color={colors.secondary} />
-          <View style={styles.readyTextCol}>
-            <Text style={styles.readyTitle}>Reconnaissance IA prête</Text>
-            <Text style={styles.readySubtitle}>Gemini 3.8 Flash connecté</Text>
-          </View>
-          <TouchableOpacity
-            onPress={() => verifyAiStatus(apiKey)}
-            style={styles.refreshBadgeBtn}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Ionicons name="refresh" size={15} color={colors.secondary} />
-          </TouchableOpacity>
-        </View>
-      );
+    if (isCheckingConnection || connectionStatus?.ok) {
+      return null;
     }
     return (
       <View style={styles.errorCard}>
@@ -1511,7 +1399,7 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
         </View>
 
         {/* Switcher d'onglets et pager avec swipe tactile fluide */}
-        <View style={{ flex: 1, overflow: "hidden" }} {...screenSwipePanResponder.panHandlers}>
+        <View style={{ flex: 1, overflow: "hidden" }}>
           {/* Switcher segmenté à 4 entrées */}
           <View style={styles.segmentContainer}>
             {tabLayout.width > 0 && (
@@ -1663,15 +1551,29 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
             </TouchableOpacity>
           </View>
 
-          {/* Pager interactif continu plein écran */}
-          <Animated.View
-            style={[
-              styles.pagerTrack,
-              {
-                width: screenWidth * 4,
-                transform: [{ translateX: pageTranslateX }],
-              },
-            ]}
+          {/* Pager interactif continu plein écran avec swipe natif 60/120 FPS */}
+          <Animated.ScrollView
+            ref={pagerRef as any}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            bounces={false}
+            overScrollMode="never"
+            directionalLockEnabled
+            scrollEnabled={!isSwipeBlocked}
+            scrollEventThrottle={16}
+            onScroll={Animated.event(
+              [{ nativeEvent: { contentOffset: { x: scrollX } } }],
+              { useNativeDriver: true }
+            )}
+            onScrollBeginDrag={() => Keyboard.dismiss()}
+            onMomentumScrollEnd={onMomentumScrollEnd}
+            onScrollEndDrag={onScrollEndDrag}
+            contentOffset={{ x: MODES.indexOf(initialMode) * screenWidth, y: 0 }}
+            style={styles.pagerScrollView}
+            contentContainerStyle={styles.pagerTrack}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
           >
             {/* VUE 1 : TEXTE BRUT */}
             <View
@@ -1682,14 +1584,16 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
                 style={{ flex: 1 }}
                 contentContainerStyle={styles.scrollContent}
                 keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+                overScrollMode="never"
+                nestedScrollEnabled={true}
               >
                 {renderAiConnectionBanner()}
                 {/* ========================================================= */}
-            {/* 1. ONGLET TEXTE BRUT */}
-            {/* ========================================================= */}
-            {mode === 'text' && (
-              <View>
-                <View style={styles.guideCard}>
+                {/* 1. ONGLET TEXTE BRUT */}
+                {/* ========================================================= */}
+                <View>
+                  <View style={styles.guideCard}>
                   <View style={styles.guideHeader}>
                     <Ionicons name="document-text-outline" size={16} color={colors.primary} />
                     <Text style={styles.guideTitle}>Copier-coller du texte brut</Text>
@@ -1754,8 +1658,7 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
                   </TouchableOpacity>
                 )}
               </View>
-            )}
-                {renderFallbackOptions()}
+              {renderFallbackOptions()}
               </ScrollView>
             </View>
 
@@ -1768,14 +1671,16 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
                 style={{ flex: 1 }}
                 contentContainerStyle={styles.scrollContent}
                 keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+                overScrollMode="never"
+                nestedScrollEnabled={true}
               >
                 {renderAiConnectionBanner()}
                 {/* ========================================================= */}
-            {/* 2. ONGLET SCANNER / PHOTO */}
-            {/* ========================================================= */}
-            {mode === 'photo' && (
-              <View>
-                <View style={styles.guideCard}>
+                {/* 2. ONGLET SCANNER / PHOTO */}
+                {/* ========================================================= */}
+                <View>
+                  <View style={styles.guideCard}>
                   <View style={styles.guideHeader}>
                     <Ionicons name="camera-outline" size={16} color={colors.primary} />
                     <Text style={styles.guideTitle}>Capture photo (1 à 4 pages)</Text>
@@ -1902,8 +1807,7 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
                   </TouchableOpacity>
                 )}
               </View>
-            )}
-                {renderFallbackOptions()}
+              {renderFallbackOptions()}
               </ScrollView>
             </View>
 
@@ -1916,13 +1820,15 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
                 style={{ flex: 1 }}
                 contentContainerStyle={styles.scrollContent}
                 keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+                overScrollMode="never"
+                nestedScrollEnabled={true}
               >
                 {/* ========================================================= */}
-            {/* 3. ONGLET WEB */}
-            {/* ========================================================= */}
-            {mode === 'url' && (
-              <View>
-                <View style={styles.guideCard}>
+                {/* 3. ONGLET WEB */}
+                {/* ========================================================= */}
+                <View>
+                  <View style={styles.guideCard}>
                   <View style={styles.guideHeader}>
                     <Ionicons name="globe-outline" size={16} color={colors.primary} />
                     <Text style={styles.guideTitle}>Importation universelle de recette web</Text>
@@ -2016,17 +1922,16 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
                   )}
                 </TouchableOpacity>
               </View>
-            )}
-                {renderFallbackOptions()}
-              </ScrollView>
-            </View>
+              {renderFallbackOptions()}
+            </ScrollView>
+          </View>
 
-            {/* VUE 4 : CHEF IA */}
-            <View
-              style={[styles.pagerPage, { width: screenWidth, flex: 1 }]}
-              aria-hidden={mode !== "chef"}
-            >
-              <View style={{ flex: 1 }}>
+          {/* VUE 4 : CHEF IA */}
+          <View
+            style={[styles.pagerPage, { width: screenWidth }]}
+            aria-hidden={mode !== "chef"}
+          >
+            <View style={{ flex: 1 }}>
             {aiFlowStep === 'generating_recipe' ? (
               <View style={styles.aiLoadingContainer}>
                 <View style={styles.aiLoadingCard}>
@@ -2133,6 +2038,7 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
                 contentContainerStyle={styles.chefScrollContent}
                 showsVerticalScrollIndicator={false}
                 keyboardShouldPersistTaps="handled"
+                nestedScrollEnabled={true}
               >
                 <View style={styles.ideasHeader}>
                   <TouchableOpacity
@@ -2250,7 +2156,9 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
                   style={styles.chefScroll}
                   contentContainerStyle={styles.chefScrollContent}
                   showsVerticalScrollIndicator={false}
+                  overScrollMode="never"
                   keyboardShouldPersistTaps="handled"
+                  nestedScrollEnabled={true}
                   onScrollBeginDrag={() => {
                     if (isMealTypeDropdownOpen) {
                       setIsMealTypeDropdownOpen(false);
@@ -2432,6 +2340,7 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
                       <Text style={styles.subSectionTitle}>Humeur du Chef</Text>
                       <ScrollView
                         horizontal
+                        nestedScrollEnabled={true}
                         showsHorizontalScrollIndicator={false}
                         contentContainerStyle={styles.moodSelectorRow}
                       >
@@ -2713,7 +2622,7 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
             )}
           </View>
             </View>
-          </Animated.View>
+          </Animated.ScrollView>
         </View>
 
         {/* Modal Clé API */}
@@ -2914,14 +2823,17 @@ const styles = createDynamicStyles((colors, shadows) => ({
     color: "#FFFFFF",
     fontWeight: "700",
   },
-  pagerTrack: {
+  pagerScrollView: {
     flex: 1,
+  },
+  pagerTrack: {
     flexDirection: "row",
-    alignSelf: "flex-start",
+    flexGrow: 1,
   },
   pagerPage: {
     flexGrow: 0,
     flexShrink: 0,
+    height: "100%",
   },
   scrollContent: {
     padding: 16,

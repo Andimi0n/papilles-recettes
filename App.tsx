@@ -502,6 +502,7 @@ function AppContent({ initialData }: AppContentProps) {
               initialPhotos={restoredScanPhotos}
               initialPendingPhotoUri={pendingScanPhotoUri || undefined}
               recipes={recipes}
+              stockItems={initialStockItems}
               onBack={() => {
                 setRestoredScanPhotos([]);
                 setPendingScanPhotoUri(null);
