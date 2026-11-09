@@ -687,7 +687,7 @@ function AppRoot() {
           StorageService.hasCompletedOnboarding().catch(() => false),
           StorageService.getRecipeViewMode().catch(() => 'detailed' as RecipeViewMode),
           StorageService.getFridgeItems().catch(() => [] as FridgeItem[]),
-          StorageService.getThemeMode().catch(() => 'system' as ThemeMode),
+          StorageService.getThemeMode().catch(() => 'light' as ThemeMode),
           Promise.race([
             Ionicons.loadFont(),
             new Promise((resolve) => setTimeout(resolve, 300)),
@@ -704,7 +704,7 @@ function AppRoot() {
             onboarded: Boolean(onboarded),
             viewMode: (savedViewMode || 'detailed') as RecipeViewMode,
             stock: Array.isArray(fridge) ? fridge : [],
-            themeMode: (theme || 'system') as ThemeMode,
+            themeMode: (theme || 'light') as ThemeMode,
           });
           setAppIsReady(true);
         }

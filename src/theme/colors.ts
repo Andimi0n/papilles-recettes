@@ -1,7 +1,7 @@
-import { StyleSheet, Appearance } from 'react-native';
+import { StyleSheet } from 'react-native';
 
 export type ThemeId = 'botanique' | 'nocturne' | 'colorblind';
-export type ThemeMode = 'system' | 'light' | 'dark' | 'colorblind';
+export type ThemeMode = 'light' | 'dark' | 'colorblind';
 
 export interface ThemeColors {
   // Brand & Accent Colors
@@ -210,11 +210,10 @@ export const DarkShadows = {
   },
 };
 
-// Initialisation synchronisée avec l'apparence système dès le chargement du module
-const _initialIsDark = Appearance.getColorScheme() === 'dark';
-let _activeColors: ThemeColors = _initialIsDark ? NocturneColors : BotaniqueColors;
-let _activeShadows = _initialIsDark ? DarkShadows : LightShadows;
-let _activeThemeId: ThemeId = _initialIsDark ? 'nocturne' : 'botanique';
+// Initialisation par défaut sur le thème clair (Jardin Botanique)
+let _activeColors: ThemeColors = BotaniqueColors;
+let _activeShadows = LightShadows;
+let _activeThemeId: ThemeId = 'botanique';
 
 export function setActiveThemeInternal(id: ThemeId) {
   _activeThemeId = id;

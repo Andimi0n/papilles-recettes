@@ -118,10 +118,6 @@ export const styles = createDynamicStyles((colors, shadows) => ({
     flex: 1,
     marginRight: 10,
   },
-  themeVerticalIcon: {
-    width: 22,
-    textAlign: 'center',
-  },
   themeVerticalEmoji: {
     fontSize: 18,
     width: 22,

@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
-import { useColorScheme, Appearance } from 'react-native';
 import {
   ThemeId,
   ThemeMode,
@@ -24,15 +23,13 @@ interface ThemeContextType {
   toggleTheme: () => Promise<void>;
 }
 
-const initialDeviceDark = Appearance.getColorScheme() === 'dark';
-
 const ThemeContext = createContext<ThemeContextType>({
-  themeId: initialDeviceDark ? 'nocturne' : 'botanique',
-  themeMode: 'system',
-  isDark: initialDeviceDark,
+  themeId: 'botanique',
+  themeMode: 'light',
+  isDark: false,
   isLoaded: false,
-  colors: initialDeviceDark ? NocturneColors : BotaniqueColors,
-  shadows: initialDeviceDark ? DarkShadows : LightShadows,
+  colors: BotaniqueColors,
+  shadows: LightShadows,
   setThemeMode: async () => {},
   toggleTheme: async () => {},
 });
@@ -41,35 +38,15 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode; initialThemeMo
   children,
   initialThemeMode,
 }) => {
-  const deviceColorScheme = useColorScheme();
-  const [systemColorScheme, setSystemColorScheme] = useState<'light' | 'dark'>(
-    (deviceColorScheme || Appearance.getColorScheme()) === 'dark' ? 'dark' : 'light'
-  );
-  const [themeMode, setThemeModeState] = useState<ThemeMode>(initialThemeMode || 'system');
+  const [themeMode, setThemeModeState] = useState<ThemeMode>(initialThemeMode || 'light');
   const [isLoaded, setIsLoaded] = useState(Boolean(initialThemeMode));
 
-  // Écoute dynamique les changements d'apparence système via Appearance (quand l'utilisateur bascule son OS)
-  useEffect(() => {
-    const subscription = Appearance.addChangeListener(({ colorScheme }) => {
-      if (colorScheme) {
-        setSystemColorScheme(colorScheme === 'dark' ? 'dark' : 'light');
-      }
-    });
-    return () => subscription.remove();
-  }, []);
-
-  // Détermine si on doit afficher le thème sombre
-  const isDark = useMemo(() => {
-    if (themeMode === 'dark') return true;
-    if (themeMode === 'light' || themeMode === 'colorblind') return false;
-    return systemColorScheme === 'dark';
-  }, [themeMode, systemColorScheme]);
-
+  const isDark = themeMode === 'dark';
   const themeId: ThemeId = themeMode === 'colorblind' ? 'colorblind' : isDark ? 'nocturne' : 'botanique';
   const colors = themeMode === 'colorblind' ? ColorblindColors : isDark ? NocturneColors : BotaniqueColors;
-  const shadows = isDark ? DarkShadows : LightShadows; // Shadow is unchanged for colorblind mode
+  const shadows = isDark ? DarkShadows : LightShadows;
 
-  // IMPORTANT : Synchronisation synchrone immédiate du singleton interne AVANT le rendu des composants enfants
+  // Synchronisation synchrone immédiate du singleton interne AVANT le rendu des composants enfants
   setActiveThemeInternal(themeId);
 
   // Chargement de la préférence utilisateur sauvegardée en stockage local
@@ -105,8 +82,6 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode; initialThemeMo
   }, []);
 
   const toggleTheme = useCallback(async () => {
-    // Si on est actuellement sombre -> bascule clair, sinon bascule sombre
-    // Si on est en daltonien, toggle -> sombre
     const nextMode: ThemeMode = isDark ? 'light' : 'dark';
     await setThemeMode(nextMode);
   }, [isDark, setThemeMode]);

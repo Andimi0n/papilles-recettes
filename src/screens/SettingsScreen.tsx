@@ -63,19 +63,6 @@ const SettingsScreenComponent: React.FC<SettingsScreenProps> = ({
   // Configuration des thèmes en disposition verticale avec palette à droite
   const themeConfigs = [
     {
-      mode: 'system' as const,
-      title: 'Système',
-      subtitle: 'Automatique selon l’OS',
-      icon: 'phone-portrait-outline' as const,
-      swatches: [
-        isDark ? NocturneColors.primary : BotaniqueColors.primary,
-        isDark ? NocturneColors.secondary : BotaniqueColors.secondary,
-        isDark ? NocturneColors.amber : BotaniqueColors.amber,
-        isDark ? NocturneColors.cardBackground : BotaniqueColors.cardBackground,
-        isDark ? NocturneColors.background : BotaniqueColors.background,
-      ],
-    },
-    {
       mode: 'light' as const,
       title: 'Jardin Botanique',
       subtitle: 'Clair & Frais (Slow Food)',
@@ -934,23 +921,14 @@ const SettingsScreenComponent: React.FC<SettingsScreenProps> = ({
                     onPress={() => setThemeMode(item.mode)}
                     activeOpacity={0.8}
                   >
-                    {/* Partie gauche : Statut radio + Icône/Emoji + Nom & Descriptif */}
+                    {/* Partie gauche : Statut radio + Emoji + Nom & Descriptif */}
                     <View style={styles.themeVerticalLeft}>
                       <Ionicons
                         name={isSelected ? 'radio-button-on' : 'radio-button-off'}
                         size={19}
                         color={isSelected ? colors.primary : colors.textMuted}
                       />
-                      {item.icon ? (
-                        <Ionicons
-                          name={item.icon}
-                          size={19}
-                          color={isSelected ? colors.primary : colors.textSecondary}
-                          style={styles.themeVerticalIcon}
-                        />
-                      ) : (
-                        <Text style={styles.themeVerticalEmoji}>{item.emoji}</Text>
-                      )}
+                      <Text style={styles.themeVerticalEmoji}>{item.emoji}</Text>
                       <View style={styles.themeVerticalTextCol}>
                         <Text
                           style={[

@@ -31,6 +31,7 @@ import { AnalyticsService } from './analyticsService';
 import { DatabaseService } from './databaseService';
 import { ImageStorageService } from './imageStorageService';
 import { RecipePackService, ExtractedRecipePack } from './recipePackService';
+import { ThemeMode } from '../theme/colors';
 
 export interface RecipePackMergeResult {
   success: boolean;
@@ -2098,25 +2099,25 @@ export const StorageService = {
   // ══════════════════════════════════════════════════════════════════════════
 
   /**
-   * Récupère le mode de thème sauvegardé ('system' | 'light' | 'dark' | 'colorblind')
+   * Récupère le mode de thème sauvegardé ('light' | 'dark' | 'colorblind')
    */
-  async getThemeMode(): Promise<'system' | 'light' | 'dark' | 'colorblind'> {
+  async getThemeMode(): Promise<ThemeMode> {
     try {
       const mode = await DatabaseService.getSetting(SETTING_THEME_MODE);
-      if (mode === 'light' || mode === 'dark' || mode === 'system' || mode === 'colorblind') {
-        return mode as 'system' | 'light' | 'dark' | 'colorblind';
+      if (mode === 'light' || mode === 'dark' || mode === 'colorblind') {
+        return mode as ThemeMode;
       }
-      return 'system';
+      return 'light';
     } catch (e) {
       console.error('Erreur lecture thème:', e);
-      return 'system';
+      return 'light';
     }
   },
 
   /**
    * Sauvegarde le mode de thème
    */
-  async saveThemeMode(mode: 'system' | 'light' | 'dark' | 'colorblind'): Promise<void> {
+  async saveThemeMode(mode: ThemeMode): Promise<void> {
     try {
       await DatabaseService.setSetting(SETTING_THEME_MODE, mode);
     } catch (e) {
