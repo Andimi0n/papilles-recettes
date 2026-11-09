@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -6,8 +6,6 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
-  Switch,
-  Alert,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
@@ -60,7 +58,7 @@ export const QualifyIngredientModal: React.FC<QualifyIngredientModalProps> = ({
   queueProgress,
   cancelButtonText,
 }) => {
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const scrollViewRef = useRef<React.ElementRef<typeof ScrollView>>(null);
 
@@ -75,14 +73,14 @@ export const QualifyIngredientModal: React.FC<QualifyIngredientModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Recherche libre d'un ingrédient parent existant pour association de synonyme
+  // Recherche libre d'un ingrédient parent existant
   const [parentSearchQuery, setParentSearchQuery] = useState('');
   const [isParentSearchOpen, setIsParentSearchOpen] = useState(false);
 
   // Recherche des correspondances les plus proches
   const closestMatches: ClosestCanonicalMatch[] = useMemo(() => {
     if (!visible || !rawName || rawName.trim().length < 2) return [];
-    return UnifiedIngredientService.findClosestCanonicalMatches(rawName, 4);
+    return UnifiedIngredientService.findClosestCanonicalMatches(rawName, 3);
   }, [visible, rawName]);
 
   // Résultats de la recherche manuelle d'ingrédient parent
@@ -115,7 +113,7 @@ export const QualifyIngredientModal: React.FC<QualifyIngredientModalProps> = ({
     setLastInitKey('');
   }
 
-  // Action : Sélectionner un ingrédient proche (ajoute en synonyme si possible, sinon remplace)
+  // Action 1 : Associer à un ingrédient existant
   const handleSelectTargetIngredient = async (targetIngredient: CanonicalIngredient) => {
     setIsSubmitting(true);
     let wasAddedAsAlias = false;
@@ -140,7 +138,7 @@ export const QualifyIngredientModal: React.FC<QualifyIngredientModalProps> = ({
     }
   };
 
-  // Détection si le terme est actuellement rattaché comme synonyme d'un ingrédient parent
+  // Détection si le terme est déjà synonyme d'un parent
   const parentWithAlias = useMemo(() => {
     if (!visible) return null;
     const nameToTest = (canonicalNameInput.trim() || rawName.trim()).toLowerCase();
@@ -154,7 +152,7 @@ export const QualifyIngredientModal: React.FC<QualifyIngredientModalProps> = ({
     );
   }, [visible, canonicalNameInput, rawName]);
 
-  // Action : Détacher et promouvoir directement ce synonyme en ingrédient canonique
+  // Action 2 : Promouvoir un synonyme existant
   const handlePromoteExistingAlias = async () => {
     if (!parentWithAlias) return;
     setIsSubmitting(true);
@@ -180,18 +178,18 @@ export const QualifyIngredientModal: React.FC<QualifyIngredientModalProps> = ({
     }
   };
 
-  // Action : Créer un nouvel ingrédient canonique
+  // Action 3 : Créer un nouvel ingrédient canonique
   const handleCreateNew = async () => {
     const rawAliases = extraAliasesInput
       .split(',')
       .map((s) => s.trim())
       .filter((s) => s.length > 0);
 
-    // Préservation automatique du libellé brut initial comme premier alias
     const trimmedRaw = rawName.trim();
+    const effectiveCanonicalName = canonicalNameInput.trim() || trimmedRaw;
     if (
       trimmedRaw.length > 0 &&
-      trimmedRaw.toLowerCase() !== canonicalNameInput.trim().toLowerCase() &&
+      trimmedRaw.toLowerCase() !== effectiveCanonicalName.toLowerCase() &&
       !rawAliases.some((a) => a.toLowerCase() === trimmedRaw.toLowerCase())
     ) {
       rawAliases.unshift(trimmedRaw);
@@ -201,7 +199,7 @@ export const QualifyIngredientModal: React.FC<QualifyIngredientModalProps> = ({
     setIsSubmitting(true);
 
     const result = await UnifiedIngredientService.registerNewCanonicalIngredient({
-      canonicalName: canonicalNameInput,
+      canonicalName: effectiveCanonicalName,
       defaultAisle: selectedAisle,
       allergen: selectedAllergen,
       isPantryStaple,
@@ -221,7 +219,7 @@ export const QualifyIngredientModal: React.FC<QualifyIngredientModalProps> = ({
       }
       onCreateCanonical(result.ingredient);
     } else {
-      setErrorMessage(result.error || 'Impossible d\'enregistrer cet ingrédient.');
+      setErrorMessage(result.error || "Impossible d'enregistrer cet ingrédient.");
     }
   };
 
@@ -229,6 +227,11 @@ export const QualifyIngredientModal: React.FC<QualifyIngredientModalProps> = ({
     if (!rawName) return null;
     return UnifiedIngredientService.getSuggestedDefaults(rawName).suggestedAllergen;
   }, [rawName]);
+
+  const activeAllergenInfo = useMemo(
+    () => ALLERGEN_FAMILIES.find((f) => f.id === selectedAllergen),
+    [selectedAllergen]
+  );
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -240,16 +243,18 @@ export const QualifyIngredientModal: React.FC<QualifyIngredientModalProps> = ({
           <TouchableOpacity style={styles.backdropTouchable} onPress={onClose} activeOpacity={1} />
         </View>
 
-        <View style={[styles.modalCard, { paddingBottom: Math.max(24, insets.bottom + 12) }]}>
-          {/* Header */}
+        <View style={[styles.modalCard, { paddingBottom: Math.max(16, insets.bottom + 8) }]}>
+          {/* EN-TÊTE COMPACT AVEC LE MOT BRUT MIS EN ÉVIDENCE */}
           <View style={styles.headerRow}>
             <View style={styles.headerLeft}>
               <View style={styles.iconCircle}>
-                <Ionicons name="sparkles" size={20} color={colors.primary} />
+                <Ionicons name="help-buoy-outline" size={20} color={colors.primary} />
               </View>
               <View style={styles.headerTextGroup}>
                 <View style={styles.headerTitleRow}>
-                  <Text style={styles.headerTitle}>Qualifier l&apos;ingrédient</Text>
+                  <Text style={styles.headerTitle} numberOfLines={1}>
+                    « {rawName} »
+                  </Text>
                   {queueProgress && queueProgress.total > 1 && (
                     <View style={styles.queueBadge}>
                       <Text style={styles.queueBadgeText}>
@@ -258,12 +263,16 @@ export const QualifyIngredientModal: React.FC<QualifyIngredientModalProps> = ({
                     </View>
                   )}
                 </View>
-                <Text style={styles.headerSubtitle} numberOfLines={1}>
-                  « {rawName} » n&apos;est pas encore au lexique
+                <Text style={styles.headerSubtitle}>
+                  Associez-le à un aliment existant ou créez-le en 1 clic
                 </Text>
               </View>
             </View>
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <TouchableOpacity
+              onPress={onClose}
+              style={styles.closeBtn}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
               <Ionicons name="close" size={22} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>
@@ -271,404 +280,393 @@ export const QualifyIngredientModal: React.FC<QualifyIngredientModalProps> = ({
           <ScrollView
             ref={scrollViewRef}
             style={styles.modalScroll}
+            contentContainerStyle={styles.modalScrollContent}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
-            {/* CARTE DE PROMOTION D'UN SYNONYME EXISTANT (DÉTACHEMENT EN 1 CLIC) */}
+            {/* CAS SPÉCIAL : DÉJÀ SYNONYME -> PROMOTION EN 1 CLIC */}
             {parentWithAlias && (
-              <View style={styles.promoteCard}>
-                <View style={styles.promoteCardHeader}>
-                  <View style={styles.promoteIconBadge}>
-                    <Ionicons name="sparkles" size={16} color="#FFFFFF" />
-                  </View>
-                  <View style={styles.promoteTextColumn}>
-                    <Text style={styles.promoteCardTitle}>Synonyme déjà répertorié</Text>
-                    <Text style={styles.promoteCardSubtitle}>
-                      « {canonicalNameInput || rawName} » est actuellement associé comme synonyme de « {parentWithAlias.canonicalName} ».
-                    </Text>
-                  </View>
+              <TouchableOpacity
+                style={styles.promoteBanner}
+                onPress={handlePromoteExistingAlias}
+                disabled={isSubmitting}
+                activeOpacity={0.8}
+              >
+                <View style={styles.promoteIconBadge}>
+                  <Ionicons name="arrow-up-circle" size={18} color="#FFFFFF" />
                 </View>
-
-                <TouchableOpacity
-                  style={styles.promoteActionBtn}
-                  onPress={handlePromoteExistingAlias}
-                  disabled={isSubmitting}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="arrow-up-circle-outline" size={17} color="#FFFFFF" style={{ marginRight: 6 }} />
-                  <Text style={styles.promoteActionBtnText}>
-                    Détacher et promouvoir en ingrédient principal
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.promoteBannerTitle}>
+                    Synonyme de « {parentWithAlias.canonicalName} »
                   </Text>
-                </TouchableOpacity>
-              </View>
+                  <Text style={styles.promoteBannerSubtitle}>
+                    Toucher pour détacher et promouvoir en ingrédient à part entière
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={colors.primary} />
+              </TouchableOpacity>
             )}
 
-            {/* SECTION 1 : SUGGESTIONS ET RECHERCHE D'INGRÉDIENTS PROCHES */}
-            <View style={styles.synonymsSection}>
-              <View style={styles.sectionTitleRow}>
-                <Ionicons name="link-outline" size={16} color={colors.primary} />
-                <Text style={styles.sectionTitle}>
-                  Sélectionner un ingrédient proche
-                </Text>
+            {/* OPTION A : ASSOCIER À UN INGRÉDIENT EXISTANT (1-TAP) */}
+            <View style={styles.sectionBlock}>
+              <View style={styles.sectionHeaderRow}>
+                <View style={styles.stepBadge}>
+                  <Text style={styles.stepBadgeText}>Option 1</Text>
+                </View>
+                <Text style={styles.sectionTitle}>Associer à un ingrédient existant</Text>
               </View>
 
               {closestMatches.length > 0 && (
-                <>
-                  <Text style={styles.sectionExplanation}>
-                    Suggestions d&apos;aliments trouvées dans le lexique :
-                  </Text>
-                  <View style={styles.matchesList}>
-                    {closestMatches.map((match) => {
-                      const aisleConfig = AISLE_CONFIGS[match.item.defaultAisle] || AISLE_CONFIGS['Autre'];
-                      return (
-                        <View key={match.item.id} style={styles.matchCard}>
-                          <View style={styles.matchCardHeader}>
-                            <View style={[styles.aisleBadge, { backgroundColor: aisleConfig.bgColor }]}>
-                              <Ionicons name={aisleConfig.iconName as any} size={13} color={aisleConfig.color} />
-                            </View>
-                            <View style={styles.matchTextColumn}>
-                              <Text style={styles.matchItemName}>{match.item.canonicalName}</Text>
-                              <Text style={styles.matchItemReason}>
-                                {match.label} ({match.item.defaultAisle})
-                              </Text>
-                            </View>
-                          </View>
-
-                          <TouchableOpacity
-                            style={styles.matchActionBtn}
-                            onPress={() => handleSelectTargetIngredient(match.item)}
-                            disabled={isSubmitting}
-                            activeOpacity={0.8}
-                          >
-                            <Ionicons name="checkmark-circle" size={16} color={colors.primary} />
-                            <Text style={styles.matchActionBtnText}>
-                              Choisir « {match.item.canonicalName} »
-                            </Text>
-                          </TouchableOpacity>
+                <View style={styles.compactMatchesList}>
+                  {closestMatches.map((match) => {
+                    const aisleConfig =
+                      AISLE_CONFIGS[match.item.defaultAisle] || AISLE_CONFIGS['Autre'];
+                    return (
+                      <TouchableOpacity
+                        key={match.item.id}
+                        style={styles.compactMatchRow}
+                        onPress={() => handleSelectTargetIngredient(match.item)}
+                        disabled={isSubmitting}
+                        activeOpacity={0.75}
+                      >
+                        <View style={[styles.aisleBadge, { backgroundColor: aisleConfig.bgColor }]}>
+                          <Ionicons
+                            name={aisleConfig.iconName as any}
+                            size={14}
+                            color={aisleConfig.color}
+                          />
                         </View>
-                      );
-                    })}
-                  </View>
-                </>
+                        <View style={styles.matchTextColumn}>
+                          <Text style={styles.matchItemName} numberOfLines={1}>
+                            {match.item.canonicalName}
+                          </Text>
+                          <Text style={styles.matchItemReason} numberOfLines={1}>
+                            {match.item.defaultAisle} • {match.label}
+                          </Text>
+                        </View>
+                        <View style={styles.quickSelectPill}>
+                          <Ionicons name="link" size={13} color={colors.primary} />
+                          <Text style={styles.quickSelectPillText}>Associer</Text>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
               )}
 
-              {/* Barre de recherche manuelle d'un aliment existant */}
-              <View style={styles.manualSearchContainer}>
-                <Text style={styles.manualSearchPrompt}>
-                  {closestMatches.length > 0
-                    ? 'Ou rechercher un autre aliment du lexique :'
-                    : 'Rechercher un aliment du lexique à associer :'}
-                </Text>
-                <View style={styles.manualSearchInputWrapper}>
-                  <Ionicons name="search" size={15} color={colors.textMuted} style={styles.manualSearchIcon} />
-                  <TextInput
-                    style={styles.manualSearchInput}
-                    placeholder="Ex: Veau, Oignon, Riz..."
-                    placeholderTextColor={colors.textMuted}
-                    value={parentSearchQuery}
-                    onChangeText={setParentSearchQuery}
-                    autoCapitalize="sentences"
-                  />
-                  {parentSearchQuery.length > 0 && (
-                    <TouchableOpacity
-                      onPress={() => setParentSearchQuery('')}
-                      style={styles.manualSearchClear}
-                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                    >
-                      <Ionicons name="close-circle" size={16} color={colors.textMuted} />
-                    </TouchableOpacity>
+              {/* Recherche manuelle repliée par défaut si on a déjà des suggestions */}
+              {!isParentSearchOpen && closestMatches.length > 0 ? (
+                <TouchableOpacity
+                  style={styles.openSearchLink}
+                  onPress={() => setIsParentSearchOpen(true)}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="search-outline" size={14} color={colors.primary} />
+                  <Text style={styles.openSearchLinkText}>
+                    Chercher un autre aliment dans le lexique...
+                  </Text>
+                </TouchableOpacity>
+              ) : (
+                <View style={styles.manualSearchBox}>
+                  <View style={styles.manualSearchInputWrapper}>
+                    <Ionicons
+                      name="search"
+                      size={15}
+                      color={colors.textMuted}
+                      style={{ marginRight: 6 }}
+                    />
+                    <TextInput
+                      style={styles.manualSearchInput}
+                      placeholder="Rechercher un aliment existant (ex: Oignon, Riz)..."
+                      placeholderTextColor={colors.textMuted}
+                      value={parentSearchQuery}
+                      onChangeText={setParentSearchQuery}
+                      autoCapitalize="sentences"
+                      autoFocus={isParentSearchOpen}
+                    />
+                    {parentSearchQuery.length > 0 && (
+                      <TouchableOpacity onPress={() => setParentSearchQuery('')}>
+                        <Ionicons name="close-circle" size={16} color={colors.textMuted} />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+
+                  {parentSearchResults.length > 0 && (
+                    <View style={styles.parentSearchResultsList}>
+                      {parentSearchResults.map((parent) => {
+                        const aisleConfig =
+                          AISLE_CONFIGS[parent.defaultAisle] || AISLE_CONFIGS['Autre'];
+                        return (
+                          <TouchableOpacity
+                            key={parent.id}
+                            style={styles.parentSearchItem}
+                            onPress={() => handleSelectTargetIngredient(parent)}
+                            disabled={isSubmitting}
+                            activeOpacity={0.7}
+                          >
+                            <View
+                              style={[styles.aisleBadge, { backgroundColor: aisleConfig.bgColor }]}
+                            >
+                              <Ionicons
+                                name={aisleConfig.iconName as any}
+                                size={12}
+                                color={aisleConfig.color}
+                              />
+                            </View>
+                            <View style={styles.matchTextColumn}>
+                              <Text style={styles.parentSearchName}>{parent.canonicalName}</Text>
+                              <Text style={styles.parentSearchAisle}>{parent.defaultAisle}</Text>
+                            </View>
+                            <View style={styles.quickSelectPill}>
+                              <Text style={styles.quickSelectPillText}>Associer</Text>
+                            </View>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
                   )}
                 </View>
-
-                {parentSearchQuery.trim().length >= 2 && parentSearchResults.length === 0 && (
-                  <View style={styles.parentSearchEmpty}>
-                    <Ionicons name="information-circle-outline" size={15} color={colors.textMuted} />
-                    <Text style={styles.parentSearchEmptyText}>
-                      Aucun aliment trouvé pour « {parentSearchQuery.trim()} ». Créez-le ci-dessous.
-                    </Text>
-                  </View>
-                )}
-
-                {parentSearchResults.length > 0 && (
-                  <View style={styles.parentSearchResultsList}>
-                    {parentSearchResults.map((parent) => {
-                      const aisleConfig = AISLE_CONFIGS[parent.defaultAisle] || AISLE_CONFIGS['Autre'];
-                      return (
-                        <TouchableOpacity
-                          key={parent.id}
-                          style={styles.parentSearchItem}
-                          onPress={() => handleSelectTargetIngredient(parent)}
-                          disabled={isSubmitting}
-                          activeOpacity={0.7}
-                        >
-                          <View style={[styles.aisleBadge, { backgroundColor: aisleConfig.bgColor }]}>
-                            <Ionicons name={aisleConfig.iconName as any} size={12} color={aisleConfig.color} />
-                          </View>
-                          <View style={styles.matchTextColumn}>
-                            <Text style={styles.parentSearchName}>{parent.canonicalName}</Text>
-                            <Text style={styles.parentSearchAisle}>{parent.defaultAisle}</Text>
-                          </View>
-                          <View style={styles.parentSearchAction}>
-                            <Ionicons name="checkmark-circle" size={16} color={colors.primary} />
-                            <Text style={styles.parentSearchActionText}>Choisir</Text>
-                          </View>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                )}
-              </View>
+              )}
             </View>
 
-            {/* SECTION 2 : CRÉATION D'UN NOUVEL INGRÉDIENT (PASSEPORT) */}
+            {/* OPTION B : CRÉER COMME NOUVEL INGRÉDIENT (COMPACT) */}
             <View style={styles.passportSection}>
-              <View style={styles.sectionTitleRow}>
-                <Ionicons name="create-outline" size={16} color={colors.primary} />
-                <Text style={styles.sectionTitle}>
-                  Ou créer « {rawName} » comme nouvel ingrédient :
-                </Text>
+              <View style={styles.sectionHeaderRow}>
+                <View style={[styles.stepBadge, styles.stepBadgeSecondary]}>
+                  <Text style={styles.stepBadgeText}>Option 2</Text>
+                </View>
+                <Text style={styles.sectionTitle}>Ou créer un nouvel ingrédient</Text>
               </View>
 
               {errorMessage && (
                 <View style={styles.errorBox}>
-                  <Ionicons name="alert-circle" size={16} color={colors.danger} />
+                  <Ionicons name="alert-circle" size={15} color={colors.danger} />
                   <Text style={styles.errorBoxText}>{errorMessage}</Text>
                 </View>
               )}
 
-              {/* 1. Nom canonique standardisé */}
-              <View style={styles.formGroup}>
-                <Text style={styles.fieldLabel}>Nom officiel canonique (singulier standardisé) :</Text>
+              {/* Nom canonique */}
+              <View style={styles.inlineInputRow}>
+                <Text style={styles.inlineLabel}>Nom :</Text>
                 <TextInput
-                  style={styles.textInput}
+                  style={styles.compactTextInput}
                   value={canonicalNameInput}
                   onChangeText={setCanonicalNameInput}
-                  placeholder="Ex: Topinambour, Sumac..."
+                  placeholder="Nom au singulier..."
                   placeholderTextColor={colors.textMuted}
                   autoCapitalize="sentences"
                 />
               </View>
 
-              {/* 2. Rayon de supermarché */}
-              <View style={styles.formGroup}>
-                <Text style={styles.fieldLabel}>Rayon de supermarché :</Text>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  keyboardShouldPersistTaps="handled"
-                  contentContainerStyle={styles.aislesScroll}
-                >
-                  {ALL_AISLES.map((aisle) => {
-                    const isSelected = selectedAisle === aisle;
-                    const config = AISLE_CONFIGS[aisle];
-                    return (
-                      <TouchableOpacity
-                        key={aisle}
-                        style={[
-                          styles.aisleChip,
-                          isSelected && { backgroundColor: config.bgColor, borderColor: config.color, borderWidth: 1.5 },
-                        ]}
-                        onPress={() => setSelectedAisle(aisle)}
-                        activeOpacity={0.75}
-                      >
-                        <Ionicons
-                          name={config.iconName as any}
-                          size={14}
-                          color={isSelected ? config.color : colors.textSecondary}
-                        />
-                        <Text
-                          style={[
-                            styles.aisleChipText,
-                            isSelected && { color: config.color, fontWeight: '700' },
-                          ]}
-                        >
-                          {aisle}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </ScrollView>
-              </View>
-
-              {/* 3. Bouton Allergique ? */}
-              <View style={styles.stapleRow}>
-                <View style={styles.stapleTextGroup}>
-                  <View style={styles.stapleTitleRow}>
-                    <Ionicons
-                      name="shield-outline"
-                      size={16}
-                      color={isUserAllergic ? colors.danger : colors.primary}
-                    />
-                    <Text
-                      style={[
-                        styles.stapleTitle,
-                        isUserAllergic && { color: colors.danger, fontWeight: '700' },
-                      ]}
-                    >
-                      Allergique ?
-                    </Text>
-                  </View>
-                  <Text style={styles.stapleSubtitle}>
-                    Ajoute directement cet aliment à vos alertes personnelles d&apos;allergènes.
-                  </Text>
-                </View>
-                <Switch
-                  value={isUserAllergic}
-                  onValueChange={setIsUserAllergic}
-                  trackColor={{ false: colors.borderLight, true: colors.danger }}
-                  thumbColor="#FFFFFF"
-                />
-              </View>
-
-              {/* Accordéon discret Famille d'allergène INCO */}
-              <View style={styles.formGroup}>
-                <TouchableOpacity
-                  style={styles.expandableHeaderRow}
-                  onPress={() => setIsAllergenFamilyExpanded(!isAllergenFamilyExpanded)}
-                  activeOpacity={0.7}
-                  accessibilityRole="button"
-                  accessibilityLabel="Déplier ou replier la famille d'allergènes INCO"
-                >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
-                    <Ionicons
-                      name={isAllergenFamilyExpanded ? 'chevron-down' : 'chevron-forward'}
-                      size={14}
-                      color={colors.textMuted}
-                    />
-                    <Text style={styles.subFieldLabel}>
-                      Famille d&apos;allergènes INCO (optionnel)
-                    </Text>
-                  </View>
-                  {selectedAllergen && (
-                    <View style={[styles.allergenMiniBadge, { backgroundColor: colors.amberLight || '#FEF3C7' }]}>
-                      <Text style={{ fontSize: 12, color: colors.amber || '#D97706', fontWeight: '600' }}>
-                        {ALLERGEN_FAMILIES.find((f) => f.id === selectedAllergen)?.emoji}{' '}
-                        {ALLERGEN_FAMILIES.find((f) => f.id === selectedAllergen)?.name}
-                      </Text>
-                    </View>
-                  )}
-                  {!selectedAllergen && detectedAllergen && (
-                    <View style={styles.hintBadge}>
-                      <Ionicons name="sparkles" size={11} color={colors.primary} />
-                      <Text style={styles.hintBadgeText}>Suggestion détectée</Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-
-                {isAllergenFamilyExpanded && (
-                  <View style={{ marginTop: 8 }}>
-                    {/* Choix 1 : Aucun allergène */}
+              {/* Rayon (1 ligne scrollable) */}
+              <Text style={styles.fieldLabel}>Rayon :</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                contentContainerStyle={styles.aislesScroll}
+              >
+                {ALL_AISLES.map((aisle) => {
+                  const isSelected = selectedAisle === aisle;
+                  const config = AISLE_CONFIGS[aisle];
+                  return (
                     <TouchableOpacity
+                      key={aisle}
                       style={[
-                        styles.noAllergenBtn,
-                        selectedAllergen === null && styles.noAllergenBtnSelected,
+                        styles.aisleChip,
+                        isSelected && {
+                          backgroundColor: config.bgColor,
+                          borderColor: config.color,
+                          borderWidth: 1.5,
+                        },
                       ]}
-                      onPress={() => setSelectedAllergen(null)}
-                      activeOpacity={0.8}
+                      onPress={() => setSelectedAisle(aisle)}
+                      activeOpacity={0.75}
                     >
                       <Ionicons
-                        name={selectedAllergen === null ? 'checkmark-circle' : 'ellipse-outline'}
-                        size={16}
-                        color={selectedAllergen === null ? colors.primary : colors.textMuted}
+                        name={config.iconName as any}
+                        size={13}
+                        color={isSelected ? config.color : colors.textSecondary}
                       />
                       <Text
                         style={[
-                          styles.noAllergenBtnText,
-                          selectedAllergen === null && styles.noAllergenBtnTextSelected,
+                          styles.aisleChipText,
+                          isSelected && { color: config.color, fontWeight: '700' },
                         ]}
                       >
-                        Aucun allergène majeur (produit sûr)
+                        {aisle}
                       </Text>
                     </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
 
-                    {/* Choix 2 : Les 14 familles d'allergènes INCO */}
-                    <View style={styles.allergenWrap}>
-                      {ALLERGEN_FAMILIES.map((family) => {
-                        const isSelected = selectedAllergen === family.id;
-                        const isSuggested = detectedAllergen === family.id;
-                        return (
-                          <TouchableOpacity
-                            key={family.id}
-                            style={[
-                              styles.allergenChip,
-                              isSelected && styles.allergenChipSelected,
-                              !isSelected && isSuggested && styles.allergenChipSuggested,
-                            ]}
-                            onPress={() => setSelectedAllergen(isSelected ? null : family.id)}
-                            activeOpacity={0.7}
-                          >
-                            <Text style={styles.allergenEmoji}>{family.emoji}</Text>
-                            <Text
-                              style={[
-                                styles.allergenName,
-                                isSelected && styles.allergenNameSelected,
-                              ]}
-                            >
-                              {family.name}
-                            </Text>
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </View>
-                  </View>
-                )}
-              </View>
-
-              {/* 4. Fond de placard */}
-              <View style={styles.stapleRow}>
-                <View style={styles.stapleTextGroup}>
-                  <View style={styles.stapleTitleRow}>
-                    <Ionicons name="cube-outline" size={16} color={colors.primary} />
-                    <Text style={styles.stapleTitle}>Ingrédient toujours en réserve</Text>
-                  </View>
-                  <Text style={styles.stapleSubtitle}>
-                    Fond de placard exclu par défaut de la liste de courses (sel, poivre, huiles, épices usuelles).
+              {/* PUCES D'OPTIONS RAPIDES SUR UNE SEULE LIGNE (Remplace les gros blocs Switch) */}
+              <Text style={[styles.fieldLabel, { marginTop: 10 }]}>Options rapides :</Text>
+              <View style={styles.quickTogglesRow}>
+                {/* 1. Fond de placard */}
+                <TouchableOpacity
+                  style={[
+                    styles.togglePill,
+                    isPantryStaple && {
+                      backgroundColor: colors.primary + '18',
+                      borderColor: colors.primary,
+                    },
+                  ]}
+                  onPress={() => setIsPantryStaple(!isPantryStaple)}
+                  activeOpacity={0.75}
+                >
+                  <Ionicons
+                    name={isPantryStaple ? 'checkbox' : 'cube-outline'}
+                    size={14}
+                    color={isPantryStaple ? colors.primary : colors.textSecondary}
+                  />
+                  <Text
+                    style={[
+                      styles.togglePillText,
+                      isPantryStaple && { color: colors.primary, fontWeight: '700' },
+                    ]}
+                  >
+                    En placard
                   </Text>
-                </View>
-                <Switch
-                  value={isPantryStaple}
-                  onValueChange={setIsPantryStaple}
-                  trackColor={{ false: colors.borderLight, true: colors.primary }}
-                  thumbColor="#FFFFFF"
-                />
+                </TouchableOpacity>
+
+                {/* 2. Allergie personnelle */}
+                <TouchableOpacity
+                  style={[
+                    styles.togglePill,
+                    isUserAllergic && {
+                      backgroundColor: colors.danger + '18',
+                      borderColor: colors.danger,
+                    },
+                  ]}
+                  onPress={() => setIsUserAllergic(!isUserAllergic)}
+                  activeOpacity={0.75}
+                >
+                  <Ionicons
+                    name={isUserAllergic ? 'warning' : 'shield-outline'}
+                    size={14}
+                    color={isUserAllergic ? colors.danger : colors.textSecondary}
+                  />
+                  <Text
+                    style={[
+                      styles.togglePillText,
+                      isUserAllergic && { color: colors.danger, fontWeight: '700' },
+                    ]}
+                  >
+                    Allergique
+                  </Text>
+                </TouchableOpacity>
+
+                {/* 3. Famille INCO */}
+                <TouchableOpacity
+                  style={[
+                    styles.togglePill,
+                    (selectedAllergen || detectedAllergen) && {
+                      borderColor: colors.amber || '#D97706',
+                      backgroundColor: colors.amberLight || '#FEF3C7',
+                    },
+                  ]}
+                  onPress={() => setIsAllergenFamilyExpanded(!isAllergenFamilyExpanded)}
+                  activeOpacity={0.75}
+                >
+                  <Text style={styles.togglePillText}>
+                    {activeAllergenInfo
+                      ? `${activeAllergenInfo.emoji} ${activeAllergenInfo.name}`
+                      : 'Allergène INCO ▾'}
+                  </Text>
+                </TouchableOpacity>
               </View>
 
-              {/* 5. Synonymes additionnels (optionnels) */}
-              <View style={styles.formGroup}>
-                <Text style={styles.fieldLabel}>Synonymes additionnels (facultatif, séparés par virgules) :</Text>
+              {/* Synonymes additionnels (toujours visibles) */}
+              <View style={[styles.inlineInputRow, { marginTop: 10, marginBottom: 2 }]}>
+                <Text style={styles.inlineLabel}>Synonymes :</Text>
                 <TextInput
-                  style={styles.textInput}
+                  style={styles.compactTextInput}
                   value={extraAliasesInput}
                   onChangeText={setExtraAliasesInput}
-                  placeholder="Ex: patate douce blanche, kumara"
+                  placeholder="séparés par virgules"
                   placeholderTextColor={colors.textMuted}
+                  autoCapitalize="none"
                 />
               </View>
 
-              {/* Bouton de validation de la création */}
-              <TouchableOpacity
-                style={[styles.createBtn, isSubmitting && styles.createBtnDisabled]}
-                onPress={handleCreateNew}
-                disabled={isSubmitting}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="checkmark-sharp" size={18} color="#FFFFFF" />
-                <Text style={styles.createBtnText}>Enregistrer dans mon lexique</Text>
-              </TouchableOpacity>
-
-              {/* Bouton Annuler pour abandonner la qualification et revenir sur la recette */}
-              <TouchableOpacity
-                style={styles.cancelBtn}
-                onPress={onClose}
-                disabled={isSubmitting}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.cancelBtnText}>
-                  {cancelButtonText || (context === 'shopping' ? 'Garder non ajouté' : 'Annuler')}
-                </Text>
-              </TouchableOpacity>
+              {/* Accordéon Famille d'allergènes INCO (déplié à la demande) */}
+              {isAllergenFamilyExpanded && (
+                <View style={styles.expandedBox}>
+                  <View style={styles.allergenWrap}>
+                    <TouchableOpacity
+                      style={[
+                        styles.allergenChip,
+                        selectedAllergen === null && styles.allergenChipSelected,
+                      ]}
+                      onPress={() => setSelectedAllergen(null)}
+                    >
+                      <Text
+                        style={[
+                          styles.allergenName,
+                          selectedAllergen === null && styles.allergenNameSelected,
+                        ]}
+                      >
+                        ✓ Aucun allergène
+                      </Text>
+                    </TouchableOpacity>
+                    {ALLERGEN_FAMILIES.map((family) => {
+                      const isSelected = selectedAllergen === family.id;
+                      const isSuggested = detectedAllergen === family.id;
+                      return (
+                        <TouchableOpacity
+                          key={family.id}
+                          style={[
+                            styles.allergenChip,
+                            isSelected && styles.allergenChipSelected,
+                            !isSelected && isSuggested && styles.allergenChipSuggested,
+                          ]}
+                          onPress={() => setSelectedAllergen(isSelected ? null : family.id)}
+                        >
+                          <Text style={styles.allergenEmoji}>{family.emoji}</Text>
+                          <Text
+                            style={[
+                              styles.allergenName,
+                              isSelected && styles.allergenNameSelected,
+                            ]}
+                          >
+                            {family.name}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+              )}
             </View>
           </ScrollView>
+
+          {/* STICKY FOOTER : TOUJOURS VISIBLE EN UN COUP D'ŒIL SANS SCROLLER */}
+          <View style={styles.stickyFooter}>
+            <TouchableOpacity
+              style={styles.cancelFooterBtn}
+              onPress={onClose}
+              disabled={isSubmitting}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.cancelBtnText}>
+                {cancelButtonText || (context === 'shopping' ? 'Ignorer' : 'Annuler')}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.createFooterBtn, isSubmitting && styles.createBtnDisabled]}
+              onPress={handleCreateNew}
+              disabled={isSubmitting}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="add-circle" size={18} color="#FFFFFF" />
+              <Text style={styles.createBtnText} numberOfLines={1}>
+                Créer « {canonicalNameInput.trim() || rawName.trim()} »
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </KeyboardAvoidingView>
     </Modal>
@@ -698,8 +696,7 @@ const styles = createDynamicStyles((colors) => ({
     backgroundColor: colors.cardBackground,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    maxHeight: '90%',
-    paddingBottom: 24,
+    maxHeight: '92%',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.15,
@@ -710,9 +707,9 @@ const styles = createDynamicStyles((colors) => ({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 18,
-    paddingBottom: 14,
+    paddingHorizontal: 18,
+    paddingTop: 14,
+    paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: colors.borderLight,
   },
@@ -720,16 +717,16 @@ const styles = createDynamicStyles((colors) => ({
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
-    marginRight: 12,
+    marginRight: 10,
   },
   iconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: colors.primary + '18',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 10,
   },
   headerTextGroup: {
     flex: 1,
@@ -739,75 +736,112 @@ const styles = createDynamicStyles((colors) => ({
     alignItems: 'center',
     gap: 8,
   },
-  queueBadge: {
-    backgroundColor: colors.isDark ? 'rgba(34, 197, 94, 0.2)' : '#E8F5E9',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.isDark ? 'rgba(34, 197, 94, 0.35)' : '#C8E6C9',
-  },
-  queueBadgeText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.primary,
-  },
   headerTitle: {
     fontSize: 16,
     fontWeight: '700',
     color: colors.textPrimary,
+    flexShrink: 1,
   },
   headerSubtitle: {
-    fontSize: 12.5,
+    fontSize: 12,
     color: colors.textSecondary,
-    marginTop: 2,
+    marginTop: 1,
+  },
+  queueBadge: {
+    backgroundColor: colors.primary + '20',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  queueBadgeText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: colors.primary,
   },
   closeBtn: {
     padding: 4,
   },
   modalScroll: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
+    paddingHorizontal: 18,
+    paddingTop: 12,
   },
-  synonymsSection: {
-    backgroundColor: colors.primary + '0A',
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: colors.primary + '25',
+  modalScrollContent: {
+    paddingBottom: 16,
   },
-  sectionTitleRow: {
+  promoteBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginBottom: 4,
+    gap: 10,
+    backgroundColor: colors.primary + '14',
+    borderWidth: 1,
+    borderColor: colors.primary + '40',
+    borderRadius: 12,
+    padding: 10,
+    marginBottom: 12,
+  },
+  promoteIconBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  promoteBannerTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  promoteBannerSubtitle: {
+    fontSize: 11.5,
+    color: colors.textSecondary,
+  },
+  sectionBlock: {
+    backgroundColor: colors.primary + '08',
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: colors.primary + '22',
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  stepBadge: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  stepBadgeSecondary: {
+    backgroundColor: colors.textSecondary,
+  },
+  stepBadgeText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    textTransform: 'uppercase',
   },
   sectionTitle: {
-    fontSize: 14,
+    fontSize: 13.5,
     fontWeight: '700',
     color: colors.textPrimary,
   },
-  sectionExplanation: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginBottom: 12,
-    lineHeight: 16,
+  compactMatchesList: {
+    gap: 6,
   },
-  matchesList: {
-    gap: 10,
-  },
-  matchCard: {
-    backgroundColor: colors.cardBackground,
-    borderRadius: 12,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-  },
-  matchCardHeader: {
+  compactMatchRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    backgroundColor: colors.cardBackground,
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
   },
   aisleBadge: {
     width: 26,
@@ -815,173 +849,202 @@ const styles = createDynamicStyles((colors) => ({
     borderRadius: 7,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 10,
+    marginRight: 9,
   },
   matchTextColumn: {
     flex: 1,
+    marginRight: 8,
   },
   matchItemName: {
-    fontSize: 14,
+    fontSize: 13.5,
     fontWeight: '700',
     color: colors.textPrimary,
   },
   matchItemReason: {
     fontSize: 11,
     color: colors.textSecondary,
-    marginTop: 1,
   },
-  matchActionBtn: {
+  quickSelectPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    backgroundColor: colors.primary + '14',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    gap: 4,
+    backgroundColor: colors.primary + '16',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: colors.primary + '30',
   },
-  matchActionBtnText: {
+  quickSelectPillText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  openSearchLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingTop: 8,
+    paddingBottom: 2,
+  },
+  openSearchLinkText: {
     fontSize: 12,
     fontWeight: '600',
     color: colors.primary,
   },
-  passportSection: {
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: 16,
-    padding: 16,
+  manualSearchBox: {
+    marginTop: 6,
+  },
+  manualSearchInputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.cardBackground,
     borderWidth: 1,
     borderColor: colors.borderLight,
-    marginBottom: 16,
+    borderRadius: 9,
+    paddingHorizontal: 10,
+    height: 36,
+  },
+  manualSearchInput: {
+    flex: 1,
+    fontSize: 12.5,
+    color: colors.textPrimary,
+    paddingVertical: 2,
+  },
+  parentSearchResultsList: {
+    marginTop: 6,
+    backgroundColor: colors.cardBackground,
+    borderRadius: 9,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    overflow: 'hidden',
+  },
+  parentSearchItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderBottomWidth: 0.5,
+    borderBottomColor: colors.borderLight,
+  },
+  parentSearchName: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  parentSearchAisle: {
+    fontSize: 10.5,
+    color: colors.textSecondary,
+  },
+  passportSection: {
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    marginBottom: 12,
   },
   errorBox: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     backgroundColor: colors.danger + '15',
-    padding: 10,
+    padding: 8,
     borderRadius: 8,
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: colors.danger + '35',
+    marginBottom: 10,
   },
   errorBoxText: {
     fontSize: 12,
     color: colors.danger,
     flex: 1,
   },
-  formGroup: {
-    marginBottom: 16,
+  inlineInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
   },
-  fieldLabel: {
+  inlineLabel: {
     fontSize: 12.5,
     fontWeight: '600',
     color: colors.textPrimary,
-    marginBottom: 6,
   },
-  subFieldLabel: {
-    fontSize: 11.5,
-    color: colors.textSecondary,
-    marginTop: 8,
-    marginBottom: 6,
-  },
-  textInput: {
+  compactTextInput: {
+    flex: 1,
     backgroundColor: colors.cardBackground,
     borderWidth: 1,
     borderColor: colors.borderLight,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-    fontSize: 14,
+    borderRadius: 9,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    fontSize: 13.5,
     color: colors.textPrimary,
   },
+  fieldLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    marginBottom: 6,
+  },
   aislesScroll: {
-    gap: 8,
+    gap: 6,
     paddingVertical: 2,
   },
   aisleChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 18,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
     backgroundColor: colors.cardBackground,
     borderWidth: 1,
     borderColor: colors.borderLight,
   },
   aisleChipText: {
-    fontSize: 12,
+    fontSize: 11.5,
     color: colors.textSecondary,
   },
-  allergenHeaderRow: {
+  quickTogglesRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 6,
+    flexWrap: 'wrap',
+    gap: 6,
   },
-  expandableHeaderRow: {
+  togglePill: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 5,
+    paddingHorizontal: 10,
     paddingVertical: 6,
-  },
-  allergenMiniBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-  },
-  hintBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: colors.primary + '18',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
-  },
-  hintBadgeText: {
-    fontSize: 10.5,
-    color: colors.primary,
-    fontWeight: '600',
-  },
-  noAllergenBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+    borderRadius: 16,
     backgroundColor: colors.cardBackground,
     borderWidth: 1,
     borderColor: colors.borderLight,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
   },
-  noAllergenBtnSelected: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primary + '10',
-  },
-  noAllergenBtnText: {
-    fontSize: 12.5,
-    color: colors.textPrimary,
+  togglePillText: {
+    fontSize: 11.5,
+    color: colors.textSecondary,
     fontWeight: '500',
   },
-  noAllergenBtnTextSelected: {
-    color: colors.primary,
-    fontWeight: '700',
+  expandedBox: {
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderLight,
   },
   allergenWrap: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 6,
+    gap: 5,
   },
   allergenChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 16,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 14,
     backgroundColor: colors.cardBackground,
     borderWidth: 1,
     borderColor: colors.borderLight,
@@ -995,221 +1058,56 @@ const styles = createDynamicStyles((colors) => ({
     backgroundColor: colors.primary + '08',
   },
   allergenEmoji: {
-    fontSize: 12,
+    fontSize: 11.5,
   },
   allergenName: {
-    fontSize: 11.5,
+    fontSize: 11,
     color: colors.textSecondary,
   },
   allergenNameSelected: {
     color: colors.primary,
     fontWeight: '700',
   },
-  stapleRow: {
+  stickyFooter: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 10,
+    paddingHorizontal: 18,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderLight,
     backgroundColor: colors.cardBackground,
+  },
+  cancelFooterBtn: {
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+    borderRadius: 11,
     borderWidth: 1,
     borderColor: colors.borderLight,
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 16,
-  },
-  stapleTextGroup: {
-    flex: 1,
-    marginRight: 12,
-  },
-  stapleTitleRow: {
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginBottom: 2,
+    justifyContent: 'center',
   },
-  stapleTitle: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  stapleSubtitle: {
-    fontSize: 11,
+  cancelBtnText: {
     color: colors.textSecondary,
-    lineHeight: 14,
+    fontSize: 13.5,
+    fontWeight: '600',
   },
-  createBtn: {
+  createFooterBtn: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: 6,
     backgroundColor: colors.primary,
-    paddingVertical: 12,
-    borderRadius: 12,
-    marginTop: 4,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 3,
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+    borderRadius: 11,
   },
   createBtnDisabled: {
     opacity: 0.6,
   },
   createBtnText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  cancelBtn: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 12,
-    marginTop: 6,
-  },
-  cancelBtnText: {
-    color: colors.textSecondary,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  manualSearchContainer: {
-    marginTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: colors.borderLight,
-    paddingTop: 10,
-  },
-  manualSearchPrompt: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginBottom: 6,
-  },
-  manualSearchInputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.cardBackground,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    height: 40,
-  },
-  manualSearchIcon: {
-    marginRight: 6,
-  },
-  manualSearchInput: {
-    flex: 1,
-    fontSize: 13,
-    color: colors.textPrimary,
-    paddingVertical: 4,
-  },
-  manualSearchClear: {
-    padding: 2,
-  },
-  parentSearchResultsList: {
-    marginTop: 6,
-    backgroundColor: colors.cardBackground,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-    overflow: 'hidden',
-  },
-  parentSearchItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderBottomWidth: 0.5,
-    borderBottomColor: colors.borderLight,
-  },
-  parentSearchName: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  parentSearchAisle: {
-    fontSize: 10.5,
-    color: colors.textSecondary,
-    marginTop: 1,
-  },
-  parentSearchAction: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    backgroundColor: colors.primary + '14',
-  },
-  parentSearchActionText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-  parentSearchEmpty: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 10,
-    paddingHorizontal: 10,
-    backgroundColor: colors.cardBackground,
-    borderRadius: 8,
-    marginTop: 6,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-  },
-  parentSearchEmptyText: {
-    flex: 1,
-    fontSize: 12,
-    color: colors.textSecondary,
-    fontStyle: 'italic',
-  },
-  promoteCard: {
-    backgroundColor: colors.primary + '12',
-    borderWidth: 1,
-    borderColor: colors.primary + '35',
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 16,
-  },
-  promoteCardHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-    marginBottom: 12,
-  },
-  promoteIconBadge: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 1,
-  },
-  promoteTextColumn: {
-    flex: 1,
-  },
-  promoteCardTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.primary,
-    marginBottom: 3,
-  },
-  promoteCardSubtitle: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    lineHeight: 16,
-  },
-  promoteActionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.primary,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 10,
-  },
-  promoteActionBtnText: {
-    fontSize: 13,
+    fontSize: 13.5,
     fontWeight: '700',
     color: '#FFFFFF',
   },
