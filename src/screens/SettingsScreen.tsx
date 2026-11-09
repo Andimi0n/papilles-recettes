@@ -143,6 +143,9 @@ const SettingsScreenComponent: React.FC<SettingsScreenProps> = ({
   const [isMoodModalVisible, setIsMoodModalVisible] = useState(false);
   const [selectedMoodForEdit, setSelectedMoodForEdit] = useState<ChefMoodOption | null>(null);
 
+  // Accordéon des allergies alimentaires (rétracté par défaut)
+  const [isAllergensExpanded, setIsAllergensExpanded] = useState(false);
+
   // Import & Export JSON Modal/State
   const [isImportModalVisible, setIsImportModalVisible] = useState(false);
   const [importJsonText, setImportJsonText] = useState('');
@@ -1279,30 +1282,52 @@ const SettingsScreenComponent: React.FC<SettingsScreenProps> = ({
             <View style={styles.groupHeaderLine} />
           </View>
 
-          {/* SECTION 4 : MES ALLERGIES ALIMENTAIRES */}
-          <View style={[styles.sectionCard, { zIndex: 90 }]}>
-            <View style={styles.sectionTitleRow}>
-              <Ionicons name="warning-outline" size={20} color={colors.amber} />
-              <Text style={styles.sectionTitle}>Mes Allergies Alimentaires</Text>
-              {userAllergens.length > 0 && (
-                <View style={[styles.countBadge, { backgroundColor: colors.primaryLight }]}>
-                  <Text style={[styles.countBadgeText, { color: colors.primary }]}>
-                    {userAllergens.length}
+          {/* SECTION 4 : MES ALLERGIES ALIMENTAIRES (ACCORDÉON) */}
+          <View style={[styles.sectionCard, isAllergensExpanded && { zIndex: 90 }]}>
+            <TouchableOpacity
+              style={styles.accordionHeader}
+              onPress={() => setIsAllergensExpanded(!isAllergensExpanded)}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Afficher ou masquer mes allergies alimentaires"
+            >
+              <View style={styles.accordionLeft}>
+                <Ionicons name="warning-outline" size={20} color={colors.amber} />
+                <Text style={styles.sectionTitle}>Mes Allergies Alimentaires</Text>
+                {userAllergens.length > 0 && (
+                  <View style={[styles.countBadge, { backgroundColor: colors.primaryLight }]}>
+                    <Text style={[styles.countBadgeText, { color: colors.primary }]}>
+                      {userAllergens.length}
+                    </Text>
+                  </View>
+                )}
+              </View>
+              <Ionicons
+                name={isAllergensExpanded ? 'chevron-up' : 'chevron-down'}
+                size={20}
+                color={colors.textSecondary}
+              />
+            </TouchableOpacity>
+
+            {!isAllergensExpanded && (
+              <Text style={styles.sectionSubtitle}>
+                Définissez vos allergies alimentaires par ingrédient ou sélectionnez directement les 14 familles majeures (norme INCO).
+              </Text>
+            )}
+
+            {isAllergensExpanded && (
+              <View style={styles.accordionBody}>
+                <Text style={styles.accordionSubtitle}>
+                  Définissez vos allergies alimentaires par ingrédient ou sélectionnez directement les 14 familles majeures (norme INCO).
+                </Text>
+
+                {/* Avertissement médico-légal sécurité sanitaire */}
+                <View style={[styles.allergenDisclaimerBox, { backgroundColor: colors.surfaceAlt, borderColor: colors.borderLight }]}>
+                  <Ionicons name="medical-outline" size={16} color={colors.textSecondary} style={{ marginRight: 2, marginTop: 1 }} />
+                  <Text style={[styles.allergenDisclaimerText, { color: colors.textSecondary }]}>
+                    Aide informative : la détection automatique des 14 allergènes majeurs (règlement INCO) est un outil d&apos;assistance au quotidien. Elle ne remplace pas la vigilance médicale ni la vérification de la liste des ingrédients sur l&apos;emballage des produits réels.
                   </Text>
                 </View>
-              )}
-            </View>
-            <Text style={styles.sectionSubtitle}>
-              Définissez vos allergies alimentaires par ingrédient ou sélectionnez directement les 14 familles majeures (norme INCO).
-            </Text>
-
-            {/* Avertissement médico-légal sécurité sanitaire */}
-            <View style={[styles.allergenDisclaimerBox, { backgroundColor: colors.surfaceAlt, borderColor: colors.borderLight }]}>
-              <Ionicons name="medical-outline" size={16} color={colors.textSecondary} style={{ marginRight: 2, marginTop: 1 }} />
-              <Text style={[styles.allergenDisclaimerText, { color: colors.textSecondary }]}>
-                Aide informative : la détection automatique des 14 allergènes majeurs (règlement INCO) est un outil d&apos;assistance au quotidien. Elle ne remplace pas la vigilance médicale ni la vérification de la liste des ingrédients sur l&apos;emballage des produits réels.
-              </Text>
-            </View>
 
             {/* Préférences & Règles de filtrage automatiques */}
             <View style={[styles.allergenSettingsBox, { backgroundColor: colors.surfaceAlt, borderColor: colors.borderLight }]}>
@@ -1604,6 +1629,8 @@ const SettingsScreenComponent: React.FC<SettingsScreenProps> = ({
               )}
             </View>
           </View>
+        )}
+      </View>
 
           {/* SECTION : LEXIQUE & VOCABULAIRE DES INGRÉDIENTS */}
           <View style={styles.sectionCard}>
