@@ -308,14 +308,6 @@ export const styles = createDynamicStyles((colors, shadows) => ({
     fontWeight: '700',
     color: colors.textPrimary,
   },
-  stockMicroBadge: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  stockMicroBadgeReady: {
-    color: colors.secondary,
-  },
   techBarRow: {
     flexDirection: 'row',
     alignItems: 'center',

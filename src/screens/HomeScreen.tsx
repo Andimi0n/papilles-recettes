@@ -26,6 +26,7 @@ import { CategoryPills } from '../components/common/CategoryPills';
 import { EmptyState } from '../components/common/EmptyState';
 import { StockCookModal } from '../components/chef-ai/StockCookModal';
 import { AdvancedFiltersModal } from '../components/common/AdvancedFiltersModal';
+import { PageJumpModal } from '../components/common/PageJumpModal';
 import {
   searchRecipes,
   RecipeSearchResult,
@@ -41,7 +42,6 @@ import { prepareUserAllergens, recipeContainsAllergens } from '../utils/allergen
 const RECIPES_PER_PAGE = 20;
 
 const CATEGORIES: Category[] = [
-  'Tous',
   'Entrée',
   'Plat',
   'Dessert',
@@ -107,6 +107,7 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [tagMatchMode, setTagMatchMode] = useState<'all' | 'any'>('any');
   const [isAdvancedFiltersModalVisible, setIsAdvancedFiltersModalVisible] = useState(false);
+  const [isPageJumpModalVisible, setIsPageJumpModalVisible] = useState(false);
   const [sortBy, setSortBy] = useState<SortOption>('rating_desc');
   const [minRatingFilter, setMinRatingFilter] = useState<number>(0);
   const [onlyVegetarian, setOnlyVegetarian] = useState(false);
@@ -474,16 +475,11 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
   // Handler pour la sélection multi-catégorie (Entrée + Plat, etc.)
   const handleToggleCategory = (cat: Category) => {
     setCurrentPage(1);
-    if (cat === 'Tous') {
-      setSelectedCategories([]);
-      return;
-    }
     setSelectedCategories((prev) => {
-      const active = prev.filter((c) => c !== 'Tous');
-      if (active.includes(cat)) {
-        return active.filter((c) => c !== cat);
+      if (prev.includes(cat)) {
+        return prev.filter((c) => c !== cat);
       } else {
-        return [...active, cat];
+        return [...prev, cat];
       }
     });
   };
@@ -576,7 +572,7 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
 
   // Category counts synchronisés avec les filtres actifs (stock, recherche, diététique, etc.)
   const recipeCountByCategory = useMemo(() => {
-    const counts: Record<string, number> = { Tous: baseFilteredResults.length };
+    const counts: Record<string, number> = {};
     baseFilteredResults.forEach((r) => {
       counts[r.recipe.category] = (counts[r.recipe.category] || 0) + 1;
     });
@@ -588,7 +584,7 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
     let result = baseFilteredResults;
 
     // Catégories multiples (ex: Entrée + Plat)
-    if (selectedCategories.length > 0 && !selectedCategories.includes('Tous')) {
+    if (selectedCategories.length > 0) {
       result = result.filter((r) => selectedCategories.includes(r.recipe.category));
     }
 
@@ -615,21 +611,37 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
     return filteredRecipes.slice(startIndex, startIndex + RECIPES_PER_PAGE);
   }, [filteredRecipes, safeCurrentPage]);
 
-  const handleNextPage = () => {
-    if (safeCurrentPage < totalPages) {
-      setCurrentPage((prev) => prev + 1);
-      forceShowFilterBar();
-      flashListRef.current?.scrollToOffset({ offset: 0, animated: true });
-    }
-  };
+  const goToPage = useCallback(
+    (page: number) => {
+      const target = Math.max(1, Math.min(page, totalPages));
+      if (target !== safeCurrentPage) {
+        setCurrentPage(target);
+        forceShowFilterBar();
+        flashListRef.current?.scrollToOffset({ offset: 0, animated: true });
+      }
+    },
+    [totalPages, safeCurrentPage, forceShowFilterBar]
+  );
 
-  const handlePrevPage = () => {
-    if (safeCurrentPage > 1) {
-      setCurrentPage((prev) => prev - 1);
-      forceShowFilterBar();
-      flashListRef.current?.scrollToOffset({ offset: 0, animated: true });
+  const handleNextPage = useCallback(() => {
+    if (safeCurrentPage < totalPages) {
+      goToPage(safeCurrentPage + 1);
     }
-  };
+  }, [safeCurrentPage, totalPages, goToPage]);
+
+  const handlePrevPage = useCallback(() => {
+    if (safeCurrentPage > 1) {
+      goToPage(safeCurrentPage - 1);
+    }
+  }, [safeCurrentPage, goToPage]);
+
+  const handleFirstPage = useCallback(() => {
+    goToPage(1);
+  }, [goToPage]);
+
+  const handleLastPage = useCallback(() => {
+    goToPage(totalPages);
+  }, [totalPages, goToPage]);
 
   const handleResetAllFilters = () => {
     setSearchQuery('');
@@ -861,7 +873,7 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
     ]
   );
 
-  // Pied de liste avec bouton Page suivante / précédente
+  // Pied de liste avec navigation complète : début, précédente, sélection directe, suivante, fin
   const listFooterElement = useMemo(() => {
     if (filteredRecipes.length === 0) return undefined;
 
@@ -877,51 +889,151 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
 
     return (
       <View style={styles.paginationContainer}>
-        {/* Résumé de pagination */}
+        {/* Résumé de pagination & bouton sélecteur de page */}
         <View style={styles.paginationInfoBox}>
           <Text style={styles.paginationCountText}>
             Recettes {(safeCurrentPage - 1) * RECIPES_PER_PAGE + 1} à{' '}
             {Math.min(safeCurrentPage * RECIPES_PER_PAGE, filteredRecipes.length)} sur{' '}
             {filteredRecipes.length}
           </Text>
-          <View style={styles.pagePill}>
+          <TouchableOpacity
+            style={styles.pagePill}
+            onPress={() => setIsPageJumpModalVisible(true)}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Choisir une page"
+          >
             <Text style={styles.pagePillText}>
               Page {safeCurrentPage} / {totalPages}
             </Text>
-          </View>
+            <Ionicons name="swap-vertical" size={13} color={colors.primary} />
+          </TouchableOpacity>
         </View>
 
-        {/* Boutons d'action : Page suivante (mise en avant) et Page précédente */}
-        <View style={styles.paginationNavRow}>
-          {safeCurrentPage > 1 && (
-            <TouchableOpacity
-              style={[styles.pageBtn, styles.pageBtnPrev]}
-              onPress={handlePrevPage}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="chevron-back" size={18} color={colors.textPrimary} />
-              <Text style={styles.pageBtnTextPrev}>Page précédente</Text>
-            </TouchableOpacity>
-          )}
+        {/* Barre de numéros de pages scrollable pour accès direct immédiat */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.pageNumbersScroll}
+          contentContainerStyle={styles.pageNumbersContent}
+        >
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => {
+            const isCurrent = pageNum === safeCurrentPage;
+            return (
+              <TouchableOpacity
+                key={pageNum}
+                style={[
+                  styles.pageNumberPill,
+                  isCurrent && styles.pageNumberPillActive,
+                ]}
+                onPress={() => goToPage(pageNum)}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={[
+                    styles.pageNumberPillText,
+                    isCurrent && styles.pageNumberPillTextActive,
+                  ]}
+                >
+                  {pageNum}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
 
-          {safeCurrentPage < totalPages && (
-            <TouchableOpacity
+        {/* Boutons d'action : Tout au début, Page précédente, Page suivante, Tout à la fin */}
+        <View style={styles.paginationNavRow}>
+          {/* Bouton première page (<<) */}
+          <TouchableOpacity
+            style={[styles.pageIconBtn, safeCurrentPage === 1 && styles.pageIconBtnDisabled]}
+            onPress={handleFirstPage}
+            disabled={safeCurrentPage === 1}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Première page"
+          >
+            <Ionicons
+              name="play-skip-back-outline"
+              size={18}
+              color={safeCurrentPage === 1 ? colors.textMuted : colors.textPrimary}
+            />
+          </TouchableOpacity>
+
+          {/* Bouton page précédente (<) */}
+          <TouchableOpacity
+            style={[
+              styles.pageBtn,
+              styles.pageBtnPrev,
+              safeCurrentPage === 1 && styles.pageBtnDisabled,
+            ]}
+            onPress={handlePrevPage}
+            disabled={safeCurrentPage === 1}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Page précédente"
+          >
+            <Ionicons
+              name="chevron-back"
+              size={18}
+              color={safeCurrentPage === 1 ? colors.textMuted : colors.textPrimary}
+            />
+            <Text
               style={[
-                styles.pageBtn,
-                styles.pageBtnNext,
-                safeCurrentPage === 1 && styles.pageBtnNextFull,
+                styles.pageBtnTextPrev,
+                safeCurrentPage === 1 && { color: colors.textMuted },
               ]}
-              onPress={handleNextPage}
-              activeOpacity={0.8}
             >
-              <Text style={styles.pageBtnTextNext}>Page suivante</Text>
-              <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
-            </TouchableOpacity>
-          )}
+              Précédente
+            </Text>
+          </TouchableOpacity>
+
+          {/* Bouton page suivante (>) */}
+          <TouchableOpacity
+            style={[
+              styles.pageBtn,
+              styles.pageBtnNext,
+              safeCurrentPage === totalPages && styles.pageBtnDisabled,
+            ]}
+            onPress={handleNextPage}
+            disabled={safeCurrentPage === totalPages}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Page suivante"
+          >
+            <Text style={styles.pageBtnTextNext}>Suivante</Text>
+            <Ionicons name="chevron-forward" size={18} color="#FFFFFF" />
+          </TouchableOpacity>
+
+          {/* Bouton dernière page (>>) */}
+          <TouchableOpacity
+            style={[styles.pageIconBtn, safeCurrentPage === totalPages && styles.pageIconBtnDisabled]}
+            onPress={handleLastPage}
+            disabled={safeCurrentPage === totalPages}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Dernière page"
+          >
+            <Ionicons
+              name="play-skip-forward-outline"
+              size={18}
+              color={safeCurrentPage === totalPages ? colors.textMuted : colors.textPrimary}
+            />
+          </TouchableOpacity>
         </View>
       </View>
     );
-  }, [themeId, isDark, colors, filteredRecipes.length, totalPages, safeCurrentPage]);
+  }, [
+    colors,
+    filteredRecipes.length,
+    totalPages,
+    safeCurrentPage,
+    goToPage,
+    handleFirstPage,
+    handlePrevPage,
+    handleNextPage,
+    handleLastPage,
+  ]);
 
   // Rendu mémoïsé de chaque carte recette (accès direct O(1) sans allocations de tableaux ou recalculs)
   const renderRecipeItem = useCallback(
@@ -1398,6 +1510,16 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
             setPreserveStockSession(false);
             setIsStockModalVisible(false);
           }}
+        />
+
+        {/* Modal Aller à la page */}
+        <PageJumpModal
+          visible={isPageJumpModalVisible}
+          currentPage={safeCurrentPage}
+          totalPages={totalPages}
+          totalRecipes={filteredRecipes.length}
+          onSelectPage={goToPage}
+          onClose={() => setIsPageJumpModalVisible(false)}
         />
       </View>
     </SafeAreaView>

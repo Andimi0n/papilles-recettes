@@ -1,8 +1,7 @@
 import React from 'react';
-import { ScrollView, Text, TouchableOpacity, StyleSheet, View } from 'react-native';
+import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { Category } from '../../types/recipe';
-import { Colors, createDynamicStyles } from '../../theme/colors';
-import { useTheme } from '../../theme/ThemeContext';
+import { createDynamicStyles } from '../../theme/colors';
 
 interface CategoryPillsProps {
   categories: Category[];
@@ -17,7 +16,6 @@ export const CategoryPills: React.FC<CategoryPillsProps> = ({
   onToggleCategory,
   recipeCountByCategory,
 }) => {
-  const { isDark, colors } = useTheme();
   return (
     <View style={styles.container}>
       <ScrollView
@@ -26,10 +24,7 @@ export const CategoryPills: React.FC<CategoryPillsProps> = ({
         contentContainerStyle={styles.scrollContent}
       >
         {categories.map((cat) => {
-          const isTous = cat === 'Tous';
-          const isSelected = isTous
-            ? selectedCategories.length === 0 || selectedCategories.includes('Tous')
-            : selectedCategories.includes(cat);
+          const isSelected = selectedCategories.includes(cat);
           const count = recipeCountByCategory ? recipeCountByCategory[cat] : undefined;
 
           return (

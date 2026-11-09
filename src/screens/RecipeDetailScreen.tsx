@@ -941,7 +941,6 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
             currentServings={currentServings}
             onServingsChange={setCurrentServings}
             stockEvaluation={stockEvaluation}
-            stockItemsLength={stockItems.length}
             globalConversionMode={globalConversionMode}
             onCycleGlobalConversion={handleCycleGlobalConversion}
             ingredientGroups={ingredientGroups}

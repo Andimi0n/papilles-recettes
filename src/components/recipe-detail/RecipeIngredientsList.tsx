@@ -31,7 +31,6 @@ export interface RecipeIngredientsListProps {
   currentServings: number;
   onServingsChange: (servings: number) => void;
   stockEvaluation: RecipeStockEvaluation | null;
-  stockItemsLength: number;
   globalConversionMode: ConversionMode;
   onCycleGlobalConversion: () => void;
   ingredientGroups: { hasSubsections: boolean; groups: IngredientGroup[] };
@@ -50,7 +49,6 @@ export const RecipeIngredientsList: React.FC<RecipeIngredientsListProps> = ({
   currentServings,
   onServingsChange,
   stockEvaluation,
-  stockItemsLength,
   globalConversionMode,
   onCycleGlobalConversion,
   ingredientGroups,
@@ -95,16 +93,11 @@ export const RecipeIngredientsList: React.FC<RecipeIngredientsListProps> = ({
 
   return (
     <View style={styles.sectionCard}>
-      {/* Titre Ingrédients avec micro-indicateur de stock accolé */}
+      {/* Titre Ingrédients */}
       <View style={styles.sectionHeader}>
         <View style={styles.sectionTitleRow}>
           <Text style={styles.sectionTitle}>
             Ingrédients ({recipe.ingredients.length})
-            {stockEvaluation && stockItemsLength > 0 && stockEvaluation.totalEssentialCount > 0 ? (
-              <Text style={[styles.stockMicroBadge, stockEvaluation.isDoable && styles.stockMicroBadgeReady]}>
-                {` • ${Math.round(stockEvaluation.matchPercentage)}% en stock`}
-              </Text>
-            ) : null}
           </Text>
         </View>
 
