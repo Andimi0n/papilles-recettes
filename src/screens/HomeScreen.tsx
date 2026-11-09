@@ -651,20 +651,26 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
     forceShowFilterBar();
   };
 
+  const shouldHideChefAiWidget =
+    isSearching || activeAdvancedFiltersCount > 0 || onlyDoableWithStock || onlyVegetarian;
+
   // En-tête de la liste défilante : Dongle Chef IA (scrollable avec la liste), bandeau frigo et résumé des résultats
   const listHeaderElement = useMemo(
     () => (
       <View style={styles.listHeaderContainer}>
-        {/* Widget Inspirations Chef IA (défile avec les cartes de recettes) */}
-        <ChefAiWidget
-          onOpenChefAi={openFreshStockModal}
-          onNavigateToStock={onNavigateToStock}
-        />
+        {/* Widget Inspirations Chef IA (défile avec les cartes de recettes, masqué lors de recherches ou filtres actifs) */}
+        {!shouldHideChefAiWidget && (
+          <ChefAiWidget
+            onOpenChefAi={openFreshStockModal}
+            onNavigateToStock={onNavigateToStock}
+          />
+        )}
 
-        {/* Bandeau filtres avancés actifs (Temps, Note, Difficulté, Ingrédients) */}
+        {/* Bandeau filtres avancés actifs (Temps, Note, Difficulté, Ingrédients, Tags) */}
         {(targetTotalTime !== null ||
           selectedDifficulties.length > 0 ||
           selectedIngredients.length > 0 ||
+          selectedTags.length > 0 ||
           minRatingFilter > 0) && (
           <View style={styles.advancedFiltersActiveBanner}>
             <View style={styles.advancedFiltersActiveLeft}>
@@ -743,7 +749,6 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
                   <View style={styles.activePillChip}>
                     <Ionicons name="pricetag-outline" size={12} color={colors.primary} />
                     <Text style={styles.activePillChipText}>
-                      {tagMatchMode === 'all' ? 'Tags (tous) : ' : 'Tags (au choix) : '}
                       {selectedTags.join(', ')}
                     </Text>
                     <TouchableOpacity
@@ -850,15 +855,16 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
       </View>
     ),
     [
+      shouldHideChefAiWidget,
+      openFreshStockModal,
+      onNavigateToStock,
       selectedIngredients,
       ingredientMatchMode,
       selectedTags,
-      tagMatchMode,
       targetTotalTime,
       timeFilterMode,
       selectedDifficulties,
-      onlyDoableWithStock,
-      doableCount,
+      minRatingFilter,
       filteredRecipes.length,
       isAllergenFilterEnabled,
       hiddenByAllergensCount,

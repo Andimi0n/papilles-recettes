@@ -34,6 +34,28 @@ assert.strictEqual(
   'HomeScreen ne doit plus passer stockItems à ChefAiWidget'
 );
 
+// Vérification du masquage de ChefAiWidget lors de recherche ou filtres actifs
+assert.ok(
+  homeContent.includes('shouldHideChefAiWidget') &&
+    homeContent.includes('isSearching || activeAdvancedFiltersCount > 0 || onlyDoableWithStock || onlyVegetarian') &&
+    homeContent.includes('!shouldHideChefAiWidget && (\n          <ChefAiWidget'),
+  'ChefAiWidget doit être masqué dès qu’une recherche, un filtre avancé ou un filtre rapide est actif'
+);
+
+// Vérification de la prise en compte des tags dans le bandeau des filtres actifs
+assert.ok(
+  homeContent.includes('selectedTags.length > 0') &&
+    homeContent.includes('advancedFiltersActiveBanner'),
+  'Le bandeau advancedFiltersActiveBanner doit s’ouvrir avec selectedTags'
+);
+
+// Vérification du format épuré des tags (nom sans préfixe "Tags (au choix) : ")
+assert.strictEqual(
+  homeContent.includes("tagMatchMode === 'all' ? 'Tags (tous) : ' : 'Tags (au choix) : '"),
+  false,
+  'Le bandeau ne doit plus afficher le préfixe Tags (au choix) : mais juste le nom du tag'
+);
+
 // 2. Vérification dans ChefAiWidget.tsx : plus de fonctions obsolètes ni de props stock/doable
 const widgetPath = path.join(__dirname, '../src/components/home-widgets/ChefAiWidget.tsx');
 const widgetContent = fs.readFileSync(widgetPath, 'utf8');
