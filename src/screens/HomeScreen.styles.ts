@@ -286,6 +286,7 @@ export const styles = createDynamicStyles((colors, shadows) => ({
   },
   resultsCountText: {
     fontSize: 12,
+    lineHeight: 16,
     color: colors.textMuted,
     fontWeight: '600',
     textTransform: 'uppercase',

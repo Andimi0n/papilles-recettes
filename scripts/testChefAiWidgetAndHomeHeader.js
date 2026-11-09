@@ -1,89 +1,71 @@
 #!/usr/bin/env node
 
 /**
- * Papilles - Test unitaire de validation de ChefAiWidget et du nettoyage de HomeScreen
+ * Papilles - Test unitaire de validation de l'intégration Chef IA dans le menu d'ajout et de HomeScreen
  * Vérifie :
- * 1. Épuration de ChefAiWidget.tsx : sous-titre fixe, plus de props stock/doable ni de fonctions d'aperçu de stock.
- * 2. Suppression stricte de stockActiveBanner et non-envoi de stockCount/stockItems/doableCount à ChefAiWidget dans HomeScreen.
+ * 1. Suppression complète de la grande carte ChefAiWidget du flux HomeScreen.
+ * 2. Intégration de l'option "Chef IA" (sparkles, "3 idées de recettes") dans le menu d'ajout (+).
+ * 3. Suppression stricte de stockActiveBanner.
+ * 4. Gestion correcte des tags dans le bandeau de filtres actifs.
  */
 
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 
-console.log('🧪 Lancement des tests de ChefAiWidget et de HomeScreen...');
+console.log('🧪 Lancement des tests de l’intégration Chef IA et de HomeScreen...');
 
-// 1. Vérification dans HomeScreen.tsx : stockActiveBanner doit être SUPPRIMÉ
 const homeScreenPath = path.join(__dirname, '../src/screens/HomeScreen.tsx');
 const homeContent = fs.readFileSync(homeScreenPath, 'utf8');
 
+// 1. Suppression stricte de stockActiveBanner
 if (homeContent.includes('stockActiveBanner')) {
   console.error('❌ Échec attendu : stockActiveBanner est toujours présent dans HomeScreen.tsx');
   process.exit(1);
 }
 
-// Vérification que HomeScreen ne passe plus stockCount, stockItems ni doableCount à ChefAiWidget
+// 2. Vérification que la grande carte ChefAiWidget est complètement retirée du flux
 assert.strictEqual(
-  homeContent.includes('stockCount={stockItems.length}'),
+  homeContent.includes('<ChefAiWidget'),
   false,
-  'HomeScreen ne doit plus passer stockCount à ChefAiWidget'
+  'HomeScreen ne doit plus afficher la grande carte ChefAiWidget'
 );
 assert.strictEqual(
-  homeContent.includes('stockItems={stockItems}') && homeContent.includes('<ChefAiWidget\n          stockItems='),
+  homeContent.includes('import { ChefAiWidget }'),
   false,
-  'HomeScreen ne doit plus passer stockItems à ChefAiWidget'
+  'HomeScreen ne doit plus importer ChefAiWidget'
 );
 
-// Vérification du masquage de ChefAiWidget lors de recherche ou filtres actifs
+// 3. Vérification de l’intégration du Chef IA dans le menu d’ajout (+)
 assert.ok(
-  homeContent.includes('shouldHideChefAiWidget') &&
-    homeContent.includes('isSearching || activeAdvancedFiltersCount > 0 || onlyDoableWithStock || onlyVegetarian') &&
-    homeContent.includes('!shouldHideChefAiWidget && (\n          <ChefAiWidget'),
-  'ChefAiWidget doit être masqué dès qu’une recherche, un filtre avancé ou un filtre rapide est actif'
+  homeContent.includes('sparkles') &&
+    homeContent.includes('Chef IA') &&
+    homeContent.includes('3 idées de recettes') &&
+    homeContent.includes('openFreshStockModal'),
+  'Le menu d’ajout (+) doit proposer l’option Chef IA avec l’icône sparkles et la description 3 idées de recettes'
 );
 
-// Vérification de la prise en compte des tags dans le bandeau des filtres actifs
+// 4. Vérification de la prise en compte des tags dans le bandeau des filtres actifs
 assert.ok(
   homeContent.includes('selectedTags.length > 0') &&
     homeContent.includes('advancedFiltersActiveBanner'),
   'Le bandeau advancedFiltersActiveBanner doit s’ouvrir avec selectedTags'
 );
 
-// Vérification du format épuré des tags (nom sans préfixe "Tags (au choix) : ")
+// 5. Vérification du format épuré des tags (nom sans préfixe "Tags (au choix) : ")
 assert.strictEqual(
   homeContent.includes("tagMatchMode === 'all' ? 'Tags (tous) : ' : 'Tags (au choix) : '"),
   false,
   'Le bandeau ne doit plus afficher le préfixe Tags (au choix) : mais juste le nom du tag'
 );
 
-// 2. Vérification dans ChefAiWidget.tsx : plus de fonctions obsolètes ni de props stock/doable
+// 6. Vérification que le composant carte orphelin n'existe plus
 const widgetPath = path.join(__dirname, '../src/components/home-widgets/ChefAiWidget.tsx');
-const widgetContent = fs.readFileSync(widgetPath, 'utf8');
-
 assert.strictEqual(
-  widgetContent.includes('formatStockPreview'),
+  fs.existsSync(widgetPath),
   false,
-  'formatStockPreview doit être supprimé de ChefAiWidget.tsx'
-);
-assert.strictEqual(
-  widgetContent.includes('getChefAiSubtitle'),
-  false,
-  'getChefAiSubtitle doit être supprimé de ChefAiWidget.tsx'
-);
-assert.strictEqual(
-  widgetContent.includes('stockCount') || widgetContent.includes('stockItems') || widgetContent.includes('doableCount'),
-  false,
-  'ChefAiWidget ne doit plus recevoir stockCount, stockItems ni doableCount'
+  'Le fichier ChefAiWidget.tsx doit être supprimé car remplacé par l’option du menu d’ajout'
 );
 
-// 3. Épuration du widget : titre, sous-titre fixe et bouton d’action
-assert.ok(
-  widgetContent.includes('Inspirations du Chef IA') &&
-    widgetContent.includes('Des idées de recettes sur-mesure à partir de vos ingrédients') &&
-    widgetContent.includes('Trouver 3 idées de recette') &&
-    widgetContent.includes('sparkles'),
-  'ChefAiWidget doit conserver uniquement le logo, le titre, le sous-titre fixe et le bouton d’action'
-);
-
-console.log('✅ Épuration du widget Chef IA et HomeScreen validée.');
-console.log('🎉 Tous les tests de ChefAiWidget et HomeScreen sont passés avec succès !');
+console.log('✅ Intégration Chef IA dans le menu d’ajout (+) et nettoyage HomeScreen validés.');
+console.log('🎉 Tous les tests sont passés avec succès !');

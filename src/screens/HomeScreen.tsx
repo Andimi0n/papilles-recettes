@@ -26,7 +26,6 @@ import { CategoryPills } from '../components/common/CategoryPills';
 import { EmptyState } from '../components/common/EmptyState';
 import { StockCookModal } from '../components/chef-ai/StockCookModal';
 import { AdvancedFiltersModal } from '../components/common/AdvancedFiltersModal';
-import { ChefAiWidget } from '../components/home-widgets/ChefAiWidget';
 import {
   searchRecipes,
   RecipeSearchResult,
@@ -650,21 +649,10 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
     forceShowFilterBar();
   };
 
-  const shouldHideChefAiWidget =
-    isSearching || activeAdvancedFiltersCount > 0 || onlyDoableWithStock || onlyVegetarian;
-
-  // En-tête de la liste défilante : Dongle Chef IA (scrollable avec la liste), bandeau frigo et résumé des résultats
+  // En-tête de la liste défilante : bandeau filtres actifs et résumé des résultats
   const listHeaderElement = useMemo(
     () => (
       <View style={styles.listHeaderContainer}>
-        {/* Widget Inspirations Chef IA (défile avec les cartes de recettes, masqué lors de recherches ou filtres actifs) */}
-        {!shouldHideChefAiWidget && (
-          <ChefAiWidget
-            onOpenChefAi={openFreshStockModal}
-            onNavigateToStock={onNavigateToStock}
-          />
-        )}
-
         {/* Bandeau filtres avancés actifs (Temps, Note, Difficulté, Ingrédients, Tags) */}
         {(targetTotalTime !== null ||
           selectedDifficulties.length > 0 ||
@@ -786,7 +774,7 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
               {isAllergenFilterEnabled && hiddenByAllergensCount > 0
                 ? ` • 🛡️ ${hiddenByAllergensCount} masquée${hiddenByAllergensCount > 1 ? 's' : ''}`
                 : ''}
-              {filteredRecipes.length > RECIPES_PER_PAGE && ` • Page ${safeCurrentPage}/${totalPages}`}
+              {filteredRecipes.length > RECIPES_PER_PAGE && `\npage ${safeCurrentPage}/${totalPages}`}
             </Text>
 
             {debouncedSearchQuery.trim().length > 0 && (
@@ -854,9 +842,6 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
       </View>
     ),
     [
-      shouldHideChefAiWidget,
-      openFreshStockModal,
-      onNavigateToStock,
       selectedIngredients,
       ingredientMatchMode,
       selectedTags,
@@ -1176,7 +1161,28 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
                   </TouchableOpacity>
                 </View>
 
-                {/* Choix 1 : Texte brut */}
+                {/* Choix 1 : Chef IA */}
+                <TouchableOpacity
+                  style={styles.addMenuOption}
+                  onPress={() => {
+                    setIsAddMenuVisible(false);
+                    openFreshStockModal();
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.addMenuIconBox, { backgroundColor: colors.secondary + '20' }]}>
+                    <Ionicons name="sparkles" size={22} color={colors.secondary} />
+                  </View>
+                  <View style={styles.addMenuTextCol}>
+                    <Text style={styles.addMenuOptionTitle}>Chef IA</Text>
+                    <Text style={styles.addMenuOptionSubtitle}>
+                      3 idées de recettes
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+                </TouchableOpacity>
+
+                {/* Choix 2 : Texte brut */}
                 <TouchableOpacity
                   style={styles.addMenuOption}
                   onPress={() => {

@@ -281,8 +281,6 @@ papilles-recettes/
     │   │   ├── SearchBar.tsx         # Barre de recherche avec filtres rapides
     │   │   ├── StarRating.tsx        # Notation par étoiles 0.5–5.0
     │   │   └── AdvancedFiltersModal.tsx # Modale de filtres multicritères
-    │   ├── home-widgets/             # Widgets du bandeau d'accueil
-    │   │   └── ChefAiWidget.tsx      # Widget accueil pour lancer le Chef IA
     │   ├── recipe-detail/            # Fiche recette & mode cuisine
     │   │   ├── CookingModeModal.tsx  # Mode cuisine pas à pas plein écran
     │   │   ├── RecipeIngredientsList.tsx
