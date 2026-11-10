@@ -1,4 +1,6 @@
 import { DayOfWeek, MealTime, PlannerMode } from '../types/planner';
+export { getFolderMosaicImages } from './folderMosaicHelper';
+export type { FolderMosaicSlotTuple, RecipePhotoCandidate } from './folderMosaicHelper';
 
 /**
  * Nettoie une chaîne de caractères (minuscule, sans accents, sans espaces superflus)
