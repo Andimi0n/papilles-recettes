@@ -27,7 +27,16 @@ async function main() {
     process.exit(1);
   }
 
-  // Mock AsyncStorage en mémoire
+  // Mock AsyncStorage & React Native en mémoire
+  const ReactNativeMock = {
+    Platform: { OS: 'ios', select: (obj) => obj.ios || obj.default },
+  };
+  try {
+    require.cache[require.resolve('react-native')] = {
+      exports: ReactNativeMock,
+    };
+  } catch {}
+
   const memoryStore = new Map();
   const AsyncStorageMock = {
     getItem: async (key) => (memoryStore.has(key) ? memoryStore.get(key) : null),
@@ -44,9 +53,14 @@ async function main() {
       return null;
     },
   };
-  require.cache[require.resolve('@react-native-async-storage/async-storage')] = {
-    exports: { default: AsyncStorageMock, ...AsyncStorageMock },
-  };
+  try {
+    require.cache[require.resolve('@react-native-async-storage/async-storage')] = {
+      id: require.resolve('@react-native-async-storage/async-storage'),
+      filename: require.resolve('@react-native-async-storage/async-storage'),
+      loaded: true,
+      exports: Object.assign(AsyncStorageMock, { default: AsyncStorageMock }),
+    };
+  } catch {}
 
   const compiledFolderPath = path.join(tmpDir, 'services/folderService.js');
   const compiledDbPath = path.join(tmpDir, 'services/databaseService.js');

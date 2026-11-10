@@ -32,6 +32,7 @@ import { DatabaseService } from './databaseService';
 import { ImageStorageService } from './imageStorageService';
 import { RecipePackService, ExtractedRecipePack } from './recipePackService';
 import { ThemeMode } from '../theme/colors';
+import { Folder, RecipeFolder } from '../types/folder';
 
 export interface RecipePackMergeResult {
   success: boolean;
@@ -89,6 +90,7 @@ let cascadeMutexQueue: Promise<any> = Promise.resolve();
 type StorageListener<T> = (items: T) => void;
 let fridgeListeners: StorageListener<FridgeItem[]>[] = [];
 let shoppingListeners: StorageListener<ShoppingItem[]>[] = [];
+let folderChangeListeners: (() => void)[] = [];
 
 // ─── Cache mémoire (performance O(1) sur les re-renders) ─────────────────────
 let memoryCache = {
@@ -96,6 +98,8 @@ let memoryCache = {
   fridgeItems: null as FridgeItem[] | null,
   shoppingList: null as ShoppingItem[] | null,
   recipeViewMode: null as RecipeViewMode | null,
+  folders: null as Folder[] | null,
+  recipeFolders: null as RecipeFolder[] | null,
 };
 
 // ─── Analytics helpers ────────────────────────────────────────────────────────
@@ -646,6 +650,7 @@ export const StorageService = {
       }
 
       await DatabaseService.deleteRecipe(id);
+      this.notifyFolderChange();
       if (memoryCache.recipes) {
         memoryCache.recipes = memoryCache.recipes.filter((r) => r.id !== id);
         return memoryCache.recipes;
@@ -1178,6 +1183,31 @@ export const StorageService = {
     return () => {
       shoppingListeners = shoppingListeners.filter((l) => l !== listener);
     };
+  },
+
+  /**
+   * Écouteur réactif des mutations des dossiers et de leurs liaisons
+   */
+  onFoldersChange(listener: () => void): () => void {
+    folderChangeListeners.push(listener);
+    return () => {
+      folderChangeListeners = folderChangeListeners.filter((l) => l !== listener);
+    };
+  },
+
+  /**
+   * Notifie tous les écouteurs de changements de dossiers ou de liaisons
+   */
+  notifyFolderChange(): void {
+    memoryCache.folders = null;
+    memoryCache.recipeFolders = null;
+    folderChangeListeners.forEach((l) => {
+      try {
+        l();
+      } catch (err) {
+        console.error('Erreur listener folder:', err);
+      }
+    });
   },
 
   /**
