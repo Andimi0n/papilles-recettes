@@ -14,9 +14,9 @@
 - [x] Task: Phase Verification & Checkpoint (Refer to workflow.md)
 
 ## Phase 2 : Composants UI Fondamentaux (FolderCard, Mosaïque 2x2 & Modales)
-- [ ] Task: Helper Pur & Tests Mosaïque
-  - [ ] Implémenter la fonction pure `getFolderMosaicImages(recipes): (string | null)[]` garantissant toujours un tableau de 4 slots
-  - [ ] Créer `scripts/testFolderMosaic.js` et ajouter `"test:folders-mosaic": "node scripts/testFolderMosaic.js"` dans `package.json`
+- [x] Task: Helper Pur & Tests Mosaïque (489275a)
+  - [x] Implémenter la fonction pure `getFolderMosaicImages(recipes): (string | null)[]` garantissant toujours un tableau de 4 slots
+  - [x] Créer `scripts/testFolderMosaic.js` et ajouter `"test:folders-mosaic": "node scripts/testFolderMosaic.js"` dans `package.json`
 - [ ] Task: Composants `FolderMosaic` & `FolderCard`
   - [ ] Créer `src/components/folders/FolderMosaic.tsx` (rendu mosaïque 2x2 basé sur les 4 slots)
   - [ ] Créer `src/components/folders/FolderCard.tsx` (mosaïque, titre, emoji, compteur, carte spéciale « Non classées »)
