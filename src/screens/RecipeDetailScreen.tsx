@@ -40,7 +40,7 @@ import { formatQuantityWithUnit } from '../constants/units';
 import { findLinkedRecipeForIngredient, getLinkedRecipesForRecipe } from '../utils/recipeLinkMatcher';
 import { VocabularyService } from '../services/vocabularyService';
 import { FridgeItem } from '../types/fridge';
-import { prepareStockItems, evaluateRecipeStock } from '../utils/stockMatcher';
+import { prepareStockItems, evaluateRecipeStock, findMatchingStockItem } from '../utils/stockMatcher';
 import {
   ConversionMode,
   convertIngredientQuantity,
@@ -157,6 +157,14 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
     StorageService.getFridgeItems()
       .then(setStockItems)
       .catch((e) => console.error('Erreur chargement stock sur RecipeDetailScreen:', e));
+
+    const unsubFridge = StorageService.onFridgeChange((items) => {
+      setStockItems(items);
+    });
+
+    return () => {
+      unsubFridge();
+    };
   }, []);
 
   const stockEvaluation = useMemo(() => {
@@ -473,8 +481,13 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
   const [qualifyModalTarget, setQualifyModalTarget] = useState<Ingredient | null>(null);
   const [isQualifyModalVisible, setIsQualifyModalVisible] = useState(false);
 
-  // Snackbar de confirmation lors du swipe vers les courses
-  const [shoppingSnackbar, setShoppingSnackbar] = useState<{ name: string } | null>(null);
+  // Snackbar de confirmation lors du swipe (courses ou retrait stock)
+  interface DetailSnackbarState {
+    type: 'shopping' | 'stock_removed';
+    name: string;
+    removedItem?: FridgeItem;
+  }
+  const [detailSnackbar, setDetailSnackbar] = useState<DetailSnackbarState | null>(null);
   const [snackbarFadeAnim] = useState(() => new Animated.Value(0));
   const snackbarTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -483,7 +496,7 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
       clearTimeout(snackbarTimerRef.current);
       snackbarTimerRef.current = null;
     }
-    setShoppingSnackbar({ name: ingredient.name });
+    setDetailSnackbar({ type: 'shopping', name: ingredient.name });
     snackbarFadeAnim.setValue(0);
     Animated.timing(snackbarFadeAnim, {
       toValue: 1,
@@ -497,9 +510,50 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
         duration: 200,
         useNativeDriver: true,
       }).start(() => {
-        setShoppingSnackbar(null);
+        setDetailSnackbar(null);
       });
     }, 3500);
+  };
+
+  const showStockRemovedSnackbar = (ingredient: Ingredient, removedItem: FridgeItem) => {
+    if (snackbarTimerRef.current) {
+      clearTimeout(snackbarTimerRef.current);
+      snackbarTimerRef.current = null;
+    }
+    setDetailSnackbar({
+      type: 'stock_removed',
+      name: removedItem.name || ingredient.name,
+      removedItem,
+    });
+    snackbarFadeAnim.setValue(0);
+    Animated.timing(snackbarFadeAnim, {
+      toValue: 1,
+      duration: 220,
+      useNativeDriver: true,
+    }).start();
+
+    snackbarTimerRef.current = setTimeout(() => {
+      Animated.timing(snackbarFadeAnim, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }).start(() => {
+        setDetailSnackbar(null);
+      });
+    }, 3500);
+  };
+
+  const handleUndoRemoveStock = async (item: FridgeItem) => {
+    handleDismissSnackbar();
+    try {
+      const current = await StorageService.getFridgeItems();
+      if (!current.some((it) => it.id === item.id)) {
+        const updated = await StorageService.saveFridgeItems([...current, item]);
+        setStockItems(updated);
+      }
+    } catch (e) {
+      console.error('Erreur annulation retrait stock:', e);
+    }
   };
 
   const handleDismissSnackbar = () => {
@@ -512,11 +566,42 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
       duration: 180,
       useNativeDriver: true,
     }).start(() => {
-      setShoppingSnackbar(null);
+      setDetailSnackbar(null);
     });
   };
 
-  // Action swipe droit 1 : ingrédient dans le lexique -> envoyé aux courses
+  // Action swipe droit 1 : ingrédient en stock -> retirer du stock
+  const handleRemoveIngredientFromStock = async (ingredient: Ingredient) => {
+    try {
+      const targetItem = findMatchingStockItem(
+        ingredient,
+        stockItems,
+        stockEvaluation ? prepareStockItems(stockItems) : undefined
+      );
+
+      if (!targetItem) {
+        // Fallback si non trouvé directement : recherche par nom normalisé ou id
+        const normName = normalizeString(ingredient.name);
+        const fallback = stockItems.find(
+          (it) => it.id === ingredient.id || normalizeString(it.name) === normName
+        );
+        if (fallback) {
+          const updated = await StorageService.removeFridgeItem(fallback.id);
+          setStockItems(updated);
+          showStockRemovedSnackbar(ingredient, fallback);
+        }
+        return;
+      }
+
+      const updated = await StorageService.removeFridgeItem(targetItem.id);
+      setStockItems(updated);
+      showStockRemovedSnackbar(ingredient, targetItem);
+    } catch (_e) {
+      Alert.alert('Erreur', "Impossible de retirer cet aliment de vos étagères.");
+    }
+  };
+
+  // Action swipe droit 2 : ingrédient dans le lexique (hors stock) -> envoyé aux courses
   const handleSwipeIngredientToShopping = async (ingredient: Ingredient) => {
     try {
       const { addedCount } = await StorageService.addRecipeToShoppingList(
@@ -951,6 +1036,7 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
             linkedRecipesMap={linkedRecipesMap}
             onOpenLinkedRecipe={onOpenLinkedRecipe}
             onSwipeIngredientToShopping={handleSwipeIngredientToShopping}
+            onRemoveIngredientFromStock={handleRemoveIngredientFromStock}
             onQualifyIngredient={handleQualifyIngredient}
           />
 
@@ -1405,8 +1491,8 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
           />
         )}
 
-        {/* Barre Snackbar de confirmation d'ajout aux courses */}
-        {shoppingSnackbar && (
+        {/* Barre Snackbar de confirmation d'action (courses ou retrait stock) */}
+        {detailSnackbar && (
           <Animated.View
             style={[
               styles.snackbarContainer,
@@ -1425,13 +1511,19 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
           >
             <View style={styles.snackbarContent}>
               <View style={styles.snackbarLeft}>
-                <Ionicons name="cart-outline" size={18} color="#FFFFFF" />
+                <Ionicons
+                  name={detailSnackbar.type === 'shopping' ? 'cart-outline' : 'trash-outline'}
+                  size={18}
+                  color="#FFFFFF"
+                />
                 <Text style={styles.snackbarText} numberOfLines={1}>
-                  « {shoppingSnackbar.name} » ajouté aux courses
+                  {detailSnackbar.type === 'shopping'
+                    ? `« ${detailSnackbar.name} » ajouté aux courses`
+                    : `« ${detailSnackbar.name} » retiré du stock`}
                 </Text>
               </View>
               <View style={styles.snackbarActions}>
-                {onNavigateToShoppingList && (
+                {detailSnackbar.type === 'shopping' && onNavigateToShoppingList ? (
                   <TouchableOpacity
                     style={styles.snackbarUndoBtn}
                     onPress={onNavigateToShoppingList}
@@ -1439,7 +1531,15 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
                   >
                     <Text style={styles.snackbarUndoText}>Voir</Text>
                   </TouchableOpacity>
-                )}
+                ) : detailSnackbar.type === 'stock_removed' && detailSnackbar.removedItem ? (
+                  <TouchableOpacity
+                    style={styles.snackbarUndoBtn}
+                    onPress={() => handleUndoRemoveStock(detailSnackbar.removedItem!)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.snackbarUndoText}>Annuler</Text>
+                  </TouchableOpacity>
+                ) : null}
                 <TouchableOpacity
                   style={styles.snackbarCloseBtn}
                   onPress={handleDismissSnackbar}

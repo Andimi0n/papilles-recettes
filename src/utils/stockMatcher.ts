@@ -11,6 +11,7 @@ export interface MatchedStockIngredient {
   isOptional: boolean;
   matchedBy: 'stock' | 'staple' | 'optional';
   matchedStockItemName?: string;
+  matchedStockItemId?: string;
 }
 
 export interface RecipeStockEvaluation {
@@ -36,6 +37,11 @@ export interface PreparedStock {
   normalizedNameMap: Map<string, string>;
   stemmedNameMap: Map<string, string>;
   wordsMap: Map<string, string>;
+  canonicalIdToItemIdMap?: Map<string, string>;
+  canonicalNameToItemIdMap?: Map<string, string>;
+  normalizedNameToItemIdMap?: Map<string, string>;
+  stemmedNameToItemIdMap?: Map<string, string>;
+  wordsToItemIdMap?: Map<string, string>;
 }
 
 // Compatibilité descendante de type
@@ -52,12 +58,19 @@ export function prepareStockItems(stockItems: FridgeItem[]): PreparedStock {
   const stemmedNameMap = new Map<string, string>();
   const wordsMap = new Map<string, string>();
 
+  const canonicalIdToItemIdMap = new Map<string, string>();
+  const canonicalNameToItemIdMap = new Map<string, string>();
+  const normalizedNameToItemIdMap = new Map<string, string>();
+  const stemmedNameToItemIdMap = new Map<string, string>();
+  const wordsToItemIdMap = new Map<string, string>();
+
   stockItems.forEach((item) => {
     const rawName = item.name.trim();
     if (!rawName) return;
 
     if (item.canonicalId) {
       canonicalIdMap.set(item.canonicalId, rawName);
+      if (item.id) canonicalIdToItemIdMap.set(item.canonicalId, item.id);
     }
 
     const norm = normalizeIngredient({ name: rawName, canonicalId: item.canonicalId });
@@ -67,10 +80,16 @@ export function prepareStockItems(stockItems: FridgeItem[]): PreparedStock {
 
     if (norm.canonicalId) {
       canonicalIdMap.set(norm.canonicalId, rawName);
+      if (item.id) canonicalIdToItemIdMap.set(norm.canonicalId, item.id);
     }
     canonicalNameMap.set(cName.toLowerCase(), rawName);
+    if (item.id) canonicalNameToItemIdMap.set(cName.toLowerCase(), item.id);
+
     normalizedNameMap.set(normStr, rawName);
+    if (item.id) normalizedNameToItemIdMap.set(normStr, item.id);
+
     stemmedNameMap.set(stemmed, rawName);
+    if (item.id) stemmedNameToItemIdMap.set(stemmed, item.id);
 
     // Indexation par mot entier significatif (>= 3 lettres)
     const words = normStr.split(/\s+/);
@@ -78,6 +97,10 @@ export function prepareStockItems(stockItems: FridgeItem[]): PreparedStock {
       if (w.length >= 3) {
         wordsMap.set(w, rawName);
         wordsMap.set(stemWord(w), rawName);
+        if (item.id) {
+          wordsToItemIdMap.set(w, item.id);
+          wordsToItemIdMap.set(stemWord(w), item.id);
+        }
       }
     });
 
@@ -86,6 +109,10 @@ export function prepareStockItems(stockItems: FridgeItem[]): PreparedStock {
       if (t.length >= 3) {
         wordsMap.set(t, rawName);
         wordsMap.set(stemWord(t), rawName);
+        if (item.id) {
+          wordsToItemIdMap.set(t, item.id);
+          wordsToItemIdMap.set(stemWord(t), item.id);
+        }
       }
     });
   });
@@ -97,6 +124,11 @@ export function prepareStockItems(stockItems: FridgeItem[]): PreparedStock {
     normalizedNameMap,
     stemmedNameMap,
     wordsMap,
+    canonicalIdToItemIdMap,
+    canonicalNameToItemIdMap,
+    normalizedNameToItemIdMap,
+    stemmedNameToItemIdMap,
+    wordsToItemIdMap,
   };
 }
 
@@ -107,7 +139,7 @@ export function isIngredientInStock(
   ing: Ingredient,
   preparedStock: PreparedStock,
   precomputedNorm?: NormalizationResult
-): { inStock: boolean; matchedStockName?: string } {
+): { inStock: boolean; matchedStockName?: string; matchedStockItemId?: string } {
   if (!preparedStock || preparedStock.items.length === 0) {
     return { inStock: false };
   }
@@ -118,6 +150,7 @@ export function isIngredientInStock(
       return {
         inStock: true,
         matchedStockName: preparedStock.canonicalIdMap.get(ing.canonicalId),
+        matchedStockItemId: preparedStock.canonicalIdToItemIdMap?.get(ing.canonicalId),
       };
     }
     // Règle culinaire hiérarchique : des œufs entiers en stock couvrent jaune d'œuf et blanc d'œuf
@@ -128,6 +161,7 @@ export function isIngredientInStock(
       return {
         inStock: true,
         matchedStockName: preparedStock.canonicalIdMap.get('ing_canon_ufs'),
+        matchedStockItemId: preparedStock.canonicalIdToItemIdMap?.get('ing_canon_ufs'),
       };
     }
   }
@@ -149,6 +183,7 @@ export function isIngredientInStock(
       return {
         inStock: true,
         matchedStockName: preparedStock.canonicalIdMap.get(normIng.canonicalId),
+        matchedStockItemId: preparedStock.canonicalIdToItemIdMap?.get(normIng.canonicalId),
       };
     }
     // Règle culinaire hiérarchique : des œufs entiers en stock couvrent jaune d'œuf et blanc d'œuf
@@ -159,6 +194,7 @@ export function isIngredientInStock(
       return {
         inStock: true,
         matchedStockName: preparedStock.canonicalIdMap.get('ing_canon_ufs'),
+        matchedStockItemId: preparedStock.canonicalIdToItemIdMap?.get('ing_canon_ufs'),
       };
     }
   }
@@ -169,6 +205,7 @@ export function isIngredientInStock(
     return {
       inStock: true,
       matchedStockName: preparedStock.canonicalNameMap.get(lowerName),
+      matchedStockItemId: preparedStock.canonicalNameToItemIdMap?.get(lowerName),
     };
   }
 
@@ -178,6 +215,7 @@ export function isIngredientInStock(
     return {
       inStock: true,
       matchedStockName: preparedStock.normalizedNameMap.get(ingNormStr),
+      matchedStockItemId: preparedStock.normalizedNameToItemIdMap?.get(ingNormStr),
     };
   }
 
@@ -187,6 +225,7 @@ export function isIngredientInStock(
     return {
       inStock: true,
       matchedStockName: preparedStock.stemmedNameMap.get(ingStemmed),
+      matchedStockItemId: preparedStock.stemmedNameToItemIdMap?.get(ingStemmed),
     };
   }
 
@@ -199,6 +238,7 @@ export function isIngredientInStock(
           return {
             inStock: true,
             matchedStockName: preparedStock.wordsMap.get(w),
+            matchedStockItemId: preparedStock.wordsToItemIdMap?.get(w),
           };
         }
         const stemW = stemWord(w);
@@ -206,6 +246,7 @@ export function isIngredientInStock(
           return {
             inStock: true,
             matchedStockName: preparedStock.wordsMap.get(stemW),
+            matchedStockItemId: preparedStock.wordsToItemIdMap?.get(stemW),
           };
         }
       }
@@ -258,6 +299,7 @@ export function evaluateRecipeStock(
         isOptional: true,
         matchedBy: stockCheck.inStock ? 'stock' : 'optional',
         matchedStockItemName: stockCheck.matchedStockName,
+        matchedStockItemId: stockCheck.matchedStockItemId,
       });
       continue;
     }
@@ -274,6 +316,7 @@ export function evaluateRecipeStock(
         isOptional: false,
         matchedBy: 'stock',
         matchedStockItemName: stockCheck.matchedStockName,
+        matchedStockItemId: stockCheck.matchedStockItemId,
       });
       continue;
     }
@@ -404,4 +447,31 @@ export function filterDoableRecipes(
   if (stockItems.length === 0 || recipes.length === 0) return [];
   const evaluations = evaluateRecipesWithStock(recipes, stockItems, options);
   return recipes.filter((r) => evaluations.get(r.id)?.isDoable);
+}
+
+/**
+ * Retrouve l'élément de stock (FridgeItem) correspondant à un ingrédient de recette.
+ */
+export function findMatchingStockItem(
+  ing: Ingredient,
+  stockItems: FridgeItem[],
+  preparedStock?: PreparedStock
+): FridgeItem | null {
+  if (!stockItems || stockItems.length === 0) return null;
+  const prep = preparedStock || prepareStockItems(stockItems);
+  const check = isIngredientInStock(ing, prep);
+  if (!check.inStock) return null;
+
+  if (check.matchedStockItemId) {
+    const found = stockItems.find((it) => it.id === check.matchedStockItemId);
+    if (found) return found;
+  }
+  if (check.matchedStockName) {
+    const lowerMatched = check.matchedStockName.trim().toLowerCase();
+    const found = stockItems.find(
+      (it) => it.name.trim().toLowerCase() === lowerMatched
+    );
+    if (found) return found;
+  }
+  return null;
 }

@@ -41,6 +41,7 @@ export interface RecipeIngredientsListProps {
   linkedRecipesMap: Map<string, Recipe>;
   onOpenLinkedRecipe?: (recipeId: string) => void;
   onSwipeIngredientToShopping: (ingredient: Ingredient) => void;
+  onRemoveIngredientFromStock?: (ingredient: Ingredient) => void;
   onQualifyIngredient: (ingredient: Ingredient) => void;
 }
 
@@ -59,6 +60,7 @@ export const RecipeIngredientsList: React.FC<RecipeIngredientsListProps> = ({
   linkedRecipesMap,
   onOpenLinkedRecipe,
   onSwipeIngredientToShopping,
+  onRemoveIngredientFromStock,
   onQualifyIngredient,
 }) => {
   const { colors, isDark } = useTheme();
@@ -69,6 +71,19 @@ export const RecipeIngredientsList: React.FC<RecipeIngredientsListProps> = ({
     if (!stockEvaluation) return set;
     for (const m of stockEvaluation.matchedIngredients) {
       if (m.matchedBy === 'stock' || m.matchedBy === 'staple') {
+        if (m.ingredient.id) set.add(m.ingredient.id);
+        set.add(normalizeString(m.ingredient.name));
+      }
+    }
+    return set;
+  }, [stockEvaluation]);
+
+  // Set des identifiants et noms d'ingrédients physiquement présents en stock
+  const physicalStockIngredientIds = useMemo(() => {
+    const set = new Set<string>();
+    if (!stockEvaluation) return set;
+    for (const m of stockEvaluation.matchedIngredients) {
+      if (m.matchedBy === 'stock') {
         if (m.ingredient.id) set.add(m.ingredient.id);
         set.add(normalizeString(m.ingredient.name));
       }
@@ -194,6 +209,9 @@ export const RecipeIngredientsList: React.FC<RecipeIngredientsListProps> = ({
             const isInStock =
               inStockIngredientIds.has(ing.id) ||
               inStockIngredientIds.has(normalizeString(ing.name));
+            const isPhysicallyInStock =
+              physicalStockIngredientIds.has(ing.id) ||
+              physicalStockIngredientIds.has(normalizeString(ing.name));
 
             // Couleurs bien tranchées pour éviter toute confusion entre ambre et rouge :
             // - Vert clair pour le stock disponible
@@ -212,12 +230,15 @@ export const RecipeIngredientsList: React.FC<RecipeIngredientsListProps> = ({
               <SwipeableRecipeIngredientRow
                 key={ing.id}
                 isRecognized={isRecognized}
+                isInStock={isPhysicallyInStock}
                 indicatorColor={barColor}
                 showIndicator={!isPantry}
                 isFirst={isFirst}
                 isLast={isLast}
                 onSwipeRight={() => {
-                  if (isRecognized) {
+                  if (isPhysicallyInStock) {
+                    onRemoveIngredientFromStock?.(ing);
+                  } else if (isRecognized) {
                     onSwipeIngredientToShopping(ing);
                   } else {
                     onQualifyIngredient(ing);

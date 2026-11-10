@@ -12,6 +12,7 @@ export interface SwipeableRecipeIngredientRowProps {
   children: React.ReactNode;
   onSwipeRight: () => void;
   isRecognized: boolean;
+  isInStock?: boolean;
   indicatorColor?: string;
   showIndicator?: boolean;
   isFirst?: boolean;
@@ -22,6 +23,7 @@ export const SwipeableRecipeIngredientRow: React.FC<SwipeableRecipeIngredientRow
   children,
   onSwipeRight,
   isRecognized,
+  isInStock = false,
   indicatorColor = '#16A34A',
   showIndicator = true,
   isFirst = false,
@@ -133,11 +135,18 @@ export const SwipeableRecipeIngredientRow: React.FC<SwipeableRecipeIngredientRow
         !isLast && styles.swipeRowBorder,
       ]}
     >
-      {/* Fond d'action révélé par le swipe vers la droite : vert si dans le lexique, ambre si hors-lexique */}
+      {/* Fond d'action révélé par le swipe vers la droite :
+          - Rouge si déjà en stock -> Retirer du stock
+          - Vert si reconnu et manquant -> Vers les courses
+          - Ambre si hors-lexique -> Ajouter au lexique */}
       <View
         style={[
           styles.swipeHiddenActionWrap,
-          !isRecognized && styles.swipeHiddenActionWrapUnrecognized,
+          isInStock
+            ? styles.swipeHiddenActionWrapInStock
+            : !isRecognized
+            ? styles.swipeHiddenActionWrapUnrecognized
+            : null,
         ]}
       >
         <Animated.View
@@ -153,12 +162,22 @@ export const SwipeableRecipeIngredientRow: React.FC<SwipeableRecipeIngredientRow
           ]}
         >
           <Ionicons
-            name={isRecognized ? 'cart-outline' : 'sparkles'}
+            name={
+              isInStock
+                ? 'trash-outline'
+                : isRecognized
+                ? 'cart-outline'
+                : 'sparkles'
+            }
             size={20}
             color="#FFFFFF"
           />
           <Text style={styles.swipeActionText}>
-            {isRecognized ? 'Vers les courses' : 'Ajouter au lexique'}
+            {isInStock
+              ? 'Retirer du stock'
+              : isRecognized
+              ? 'Vers les courses'
+              : 'Ajouter au lexique'}
           </Text>
         </Animated.View>
       </View>
@@ -209,6 +228,9 @@ const styles = createDynamicStyles((colors) => ({
     alignItems: 'flex-start',
     backgroundColor: '#16A34A',
     paddingLeft: 18,
+  },
+  swipeHiddenActionWrapInStock: {
+    backgroundColor: '#DC2626',
   },
   swipeHiddenActionWrapUnrecognized: {
     backgroundColor: '#D97706',

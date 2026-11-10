@@ -58,6 +58,11 @@ async function main() {
   const { StorageService } = require(path.join(tmpDir, 'services/storageService.js'));
   const { UnifiedIngredientService } = require(path.join(tmpDir, 'services/unifiedIngredientService.js'));
   const { VocabularyService } = require(path.join(tmpDir, 'services/vocabularyService.js'));
+  const {
+    prepareStockItems,
+    evaluateRecipeStock,
+    findMatchingStockItem,
+  } = require(path.join(tmpDir, 'utils/stockMatcher.js'));
 
   console.log('🧪 Lancement des tests de swipe d\'ingrédients dans RecipeDetail...');
 
@@ -157,6 +162,58 @@ async function main() {
   );
   assert.strictEqual(isRecognizedAfterQualify, true, 'L\'ingrédient qualifié doit désormais être reconnu');
   console.log('✓ Après qualification, l\'ingrédient est immédiatement reconnu dans le lexique');
+
+  // --- Test 5 : Swipe droit sur un ingrédient en stock -> Retrait du stock (au lieu d'envoyer aux courses) ---
+  console.log('\n--- Test 5 : Swipe droit d\'un ingrédient en stock -> Retrait du stock ---');
+  // Stock initial avec du Poulet
+  const initialStock = [
+    { id: 'stock_poulet_1', name: 'Filet de poulet', canonicalId: 'ing_canon_poulet' },
+  ];
+  await StorageService.saveFridgeItems(initialStock);
+  const currentFridge = await StorageService.getFridgeItems();
+  assert.strictEqual(currentFridge.length, 1, 'Le stock doit contenir 1 élément au départ');
+
+  // Évaluation stock de la recette
+  const preparedStockBefore = prepareStockItems(currentFridge);
+  const stockEvalBefore = evaluateRecipeStock(testRecipe, preparedStockBefore);
+  const pouletIng = testRecipe.ingredients[1]; // Filet de poulet
+
+  const matchedPoulet = stockEvalBefore.matchedIngredients.find(
+    (m) => m.ingredient.id === pouletIng.id
+  );
+  assert.ok(matchedPoulet, 'Le poulet doit être matché');
+  assert.strictEqual(matchedPoulet.matchedBy, 'stock', 'Le poulet doit être matché par stock');
+  assert.strictEqual(matchedPoulet.matchedStockItemId, 'stock_poulet_1', 'L\'ID de stock matché doit être stock_poulet_1');
+
+  // Retrouver l'item de stock via findMatchingStockItem
+  const foundStockItem = findMatchingStockItem(pouletIng, currentFridge, preparedStockBefore);
+  assert.ok(foundStockItem, 'findMatchingStockItem doit retrouver l\'élément en stock');
+  assert.strictEqual(foundStockItem.id, 'stock_poulet_1', 'L\'élément retrouvé doit correspondre à stock_poulet_1');
+
+  // Action : suppression du stock lors du swipe
+  const initialShoppingLength = (await StorageService.getShoppingList()).length;
+  await StorageService.removeFridgeItem(foundStockItem.id);
+
+  // Vérification que le stock est désormais vide
+  const fridgeAfter = await StorageService.getFridgeItems();
+  assert.strictEqual(fridgeAfter.length, 0, 'Le stock ne doit plus contenir le poulet');
+
+  // Vérification que la liste de courses n'a PAS augmenté (aucun envoi aux courses)
+  const shoppingAfter = await StorageService.getShoppingList();
+  assert.strictEqual(
+    shoppingAfter.length,
+    initialShoppingLength,
+    'La liste de courses ne doit pas avoir reçu d\'article lors du retrait de stock'
+  );
+
+  // Vérification après réévaluation : le poulet est désormais manquant dans le stock
+  const preparedStockAfter = prepareStockItems(fridgeAfter);
+  const stockEvalAfter = evaluateRecipeStock(testRecipe, preparedStockAfter);
+  const matchedPouletAfter = stockEvalAfter.matchedIngredients.find(
+    (m) => m.ingredient.id === pouletIng.id && m.matchedBy === 'stock'
+  );
+  assert.strictEqual(matchedPouletAfter, undefined, 'Le poulet ne doit plus être matché en stock');
+  console.log('✓ Ingrédient en stock correctement retiré du stock sans envoi vers les courses');
 
   // Nettoyage tmpDir
   try {
