@@ -17,9 +17,9 @@
 - [x] Task: Helper Pur & Tests Mosaïque (489275a)
   - [x] Implémenter la fonction pure `getFolderMosaicImages(recipes): (string | null)[]` garantissant toujours un tableau de 4 slots
   - [x] Créer `scripts/testFolderMosaic.js` et ajouter `"test:folders-mosaic": "node scripts/testFolderMosaic.js"` dans `package.json`
-- [ ] Task: Composants `FolderMosaic` & `FolderCard`
-  - [ ] Créer `src/components/folders/FolderMosaic.tsx` (rendu mosaïque 2x2 basé sur les 4 slots)
-  - [ ] Créer `src/components/folders/FolderCard.tsx` (mosaïque, titre, emoji, compteur, carte spéciale « Non classées »)
+- [x] Task: Composants `FolderMosaic` & `FolderCard` (85f5b42)
+  - [x] Créer `src/components/folders/FolderMosaic.tsx` (rendu mosaïque 2x2 basé sur les 4 slots)
+  - [x] Créer `src/components/folders/FolderCard.tsx` (mosaïque, titre, emoji, compteur, carte spéciale « Non classées »)
 - [ ] Task: Modales de Gestion de Dossiers
   - [ ] Créer `CreateEditFolderModal.tsx` (création/renommage avec sélecteur d'emojis culinaires)
   - [ ] Créer la confirmation de suppression sécurisée rappelant la préservation des recettes
