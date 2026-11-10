@@ -94,20 +94,27 @@ async function main() {
   assert.strictEqual(promptRefus.sanitizedRejectedTitles[0], 'Recette Rejetée 6', 'Doit conserver les 15 plus récents (FIFO)');
   assert.strictEqual(promptRefus.sanitizedRejectedTitles[14], 'Recette Rejetée 20');
 
-  // 5. Test rejet si stock totalement vide
-  console.log('  5. Vérification de validation stock vide...');
-  assert.throws(
-    () => {
-      buildChefRecipeIdeasPrompt({
-        primaryIngredients: [],
-        optionalIngredients: [],
-      });
-    },
-    /Veuillez sélectionner au moins un ingrédient/,
-    'Doit lever une exception si aucun ingrédient'
-  );
+  // 5. Test mode inspiration libre / carte blanche sans aucun ingrédient
+  console.log('  5. Vérification du mode carte blanche (aucun ingrédient fourni)...');
+  const promptCarteBlanche = buildChefRecipeIdeasPrompt({
+    primaryIngredients: [],
+    optionalIngredients: [],
+    mealType: 'Plat',
+  });
+  assert(promptCarteBlanche.systemPrompt.includes('inspiration libre'), 'Doit indiquer le mode inspiration libre dans le systemPrompt');
+  assert(promptCarteBlanche.userPayload.includes('inspiration libre') || promptCarteBlanche.userPayload.includes('carte blanche'), 'Doit indiquer carte blanche dans le userPayload');
+  assert.strictEqual(promptCarteBlanche.primaryIngredients.length, 0, 'primaryIngredients doit être vide');
+  assert.strictEqual(promptCarteBlanche.optionalIngredients.length, 0, 'optionalIngredients doit être vide');
+  assert.strictEqual(promptCarteBlanche.isVegeGuaranteed, true, 'isVegeGuaranteed doit être true sans viande spécifiée');
+  console.log('✓ Mode carte blanche sans ingrédient validé avec succès');
 
   console.log('✅ Tous les tests de buildChefRecipeIdeasPrompt ont réussi avec succès !');
+
+  // Nettoyage du répertoire temporaire
+  try {
+    const fs = require('fs');
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  } catch {}
 }
 
 main().catch((err) => {

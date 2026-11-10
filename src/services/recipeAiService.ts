@@ -1059,10 +1059,7 @@ export function buildChefRecipeIdeasPrompt(
 ): BuiltChefRecipeIdeasPrompt {
   const primary = (options.primaryIngredients || []).map((i) => i.trim()).filter(Boolean).slice(0, 50);
   const optional = (options.optionalIngredients || []).map((i) => i.trim()).filter(Boolean).slice(0, 50);
-
-  if (primary.length === 0 && optional.length === 0) {
-    throw new Error('Veuillez sélectionner au moins un ingrédient de votre réfrigérateur.');
-  }
+  const isFreeInspiration = primary.length === 0 && optional.length === 0;
 
   const targetType = options.mealType || 'Plat';
   const isStrictVege = options.onlyVegetarian ?? false;
@@ -1128,14 +1125,26 @@ export function buildChefRecipeIdeasPrompt(
 
   const systemPrompt = `${moodConfig.systemPersona}
 
-Ta mission : proposer exactement 3 idées de ${targetType} adaptées aux ingrédients disponibles (fond de placard supposé disponible : sel, poivre, huiles courantes, beurre, vinaigre, eau, ail/oignon sec, herbes et épices courantes).
+Ta mission : proposer exactement 3 idées de ${targetType} ${
+    isFreeInspiration
+      ? 'originales, savoureuses et variées en inspiration libre (carte blanche totale, aucun ingrédient imposé).'
+      : 'adaptées aux ingrédients disponibles (fond de placard supposé disponible : sel, poivre, huiles courantes, beurre, vinaigre, eau, ail/oignon sec, herbes et épices courantes).'
+  }
 
 Règles strictes :
 1. ${dietaryRule}
 ${allergenExclusionSection}${antiRedundancySection}2. GESTION DES INGRÉDIENTS :
-- Ingrédients obligatoires (s'il y en a) : doivent obligatoirement être utilisés et mis en valeur dans les recettes.
-- Ingrédients optionnels : peuvent être utilisés comme compléments ou accompagnements selon la pertinence de chaque idée.
-3. ÉQUITÉ DU PANIER : Pioche de façon variée dans toute la liste d'ingrédients. Les 3 idées doivent être bien distinctes les unes des autres.
+${
+  isFreeInspiration
+    ? `- INSPIRATION LIBRE : Aucun ingrédient n'est imposé par l'utilisateur. Imagine librement des recettes savoureuses et cohérentes avec des ingrédients courants et faciles à trouver.`
+    : `- Ingrédients obligatoires (s'il y en a) : doivent obligatoirement être utilisés et mis en valeur dans les recettes.
+- Ingrédients optionnels : peuvent être utilisés comme compléments ou accompagnements selon la pertinence de chaque idée.`
+}
+3. ${isFreeInspiration ? 'VARIÉTÉ' : 'ÉQUITÉ DU PANIER'} : ${
+    isFreeInspiration
+      ? 'Les 3 idées doivent être bien distinctes les unes des autres (ingrédients phares et techniques culinaires variés).'
+      : "Pioche de façon variée dans toute la liste d'ingrédients. Les 3 idées doivent être bien distinctes les unes des autres."
+  }
 4. TITRES : courts, sobres et précis (ex: "Poêlée de gnocchis aux champignons"). Interdiction formelle d'utiliser des adjectifs vendeurs ou pompeux ("délicieux", "gourmand", "sublime", "onctueux", "parfait").
 5. DESCRIPTIONS : 1 seule phrase factuelle résumant la technique de préparation et l'assemblage.
 6. TEMPS ESTIMÉ : cohérent avec ton style culinaire.`;
@@ -1164,14 +1173,19 @@ ${sanitizedOptional.join(', ')}
 <untrusted_primary_ingredients>
 ${sanitizedPrimary.join(', ')}
 </untrusted_primary_ingredients>`;
-  } else {
+  } else if (sanitizedOptional.length > 0) {
     stockSection = `Ingrédients disponibles (tous optionnels) :
 <untrusted_optional_ingredients>
 ${sanitizedOptional.join(', ')}
 </untrusted_optional_ingredients>`;
+  } else {
+    stockSection = `Aucun ingrédient spécifique imposé (carte blanche / inspiration libre).`;
   }
 
-  const userPayload = `${moodConfig.userDirective} (catégorie : "${targetType}") à partir de ce stock :
+  const userPayload = isFreeInspiration
+    ? `${moodConfig.userDirective} (catégorie : "${targetType}") en inspiration libre (carte blanche, aucun ingrédient imposé) :
+${stockSection}${options.additionalPreferences ? `\nPréférences supplémentaires : ${escapeUntrustedDelimiters(options.additionalPreferences.slice(0, 150), 'untrusted_user_preferences')}` : ''}`
+    : `${moodConfig.userDirective} (catégorie : "${targetType}") à partir de ce stock :
 ${stockSection}${options.additionalPreferences ? `\nPréférences supplémentaires : ${escapeUntrustedDelimiters(options.additionalPreferences.slice(0, 150), 'untrusted_user_preferences')}` : ''}`;
 
   return {
@@ -1950,10 +1964,13 @@ ${isVege ? '- RÉGIME : 100% végétarien obligatoire (sans viande ni poisson).\
     const sanitizedIngredients = relevantIngredients.map((i) =>
       escapeUntrustedDelimiters(i.slice(0, 100), 'untrusted_fridge_ingredients')
     );
-    const userPayload = `Rédige cette recette (mode "${moodConfig.label}") en piochant parmi les ingrédients suivants :
+    const userPayload =
+      sanitizedIngredients.length > 0
+        ? `Rédige cette recette (mode "${moodConfig.label}") en piochant parmi les ingrédients suivants :
 <untrusted_fridge_ingredients>
 ${sanitizedIngredients.join(', ')}
-</untrusted_fridge_ingredients>`;
+</untrusted_fridge_ingredients>`
+        : `Rédige la fiche recette complète avec les ingrédients et les étapes nécessaires pour réaliser cette recette (mode "${moodConfig.label}").`;
 
     // Journalisation explicite du prompt envoyé à l'IA pour la recette complète
     console.log('\n======================================================================');

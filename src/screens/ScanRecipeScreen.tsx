@@ -1032,14 +1032,6 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
   const activeCount = primaryIngredients.length + optionalIngredients.length;
 
   const handleStartFetchIdeas = async () => {
-    if (primaryIngredients.length === 0 && optionalIngredients.length === 0) {
-      Alert.alert(
-        'Aucun ingrédient sélectionné',
-        'Veuillez ajouter au moins un ingrédient obligatoire ou optionnel pour inspirer le Chef IA.'
-      );
-      return;
-    }
-
     const key = await RecipeAiService.getApiKey();
     if (!key) {
       setIsApiKeyModalVisible(true);
@@ -1222,7 +1214,9 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
         isVegetarian: generated.isVegetarian ?? isVegetarian,
         userNote:
           generated.userNote ||
-          `Recette inédite créée par le Chef IA avec vos aliments : ${allChosenIngredients.join(', ')}`,
+          (allChosenIngredients.length > 0
+            ? `Recette inédite créée par le Chef IA avec vos aliments : ${allChosenIngredients.join(', ')}`
+            : 'Recette inédite créée par le Chef IA en inspiration libre'),
         rating: 0,
         isFavorite: false,
         ingredients: generated.ingredients.map((ing, idx) => ({
@@ -2001,7 +1995,9 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
                   <Text style={styles.aiLoadingHint}>
                     {doableRecipesForCurrentType.length > 0
                       ? `Anti-doublon : ${doableRecipesForCurrentType.length} ${mealType.toLowerCase()}${doableRecipesForCurrentType.length > 1 ? 's' : ''} faisable${doableRecipesForCurrentType.length > 1 ? 's' : ''} dans votre carnet ${doableRecipesForCurrentType.length > 1 ? (mealType === 'Entrée' || mealType === 'Boisson' ? 'seront évitées' : 'seront évités') : (mealType === 'Entrée' || mealType === 'Boisson' ? 'sera évitée' : 'sera évité')}`
-                      : 'Génération originale adaptée à vos denrées en stock'}
+                      : activeCount > 0
+                        ? 'Génération originale adaptée à vos denrées en stock'
+                        : 'Génération originale en inspiration libre (carte blanche)'}
                   </Text>
                   <View
                     style={[
@@ -2450,16 +2446,38 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
                       <Text style={styles.subSectionTitle}>
                         Retenus pour la recette ({activeCount})
                       </Text>
-                      {inactiveIngredients.length > 0 && (
-                        <TouchableOpacity
-                          style={styles.smallActionBtn}
-                          onPress={handleIncludeAll}
-                          activeOpacity={0.7}
-                        >
-                          <Text style={styles.smallActionBtnText}>Tout inclure</Text>
-                        </TouchableOpacity>
-                      )}
+                      <View style={styles.activeGuideActions}>
+                        {activeCount > 0 && (
+                          <TouchableOpacity
+                            style={styles.smallActionBtn}
+                            onPress={handleExcludeAll}
+                            activeOpacity={0.7}
+                            accessibilityLabel="Écarter tous les ingrédients retenus"
+                          >
+                            <Text style={styles.smallActionBtnText}>Tout écarter</Text>
+                          </TouchableOpacity>
+                        )}
+                        {inactiveIngredients.length > 0 && (
+                          <TouchableOpacity
+                            style={styles.smallActionBtn}
+                            onPress={handleIncludeAll}
+                            activeOpacity={0.7}
+                            accessibilityLabel="Réintégrer tous les ingrédients mis de côté"
+                          >
+                            <Text style={styles.smallActionBtnText}>Tout inclure</Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
                     </View>
+
+                    {activeCount === 0 && (
+                      <View style={styles.emptyActiveHintBox}>
+                        <Ionicons name="sparkles-outline" size={15} color={colors.secondary} />
+                        <Text style={styles.emptyActiveHintText}>
+                          Aucun ingrédient imposé — le Chef IA composera ses recettes en carte blanche totale.
+                        </Text>
+                      </View>
+                    )}
 
                     {groupedActiveIngredients.map(({ aisle, items }) => {
                       const aisleConfig = AISLE_CONFIGS[aisle] || AISLE_CONFIGS['Autre'];
@@ -2606,17 +2624,20 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
 
                 <View style={styles.stickyFooterContainer}>
                   <TouchableOpacity
-                    style={[
-                      styles.generateAiBtn,
-                      activeCount === 0 && styles.generateAiBtnDisabled,
-                    ]}
+                    style={styles.generateAiBtn}
                     onPress={handleStartFetchIdeas}
-                    disabled={activeCount === 0}
                     activeOpacity={0.8}
+                    accessibilityLabel={
+                      activeCount > 0
+                        ? `Trouver 3 idées ${formatMealTypeGenitive(mealType)} avec ${activeCount} ingrédient${activeCount > 1 ? 's' : ''}`
+                        : `Trouver 3 idées ${formatMealTypeGenitive(mealType)} en carte blanche`
+                    }
                   >
                     <Ionicons name="sparkles" size={18} color="#FFFFFF" />
                     <Text style={styles.generateAiBtnText}>
-                      💡 Trouver 3 idées {formatMealTypeGenitive(mealType)} ({activeCount} ingrédient{activeCount > 1 ? 's' : ''})
+                      {activeCount > 0
+                        ? `💡 Trouver 3 idées ${formatMealTypeGenitive(mealType)} (${activeCount} ingrédient${activeCount > 1 ? 's' : ''})`
+                        : `💡 Trouver 3 idées ${formatMealTypeGenitive(mealType)} (carte blanche)`}
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -3668,6 +3689,29 @@ const styles = createDynamicStyles((colors, shadows) => ({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 10,
+  },
+  activeGuideActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  emptyActiveHintBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: 10,
+  },
+  emptyActiveHintText: {
+    flex: 1,
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
   },
   smallActionBtn: {
     paddingHorizontal: 8,
