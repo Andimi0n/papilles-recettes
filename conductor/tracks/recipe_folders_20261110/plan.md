@@ -20,9 +20,9 @@
 - [x] Task: Composants `FolderMosaic` & `FolderCard` (85f5b42)
   - [x] Créer `src/components/folders/FolderMosaic.tsx` (rendu mosaïque 2x2 basé sur les 4 slots)
   - [x] Créer `src/components/folders/FolderCard.tsx` (mosaïque, titre, emoji, compteur, carte spéciale « Non classées »)
-- [ ] Task: Modales de Gestion de Dossiers
-  - [ ] Créer `CreateEditFolderModal.tsx` (création/renommage avec sélecteur d'emojis culinaires)
-  - [ ] Créer la confirmation de suppression sécurisée rappelant la préservation des recettes
+- [x] Task: Modales de Gestion de Dossiers (07af8bc)
+  - [x] Créer `CreateEditFolderModal.tsx` (création/renommage avec sélecteur d'emojis culinaires)
+  - [x] Créer la confirmation de suppression sécurisée rappelant la préservation des recettes
 - [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
 
 ## Phase 3 : Mode Sélection Multiple & Rangement Groupé
