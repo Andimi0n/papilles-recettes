@@ -15,6 +15,8 @@ import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../theme/ThemeContext';
+import { ImageCropper } from './ImageCropper';
+import { isAndroidSoundMode } from '../../../modules/audio-mode';
 
 export interface CameraCaptureModalProps {
   visible: boolean;
@@ -65,6 +67,11 @@ const InnerCameraCapture: React.FC<Omit<CameraCaptureModalProps, 'visible'>> = (
   // État multi-photos en mode 'scan'
   const [capturedScanUris, setCapturedScanUris] = useState<string[]>([]);
 
+  // État rognage / cadrage
+  const [isCropperOpen, setIsCropperOpen] = useState<boolean>(false);
+  const [cropTargetUri, setCropTargetUri] = useState<string | null>(null);
+  const [cropTargetIndex, setCropTargetIndex] = useState<number | null>(null);
+
   const handleClose = () => {
     if (mode === 'scan' && capturedScanUris.length > 0) {
       Alert.alert(
@@ -114,8 +121,13 @@ const InnerCameraCapture: React.FC<Omit<CameraCaptureModalProps, 'visible'>> = (
 
     try {
       setIsCapturing(true);
+
+      // Le bruit de la photo n'a lieu que si le téléphone Android est en mode son (ie ni silencieux, ni vibreur)
+      const isSound = isAndroidSoundMode();
+
       const photo = await cameraRef.current.takePictureAsync({
         quality: 0.85,
+        shutterSound: isSound,
       });
 
       if (!photo || !photo.uri) {
@@ -167,8 +179,8 @@ const InnerCameraCapture: React.FC<Omit<CameraCaptureModalProps, 'visible'>> = (
         });
 
         if (!result.canceled && result.assets && result.assets.length > 0 && result.assets[0].uri) {
-          onPhotoCaptured?.(result.assets[0].uri);
-          onClose();
+          // Permettre la prévisualisation et le recadrage de la photo issue de la galerie
+          setPreviewUri(result.assets[0].uri);
         }
       } else {
         const remainingLimit = Math.max(1, maxPhotos - capturedScanUris.length);
@@ -188,6 +200,34 @@ const InnerCameraCapture: React.FC<Omit<CameraCaptureModalProps, 'visible'>> = (
       console.warn('[CameraCaptureModal] Erreur import galerie:', err);
       Alert.alert('Erreur', 'Impossible de charger les images de la galerie.');
     }
+  };
+
+  const handleOpenCropPreview = () => {
+    if (!previewUri) return;
+    setCropTargetUri(previewUri);
+    setCropTargetIndex(null);
+    setIsCropperOpen(true);
+  };
+
+  const handleOpenCropScanPhoto = (index: number) => {
+    const uri = capturedScanUris[index];
+    if (!uri) return;
+    setCropTargetUri(uri);
+    setCropTargetIndex(index);
+    setIsCropperOpen(true);
+  };
+
+  const handleApplyCrop = (croppedUri: string) => {
+    if (cropTargetIndex === null) {
+      setPreviewUri(croppedUri);
+    } else {
+      setCapturedScanUris((prev) =>
+        prev.map((uri, idx) => (idx === cropTargetIndex ? croppedUri : uri))
+      );
+    }
+    setIsCropperOpen(false);
+    setCropTargetUri(null);
+    setCropTargetIndex(null);
   };
 
   const handleDeleteScanPhoto = (index: number) => {
@@ -262,7 +302,13 @@ const InnerCameraCapture: React.FC<Omit<CameraCaptureModalProps, 'visible'>> = (
             <Ionicons name="close" size={22} color="#FFFFFF" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Aperçu de la photo</Text>
-          <View style={styles.topBarSpacer} />
+          <TouchableOpacity
+            style={styles.iconCircleBtn}
+            onPress={handleOpenCropPreview}
+            accessibilityLabel="Rogner la photo"
+          >
+            <Ionicons name="crop-outline" size={20} color="#FFFFFF" />
+          </TouchableOpacity>
         </View>
 
         {/* Barre d'actions inférieure aperçu */}
@@ -274,6 +320,16 @@ const InnerCameraCapture: React.FC<Omit<CameraCaptureModalProps, 'visible'>> = (
           >
             <Ionicons name="refresh" size={20} color="#FFFFFF" />
             <Text style={styles.retakeBtnText}>Reprendre</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.cropBtn}
+            onPress={handleOpenCropPreview}
+            activeOpacity={0.8}
+            accessibilityLabel="Rogner et cadrer la photo"
+          >
+            <Ionicons name="crop" size={18} color="#FFFFFF" />
+            <Text style={styles.cropBtnText}>Rogner</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -289,6 +345,17 @@ const InnerCameraCapture: React.FC<Omit<CameraCaptureModalProps, 'visible'>> = (
             <Text style={styles.confirmPhotoBtnText}>Valider</Text>
           </TouchableOpacity>
         </View>
+
+        <ImageCropper
+          visible={isCropperOpen}
+          imageUri={cropTargetUri}
+          onClose={() => {
+            setIsCropperOpen(false);
+            setCropTargetUri(null);
+            setCropTargetIndex(null);
+          }}
+          onApplyCrop={handleApplyCrop}
+        />
       </View>
     );
   }
@@ -377,10 +444,25 @@ const InnerCameraCapture: React.FC<Omit<CameraCaptureModalProps, 'visible'>> = (
               >
                 {capturedScanUris.map((uri, idx) => (
                   <View key={`thumb_${idx}`} style={styles.thumbnailItem}>
-                    <Image source={{ uri }} style={styles.thumbnailImg} contentFit="cover" />
+                    <TouchableOpacity
+                      style={StyleSheet.absoluteFill}
+                      onPress={() => handleOpenCropScanPhoto(idx)}
+                      activeOpacity={0.8}
+                      accessibilityLabel={`Rogner la photo ${idx + 1}`}
+                    >
+                      <Image source={{ uri }} style={styles.thumbnailImg} contentFit="cover" />
+                    </TouchableOpacity>
                     <View style={styles.thumbnailBadge}>
                       <Text style={styles.thumbnailBadgeText}>P.{idx + 1}</Text>
                     </View>
+                    <TouchableOpacity
+                      style={styles.thumbnailCropBtn}
+                      onPress={() => handleOpenCropScanPhoto(idx)}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      accessibilityLabel={`Rogner la photo ${idx + 1}`}
+                    >
+                      <Ionicons name="crop" size={10} color="#FFFFFF" />
+                    </TouchableOpacity>
                     <TouchableOpacity
                       style={styles.thumbnailDeleteBtn}
                       onPress={() => handleDeleteScanPhoto(idx)}
@@ -457,6 +539,17 @@ const InnerCameraCapture: React.FC<Omit<CameraCaptureModalProps, 'visible'>> = (
           </View>
         </View>
       </View>
+
+      <ImageCropper
+        visible={isCropperOpen}
+        imageUri={cropTargetUri}
+        onClose={() => {
+          setIsCropperOpen(false);
+          setCropTargetUri(null);
+          setCropTargetIndex(null);
+        }}
+        onApplyCrop={handleApplyCrop}
+      />
     </View>
   );
 };
@@ -684,6 +777,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  thumbnailCropBtn: {
+    position: 'absolute',
+    bottom: 2,
+    right: 2,
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   bottomBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -765,6 +869,21 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.2)',
   },
   retakeBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+    fontSize: 14,
+    marginLeft: 6,
+  },
+  cropBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+  },
+  cropBtnText: {
     color: '#FFFFFF',
     fontWeight: '600',
     fontSize: 14,
