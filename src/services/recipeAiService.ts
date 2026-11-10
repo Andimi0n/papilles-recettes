@@ -161,7 +161,9 @@ function isFlashModel(modelId: string, supportedMethods: string[]): boolean {
  * Aucun modèle hardcodé n'est imposé :
  * - Cascade générale (.all) : par défaut, le DEUXIÈME plus récent/meilleur modèle Flash est placé en tête
  *   pour éviter la surcharge fréquente sur le meilleur modèle (flagship), suivi du 1er modèle et des modèles plus anciens en repli.
- * - Cascade rapide (.fast) : pour les tâches basiques types 3 idées de plat, place le MEILLEUR modèle Flash Lite en tête.
+ *   Utilisé pour la génération des 3 idées de plats Chef IA, le scan photo, le scan texte et l'import web.
+ * - Cascade rapide (.fast) : place le MEILLEUR modèle Flash Lite en tête (ex: 3.5-flash-lite),
+ *   utilisé pour développer la fiche recette complète une fois l'idée choisie par l'utilisateur.
  *
  * En cas d'échec réseau, retourne silencieusement la cascade statique de secours.
  */
@@ -1819,7 +1821,7 @@ ${sanitizedInput}
     const { parsed } = await fetchGeminiJsonWithFallbackAndRetry(
       apiKey,
       payload,
-      (await discoverGeminiModels(apiKey)).fast,
+      (await discoverGeminiModels(apiKey)).all,
       options?.onModelAttempt,
       15000,
       options?.signal

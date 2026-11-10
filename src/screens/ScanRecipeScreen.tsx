@@ -1055,11 +1055,12 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
     activeAbortControllerRef.current = abortController;
     const opId = ++currentOperationIdRef.current;
 
+    setActiveModelInfo({ model: '', isFallback: false });
     const apiKeyForModels = key || (await RecipeAiService.getApiKey());
     if (apiKeyForModels) {
       discoverGeminiModels(apiKeyForModels)
         .then((m) => {
-          setActiveModelInfo((prev) => (!prev.model ? { model: m.fast[0], isFallback: false } : prev));
+          setActiveModelInfo((prev) => (!prev.model ? { model: m.all[0], isFallback: false } : prev));
         })
         .catch(() => {});
     }
@@ -1163,6 +1164,7 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
     activeAbortControllerRef.current = abortController;
     const opId = ++currentOperationIdRef.current;
 
+    setActiveModelInfo({ model: '', isFallback: false });
     const apiKeyForModels = key || (await RecipeAiService.getApiKey());
     if (apiKeyForModels) {
       discoverGeminiModels(apiKeyForModels)

@@ -65,7 +65,7 @@
 - **`recipeShareService.ts`** : Partage et importation offline de recettes de smartphone à smartphone via QR codes compacts compressés (`lz-string`, `toqr`) ou partage texte standard.
 - **`vocabularyService.ts`** : CRUD du lexique canonique, gestion des alias, rayons (`defaultAisle`), promotion de synonymes et propagation automatique (Observer pattern). Les accesseurs synchrones `getSyncList()` / `getSyncMap*()` renvoient un lexique de repli mémorisé à identité stable.
 - **`unifiedIngredientService.ts`** : Résolution unifiée d'ingrédients, découplage nom/quantité/unité et suggestions de synonymes.
-- **`recipeAiService.ts`** : Appels REST Gemini (`v1beta`) avec cascade multi-modèles (`GEMINI_MODELS_CASCADE`: `gemini-3.8-flash` → `2.5-flash` → `2.0-flash` → `1.5-flash`), backoff exponentiel, prompts sobres et auto-réparation JSON (`repairTruncatedJsonString`).
+- **`recipeAiService.ts`** : Appels REST Gemini (`v1beta`) avec découverte dynamique via `GET /models` et cascade multi-modèles (`GEMINI_MODELS_CASCADE` : 2e meilleur modèle en tête ex: `gemini-3.7-flash` pour les 3 idées Chef IA et scans, et meilleur Flash-Lite ex: `gemini-3.5-flash-lite` pour la recette complète finalisée), backoff exponentiel, prompts sobres et auto-réparation JSON (`repairTruncatedJsonString`).
 - **`marmitonService.ts`** : Importation et parsing spécialisé de recettes web Marmiton par URL.
 - **`webRecipeService.ts`** : Importation universelle de recettes depuis n'importe quel site web (validation stricte anti-SSRF, scraping HTML et extraction IA structurée).
 - **`analyticsService.ts`** : Télémétrie locale offline et confidentielle (AsyncStorage, rétention glissante de 90 jours / 5 000 événements max, sans serveur externe).
@@ -127,7 +127,7 @@
    - La permission `READ_MEDIA_IMAGES` ne doit **jamais** être réintroduite dans `app.json` (exigence stricte de conformité Google Play).
 4. **Prompts IA Gemini sobres & Sécurité Réseau :**
    - Dans `recipeAiService.ts`, `ScanRecipeScreen.tsx` et `StockCookModal.tsx`, les titres et descriptions générés par l'IA doivent rester factuels et quotidiens (interdiction des adjectifs pompeux type *"sublime"*, *"divin"*, *"crémeux"* dans les titres).
-   - Cascade de résilience automatique en cas de surcharge : `gemini-3.8-flash` → `2.5-flash` → `2.0-flash` → `1.5-flash`.
+   - Découverte dynamique des modèles et cascade de résilience : le 2e meilleur modèle Flash disponible (ex: `gemini-3.7-flash`) est priorisé pour les 3 idées de plats Chef IA et les scans afin d'éviter la surcharge, puis le meilleur modèle Flash-Lite (ex: `gemini-3.5-flash-lite`) est utilisé pour développer la fiche recette complète.
    - Dans `webRecipeService.ts`, validation d'URL stricte avec rejet des IP privées/locales et identifiants embarqués (protection anti-SSRF).
 5. **Sécurité, Persistance & Offline-First :**
    - **SQLite (`papilles.db`) :** Les recettes et collections sont persistées en tables individuelles indexées, sans limitation de taille arbitraire.
