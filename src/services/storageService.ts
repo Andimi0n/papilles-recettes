@@ -503,11 +503,15 @@ export const StorageService = {
         await ImageStorageService.cleanupRecipePhoto(existing.imageUrl);
       }
 
+      const isNewRecipe = !existing;
       const finalRecipe: Recipe = existing
         ? { ...safeRecipe, updatedAt: now }
         : { ...safeRecipe, id: safeRecipe.id || generateUniqueId('rec'), createdAt: now, updatedAt: now };
 
       await DatabaseService.saveRecipe(finalRecipe);
+      if (isNewRecipe) {
+        this.notifyFolderChange();
+      }
 
       // Mise à jour ciblée du cache mémoire en place (évite un rechargement SQLite complet et des centaines de JSON.parse)
       if (memoryCache.recipes) {

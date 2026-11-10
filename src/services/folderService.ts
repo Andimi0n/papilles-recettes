@@ -10,6 +10,7 @@ import { Folder, FolderSummary, RecipeFolder, UNCATEGORIZED_FOLDER_ID } from '..
 import { DatabaseService } from './databaseService';
 import { StorageService } from './storageService';
 import { Recipe } from '../types/recipe';
+import { generateUniqueId } from '../utils/helpers';
 
 export class FolderService {
   /**
@@ -35,7 +36,7 @@ export class FolderService {
       throw new Error('Le nom du dossier ne peut pas être vide');
     }
     const now = new Date().toISOString();
-    const id = `folder_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    const id = generateUniqueId('folder');
     const folder: Folder = {
       id,
       name: cleanName,
@@ -52,9 +53,15 @@ export class FolderService {
    * Modifie le nom et/ou l'icône d'un dossier
    */
   static async updateFolder(id: string, updates: { name?: string; icon?: string }): Promise<Folder> {
+    if (id === UNCATEGORIZED_FOLDER_ID) {
+      throw new Error('Impossible de modifier le dossier système « Non classées »');
+    }
     const existing = await DatabaseService.getFolderById(id);
     if (!existing) {
       throw new Error(`Dossier introuvable : ${id}`);
+    }
+    if (updates.name !== undefined && !updates.name.trim()) {
+      throw new Error('Le nom du dossier ne peut pas être vide');
     }
     const name = updates.name !== undefined ? updates.name.trim() : existing.name;
     const icon = updates.icon !== undefined ? updates.icon.trim() : existing.icon;
@@ -73,6 +80,9 @@ export class FolderService {
    * RÈGLE D'OR : Ne supprime JAMAIS de recette en base.
    */
   static async deleteFolder(id: string): Promise<void> {
+    if (id === UNCATEGORIZED_FOLDER_ID) {
+      throw new Error('Impossible de supprimer le dossier système « Non classées »');
+    }
     await DatabaseService.deleteFolder(id);
     StorageService.notifyFolderChange();
   }
@@ -95,6 +105,9 @@ export class FolderService {
    * Récupère la liste des recettes contenues dans un dossier
    */
   static async getRecipeIdsForFolder(folderId: string): Promise<string[]> {
+    if (folderId === UNCATEGORIZED_FOLDER_ID) {
+      return this.getUncategorizedRecipeIds();
+    }
     return DatabaseService.getRecipeIdsForFolder(folderId);
   }
 
@@ -102,8 +115,9 @@ export class FolderService {
    * Ajoute de façon additive (INSERT OR IGNORE) plusieurs recettes dans plusieurs dossiers
    */
   static async addRecipesToFolders(recipeIds: string[], folderIds: string[]): Promise<void> {
-    if (recipeIds.length === 0 || folderIds.length === 0) return;
-    await DatabaseService.addRecipesToFolders(recipeIds, folderIds);
+    const validFolderIds = folderIds.filter((id) => id !== UNCATEGORIZED_FOLDER_ID);
+    if (recipeIds.length === 0 || validFolderIds.length === 0) return;
+    await DatabaseService.addRecipesToFolders(recipeIds, validFolderIds);
     StorageService.notifyFolderChange();
   }
 
@@ -111,7 +125,8 @@ export class FolderService {
    * Remplace l'ensemble des dossiers assignés à une recette (mode 1 recette sélectionnée)
    */
   static async setRecipeFolders(recipeId: string, folderIds: string[]): Promise<void> {
-    await DatabaseService.setRecipeFolders(recipeId, folderIds);
+    const validFolderIds = folderIds.filter((id) => id !== UNCATEGORIZED_FOLDER_ID);
+    await DatabaseService.setRecipeFolders(recipeId, validFolderIds);
     StorageService.notifyFolderChange();
   }
 
@@ -138,7 +153,7 @@ export class FolderService {
   static async getFolderSummaries(recipesOverride?: Recipe[]): Promise<FolderSummary[]> {
     const folders = await DatabaseService.getFolders();
     const recipeFolders = await DatabaseService.getRecipeFolders();
-    const allRecipes = recipesOverride || (await DatabaseService.getRecipes());
+    const allRecipes = recipesOverride || (await StorageService.getRecipes());
 
     // Indexation Map O(1)
     const recipeMap = new Map<string, Recipe>();
@@ -162,18 +177,21 @@ export class FolderService {
     for (const f of folders) {
       const rIds = folderToRecipeIds.get(f.id) || [];
       const images: string[] = [];
+      let validCount = 0;
       for (const rId of rIds) {
         const recipe = recipeMap.get(rId);
-        if (recipe?.imageUrl) {
-          images.push(recipe.imageUrl);
-          if (images.length === 4) break;
+        if (recipe) {
+          validCount++;
+          if (recipe.imageUrl && images.length < 4) {
+            images.push(recipe.imageUrl);
+          }
         }
       }
       summaries.push({
         id: f.id,
         name: f.name,
         icon: f.icon,
-        recipeCount: rIds.length,
+        recipeCount: validCount,
         recipeImages: images,
         createdAt: f.createdAt,
         updatedAt: f.updatedAt,

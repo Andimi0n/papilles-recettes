@@ -1378,7 +1378,7 @@ export const DatabaseService = {
         return [];
       }
     }
-    const rows = await getAllDb<any>(db, 'SELECT recipe_id, folder_id, added_at FROM recipe_folders');
+    const rows = await getAllDb<any>(db, 'SELECT recipe_id, folder_id, added_at FROM recipe_folders ORDER BY added_at DESC');
     return rows.map((r) => ({
       recipeId: r.recipe_id,
       folderId: r.folder_id,
@@ -1438,15 +1438,16 @@ export const DatabaseService = {
       return;
     }
 
-    for (const rId of recipeIds) {
-      for (const fId of folderIds) {
-        await runDb(
-          db,
-          'INSERT OR IGNORE INTO recipe_folders (recipe_id, folder_id, added_at) VALUES (?, ?, ?)',
-          [rId, fId, now]
-        );
+    await transactionDb(db, (run) => {
+      for (const rId of recipeIds) {
+        for (const fId of folderIds) {
+          run(
+            'INSERT OR IGNORE INTO recipe_folders (recipe_id, folder_id, added_at) VALUES (?, ?, ?)',
+            [rId, fId, now]
+          );
+        }
       }
-    }
+    });
   },
 
   async setRecipeFolders(recipeId: string, folderIds: string[]): Promise<void> {
@@ -1465,14 +1466,15 @@ export const DatabaseService = {
       return;
     }
 
-    await runDb(db, 'DELETE FROM recipe_folders WHERE recipe_id = ?', [recipeId]);
-    for (const fId of folderIds) {
-      await runDb(
-        db,
-        'INSERT OR IGNORE INTO recipe_folders (recipe_id, folder_id, added_at) VALUES (?, ?, ?)',
-        [recipeId, fId, now]
-      );
-    }
+    await transactionDb(db, (run) => {
+      run('DELETE FROM recipe_folders WHERE recipe_id = ?', [recipeId]);
+      for (const fId of folderIds) {
+        run(
+          'INSERT OR IGNORE INTO recipe_folders (recipe_id, folder_id, added_at) VALUES (?, ?, ?)',
+          [recipeId, fId, now]
+        );
+      }
+    });
   },
 
   async removeRecipesFromFolder(recipeIds: string[], folderId: string): Promise<void> {
@@ -1486,9 +1488,11 @@ export const DatabaseService = {
       return;
     }
 
-    for (const rId of recipeIds) {
-      await runDb(db, 'DELETE FROM recipe_folders WHERE recipe_id = ? AND folder_id = ?', [rId, folderId]);
-    }
+    await transactionDb(db, (run) => {
+      for (const rId of recipeIds) {
+        run('DELETE FROM recipe_folders WHERE recipe_id = ? AND folder_id = ?', [rId, folderId]);
+      }
+    });
   },
 
   async getUncategorizedRecipeIds(): Promise<string[]> {
@@ -1501,7 +1505,7 @@ export const DatabaseService = {
     }
     const rows = await getAllDb<{ id: string }>(
       db,
-      'SELECT r.id FROM recipes r LEFT JOIN recipe_folders rf ON r.id = rf.recipe_id WHERE rf.recipe_id IS NULL'
+      'SELECT r.id FROM recipes r LEFT JOIN recipe_folders rf ON r.id = rf.recipe_id WHERE rf.recipe_id IS NULL ORDER BY r.created_at DESC'
     );
     return rows.map((r) => r.id);
   },

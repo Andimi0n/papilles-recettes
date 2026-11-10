@@ -87,6 +87,7 @@ async function main() {
 
   const folder1 = await FolderService.createFolder('Desserts préférés', '🍰');
   assert(folder1.id, 'Le dossier doit posséder un identifiant');
+  assert(folder1.id.startsWith('folder_'), 'L identifiant doit être généré avec le préfixe folder_');
   assert.strictEqual(folder1.name, 'Desserts préférés');
   assert.strictEqual(folder1.icon, '🍰');
   assert(folderChangeCount > 0, 'Le listener de changement doit être notifié à la création');
@@ -99,11 +100,28 @@ async function main() {
   const updatedFolder1 = await FolderService.updateFolder(folder1.id, { name: 'Desserts du dimanche', icon: '🧁' });
   assert.strictEqual(updatedFolder1.name, 'Desserts du dimanche');
   assert.strictEqual(updatedFolder1.icon, '🧁');
+
+  // Sécurité : rejet de modification/suppression de UNCATEGORIZED et noms vides
+  await assert.rejects(
+    async () => FolderService.updateFolder('UNCATEGORIZED', { name: 'Autre' }),
+    /Impossible de modifier le dossier système/,
+    'La modification de UNCATEGORIZED doit être rejetée'
+  );
+  await assert.rejects(
+    async () => FolderService.deleteFolder('UNCATEGORIZED'),
+    /Impossible de supprimer le dossier système/,
+    'La suppression de UNCATEGORIZED doit être rejetée'
+  );
+  await assert.rejects(
+    async () => FolderService.updateFolder(folder1.id, { name: '   ' }),
+    /Le nom du dossier ne peut pas être vide/,
+    'Un nom vide lors de updateFolder doit être rejeté'
+  );
   console.log('✓ CRUD de base des dossiers validé');
 
   console.log('\n--- Test 2 : Modèle N-N (Multi-appartenance de recettes) ---');
-  // rec_1 est ajoutée dans folder1 et folder2
-  await FolderService.addRecipesToFolders(['rec_1'], [folder1.id, folder2.id]);
+  // rec_1 est ajoutée dans folder1 et folder2, avec tentative d'injecter UNCATEGORIZED (qui doit être ignoré)
+  await FolderService.addRecipesToFolders(['rec_1'], [folder1.id, folder2.id, 'UNCATEGORIZED']);
   // rec_2 est ajoutée uniquement dans folder1
   await FolderService.addRecipesToFolders(['rec_2'], [folder1.id]);
 
@@ -114,7 +132,7 @@ async function main() {
   assert.deepStrictEqual(f2RecipeIds, ['rec_1'], 'Folder 2 doit contenir rec_1');
 
   const r1FolderIds = await FolderService.getFolderIdsForRecipe('rec_1');
-  assert.deepStrictEqual(r1FolderIds.sort(), [folder1.id, folder2.id].sort(), 'rec_1 doit appartenir aux deux dossiers');
+  assert.deepStrictEqual(r1FolderIds.sort(), [folder1.id, folder2.id].sort(), 'rec_1 doit appartenir aux deux dossiers (sans UNCATEGORIZED)');
   console.log('✓ Multi-appartenance N-N validée');
 
   console.log('\n--- Test 3 : Remplacement (setRecipeFolders) et Retrait ---');
@@ -136,6 +154,10 @@ async function main() {
   assert(uncategorizedIds.includes('rec_3'), 'rec_3 doit être non classée');
   assert(uncategorizedIds.includes('rec_4'), 'rec_4 doit être non classée');
   assert(!uncategorizedIds.includes('rec_2'), 'rec_2 est classée dans folder1');
+
+  // getRecipeIdsForFolder doit déléguer à getUncategorizedRecipeIds quand folderId === UNCATEGORIZED
+  const delegatedUncatIds = await FolderService.getRecipeIdsForFolder('UNCATEGORIZED');
+  assert.deepStrictEqual(delegatedUncatIds.sort(), uncategorizedIds.sort(), 'getRecipeIdsForFolder(UNCATEGORIZED) doit renvoyer les recettes non classées');
 
   // Résumé complet des dossiers (FolderSummaries)
   const summaries = await FolderService.getFolderSummaries();
