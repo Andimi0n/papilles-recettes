@@ -11,7 +11,7 @@
   - [x] Implémenter les méthodes CRUD et les associations multi-recettes (additif pour N recettes, toggle pour 1 recette)
   - [x] Intégrer un cache mémoire synchronisé et un système de listeners réactifs dans `storageService.ts` pour notifier instantanément les composants (`HomeScreen`, compteurs de `FolderCard`, `activeFolderId`) lors de toute modification
   - [x] Valider le passage de tous les tests au vert (`npm run test:folders`)
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md)
 
 ## Phase 2 : Composants UI Fondamentaux (FolderCard, Mosaïque 2x2 & Modales)
 - [ ] Task: Helper Pur & Tests Mosaïque
