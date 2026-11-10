@@ -1,9 +1,9 @@
 # Plan d'Implémentation : Système de Dossiers & Sélection Multiple
 
 ## Phase 1 : Modèle de Données & Couche Service SQLite (TDD)
-- [ ] Task: Schéma SQLite & Types TypeScript
-  - [ ] Définir les types `Folder`, `FolderSummary`, `RecipeFolder` dans `src/types/folder.ts`
-  - [ ] Ajouter les migrations SQLite dans `src/services/databaseService.ts` (tables `folders` et `recipe_folders`, index et cascades) avec support du fallback mémoire pour les tests
+- [x] Task: Schéma SQLite & Types TypeScript
+  - [x] Définir les types `Folder`, `FolderSummary`, `RecipeFolder` dans `src/types/folder.ts`
+  - [x] Ajouter les migrations SQLite dans `src/services/databaseService.ts` (tables `folders` et `recipe_folders`, index et cascades) avec support du fallback mémoire pour les tests
 - [ ] Task: Tests Unitaires Red Phase (`scripts/testFolderService.js`)
   - [ ] Écrire la suite de tests CLI Node pour le CRUD des dossiers, les liaisons N-N, le calcul de `'UNCATEGORIZED'` et la suppression sécurisée sans perte de recettes
   - [ ] Ajouter le script `"test:folders": "node scripts/testFolderService.js"` dans `package.json`
