@@ -1,7 +1,0 @@
-{
-  "name": "AudioMode",
-  "platforms": ["android"],
-  "android": {
-    "modules": ["expo.modules.audiomode.AudioModeModule"]
-  }
-}
