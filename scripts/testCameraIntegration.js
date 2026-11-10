@@ -102,24 +102,30 @@ assert.ok(
 );
 console.log('✓ Nettoyage défensif des anciens brouillons résiduels validé');
 
-// Test 6 : Bruit de photo conditionné au mode son Android (ni silencieux, ni vibreur)
+// Test 6 : Bruit de photo désactivé (silence total de l'obturateur)
 const cropperPath = path.join(rootDir, 'src', 'components', 'import-share', 'ImageCropper.tsx');
-const audioModePath = path.join(rootDir, 'modules', 'audio-mode', 'index.ts');
 
-assert.ok(fs.existsSync(audioModePath), 'Le module audio-mode doit exister pour détecter le mode son Android');
 assert.ok(
-  cameraModalCode.includes('isAndroidSoundMode') && cameraModalCode.includes('shutterSound: isSound'),
-  'CameraCaptureModal doit utiliser isAndroidSoundMode pour conditionner shutterSound au mode son Android'
+  cameraModalCode.includes('shutterSound: false'),
+  'CameraCaptureModal doit désactiver le bruit de l\'obturateur (shutterSound: false)'
 );
-console.log('✓ Bruit de photo désactivé en mode silencieux / vibreur Android (shutterSound dynamique)');
+console.log('✓ Bruit de photo désactivé (silence complet de l\'obturateur shutterSound: false)');
 
-// Test 7 : Outil de rognage / recadrage de photo (ImageCropper)
+// Test 7 : Outil de rognage / recadrage de photo 1:1 et rotation (ImageCropper)
 assert.ok(fs.existsSync(cropperPath), 'ImageCropper.tsx doit exister dans src/components/import-share/');
 const cropperCode = fs.readFileSync(cropperPath, 'utf8');
 
 assert.ok(
   cropperCode.includes('manipulateAsync') && cropperCode.includes('crop:'),
   'ImageCropper doit utiliser manipulateAsync avec l\'action crop'
+);
+assert.ok(
+  cropperCode.includes('FIXED_ASPECT_RATIO = 1'),
+  'ImageCropper doit verrouiller le ratio de cadrage au format 1:1 carré'
+);
+assert.ok(
+  cropperCode.includes('rotate: 90'),
+  'ImageCropper doit permettre la rotation horaire de l\'image'
 );
 assert.ok(
   cameraModalCode.includes('<ImageCropper') && cameraModalCode.includes('handleApplyCrop'),
@@ -129,6 +135,6 @@ assert.ok(
   cameraModalCode.includes('Rogner') && cameraModalCode.includes('handleOpenCropPreview'),
   'CameraCaptureModal doit proposer l\'option Rogner dans l\'aperçu'
 );
-console.log('✓ Outil de rognage et cadrage de photo interactif intégré avec succès');
+console.log('✓ Outil de rognage 1:1 et cadrage de photo interactif intégré avec succès');
 
 console.log('\n🎉 TOUS LES TESTS D\'INTÉGRATION CAMÉRA SONT AU VERT (0 CRASH, 0 ERREUR) !');

@@ -90,10 +90,10 @@ function createCropPanResponder(
 
       // 1. Détection des 4 coins
       const cornerCandidates: { mode: DragMode; dist: number }[] = [
-        { mode: 'tl', dist: Math.hypot(locationX - current.x, locationY - current.y) },
-        { mode: 'tr', dist: Math.hypot(locationX - right, locationY - current.y) },
-        { mode: 'bl', dist: Math.hypot(locationX - current.x, locationY - bottom) },
-        { mode: 'br', dist: Math.hypot(locationX - right, locationY - bottom) },
+        { mode: 'tl' as const, dist: Math.hypot(locationX - current.x, locationY - current.y) },
+        { mode: 'tr' as const, dist: Math.hypot(locationX - right, locationY - current.y) },
+        { mode: 'bl' as const, dist: Math.hypot(locationX - current.x, locationY - bottom) },
+        { mode: 'br' as const, dist: Math.hypot(locationX - right, locationY - bottom) },
       ].filter((c) => c.dist <= CORNER_TOUCH_RADIUS);
 
       if (cornerCandidates.length > 0 && !isDeepInside) {

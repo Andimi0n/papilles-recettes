@@ -91,10 +91,13 @@ Application **100 % offline-first**, sécurisée, sans création de compte oblig
 
 ### 8. 📷 Scanner de Recettes par IA (Gemini BYOK) & Import Web
 - **Prise de vue native et sécurisée anti-crash OOM (`CameraCaptureModal`)** :
-  - Module caméra natif haute performance basé sur `expo-camera` avec prévisualisation plein écran, contrôle du flash et inversion d'objectif.
+  - Module caméra natif haute performance basé sur `expo-camera` avec prévisualisation plein écran, contrôle du flash, obturateur silencieux et inversion d'objectif.
   - Conçu pour prévenir les dépassements de mémoire (OOM) et les pertes d'état sur Android grâce au plugin `withLargeHeap` et à la suppression automatique des fichiers temporaires bruts du cache.
   - **Support multi-photos Recto / Verso** : idéal pour capturer le visuel et le titre d'un côté, et la liste d'ingrédients détaillée de l'autre (fiches Quitoque, HelloFresh, magazines).
   - Respect strict des exigences Google Play : aucune permission superflue `READ_MEDIA_IMAGES`.
+- **Recadrage carré 1:1 & rotation interactive (`ImageCropper`)** :
+  - Ajustement tactile fluide au format carré 1:1 pour une mise en page optimale des photos de recettes.
+  - Bouton de rotation 90° et aperçu plein écran avant validation définitive.
 - **Extraction multimodale IA (Google Gemini)** :
   - Extraction rapide et structurée du titre, temps de prépa/cuisson, portions, ingrédients qualifiés et étapes pas à pas.
   - Saisie de texte brut supportée pour convertir en 1 clic un message ou une note en recette propre.

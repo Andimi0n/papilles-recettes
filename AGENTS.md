@@ -95,7 +95,7 @@
 - **`lexicon-units/` (Saisie normalisée, unités & allergènes INCO)** : `UnifiedIngredientInput.tsx`, `IngredientSearchBar.tsx`, `UnitQuickPicker.tsx`, `UnitPickerModal.tsx`, `VocabularyManagerModal.tsx`, `QualifyIngredientModal.tsx`, `AllergenFamilyPickerModal.tsx`.
 - **`chef-ai/` (Inspiration anti-gaspi & personnalisation IA)** : `StockCookModal.tsx` (wrapper de rétrocompatibilité réexportant les types et encapsulant `ScanRecipeScreen` en mode Chef), `ChefMoodEditModal.tsx`, `ChefFavoritePromptsModal.tsx`.
 - **`planner/` (Planification hebdomadaire & suivi de repas)** : `MealCalendarModal.tsx`, `MealSlotPickerModal.tsx`, `PlanRecipeModal.tsx`, `QuickMealLogModal.tsx`.
-- **`import-share/` (Caméra, Web, PDF & QR Code hors-ligne)** : `CameraCaptureModal.tsx` (capture photo native `expo-camera` sécurisée anti-crash OOM, déclencheur sonore conditionné au mode son Android et aperçu), `ImageCropper.tsx` (recadrage tactile interactif PanResponder avec ratios prédéfinis Libre/1:1/4:3/16:9 et compression `expo-image-manipulator`), `ImportRecipeModal.tsx` (importation web unifiée), `RecipePrintModal.tsx` (export PDF), `RecipeQrModal.tsx` (QR code offline), `QrScannerModal.tsx` (scanner QR).
+- **`import-share/` (Caméra, Web, PDF & QR Code hors-ligne)** : `CameraCaptureModal.tsx` (capture photo native `expo-camera` sécurisée anti-crash OOM, obturateur silencieux `shutterSound: false`, rotation et aperçu), `ImageCropper.tsx` (recadrage tactile interactif PanResponder au format carré 1:1 avec rotation et compression `expo-image-manipulator`), `ImportRecipeModal.tsx` (importation web unifiée), `RecipePrintModal.tsx` (export PDF), `RecipeQrModal.tsx` (QR code offline), `QrScannerModal.tsx` (scanner QR).
 
 #### Données, Constantes, Types & Configuration :
 - **`src/constants/units.ts`** : Catalogue standardisé des unités culinaires (5 catégories) et `formatQuantityWithUnit`.
@@ -121,7 +121,7 @@
    - **Passerelle "Ranger dans mes étagères" :** Les articles alimentaires sont ajoutés au stock dédupliqué. Pour les articles non reconnus ou non alimentaires (ex: essuie-tout, savon), une modale propose explicitement de les purger pour ne pas polluer l'inventaire culinaire.
 3. **Capture Caméra, Gestion Mémoire & Google Play :**
    - La capture photo s'effectue via `CameraCaptureModal.tsx` avec `expo-camera`.
-   - Le bruit de l'obturateur photo (`shutterSound`) est conditionné dynamiquement : il n'est émis que si le téléphone Android est en mode son normal (`RINGER_MODE_NORMAL`), et reste silencieux en mode vibreur ou silencieux (`modules/audio-mode`).
+   - Le bruit de l'obturateur photo (`shutterSound`) est désactivé (`shutterSound: false`) pour une capture silencieuse et discrète.
    - Tout fichier photo temporaire brut issu de la caméra doit être immédiatement supprimé du cache OS après redimensionnement (`ImageManipulator`) pour éviter l'épuisement du disque et les crashs OOM.
    - `plugins/withLargeHeap.js` active `largeHeap` sur Android.
    - La permission `READ_MEDIA_IMAGES` ne doit **jamais** être réintroduite dans `app.json` (exigence stricte de conformité Google Play).
