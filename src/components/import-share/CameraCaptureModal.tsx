@@ -14,9 +14,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
+import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import { useTheme } from '../../theme/ThemeContext';
 import { ImageCropper } from './ImageCropper';
-import { isAndroidSoundMode } from '../../../modules/audio-mode';
 
 export interface CameraCaptureModalProps {
   visible: boolean;
@@ -60,6 +60,7 @@ const InnerCameraCapture: React.FC<Omit<CameraCaptureModalProps, 'visible'>> = (
   const [facing, setFacing] = useState<CameraType>('back');
   const [torch, setTorch] = useState<boolean>(false);
   const [isCapturing, setIsCapturing] = useState<boolean>(false);
+  const [isRotatingPreview, setIsRotatingPreview] = useState<boolean>(false);
 
   // État prévisualisation en mode 'photo'
   const [previewUri, setPreviewUri] = useState<string | null>(null);
@@ -122,12 +123,9 @@ const InnerCameraCapture: React.FC<Omit<CameraCaptureModalProps, 'visible'>> = (
     try {
       setIsCapturing(true);
 
-      // Le bruit de la photo n'a lieu que si le téléphone Android est en mode son (ie ni silencieux, ni vibreur)
-      const isSound = isAndroidSoundMode();
-
       const photo = await cameraRef.current.takePictureAsync({
         quality: 0.85,
-        shutterSound: isSound,
+        shutterSound: false,
       });
 
       if (!photo || !photo.uri) {
@@ -136,21 +134,9 @@ const InnerCameraCapture: React.FC<Omit<CameraCaptureModalProps, 'visible'>> = (
       }
 
       if (mode === 'photo') {
-        // En mode photo unique, ouvrir l'écran d'aperçu / confirmation
         setPreviewUri(photo.uri);
       } else {
-        // En mode scan, empiler la photo dans le lot
-        setCapturedScanUris((prev) => {
-          const next = [...prev, photo.uri];
-          if (next.length >= maxPhotos) {
-            // Quota maximum atteint, valider automatiquement
-            setTimeout(() => {
-              onPhotosCaptured?.(next);
-              onClose();
-            }, 300);
-          }
-          return next;
-        });
+        setCapturedScanUris((prev) => [...prev, photo.uri]);
       }
     } catch (err) {
       console.error('[CameraCaptureModal] Erreur capture photo:', err);
@@ -166,7 +152,7 @@ const InnerCameraCapture: React.FC<Omit<CameraCaptureModalProps, 'visible'>> = (
       if (!perm.granted) {
         Alert.alert(
           'Permission requise',
-          'Veuillez autoriser l\'accès à vos photos dans vos réglages.'
+          "Veuillez autoriser l'accès à vos photos dans vos réglages."
         );
         return;
       }
@@ -179,7 +165,6 @@ const InnerCameraCapture: React.FC<Omit<CameraCaptureModalProps, 'visible'>> = (
         });
 
         if (!result.canceled && result.assets && result.assets.length > 0 && result.assets[0].uri) {
-          // Permettre la prévisualisation et le recadrage de la photo issue de la galerie
           setPreviewUri(result.assets[0].uri);
         }
       } else {
@@ -199,6 +184,26 @@ const InnerCameraCapture: React.FC<Omit<CameraCaptureModalProps, 'visible'>> = (
     } catch (err) {
       console.warn('[CameraCaptureModal] Erreur import galerie:', err);
       Alert.alert('Erreur', 'Impossible de charger les images de la galerie.');
+    }
+  };
+
+  const handleRotatePreview = async () => {
+    if (!previewUri || isRotatingPreview) return;
+    try {
+      setIsRotatingPreview(true);
+      const res = await manipulateAsync(
+        previewUri,
+        [{ rotate: 90 }],
+        { compress: 0.9, format: SaveFormat.JPEG }
+      );
+      if (res?.uri) {
+        setPreviewUri(res.uri);
+      }
+    } catch (err) {
+      console.warn('[CameraCaptureModal] Erreur rotation preview:', err);
+      Alert.alert('Erreur', 'Impossible de faire pivoter la photo.');
+    } finally {
+      setIsRotatingPreview(false);
     }
   };
 
@@ -298,17 +303,33 @@ const InnerCameraCapture: React.FC<Omit<CameraCaptureModalProps, 'visible'>> = (
             style={styles.iconCircleBtn}
             onPress={() => setPreviewUri(null)}
             accessibilityLabel="Annuler l'aperçu"
+            disabled={isRotatingPreview}
           >
             <Ionicons name="close" size={22} color="#FFFFFF" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Aperçu de la photo</Text>
-          <TouchableOpacity
-            style={styles.iconCircleBtn}
-            onPress={handleOpenCropPreview}
-            accessibilityLabel="Rogner la photo"
-          >
-            <Ionicons name="crop-outline" size={20} color="#FFFFFF" />
-          </TouchableOpacity>
+          <View style={styles.topActionsRow}>
+            <TouchableOpacity
+              style={[styles.iconCircleBtn, { marginRight: 8 }]}
+              onPress={handleRotatePreview}
+              accessibilityLabel="Pivoter la photo de 90°"
+              disabled={isRotatingPreview}
+            >
+              {isRotatingPreview ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Ionicons name="refresh" size={20} color="#FFFFFF" />
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.iconCircleBtn}
+              onPress={handleOpenCropPreview}
+              accessibilityLabel="Rogner la photo"
+              disabled={isRotatingPreview}
+            >
+              <Ionicons name="crop-outline" size={20} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Barre d'actions inférieure aperçu */}
@@ -317,6 +338,7 @@ const InnerCameraCapture: React.FC<Omit<CameraCaptureModalProps, 'visible'>> = (
             style={styles.retakeBtn}
             onPress={() => setPreviewUri(null)}
             activeOpacity={0.8}
+            disabled={isRotatingPreview}
           >
             <Ionicons name="refresh" size={20} color="#FFFFFF" />
             <Text style={styles.retakeBtnText}>Reprendre</Text>
@@ -327,6 +349,7 @@ const InnerCameraCapture: React.FC<Omit<CameraCaptureModalProps, 'visible'>> = (
             onPress={handleOpenCropPreview}
             activeOpacity={0.8}
             accessibilityLabel="Rogner et cadrer la photo"
+            disabled={isRotatingPreview}
           >
             <Ionicons name="crop" size={18} color="#FFFFFF" />
             <Text style={styles.cropBtnText}>Rogner</Text>
@@ -340,6 +363,7 @@ const InnerCameraCapture: React.FC<Omit<CameraCaptureModalProps, 'visible'>> = (
               onClose();
             }}
             activeOpacity={0.8}
+            disabled={isRotatingPreview}
           >
             <Ionicons name="checkmark" size={20} color="#FFFFFF" />
             <Text style={styles.confirmPhotoBtnText}>Valider</Text>
@@ -349,6 +373,7 @@ const InnerCameraCapture: React.FC<Omit<CameraCaptureModalProps, 'visible'>> = (
         <ImageCropper
           visible={isCropperOpen}
           imageUri={cropTargetUri}
+          title="Cadrer la recette"
           onClose={() => {
             setIsCropperOpen(false);
             setCropTargetUri(null);
@@ -389,7 +414,6 @@ const InnerCameraCapture: React.FC<Omit<CameraCaptureModalProps, 'visible'>> = (
           </Text>
 
           <View style={styles.topActionsRow}>
-            {/* Flash / Lampe torche (caméra arrière) */}
             {facing === 'back' && (
               <TouchableOpacity
                 style={[styles.iconCircleBtn, torch && styles.iconCircleBtnActive]}
@@ -404,7 +428,6 @@ const InnerCameraCapture: React.FC<Omit<CameraCaptureModalProps, 'visible'>> = (
               </TouchableOpacity>
             )}
 
-            {/* Inversion caméra avant / arrière */}
             <TouchableOpacity
               style={[styles.iconCircleBtn, { marginLeft: 8 }]}
               onPress={handleToggleFacing}
@@ -425,9 +448,11 @@ const InnerCameraCapture: React.FC<Omit<CameraCaptureModalProps, 'visible'>> = (
               <View style={[styles.corner, styles.cornerBR]} />
             </View>
             <Text style={styles.scanGuideText}>
-              {capturedScanUris.length === 0
+              {capturedScanUris.length >= maxPhotos
+                ? `Quota atteint (${maxPhotos} photos) — Touchez une page pour la rogner`
+                : capturedScanUris.length === 0
                 ? 'Cadrez la page ou le livre de cuisine'
-                : `Page ${capturedScanUris.length + 1} : cadrez la suite`}
+                : `Page ${capturedScanUris.length + 1} : cadrez la suite (${capturedScanUris.length}/${maxPhotos})`}
             </Text>
           </View>
         )}
@@ -437,6 +462,12 @@ const InnerCameraCapture: React.FC<Omit<CameraCaptureModalProps, 'visible'>> = (
           {/* Bandeau de miniatures capturées en mode Scan */}
           {mode === 'scan' && capturedScanUris.length > 0 && (
             <View style={styles.thumbnailStripContainer}>
+              <View style={styles.thumbnailStripHeader}>
+                <Ionicons name="crop-outline" size={13} color="rgba(255,255,255,0.7)" />
+                <Text style={styles.thumbnailStripHint}>
+                  {`Pages capturées (${capturedScanUris.length}/${maxPhotos}) — touchez pour rogner / pivoter`}
+                </Text>
+              </View>
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
@@ -543,6 +574,7 @@ const InnerCameraCapture: React.FC<Omit<CameraCaptureModalProps, 'visible'>> = (
       <ImageCropper
         visible={isCropperOpen}
         imageUri={cropTargetUri}
+        title={cropTargetIndex !== null ? `Cadrer la page ${cropTargetIndex + 1}` : 'Cadrer la photo'}
         onClose={() => {
           setIsCropperOpen(false);
           setCropTargetUri(null);
@@ -653,9 +685,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  topBarSpacer: {
-    width: 44,
-  },
   iconCircleBtn: {
     width: 44,
     height: 44,
@@ -732,6 +761,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: 'rgba(255,255,255,0.15)',
+  },
+  thumbnailStripHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+    gap: 5,
+  },
+  thumbnailStripHint: {
+    color: 'rgba(255,255,255,0.75)',
+    fontSize: 11,
+    fontWeight: '500',
   },
   thumbnailScrollContent: {
     flexDirection: 'row',

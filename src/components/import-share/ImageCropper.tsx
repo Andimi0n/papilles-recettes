@@ -17,26 +17,22 @@ import { Ionicons } from '@expo/vector-icons';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import { useTheme } from '../../theme/ThemeContext';
 
-export type CropAspectRatio = 'free' | '1:1' | '4:3' | '16:9';
-
 export interface ImageCropperProps {
   visible: boolean;
   imageUri: string | null;
   onClose: () => void;
   onApplyCrop: (croppedUri: string) => void;
+  title?: string;
 }
 
-interface CropRect {
+export interface CropRect {
   x: number;
   y: number;
   width: number;
   height: number;
 }
 
-const MIN_CROP_SIZE = 50;
-const HANDLE_TOUCH_RADIUS = 36;
-
-interface DisplayLayout {
+export interface DisplayLayout {
   scale: number;
   displayedWidth: number;
   displayedHeight: number;
@@ -44,51 +40,104 @@ interface DisplayLayout {
   offsetY: number;
 }
 
+const FIXED_ASPECT_RATIO = 1; // Format 1:1 (carré)
+const MIN_CROP_SIZE = 64;
+const CORNER_TOUCH_RADIUS = 44;
+const EDGE_TOUCH_RADIUS = 32;
+
+type DragMode = 'move' | 'tl' | 'tr' | 'bl' | 'br' | 'top' | 'bottom' | 'left' | 'right' | null;
+
+function computeMax1x1Rect(layout: DisplayLayout, scaleFactor = 0.94): CropRect {
+  const { displayedWidth, displayedHeight, offsetX, offsetY } = layout;
+
+  const size = Math.min(displayedWidth, displayedHeight) * scaleFactor;
+
+  return {
+    x: offsetX + (displayedWidth - size) / 2,
+    y: offsetY + (displayedHeight - size) / 2,
+    width: size,
+    height: size,
+  };
+}
+
 function createCropPanResponder(
   getCropRect: () => CropRect,
   getDisplayLayout: () => DisplayLayout | null,
-  getAspectRatio: () => CropAspectRatio,
-  onUpdateCropRect: (rect: CropRect) => void
+  onUpdateCropRect: (rect: CropRect) => void,
+  onDragStateChange: (isDragging: boolean) => void
 ) {
-  let activeDrag: 'move' | 'tl' | 'tr' | 'bl' | 'br' | null = null;
+  let activeDrag: DragMode = null;
   let startDragRect: CropRect = { x: 0, y: 0, width: 0, height: 0 };
 
   return PanResponder.create({
     onStartShouldSetPanResponder: () => true,
     onMoveShouldSetPanResponder: () => true,
+    onPanResponderTerminationRequest: () => false,
     onPanResponderGrant: (evt) => {
       const { locationX, locationY } = evt.nativeEvent;
       const current = getCropRect();
+      const right = current.x + current.width;
+      const bottom = current.y + current.height;
 
-      // Détection des 4 coins
-      const distTL = Math.hypot(locationX - current.x, locationY - current.y);
-      const distTR = Math.hypot(locationX - (current.x + current.width), locationY - current.y);
-      const distBL = Math.hypot(locationX - current.x, locationY - (current.y + current.height));
-      const distBR = Math.hypot(
-        locationX - (current.x + current.width),
-        locationY - (current.y + current.height)
-      );
+      // Zone centrale réservée au déplacement si le cadre devient petit
+      const innerMarginX = Math.min(28, current.width * 0.25);
+      const innerMarginY = Math.min(28, current.height * 0.25);
+      const isDeepInside =
+        locationX > current.x + innerMarginX &&
+        locationX < right - innerMarginX &&
+        locationY > current.y + innerMarginY &&
+        locationY < bottom - innerMarginY;
 
-      if (distTL <= HANDLE_TOUCH_RADIUS) {
-        activeDrag = 'tl';
-      } else if (distTR <= HANDLE_TOUCH_RADIUS) {
-        activeDrag = 'tr';
-      } else if (distBL <= HANDLE_TOUCH_RADIUS) {
-        activeDrag = 'bl';
-      } else if (distBR <= HANDLE_TOUCH_RADIUS) {
-        activeDrag = 'br';
-      } else if (
-        locationX >= current.x &&
-        locationX <= current.x + current.width &&
-        locationY >= current.y &&
-        locationY <= current.y + current.height
-      ) {
-        activeDrag = 'move';
+      // 1. Détection des 4 coins
+      const cornerCandidates: { mode: DragMode; dist: number }[] = [
+        { mode: 'tl', dist: Math.hypot(locationX - current.x, locationY - current.y) },
+        { mode: 'tr', dist: Math.hypot(locationX - right, locationY - current.y) },
+        { mode: 'bl', dist: Math.hypot(locationX - current.x, locationY - bottom) },
+        { mode: 'br', dist: Math.hypot(locationX - right, locationY - bottom) },
+      ].filter((c) => c.dist <= CORNER_TOUCH_RADIUS);
+
+      if (cornerCandidates.length > 0 && !isDeepInside) {
+        cornerCandidates.sort((a, b) => a.dist - b.dist);
+        activeDrag = cornerCandidates[0].mode;
+      } else if (!isDeepInside) {
+        // 2. Détection des 4 bords
+        const withinX = locationX >= current.x - EDGE_TOUCH_RADIUS && locationX <= right + EDGE_TOUCH_RADIUS;
+        const withinY = locationY >= current.y - EDGE_TOUCH_RADIUS && locationY <= bottom + EDGE_TOUCH_RADIUS;
+
+        const edgeCandidates: { mode: DragMode; dist: number }[] = [];
+        if (withinX && Math.abs(locationY - current.y) <= EDGE_TOUCH_RADIUS) {
+          edgeCandidates.push({ mode: 'top', dist: Math.abs(locationY - current.y) });
+        }
+        if (withinX && Math.abs(locationY - bottom) <= EDGE_TOUCH_RADIUS) {
+          edgeCandidates.push({ mode: 'bottom', dist: Math.abs(locationY - bottom) });
+        }
+        if (withinY && Math.abs(locationX - current.x) <= EDGE_TOUCH_RADIUS) {
+          edgeCandidates.push({ mode: 'left', dist: Math.abs(locationX - current.x) });
+        }
+        if (withinY && Math.abs(locationX - right) <= EDGE_TOUCH_RADIUS) {
+          edgeCandidates.push({ mode: 'right', dist: Math.abs(locationX - right) });
+        }
+
+        if (edgeCandidates.length > 0) {
+          edgeCandidates.sort((a, b) => a.dist - b.dist);
+          activeDrag = edgeCandidates[0].mode;
+        } else if (
+          locationX >= current.x &&
+          locationX <= right &&
+          locationY >= current.y &&
+          locationY <= bottom
+        ) {
+          activeDrag = 'move';
+        } else {
+          activeDrag = null;
+        }
       } else {
-        activeDrag = null;
+        // 3. Déplacement du cadre entier
+        activeDrag = 'move';
       }
 
       startDragRect = { ...current };
+      onDragStateChange(activeDrag !== null);
     },
     onPanResponderMove: (_, gestureState) => {
       const layout = getDisplayLayout();
@@ -96,91 +145,96 @@ function createCropPanResponder(
 
       const start = startDragRect;
       const { displayedWidth, displayedHeight, offsetX, offsetY } = layout;
+      const minX = offsetX;
+      const minY = offsetY;
       const maxX = offsetX + displayedWidth;
       const maxY = offsetY + displayedHeight;
 
-      const mode = activeDrag;
+      const { dx, dy } = gestureState;
 
-      if (mode === 'move') {
-        let nextX = start.x + gestureState.dx;
-        let nextY = start.y + gestureState.dy;
+      // Déplacement simple du cadre
+      if (activeDrag === 'move') {
+        const nextX = Math.max(minX, Math.min(start.x + dx, maxX - start.width));
+        const nextY = Math.max(minY, Math.min(start.y + dy, maxY - start.height));
 
-        // Clamping dans les bordures de l'image
-        nextX = Math.max(offsetX, Math.min(nextX, maxX - start.width));
-        nextY = Math.max(offsetY, Math.min(nextY, maxY - start.height));
-
-        const updated: CropRect = {
-          ...start,
+        onUpdateCropRect({
           x: nextX,
           y: nextY,
-        };
-        onUpdateCropRect(updated);
+          width: start.width,
+          height: start.height,
+        });
         return;
       }
 
-      // Redimensionnement par coins
       let newX = start.x;
       let newY = start.y;
-      let newW = start.width;
-      let newH = start.height;
+      let newSize = start.width;
 
-      if (mode === 'tl') {
-        newX = Math.max(offsetX, Math.min(start.x + gestureState.dx, start.x + start.width - MIN_CROP_SIZE));
-        newY = Math.max(offsetY, Math.min(start.y + gestureState.dy, start.y + start.height - MIN_CROP_SIZE));
-        newW = start.x + start.width - newX;
-        newH = start.y + start.height - newY;
-      } else if (mode === 'tr') {
-        newY = Math.max(offsetY, Math.min(start.y + gestureState.dy, start.y + start.height - MIN_CROP_SIZE));
-        const right = Math.min(maxX, Math.max(start.x + start.width + gestureState.dx, start.x + MIN_CROP_SIZE));
-        newW = right - start.x;
-        newH = start.y + start.height - newY;
-      } else if (mode === 'bl') {
-        newX = Math.max(offsetX, Math.min(start.x + gestureState.dx, start.x + start.width - MIN_CROP_SIZE));
-        newW = start.x + start.width - newX;
-        const bottom = Math.min(maxY, Math.max(start.y + start.height + gestureState.dy, start.y + MIN_CROP_SIZE));
-        newH = bottom - start.y;
-      } else if (mode === 'br') {
-        const right = Math.min(maxX, Math.max(start.x + start.width + gestureState.dx, start.x + MIN_CROP_SIZE));
-        const bottom = Math.min(maxY, Math.max(start.y + start.height + gestureState.dy, start.y + MIN_CROP_SIZE));
-        newW = right - start.x;
-        newH = bottom - start.y;
+      if (activeDrag === 'br' || activeDrag === 'tl' || activeDrag === 'tr' || activeDrag === 'bl') {
+        const isLeft = activeDrag === 'tl' || activeDrag === 'bl';
+        const isTop = activeDrag === 'tl' || activeDrag === 'tr';
+
+        const anchorX = isLeft ? start.x + start.width : start.x;
+        const anchorY = isTop ? start.y + start.height : start.y;
+
+        const availW = isLeft ? anchorX - minX : maxX - anchorX;
+        const availH = isTop ? anchorY - minY : maxY - anchorY;
+
+        const maxAllowedSize = Math.min(availW, availH);
+        const minAllowedSize = Math.min(MIN_CROP_SIZE, maxAllowedSize);
+
+        // Projection fluide sur la diagonale 1:1
+        const deltaSize = ((isLeft ? -dx : dx) + (isTop ? -dy : dy)) / 2;
+        newSize = Math.max(minAllowedSize, Math.min(start.width + deltaSize, maxAllowedSize));
+
+        newX = isLeft ? anchorX - newSize : anchorX;
+        newY = isTop ? anchorY - newSize : anchorY;
+      } else if (activeDrag === 'left' || activeDrag === 'right') {
+        const isLeft = activeDrag === 'left';
+        const anchorX = isLeft ? start.x + start.width : start.x;
+        const centerY = start.y + start.height / 2;
+
+        const availW = isLeft ? anchorX - minX : maxX - anchorX;
+        const maxAllowedSize = Math.min(availW, displayedHeight);
+        const minAllowedSize = Math.min(MIN_CROP_SIZE, maxAllowedSize);
+
+        const rawSize = isLeft ? start.width - dx : start.width + dx;
+        newSize = Math.max(minAllowedSize, Math.min(rawSize, maxAllowedSize));
+
+        newX = isLeft ? anchorX - newSize : anchorX;
+        // Glissement vertical automatique si le carré touche le haut ou le bas
+        newY = Math.max(minY, Math.min(centerY - newSize / 2, maxY - newSize));
+      } else if (activeDrag === 'top' || activeDrag === 'bottom') {
+        const isTop = activeDrag === 'top';
+        const anchorY = isTop ? start.y + start.height : start.y;
+        const centerX = start.x + start.width / 2;
+
+        const availH = isTop ? anchorY - minY : maxY - anchorY;
+        const maxAllowedSize = Math.min(availH, displayedWidth);
+        const minAllowedSize = Math.min(MIN_CROP_SIZE, maxAllowedSize);
+
+        const rawSize = isTop ? start.height - dy : start.height + dy;
+        newSize = Math.max(minAllowedSize, Math.min(rawSize, maxAllowedSize));
+
+        newY = isTop ? anchorY - newSize : anchorY;
+        // Glissement horizontal automatique si le carré touche la gauche ou la droite
+        newX = Math.max(minX, Math.min(centerX - newSize / 2, maxX - newSize));
       }
 
-      const currentAspect = getAspectRatio();
-      // Si un ratio fixe est verrouillé, ajuster la dimension opposée
-      if (currentAspect === '1:1') {
-        const side = Math.min(newW, newH);
-        newW = side;
-        newH = side;
-      } else if (currentAspect === '4:3') {
-        const ratioVal = 4 / 3;
-        newH = newW / ratioVal;
-        if (newY + newH > maxY) {
-          newH = maxY - newY;
-          newW = newH * ratioVal;
-        }
-      } else if (currentAspect === '16:9') {
-        const ratioVal = 16 / 9;
-        newH = newW / ratioVal;
-        if (newY + newH > maxY) {
-          newH = maxY - newY;
-          newW = newH * ratioVal;
-        }
-      }
-
-      const updated: CropRect = {
+      onUpdateCropRect({
         x: newX,
         y: newY,
-        width: Math.max(MIN_CROP_SIZE, newW),
-        height: Math.max(MIN_CROP_SIZE, newH),
-      };
-      onUpdateCropRect(updated);
+        width: newSize,
+        height: newSize,
+      });
     },
     onPanResponderRelease: () => {
       activeDrag = null;
+      onDragStateChange(false);
     },
     onPanResponderTerminate: () => {
       activeDrag = null;
+      onDragStateChange(false);
     },
   });
 }
@@ -190,28 +244,39 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
   imageUri,
   onClose,
   onApplyCrop,
+  title,
 }) => {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
 
+  const [prevUri, setPrevUri] = useState<string | null>(imageUri);
+  const [workingUri, setWorkingUri] = useState<string | null>(imageUri);
   const [imageSize, setImageSize] = useState<{ width: number; height: number } | null>(null);
   const [containerSize, setContainerSize] = useState<{ width: number; height: number }>({
     width: 0,
     height: 0,
   });
   const [customCropRect, setCustomCropRect] = useState<CropRect | null>(null);
-  const [aspectRatio, setAspectRatio] = useState<CropAspectRatio>('free');
+  const [isDragging, setIsDragging] = useState<boolean>(false);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
+  const [processingMessage, setProcessingMessage] = useState<string>('Cadrage en cours...');
+
+  // Réinitialiser l'état lors d'un changement de l'image source
+  if (imageUri !== prevUri) {
+    setPrevUri(imageUri);
+    setWorkingUri(imageUri);
+    setCustomCropRect(null);
+  }
 
   // Charger les dimensions réelles de l'image
   useEffect(() => {
-    if (!visible || !imageUri) {
+    if (!visible || !workingUri) {
       return;
     }
 
     let isMounted = true;
     RNImage.getSize(
-      imageUri,
+      workingUri,
       (width, height) => {
         if (isMounted) {
           setImageSize({ width, height });
@@ -220,7 +285,7 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
       (err) => {
         if (isMounted) {
           console.warn('[ImageCropper] Erreur récupération taille image:', err);
-          Alert.alert('Erreur', 'Impossible de lire les dimensions de l\'image.');
+          Alert.alert('Erreur', "Impossible de lire les dimensions de l'image.");
           onClose();
         }
       }
@@ -229,10 +294,10 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [visible, imageUri, onClose]);
+  }, [visible, workingUri, onClose]);
 
   // Calculer l'espace d'affichage de l'image (contentFit="contain")
-  const displayLayout = useMemo(() => {
+  const displayLayout = useMemo((): DisplayLayout | null => {
     if (!imageSize || containerSize.width === 0 || containerSize.height === 0) {
       return null;
     }
@@ -256,50 +321,17 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
     };
   }, [imageSize, containerSize]);
 
-  // Rectangle calculé par défaut selon le ratio
+  // Rectangle 1:1 par défaut
   const defaultCropRect = useMemo((): CropRect => {
     if (!displayLayout) return { x: 0, y: 0, width: 0, height: 0 };
-
-    const { displayedWidth, displayedHeight, offsetX, offsetY } = displayLayout;
-
-    if (aspectRatio === 'free') {
-      const w = displayedWidth * 0.9;
-      const h = displayedHeight * 0.9;
-      return {
-        x: offsetX + (displayedWidth - w) / 2,
-        y: offsetY + (displayedHeight - h) / 2,
-        width: w,
-        height: h,
-      };
-    }
-
-    let targetRatio = 1;
-    if (aspectRatio === '1:1') targetRatio = 1;
-    else if (aspectRatio === '4:3') targetRatio = 4 / 3;
-    else if (aspectRatio === '16:9') targetRatio = 16 / 9;
-
-    let w = displayedWidth * 0.9;
-    let h = w / targetRatio;
-
-    if (h > displayedHeight * 0.9) {
-      h = displayedHeight * 0.9;
-      w = h * targetRatio;
-    }
-
-    return {
-      x: offsetX + (displayedWidth - w) / 2,
-      y: offsetY + (displayedHeight - h) / 2,
-      width: w,
-      height: h,
-    };
-  }, [displayLayout, aspectRatio]);
+    return computeMax1x1Rect(displayLayout, 0.94);
+  }, [displayLayout]);
 
   const activeCropRect = customCropRect ?? defaultCropRect;
 
-  // Synchroniser les références pour les interactions tactiles PanResponder
+  // Synchroniser les références pour le PanResponder
   const cropRectRef = useRef<CropRect>(activeCropRect);
-  const displayLayoutRef = useRef(displayLayout);
-  const aspectRatioRef = useRef(aspectRatio);
+  const displayLayoutRef = useRef<DisplayLayout | null>(displayLayout);
 
   useEffect(() => {
     cropRectRef.current = activeCropRect;
@@ -309,78 +341,100 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
     displayLayoutRef.current = displayLayout;
   }, [displayLayout]);
 
-  useEffect(() => {
-    aspectRatioRef.current = aspectRatio;
-  }, [aspectRatio]);
-
-  const [panResponder, setPanResponder] = useState<ReturnType<typeof PanResponder.create> | null>(null);
-
-  useEffect(() => {
-    const responder = createCropPanResponder(
-      () => cropRectRef.current,
-      () => displayLayoutRef.current,
-      () => aspectRatioRef.current,
-      (updated) => {
-        setCustomCropRect(updated);
-        cropRectRef.current = updated;
-      }
-    );
-    setPanResponder(responder);
-  }, []);
+  const panResponder = useMemo(
+    () =>
+      createCropPanResponder(
+        () => cropRectRef.current,
+        () => displayLayoutRef.current,
+        (updated) => {
+          cropRectRef.current = updated;
+          setCustomCropRect(updated);
+        },
+        setIsDragging
+      ),
+    []
+  );
 
   const handleContainerLayout = (event: LayoutChangeEvent) => {
     const { width, height } = event.nativeEvent.layout;
     setContainerSize({ width, height });
   };
 
-  // Gestionnaire de changement de ratio
-  const handleSelectAspectRatio = (ratio: CropAspectRatio) => {
-    setAspectRatio(ratio);
-    setCustomCropRect(null);
-  };
-
-  // Réinitialiser au plein cadre
-  const handleResetCrop = () => {
-    if (displayLayout) {
-      setAspectRatio('free');
-      setCustomCropRect({
-        x: displayLayout.offsetX,
-        y: displayLayout.offsetY,
-        width: displayLayout.displayedWidth,
-        height: displayLayout.displayedHeight,
-      });
-    }
-  };
-
-  // Appliquer le rognage effectif via expo-image-manipulator
-  const handleApply = async () => {
-    if (!imageUri || !imageSize || !displayLayout || isProcessing) return;
+  // Rotation de 90° dans le sens horaire
+  const handleRotate90 = async () => {
+    if (!workingUri || isProcessing) return;
 
     try {
       setIsProcessing(true);
+      setProcessingMessage('Rotation en cours...');
+
+      const manipResult = await manipulateAsync(
+        workingUri,
+        [{ rotate: 90 }],
+        {
+          compress: 0.92,
+          format: SaveFormat.JPEG,
+        }
+      );
+
+      if (manipResult?.uri) {
+        setWorkingUri(manipResult.uri);
+        if (manipResult.width && manipResult.height) {
+          setImageSize({ width: manipResult.width, height: manipResult.height });
+        } else if (imageSize) {
+          setImageSize({ width: imageSize.height, height: imageSize.width });
+        }
+        setCustomCropRect(null);
+      }
+    } catch (err) {
+      console.error('[ImageCropper] Erreur rotation:', err);
+      Alert.alert('Erreur', "Impossible de faire pivoter l'image.");
+    } finally {
+      setIsProcessing(false);
+      setProcessingMessage('Cadrage en cours...');
+    }
+  };
+
+  // Réinitialiser au plein cadre 1:1 maximal
+  const handleResetCrop = () => {
+    if (displayLayout) {
+      const full1x1 = computeMax1x1Rect(displayLayout, 1);
+      cropRectRef.current = full1x1;
+      setCustomCropRect(full1x1);
+    }
+  };
+
+  // Appliquer le rognage via expo-image-manipulator
+  const handleApply = async () => {
+    if (!workingUri || !imageSize || !displayLayout || isProcessing) return;
+
+    try {
+      setIsProcessing(true);
+      setProcessingMessage('Application du cadrage...');
       const current = cropRectRef.current;
       const { scale, offsetX, offsetY } = displayLayout;
 
-      // Calcul des coordonnées réelles dans l'image d'origine
       const originX = Math.max(0, Math.round((current.x - offsetX) / scale));
       const originY = Math.max(0, Math.round((current.y - offsetY) / scale));
-      const cropW = Math.min(imageSize.width - originX, Math.round(current.width / scale));
-      const cropH = Math.min(imageSize.height - originY, Math.round(current.height / scale));
+      const maxAvailableW = imageSize.width - originX;
+      const maxAvailableH = imageSize.height - originY;
+      const rawSide = Math.round(current.width / scale);
+      const cropSide = Math.min(maxAvailableW, maxAvailableH, rawSide);
 
-      if (cropW <= 0 || cropH <= 0) {
+      if (cropSide <= 0) {
         Alert.alert('Erreur', 'Zone de rognage invalide.');
         return;
       }
 
       const manipResult = await manipulateAsync(
-        imageUri,
+        workingUri,
         [
           {
             crop: {
               originX,
               originY,
-              width: cropW,
-              height: cropH,
+              width: cropSide,
+              height: cropSide,
             },
           },
         ],
@@ -394,17 +448,18 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
         onApplyCrop(manipResult.uri);
         onClose();
       } else {
-        Alert.alert('Erreur', 'Impossible de rogner l\'image.');
+        Alert.alert('Erreur', "Impossible de rogner l'image.");
       }
     } catch (err) {
       console.error('[ImageCropper] Erreur manipulateAsync:', err);
       Alert.alert('Erreur', 'Le rognage a échoué.');
     } finally {
       setIsProcessing(false);
+      setProcessingMessage('Cadrage en cours...');
     }
   };
 
-  if (!visible || !imageUri) return null;
+  if (!visible || !workingUri) return null;
 
   return (
     <Modal
@@ -426,110 +481,131 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
             <Ionicons name="close" size={24} color="#FFFFFF" />
           </TouchableOpacity>
 
-          <Text style={styles.headerTitle}>Cadrer la photo</Text>
+          <View style={styles.headerTitleContainer}>
+            <Text style={styles.headerTitle}>{title || 'Cadrer la photo'}</Text>
+            <View style={styles.ratioBadge}>
+              <Text style={styles.ratioBadgeText}>1:1</Text>
+            </View>
+          </View>
 
-          <TouchableOpacity
-            style={styles.headerBtn}
-            onPress={handleResetCrop}
-            accessibilityLabel="Réinitialiser le cadre"
-            disabled={isProcessing}
-          >
-            <Ionicons name="scan-outline" size={20} color="#FFFFFF" />
-          </TouchableOpacity>
+          <View style={styles.headerRightActions}>
+            <TouchableOpacity
+              style={[styles.headerBtn, { marginRight: 8 }]}
+              onPress={handleRotate90}
+              accessibilityLabel="Pivoter de 90°"
+              disabled={isProcessing}
+            >
+              <Ionicons name="refresh" size={20} color="#FFFFFF" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.headerBtn}
+              onPress={handleResetCrop}
+              accessibilityLabel="Réinitialiser le cadre 1:1"
+              disabled={isProcessing}
+            >
+              <Ionicons name="scan-outline" size={20} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Zone centrale de visualisation et cadrage */}
         <View style={styles.cropArea} onLayout={handleContainerLayout}>
-          {imageUri && (
-            <Image
-              source={{ uri: imageUri }}
-              style={StyleSheet.absoluteFill}
-              contentFit="contain"
-            />
-          )}
+          <Image
+            source={{ uri: workingUri }}
+            style={StyleSheet.absoluteFill}
+            contentFit="contain"
+          />
 
-          {/* Masque sombre et cadre interactif */}
-          {displayLayout && activeCropRect.width > 0 && activeCropRect.height > 0 && panResponder && (
-            <View style={StyleSheet.absoluteFill} pointerEvents="box-none" {...panResponder.panHandlers}>
-              {/* Masque sombre Haut */}
-              <View
-                style={[
-                  styles.maskSegment,
-                  {
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    height: activeCropRect.y,
-                  },
-                ]}
-              />
+          {/* Masque sombre et cadre interactif (pointerEvents="none" sur les enfants pour garantir des coordonnées exactes) */}
+          {displayLayout && activeCropRect.width > 0 && activeCropRect.height > 0 && (
+            <View style={StyleSheet.absoluteFill} {...panResponder.panHandlers}>
+              <View style={StyleSheet.absoluteFill} pointerEvents="none">
+                {/* Masque sombre Haut */}
+                <View
+                  style={[
+                    styles.maskSegment,
+                    {
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      height: activeCropRect.y,
+                    },
+                  ]}
+                />
 
-              {/* Masque sombre Bas */}
-              <View
-                style={[
-                  styles.maskSegment,
-                  {
-                    top: activeCropRect.y + activeCropRect.height,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                  },
-                ]}
-              />
+                {/* Masque sombre Bas */}
+                <View
+                  style={[
+                    styles.maskSegment,
+                    {
+                      top: activeCropRect.y + activeCropRect.height,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                    },
+                  ]}
+                />
 
-              {/* Masque sombre Gauche */}
-              <View
-                style={[
-                  styles.maskSegment,
-                  {
-                    top: activeCropRect.y,
-                    left: 0,
-                    width: activeCropRect.x,
-                    height: activeCropRect.height,
-                  },
-                ]}
-              />
+                {/* Masque sombre Gauche */}
+                <View
+                  style={[
+                    styles.maskSegment,
+                    {
+                      top: activeCropRect.y,
+                      left: 0,
+                      width: activeCropRect.x,
+                      height: activeCropRect.height,
+                    },
+                  ]}
+                />
 
-              {/* Masque sombre Droite */}
-              <View
-                style={[
-                  styles.maskSegment,
-                  {
-                    top: activeCropRect.y,
-                    left: activeCropRect.x + activeCropRect.width,
-                    right: 0,
-                    height: activeCropRect.height,
-                  },
-                ]}
-              />
+                {/* Masque sombre Droite */}
+                <View
+                  style={[
+                    styles.maskSegment,
+                    {
+                      top: activeCropRect.y,
+                      left: activeCropRect.x + activeCropRect.width,
+                      right: 0,
+                      height: activeCropRect.height,
+                    },
+                  ]}
+                />
 
-              {/* Cadre de recadrage interactif */}
-              <View
-                style={[
-                  styles.cropBox,
-                  {
-                    left: activeCropRect.x,
-                    top: activeCropRect.y,
-                    width: activeCropRect.width,
-                    height: activeCropRect.height,
-                  },
-                ]}
-              >
-                {/* Grille des tiers */}
-                <View style={styles.gridLineH1} />
-                <View style={styles.gridLineH2} />
-                <View style={styles.gridLineV1} />
-                <View style={styles.gridLineV2} />
+                {/* Cadre de recadrage 1:1 */}
+                <View
+                  style={[
+                    styles.cropBox,
+                    {
+                      left: activeCropRect.x,
+                      top: activeCropRect.y,
+                      width: activeCropRect.width,
+                      height: activeCropRect.height,
+                    },
+                  ]}
+                >
+                  {/* Grille des tiers */}
+                  <View style={[styles.gridLineH1, isDragging && styles.gridLineActive]} />
+                  <View style={[styles.gridLineH2, isDragging && styles.gridLineActive]} />
+                  <View style={[styles.gridLineV1, isDragging && styles.gridLineActive]} />
+                  <View style={[styles.gridLineV2, isDragging && styles.gridLineActive]} />
 
-                {/* 4 coins de redimensionnement */}
-                <View style={[styles.cornerHandle, styles.handleTL]} />
-                <View style={[styles.cornerHandle, styles.handleTR]} />
-                <View style={[styles.cornerHandle, styles.handleBL]} />
-                <View style={[styles.cornerHandle, styles.handleBR]} />
+                  {/* 4 coins de redimensionnement renforcés */}
+                  <View style={[styles.cornerHandle, styles.handleTL]} />
+                  <View style={[styles.cornerHandle, styles.handleTR]} />
+                  <View style={[styles.cornerHandle, styles.handleBL]} />
+                  <View style={[styles.cornerHandle, styles.handleBR]} />
 
-                {/* Poignée centrale discrète */}
-                <View style={styles.centerMoveIndicator}>
-                  <Ionicons name="move" size={20} color="rgba(255,255,255,0.7)" />
+                  {/* 4 poignées latérales */}
+                  <View style={[styles.edgeHandle, styles.edgeTop]} />
+                  <View style={[styles.edgeHandle, styles.edgeBottom]} />
+                  <View style={[styles.edgeHandle, styles.edgeLeft]} />
+                  <View style={[styles.edgeHandle, styles.edgeRight]} />
+
+                  {/* Poignée centrale discrète */}
+                  <View style={styles.centerMoveIndicator}>
+                    <Ionicons name="move" size={22} color="rgba(255,255,255,0.75)" />
+                  </View>
                 </View>
               </View>
             </View>
@@ -538,48 +614,13 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
           {isProcessing && (
             <View style={styles.processingOverlay}>
               <ActivityIndicator size="large" color={colors.primary} />
-              <Text style={styles.processingText}>Cadrage en cours...</Text>
+              <Text style={styles.processingText}>{processingMessage}</Text>
             </View>
           )}
         </View>
 
-        {/* Barre de contrôle inférieure (ratios + validation) */}
+        {/* Barre de contrôle inférieure */}
         <View style={[styles.bottomControlBar, { paddingBottom: Math.max(insets.bottom + 16, 28) }]}>
-          {/* Sélecteur de format / ratio */}
-          <View style={styles.ratioSelectorRow}>
-            {(
-              [
-                { label: 'Libre', val: 'free' },
-                { label: '1:1', val: '1:1' },
-                { label: '4:3', val: '4:3' },
-                { label: '16:9', val: '16:9' },
-              ] as const
-            ).map((item) => {
-              const isSelected = aspectRatio === item.val;
-              return (
-                <TouchableOpacity
-                  key={item.val}
-                  style={[
-                    styles.ratioPill,
-                    isSelected && { backgroundColor: colors.primary, borderColor: colors.primary },
-                  ]}
-                  onPress={() => handleSelectAspectRatio(item.val)}
-                  activeOpacity={0.7}
-                >
-                  <Text
-                    style={[
-                      styles.ratioPillText,
-                      isSelected && styles.ratioPillTextActive,
-                    ]}
-                  >
-                    {item.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-
-          {/* Boutons d'action : Annuler / Appliquer */}
           <View style={styles.actionButtonsRow}>
             <TouchableOpacity
               style={styles.cancelActionBtn}
@@ -620,10 +661,30 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.7)',
     zIndex: 10,
   },
+  headerTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   headerTitle: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '700',
+  },
+  ratioBadge: {
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  ratioBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  headerRightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   headerBtn: {
     width: 40,
@@ -640,17 +701,13 @@ const styles = StyleSheet.create({
   },
   maskSegment: {
     position: 'absolute',
-    backgroundColor: 'rgba(0, 0, 0, 0.62)',
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
   },
   cropBox: {
     position: 'absolute',
     borderWidth: 1.5,
     borderColor: '#FFFFFF',
     backgroundColor: 'transparent',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.6,
-    shadowRadius: 4,
   },
   gridLineH1: {
     position: 'absolute',
@@ -658,7 +715,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(255, 255, 255, 0.35)',
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
   },
   gridLineH2: {
     position: 'absolute',
@@ -666,7 +723,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(255, 255, 255, 0.35)',
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
   },
   gridLineV1: {
     position: 'absolute',
@@ -674,7 +731,7 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     width: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(255, 255, 255, 0.35)',
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
   },
   gridLineV2: {
     position: 'absolute',
@@ -682,43 +739,82 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     width: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(255, 255, 255, 0.35)',
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  gridLineActive: {
+    backgroundColor: 'rgba(255, 255, 255, 0.65)',
   },
   cornerHandle: {
     position: 'absolute',
-    width: 22,
-    height: 22,
+    width: 26,
+    height: 26,
     borderColor: '#FFFFFF',
   },
   handleTL: {
-    top: -2,
-    left: -2,
-    borderTopWidth: 3.5,
-    borderLeftWidth: 3.5,
+    top: -3,
+    left: -3,
+    borderTopWidth: 4,
+    borderLeftWidth: 4,
+    borderTopLeftRadius: 3,
   },
   handleTR: {
-    top: -2,
-    right: -2,
-    borderTopWidth: 3.5,
-    borderRightWidth: 3.5,
+    top: -3,
+    right: -3,
+    borderTopWidth: 4,
+    borderRightWidth: 4,
+    borderTopRightRadius: 3,
   },
   handleBL: {
-    bottom: -2,
-    left: -2,
-    borderBottomWidth: 3.5,
-    borderLeftWidth: 3.5,
+    bottom: -3,
+    left: -3,
+    borderBottomWidth: 4,
+    borderLeftWidth: 4,
+    borderBottomLeftRadius: 3,
   },
   handleBR: {
-    bottom: -2,
-    right: -2,
-    borderBottomWidth: 3.5,
-    borderRightWidth: 3.5,
+    bottom: -3,
+    right: -3,
+    borderBottomWidth: 4,
+    borderRightWidth: 4,
+    borderBottomRightRadius: 3,
+  },
+  edgeHandle: {
+    position: 'absolute',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 3,
+  },
+  edgeTop: {
+    top: -3,
+    left: '50%',
+    marginLeft: -18,
+    width: 36,
+    height: 5,
+  },
+  edgeBottom: {
+    bottom: -3,
+    left: '50%',
+    marginLeft: -18,
+    width: 36,
+    height: 5,
+  },
+  edgeLeft: {
+    left: -3,
+    top: '50%',
+    marginTop: -18,
+    width: 5,
+    height: 36,
+  },
+  edgeRight: {
+    right: -3,
+    top: '50%',
+    marginTop: -18,
+    width: 5,
+    height: 36,
   },
   centerMoveIndicator: {
     ...StyleSheet.absoluteFill,
     justifyContent: 'center',
     alignItems: 'center',
-    pointerEvents: 'none',
   },
   processingOverlay: {
     ...StyleSheet.absoluteFill,
@@ -738,30 +834,6 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingHorizontal: 20,
     zIndex: 10,
-  },
-  ratioSelectorRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
-    gap: 10,
-  },
-  ratioPill: {
-    paddingVertical: 6,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-  },
-  ratioPillText: {
-    color: 'rgba(255,255,255,0.85)',
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  ratioPillTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '700',
   },
   actionButtonsRow: {
     flexDirection: 'row',
