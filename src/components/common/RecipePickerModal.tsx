@@ -40,6 +40,7 @@ export interface RecipePickerModalProps {
   showServings?: boolean;
   closeOnSelect?: boolean;
   alreadyAddedRecipeIds?: string[] | Set<string>;
+  alreadyAddedLabel?: string;
 }
 
 const CATEGORIES: Category[] = ['Tous', 'Plat', 'Entrée', 'Dessert', 'Apéritif'];
@@ -60,6 +61,7 @@ export const RecipePickerModal: React.FC<RecipePickerModalProps> = ({
   showServings,
   closeOnSelect = true,
   alreadyAddedRecipeIds,
+  alreadyAddedLabel,
 }) => {
   const { colors } = useTheme();
   const [activeTab, setActiveTab] = useState<'recipes' | 'custom'>('recipes');
@@ -67,6 +69,7 @@ export const RecipePickerModal: React.FC<RecipePickerModalProps> = ({
   const [selectedCategory, setSelectedCategory] = useState<Category>('Tous');
   const [customTitle, setCustomTitle] = useState('');
   const [servings, setServings] = useState<number>(currentMeal?.servings || 4);
+  const [localAddedIds, setLocalAddedIds] = useState<Set<string>>(new Set());
 
   // Synchronise les portions et le formulaire dès l'ouverture du modal pendant le render
   const [prevVisible, setPrevVisible] = useState(visible);
@@ -77,16 +80,21 @@ export const RecipePickerModal: React.FC<RecipePickerModalProps> = ({
     setSearchQuery('');
     setSelectedCategory('Tous');
     setActiveTab('recipes');
+    setLocalAddedIds(new Set());
   } else if (!visible && prevVisible) {
     setPrevVisible(false);
   }
 
   const alreadyAddedSet = useMemo(() => {
-    if (!alreadyAddedRecipeIds) return null;
-    return alreadyAddedRecipeIds instanceof Set
-      ? alreadyAddedRecipeIds
-      : new Set(alreadyAddedRecipeIds);
-  }, [alreadyAddedRecipeIds]);
+    if (!alreadyAddedRecipeIds && localAddedIds.size === 0) return null;
+    const base = alreadyAddedRecipeIds
+      ? alreadyAddedRecipeIds instanceof Set
+        ? new Set(alreadyAddedRecipeIds)
+        : new Set(alreadyAddedRecipeIds)
+      : new Set<string>();
+    localAddedIds.forEach((id) => base.add(id));
+    return base;
+  }, [alreadyAddedRecipeIds, localAddedIds]);
 
   const filteredRecipes = useMemo(() => {
     const query = normalizeString(searchQuery);
@@ -150,15 +158,28 @@ export const RecipePickerModal: React.FC<RecipePickerModalProps> = ({
               </Text>
             )}
           </View>
-          <TouchableOpacity
-            style={styles.closeBtn}
-            onPress={onClose}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            accessibilityRole="button"
-            accessibilityLabel="Fermer"
-          >
-            <Ionicons name="close" size={22} color={colors.textPrimary} />
-          </TouchableOpacity>
+          <View style={styles.headerRightActions}>
+            {!closeOnSelect && (
+              <TouchableOpacity
+                style={styles.doneBtn}
+                onPress={onClose}
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Terminer"
+              >
+                <Text style={styles.doneBtnText}>Terminer</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity
+              style={styles.closeBtn}
+              onPress={onClose}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel="Fermer"
+            >
+              <Ionicons name="close" size={22} color={colors.textPrimary} />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Stepper de portions pour ce créneau (si activé) */}
@@ -304,6 +325,7 @@ export const RecipePickerModal: React.FC<RecipePickerModalProps> = ({
                     ]}
                     onPress={() => {
                       if (isAlreadyAdded) return;
+                      setLocalAddedIds((prev) => new Set(prev).add(item.id));
                       onSelectRecipe(item, servings);
                       if (closeOnSelect) {
                         onClose();
@@ -353,7 +375,9 @@ export const RecipePickerModal: React.FC<RecipePickerModalProps> = ({
                     {isAlreadyAdded ? (
                       <View style={styles.alreadyAddedBadge}>
                         <Ionicons name="checkmark-circle" size={15} color={colors.primary} />
-                        <Text style={styles.alreadyAddedText}>Dans le dossier</Text>
+                        <Text style={styles.alreadyAddedText}>
+                          {alreadyAddedLabel || 'Dans le dossier'}
+                        </Text>
                       </View>
                     ) : (
                       <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
@@ -510,6 +534,22 @@ const styles = createDynamicStyles((colors, shadows) => ({
     fontSize: 13,
     color: colors.textSecondary,
     marginTop: 2,
+  },
+  headerRightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  doneBtn: {
+    backgroundColor: colors.primary,
+    paddingVertical: 7,
+    paddingHorizontal: 14,
+    borderRadius: 16,
+  },
+  doneBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   closeBtn: {
     width: 36,

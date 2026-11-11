@@ -2588,9 +2588,11 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
         <RecipePickerModal
           visible={isAddRecipeToFolderOpen}
           title={activeFolderInfo ? `${activeFolderInfo.icon} ${activeFolderInfo.name}` : 'Ajouter au dossier'}
-          subtitle="Sélectionner une recette à ajouter"
+          subtitle="Sélectionner des recettes à ajouter"
           recipes={recipes}
           alreadyAddedRecipeIds={folderRecipeIds ?? undefined}
+          alreadyAddedLabel="Dans le dossier"
+          closeOnSelect={false}
           onSelectRecipe={handleAddRecipeToFolder}
           onClose={() => setIsAddRecipeToFolderOpen(false)}
         />
