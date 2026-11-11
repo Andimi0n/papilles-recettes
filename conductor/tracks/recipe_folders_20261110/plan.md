@@ -33,10 +33,10 @@
   - [x] Créer la barre flottante au-dessus de la barre d'onglets (`[ ✕  X sélectionnée(s)  |  📁 Ranger dans... ]` ou `[ 📤 Retirer du dossier  |  📁 Autre dossier... ]` selon `activeFolderId`)
   - [x] Gérer l'état `selectedRecipeIds: Set<string>` dans `HomeScreen` persistant lors de la recherche et du filtrage
   - [x] Intercepter le `BackHandler` Android pour quitter le mode sélection en priorité
-- [ ] Task: Bottom Sheet de Rangement (`FolderAssignmentBottomSheet.tsx`)
-  - [ ] Liste des dossiers avec état pré-coché (si 1 recette) ou mode additif (si N recettes)
-  - [ ] Possibilité de créer un nouveau dossier directement dans la Bottom Sheet
-  - [ ] Enregistrement SQLite réactif et notification visuelle
+- [x] Task: Bottom Sheet de Rangement (`FolderAssignmentBottomSheet.tsx`) (4596451)
+  - [x] Liste des dossiers avec état pré-coché (si 1 recette) ou mode additif (si N recettes)
+  - [x] Possibilité de créer un nouveau dossier directement dans la Bottom Sheet
+  - [x] Enregistrement SQLite réactif et notification visuelle
 - [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
 
 ## Phase 4 : Navigation Gestuelle, Vue Grille & Vue Intérieure de Dossier
