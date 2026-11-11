@@ -15,6 +15,7 @@ import {
   GestureResponderEvent,
   useWindowDimensions,
   Keyboard,
+  LayoutChangeEvent,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { FlashList, FlashListRef } from '@shopify/flash-list';
@@ -116,6 +117,62 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
 
   const [foldersCount, setFoldersCount] = useState<number>(0);
   const [pageTranslateX] = useState(() => new Animated.Value(0));
+
+  // Mesure dynamique exacte du premier onglet pour positionner et dimensionner la pastille verte
+  const [tabLayout, setTabLayout] = useState<{
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  }>(() => ({
+    x: 3,
+    y: 3,
+    width: Math.max(0, (screenWidth - 38) / 2),
+    height: 32,
+  }));
+
+  const onFirstTabLayout = useCallback((e: LayoutChangeEvent) => {
+    const { x, y, width, height } = e.nativeEvent.layout;
+    if (width > 0 && height > 0) {
+      setTabLayout((prev) => {
+        if (
+          Math.abs(prev.x - x) < 0.5 &&
+          Math.abs(prev.y - y) < 0.5 &&
+          Math.abs(prev.width - width) < 0.5 &&
+          Math.abs(prev.height - height) < 0.5
+        ) {
+          return prev;
+        }
+        return { x, y, width, height };
+      });
+    }
+  }, []);
+
+  // Interpolation de la position de la pilule indicatrice active (0 -> tabLayout.width)
+  const indicatorTranslateX = useMemo(() => {
+    return pageTranslateX.interpolate({
+      inputRange: [-screenWidth, 0],
+      outputRange: [tabLayout.width, 0],
+      extrapolate: 'clamp',
+    });
+  }, [pageTranslateX, screenWidth, tabLayout.width]);
+
+  // Interpolations d'opacité croisée pour les libellés et badges des onglets
+  const recipesActiveOpacity = useMemo(() => {
+    return pageTranslateX.interpolate({
+      inputRange: [-screenWidth, 0],
+      outputRange: [0, 1],
+      extrapolate: 'clamp',
+    });
+  }, [pageTranslateX, screenWidth]);
+
+  const foldersActiveOpacity = useMemo(() => {
+    return pageTranslateX.interpolate({
+      inputRange: [-screenWidth, 0],
+      outputRange: [1, 0],
+      extrapolate: 'clamp',
+    });
+  }, [pageTranslateX, screenWidth]);
 
   const [folderRecipeIds, setFolderRecipeIds] = useState<Set<string> | null>(null);
   const [activeFolderInfo, setActiveFolderInfo] = useState<{
@@ -1466,78 +1523,89 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
           {!currentFolderId && (
             <View style={styles.tabSwitcherWrapper}>
               <View style={styles.tabSwitcherContainer}>
-                <TouchableOpacity
+                {/* Pilule verte animée continue (glisse 1:1 sous le doigt) */}
+                <Animated.View
                   style={[
-                    styles.tabSwitcherBtn,
-                    activeTab === 'recipes' && styles.tabSwitcherBtnActive,
+                    styles.tabSwitcherPill,
+                    {
+                      left: tabLayout.x,
+                      top: tabLayout.y,
+                      width: tabLayout.width,
+                      height: tabLayout.height,
+                      transform: [{ translateX: indicatorTranslateX }],
+                    },
                   ]}
+                />
+
+                {/* Onglet 1 : Recettes */}
+                <TouchableOpacity
+                  style={styles.tabSwitcherBtn}
+                  onLayout={onFirstTabLayout}
                   onPress={() => switchTab('recipes')}
                   activeOpacity={0.8}
                   accessibilityRole="tab"
                   accessibilityLabel="Onglet Recettes"
                   accessibilityState={{ selected: activeTab === 'recipes' }}
                 >
-                  <Text
-                    style={[
-                      styles.tabSwitcherText,
-                      activeTab === 'recipes' && styles.tabSwitcherTextActive,
-                    ]}
-                  >
-                    Recettes
-                  </Text>
-                  <View
-                    style={[
-                      styles.tabBadge,
-                      activeTab === 'recipes' && styles.tabBadgeActive,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.tabBadgeText,
-                        activeTab === 'recipes' && styles.tabBadgeTextActive,
-                      ]}
-                    >
-                      {recipes.length}
-                    </Text>
+                  {/* Couche au repos */}
+                  <View style={styles.tabSwitcherBtnInner}>
+                    <Text style={styles.tabSwitcherText}>Recettes</Text>
+                    <View style={styles.tabBadge}>
+                      <Text style={styles.tabBadgeText}>{recipes.length}</Text>
+                    </View>
                   </View>
+
+                  {/* Couche active avec fondu enchaîné continu */}
+                  <Animated.View
+                    style={[
+                      styles.tabSwitcherBtnInner,
+                      styles.tabSwitcherBtnOverlay,
+                      { opacity: recipesActiveOpacity },
+                    ]}
+                    pointerEvents="none"
+                  >
+                    <Text style={[styles.tabSwitcherText, styles.tabSwitcherTextActive]}>Recettes</Text>
+                    <View style={[styles.tabBadge, styles.tabBadgeActive]}>
+                      <Text style={[styles.tabBadgeText, styles.tabBadgeTextActive]}>{recipes.length}</Text>
+                    </View>
+                  </Animated.View>
                 </TouchableOpacity>
 
+                {/* Onglet 2 : Dossiers */}
                 <TouchableOpacity
-                  style={[
-                    styles.tabSwitcherBtn,
-                    activeTab === 'folders' && styles.tabSwitcherBtnActive,
-                  ]}
+                  style={styles.tabSwitcherBtn}
                   onPress={() => switchTab('folders')}
                   activeOpacity={0.8}
                   accessibilityRole="tab"
                   accessibilityLabel="Onglet Dossiers"
                   accessibilityState={{ selected: activeTab === 'folders' }}
                 >
-                  <Text
+                  {/* Couche au repos */}
+                  <View style={styles.tabSwitcherBtnInner}>
+                    <Text style={styles.tabSwitcherText}>Dossiers</Text>
+                    {foldersCount > 0 && (
+                      <View style={styles.tabBadge}>
+                        <Text style={styles.tabBadgeText}>{foldersCount}</Text>
+                      </View>
+                    )}
+                  </View>
+
+                  {/* Couche active avec fondu enchaîné continu */}
+                  <Animated.View
                     style={[
-                      styles.tabSwitcherText,
-                      activeTab === 'folders' && styles.tabSwitcherTextActive,
+                      styles.tabSwitcherBtnInner,
+                      styles.tabSwitcherBtnOverlay,
+                      { opacity: foldersActiveOpacity },
                     ]}
+                    pointerEvents="none"
                   >
-                    Dossiers
-                  </Text>
-                  {foldersCount > 0 && (
-                    <View
-                      style={[
-                        styles.tabBadge,
-                        activeTab === 'folders' && styles.tabBadgeActive,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.tabBadgeText,
-                          activeTab === 'folders' && styles.tabBadgeTextActive,
-                        ]}
-                      >
-                        {foldersCount}
-                      </Text>
-                    </View>
-                  )}
+                    <Text style={[styles.tabSwitcherText, styles.tabSwitcherTextActive]}>Dossiers</Text>
+                    {foldersCount > 0 && (
+                      <View style={[styles.tabBadge, styles.tabBadgeActive]}>
+                        <Text style={[styles.tabBadgeText, styles.tabBadgeTextActive]}>{foldersCount}</Text>
+                      </View>
+                    )}
+                  </Animated.View>
                 </TouchableOpacity>
               </View>
             </View>

@@ -35,14 +35,32 @@ export const styles = createDynamicStyles((colors, shadows) => ({
     borderWidth: 1,
     borderColor: colors.borderLight,
   },
+  tabSwitcherPill: {
+    position: 'absolute',
+    backgroundColor: colors.primary,
+    borderRadius: 11,
+    ...shadows.card,
+  },
   tabSwitcherBtn: {
     flex: 1,
-    flexDirection: 'row',
+    position: 'relative',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 7,
     borderRadius: 11,
+  },
+  tabSwitcherBtnInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     gap: 6,
+  },
+  tabSwitcherBtnOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
   tabSwitcherBtnActive: {
     backgroundColor: colors.primary,
