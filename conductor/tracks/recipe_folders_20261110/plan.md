@@ -43,8 +43,8 @@
 - [x] Task: Sélecteur Segmenté & Pager Gestuel Filtré (79395cd)
   - [x] Ajouter les onglets `Recettes` / `Dossiers` en en-tête d'accueil
   - [x] Gérer le swipe horizontal strict (`dx > 25 && Math.abs(dx) > Math.abs(dy) * 2`) en excluant la zone des filtres (`FILTER_BAR_HEIGHT = 88`)
-- [ ] Task: Vue Grille des Dossiers (`FoldersGridView.tsx`)
-  - [ ] Intégrer `FlashList` (`numColumns: 2`), tuile « Non classées » et action « + Nouveau dossier »
+- [x] Task: Vue Grille des Dossiers (`FoldersGridView.tsx`) (7a9f1f7)
+  - [x] Intégrer `FlashList` (`numColumns: 2`), tuile « Non classées » et action « + Nouveau dossier »
 - [ ] Task: Navigation Intérieure de Dossier (`activeFolderId`) & Actions Contextuelles
   - [ ] Filtrer la liste de recettes existante selon `activeFolderId` (réutilisation complète de la FlashList et de la SearchBar)
   - [ ] Afficher le bandeau d'en-tête contextuel `[ ← Tous les dossiers | Nom (compteur) | ✏️ / 🗑️ ]`
