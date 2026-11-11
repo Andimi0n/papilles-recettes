@@ -16,6 +16,37 @@ import { FolderCard } from './FolderCard';
 
 export const NEW_FOLDER_ITEM_ID = '__NEW_FOLDER__';
 
+export interface FolderRecipeMap {
+  userFolders: Map<string, string[]>;
+  uncategorized: string[];
+}
+
+/**
+ * Calcule les résumés de dossiers avec compteurs filtrés selon les recettes actives
+ */
+export function calculateFilteredFolderSummaries(
+  summaries: FolderSummary[],
+  folderRecipeMap: FolderRecipeMap,
+  matchingRecipeIds?: Set<string> | null
+): FolderSummary[] {
+  if (!matchingRecipeIds) {
+    return summaries;
+  }
+  return summaries.map((s) => {
+    let count = 0;
+    if (s.id === UNCATEGORIZED_FOLDER_ID) {
+      count = folderRecipeMap.uncategorized.filter((id) => matchingRecipeIds.has(id)).length;
+    } else {
+      const ids = folderRecipeMap.userFolders.get(s.id) || [];
+      count = ids.filter((id) => matchingRecipeIds.has(id)).length;
+    }
+    return {
+      ...s,
+      recipeCount: count,
+    };
+  });
+}
+
 export interface FolderGridItem {
   id: string;
   isNewFolderButton?: boolean;
@@ -78,6 +109,14 @@ export interface FoldersGridViewProps {
    * Callback de défilement pour synchronisation d'en-tête / filtres
    */
   onScroll?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
+  /**
+   * Set des identifiants de recettes filtrées actives pour recalcul immédiat des compteurs
+   */
+  matchingRecipeIds?: Set<string> | null;
+  /**
+   * Map initiale dossier -> recettes (optionnel, pour tests unitaires)
+   */
+  initialFolderRecipeMap?: FolderRecipeMap;
 }
 
 const FoldersGridViewComponent: React.FC<FoldersGridViewProps> = ({
@@ -89,18 +128,42 @@ const FoldersGridViewComponent: React.FC<FoldersGridViewProps> = ({
   contentContainerStyle,
   bottomInset = 80,
   onScroll,
+  matchingRecipeIds,
+  initialFolderRecipeMap,
 }) => {
   const { themeId } = useTheme();
   const styles = dynamicStyles;
   const [summaries, setSummaries] = useState<FolderSummary[]>(initialSummaries || []);
+  const [folderRecipeMap, setFolderRecipeMap] = useState<FolderRecipeMap>(
+    initialFolderRecipeMap || { userFolders: new Map(), uncategorized: [] }
+  );
 
   useEffect(() => {
     let isMounted = true;
     const fetchSummaries = async () => {
       try {
-        const data = await FolderService.getFolderSummaries();
+        const [data, recipeFolders, allRecipes] = await Promise.all([
+          FolderService.getFolderSummaries(),
+          FolderService.getRecipeFolders(),
+          StorageService.getRecipes(),
+        ]);
+
+        const userFolders = new Map<string, string[]>();
+        const categorized = new Set<string>();
+        for (const rf of recipeFolders) {
+          if (!userFolders.has(rf.folderId)) {
+            userFolders.set(rf.folderId, []);
+          }
+          userFolders.get(rf.folderId)!.push(rf.recipeId);
+          categorized.add(rf.recipeId);
+        }
+        const uncategorized = allRecipes
+          .filter((r) => !categorized.has(r.id))
+          .map((r) => r.id);
+
         if (isMounted) {
           setSummaries(data);
+          setFolderRecipeMap({ userFolders, uncategorized });
         }
       } catch (err) {
         console.error('Erreur lors du chargement des dossiers :', err);
@@ -114,7 +177,12 @@ const FoldersGridViewComponent: React.FC<FoldersGridViewProps> = ({
     };
   }, []);
 
-  const gridItems = useMemo(() => prepareFolderGridItems(summaries), [summaries]);
+  const displaySummaries = useMemo(
+    () => calculateFilteredFolderSummaries(summaries, folderRecipeMap, matchingRecipeIds),
+    [summaries, folderRecipeMap, matchingRecipeIds]
+  );
+
+  const gridItems = useMemo(() => prepareFolderGridItems(displaySummaries), [displaySummaries]);
 
   const renderGridItem = useCallback(
     ({ item }: { item: FolderGridItem }) => {
@@ -149,7 +217,7 @@ const FoldersGridViewComponent: React.FC<FoldersGridViewProps> = ({
     <View style={styles.container}>
       <FlashList
         data={gridItems}
-        extraData={`${themeId}_${summaries.length}`}
+        extraData={`${themeId}_${displaySummaries.map((s) => `${s.id}:${s.recipeCount}`).join(',')}`}
         keyExtractor={(item) => item.id}
         numColumns={2}
         getItemType={(item) => (item.isNewFolderButton ? 'new' : 'folder')}

@@ -1020,6 +1020,39 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
     return sorted.map((r) => r.recipe);
   }, [baseFilteredResults, selectedCategories, isSearching, sortBy, doableRecipesMap]);
 
+  // Détection des filtres actifs et calcul du Set d'identifiants pour mise à jour des dossiers
+  const isFilterActive = useMemo(() => {
+    return (
+      debouncedSearchQuery.trim().length > 0 ||
+      selectedCategories.length > 0 ||
+      onlyVegetarian ||
+      onlyDoableWithStock ||
+      minRatingFilter > 0 ||
+      selectedIngredients.length > 0 ||
+      targetTotalTime !== null ||
+      selectedDifficulties.length > 0 ||
+      selectedTags.length > 0 ||
+      (isAllergenFilterEnabled && userAllergens.length > 0)
+    );
+  }, [
+    debouncedSearchQuery,
+    selectedCategories.length,
+    onlyVegetarian,
+    onlyDoableWithStock,
+    minRatingFilter,
+    selectedIngredients.length,
+    targetTotalTime,
+    selectedDifficulties.length,
+    selectedTags.length,
+    isAllergenFilterEnabled,
+    userAllergens.length,
+  ]);
+
+  const matchingRecipeIds = useMemo(() => {
+    if (!isFilterActive || currentFolderId) return null;
+    return new Set(filteredRecipes.map((r) => r.id));
+  }, [isFilterActive, currentFolderId, filteredRecipes]);
+
   // Pagination (20 recettes par page pour une fluidité maximale)
   const totalPages = Math.max(1, Math.ceil(filteredRecipes.length / RECIPES_PER_PAGE));
   const safeCurrentPage = Math.min(currentPage, totalPages);
@@ -1798,6 +1831,7 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
                 }}
                 bottomInset={isSelectionMode ? 88 : 30}
                 onScroll={handleScroll}
+                matchingRecipeIds={matchingRecipeIds}
               />
             </View>
           </Animated.View>

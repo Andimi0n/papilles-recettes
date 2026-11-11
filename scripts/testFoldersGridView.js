@@ -73,6 +73,7 @@ async function main() {
     FoldersGridView,
     prepareFolderGridItems,
     NEW_FOLDER_ITEM_ID,
+    calculateFilteredFolderSummaries,
   } = require(path.join(tmpDir, 'components/folders/FoldersGridView.js'));
 
   // Test 1 : Export du composant
@@ -126,6 +127,31 @@ async function main() {
   assert.strictEqual(emptyItems.length, 1, 'Même sans dossier, la tuile + Nouveau dossier doit être présente');
   assert.strictEqual(emptyItems[0].id, '__NEW_FOLDER__');
   console.log('✓ Cas liste vide validé');
+
+  // Test 4 : Filtrage dynamique des compteurs de dossiers (calculateFilteredFolderSummaries)
+  console.log('\n--- Test 4 : Filtrage dynamique des compteurs de dossiers ---');
+  const mockFolderRecipeMap = {
+    userFolders: new Map([
+      ['folder_1', ['rec_1', 'rec_2', 'rec_3', 'rec_4', 'rec_5']],
+      ['folder_2', ['rec_6', 'rec_7', 'rec_8']],
+    ]),
+    uncategorized: ['rec_9', 'rec_10'],
+  };
+
+  // Sans filtre (matchingRecipeIds null ou undefined) -> compteurs inchangés
+  const unfiltered = calculateFilteredFolderSummaries(mockSummaries, mockFolderRecipeMap, null);
+  assert.strictEqual(unfiltered[0].recipeCount, 5);
+  assert.strictEqual(unfiltered[1].recipeCount, 3);
+  assert.strictEqual(unfiltered[2].recipeCount, 10);
+
+  // Avec filtre actif (seules rec_1, rec_2 et rec_9 matchent)
+  const matchingSet = new Set(['rec_1', 'rec_2', 'rec_9']);
+  const filtered = calculateFilteredFolderSummaries(mockSummaries, mockFolderRecipeMap, matchingSet);
+  assert.strictEqual(filtered[0].recipeCount, 2, 'folder_1 doit avoir 2 recettes correspondantes');
+  assert.strictEqual(filtered[1].recipeCount, 0, 'folder_2 doit avoir 0 recette correspondante');
+  assert.strictEqual(filtered[2].recipeCount, 1, 'UNCATEGORIZED doit avoir 1 recette correspondante');
+  assert.strictEqual(filtered[0].recipeImages.length, 1, 'Les images de couverture doivent rester intactes');
+  console.log('✓ Filtrage dynamique des compteurs validé');
 
   // Nettoyage
   fs.rmSync(tmpDir, { recursive: true, force: true });
