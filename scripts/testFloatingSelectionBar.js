@@ -104,6 +104,7 @@ async function main() {
   const homeScreenSource = fs.readFileSync(path.join(__dirname, '../src/screens/HomeScreen.tsx'), 'utf8');
   assert(homeScreenSource.includes('FloatingSelectionBar'), 'HomeScreen doit importer et utiliser FloatingSelectionBar');
   assert(homeScreenSource.includes('selectedRecipeIds'), 'HomeScreen doit gérer selectedRecipeIds');
+  assert(homeScreenSource.includes('onToggleSelectAll'), 'HomeScreen doit passer onToggleSelectAll');
   assert(homeScreenSource.includes('BackHandler'), 'HomeScreen doit gérer BackHandler pour la sélection');
   assert(homeScreenSource.includes('!isActive'), 'HomeScreen doit vérifier isActive avant d\'intercepter BackHandler');
   console.log('✓ Intégration de la sélection multiple et de FloatingSelectionBar dans HomeScreen validée');

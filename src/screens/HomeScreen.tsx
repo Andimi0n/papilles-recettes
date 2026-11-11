@@ -261,6 +261,7 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
 
   // État de sélection multiple persistant au fil des filtres et recherches
   const [selectedRecipeIds, setSelectedRecipeIds] = useState<Set<string>>(new Set());
+  const [selectionVersion, setSelectionVersion] = useState(0);
   const [isFolderAssignmentOpen, setIsFolderAssignmentOpen] = useState(false);
   const [isCreateFolderModalVisible, setIsCreateFolderModalVisible] = useState(false);
   const [folderToEdit, setFolderToEdit] = useState<FolderSummary | null>(null);
@@ -314,6 +315,7 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
   }, [snackbarFadeAnim]);
 
   const handleToggleSelectRecipe = useCallback((id: string) => {
+    setSelectionVersion((v) => v + 1);
     setSelectedRecipeIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) {
@@ -326,6 +328,7 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
   }, []);
 
   const handleLongPressRecipe = useCallback((id: string) => {
+    setSelectionVersion((v) => v + 1);
     setSelectedRecipeIds((prev) => {
       const next = new Set(prev);
       next.add(id);
@@ -334,6 +337,7 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
   }, []);
 
   const handleClearSelection = useCallback(() => {
+    setSelectionVersion((v) => v + 1);
     setSelectedRecipeIds(new Set());
   }, []);
 
@@ -1103,6 +1107,25 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
     sortBy,
     doableRecipesMap,
   ]);
+
+  // Recettes sélectionnables dans le contexte actif (Dossier ou Carnet)
+  const currentSelectableRecipes = useMemo(() => {
+    return currentFolderId ? folderFilteredRecipes : filteredRecipes;
+  }, [currentFolderId, folderFilteredRecipes, filteredRecipes]);
+
+  const isAllSelected = useMemo(() => {
+    if (currentSelectableRecipes.length === 0) return false;
+    return currentSelectableRecipes.every((r) => selectedRecipeIds.has(r.id));
+  }, [currentSelectableRecipes, selectedRecipeIds]);
+
+  const handleToggleSelectAll = useCallback(() => {
+    setSelectionVersion((v) => v + 1);
+    if (isAllSelected) {
+      setSelectedRecipeIds(new Set());
+    } else {
+      setSelectedRecipeIds(new Set(currentSelectableRecipes.map((r) => r.id)));
+    }
+  }, [isAllSelected, currentSelectableRecipes]);
 
   // Détection des filtres actifs et calcul du Set d'identifiants pour mise à jour des dossiers
   const isFilterActive = useMemo(() => {
@@ -2039,7 +2062,7 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
             key={viewMode === 'grid' ? 'recipes-grid-2' : `recipes-${viewMode}-1`}
             ref={flashListRef}
             data={paginatedRecipes}
-            extraData={`${themeId}_${viewMode}_${selectedRecipeIds.size}_${isSelectionMode}`}
+            extraData={`${themeId}_${viewMode}_${isSelectionMode}_${selectionVersion}`}
             keyExtractor={(item) => item.id}
             numColumns={viewMode === 'grid' ? 2 : 1}
             getItemType={() => viewMode}
@@ -2105,7 +2128,7 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
                 <FlashList
                   key={`folder-recipes-${viewMode}-${currentFolderId}`}
                   data={folderFilteredRecipes}
-                  extraData={`${themeId}_${viewMode}_${selectedRecipeIds.size}_${isSelectionMode}`}
+                  extraData={`${themeId}_${viewMode}_${isSelectionMode}_${selectionVersion}`}
                   keyExtractor={(item) => item.id}
                   numColumns={viewMode === 'grid' ? 2 : 1}
                   getItemType={() => viewMode}
@@ -2521,6 +2544,8 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
               ? handleRemoveSelectedFromFolder
               : undefined
           }
+          onToggleSelectAll={handleToggleSelectAll}
+          isAllSelected={isAllSelected}
           activeFolderId={currentFolderId}
           bottomInset={0}
         />

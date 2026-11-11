@@ -14,6 +14,8 @@ export interface FloatingSelectionBarProps {
   onClearSelection: () => void;
   onAssignToFolder: () => void;
   onRemoveFromFolder?: () => void;
+  onToggleSelectAll?: () => void;
+  isAllSelected?: boolean;
   activeFolderId?: string | null;
   folderName?: string;
   bottomInset?: number;
@@ -24,6 +26,8 @@ export const FloatingSelectionBar: React.FC<FloatingSelectionBarProps> = ({
   onClearSelection,
   onAssignToFolder,
   onRemoveFromFolder,
+  onToggleSelectAll,
+  isAllSelected = false,
   activeFolderId,
   bottomInset = 0,
 }) => {
@@ -96,7 +100,7 @@ export const FloatingSelectionBar: React.FC<FloatingSelectionBarProps> = ({
       accessibilityRole="toolbar"
       accessibilityLabel="Barre d'actions de sélection multiple"
     >
-      {/* Côté gauche : Bouton fermer (✕) + Compteur sélection */}
+      {/* Côté gauche : Bouton fermer (✕) + Tout sélectionner + Compteur sélection */}
       <View style={styles.leftSection}>
         <TouchableOpacity
           onPress={onClearSelection}
@@ -107,6 +111,23 @@ export const FloatingSelectionBar: React.FC<FloatingSelectionBarProps> = ({
         >
           <Ionicons name="close" size={18} color={colors.textSecondary} />
         </TouchableOpacity>
+
+        {onToggleSelectAll && (
+          <TouchableOpacity
+            onPress={onToggleSelectAll}
+            style={[styles.selectAllButton, isAllSelected && styles.selectAllButtonActive]}
+            hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel={isAllSelected ? 'Tout désélectionner' : 'Tout sélectionner'}
+          >
+            <Ionicons
+              name={isAllSelected ? 'checkbox' : 'checkbox-outline'}
+              size={18}
+              color={isAllSelected ? colors.primary : colors.textSecondary}
+            />
+          </TouchableOpacity>
+        )}
+
         <Text style={styles.countText} numberOfLines={1}>
           {displayedCount} sélectionnée{displayedCount > 1 ? 's' : ''}
         </Text>
@@ -187,6 +208,17 @@ const styles = createDynamicStyles((colors, shadows) => ({
     backgroundColor: colors.surfaceAlt,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  selectAllButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.surfaceAlt,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  selectAllButtonActive: {
+    backgroundColor: colors.primaryLight,
   },
   countText: {
     fontSize: 14,
