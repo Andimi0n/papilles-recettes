@@ -49,7 +49,7 @@
   - [x] Filtrer la liste de recettes existante selon `activeFolderId` (réutilisation complète de la FlashList et de la SearchBar)
   - [x] Afficher le bandeau d'en-tête contextuel `[ ← Tous les dossiers | Nom (compteur) | ✏️ / 🗑️ ]`
   - [x] Intercepter le `BackHandler` Android pour fermer le dossier et revenir à la grille
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: Phase Verification & Checkpoint (24a0be5)
 
 ## Phase 5 : Tests d'Intégration, Documentation & Validation Finale
 - [ ] Task: Tests d'Intégration Finaux
