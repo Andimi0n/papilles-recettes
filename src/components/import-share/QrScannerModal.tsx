@@ -8,6 +8,8 @@ import {
   ActivityIndicator,
   Alert,
   TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { CameraView, useCameraPermissions, Camera, BarcodeScanningResult } from 'expo-camera';
 import { NavigationBar } from 'expo-navigation-bar';
@@ -223,7 +225,10 @@ const InnerQrScanner: React.FC<Omit<QrScannerModalProps, 'visible'>> = ({
 
             {/* Modale ou tiroir de saisie manuelle de lien */}
             {showManualPaste && (
-              <View style={[styles.pasteDrawer, { backgroundColor: colors.cardBackground, paddingBottom: Math.max(insets.bottom + 16, 20) }]}>
+              <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                style={[styles.pasteDrawer, { backgroundColor: colors.cardBackground, paddingBottom: Math.max(insets.bottom + 16, 20) }]}
+              >
                 <Text style={[styles.pasteTitle, { color: colors.textPrimary }]}>
                   Coller un lien Papilles
                 </Text>
@@ -242,6 +247,8 @@ const InnerQrScanner: React.FC<Omit<QrScannerModalProps, 'visible'>> = ({
                   onChangeText={setManualLinkInput}
                   autoCapitalize="none"
                   autoCorrect={false}
+                  returnKeyType="done"
+                  onSubmitEditing={handleConfirmManualPaste}
                 />
                 <View style={styles.pasteActions}>
                   <TouchableOpacity
@@ -259,7 +266,7 @@ const InnerQrScanner: React.FC<Omit<QrScannerModalProps, 'visible'>> = ({
                     <Text style={{ color: '#FFFFFF', fontWeight: '700' }}>Importer</Text>
                   </TouchableOpacity>
                 </View>
-              </View>
+              </KeyboardAvoidingView>
             )}
           </View>
         </View>

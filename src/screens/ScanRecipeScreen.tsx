@@ -318,6 +318,48 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
   // =========================================================
   const [rawTextInput, setRawTextInput] = useState('');
   const [isAnalyzingText, setIsAnalyzingText] = useState(false);
+  const textScrollViewRef = useRef<React.ElementRef<typeof ScrollView>>(null);
+  const textInputCardYRef = useRef(0);
+  const textScrollYRef = useRef(0);
+  const prevTextContentHeightRef = useRef(0);
+  const textSelectionRef = useRef<{ start: number; end: number }>({ start: 0, end: 0 });
+  const isTextInputFocusedRef = useRef(false);
+
+  // Gestion du clavier et compensation de hauteur pour éviter tout masquage
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const keyboardHeightRef = useRef(0);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => {
+        const h = e.endCoordinates.height;
+        keyboardHeightRef.current = h;
+        setKeyboardHeight(h);
+        if (
+          isTextInputFocusedRef.current &&
+          textScrollViewRef.current &&
+          textScrollYRef.current < textInputCardYRef.current - 10
+        ) {
+          textScrollViewRef.current.scrollTo({
+            y: Math.max(0, textInputCardYRef.current - 8),
+            animated: true,
+          });
+        }
+      }
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => {
+        keyboardHeightRef.current = 0;
+        setKeyboardHeight(0);
+      }
+    );
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   // =========================================================
   // ÉTATS MODE URL WEB
@@ -441,7 +483,8 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
     isAnalyzingText ||
     isImportingUrl ||
     aiFlowStep === "generating_recipe" ||
-    aiFlowStep === "loading_ideas";
+    aiFlowStep === "loading_ideas" ||
+    keyboardHeight > 0;
 
   const updateModeFromOffset = useCallback(
     (offsetX: number) => {
@@ -1577,12 +1620,22 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
               aria-hidden={mode !== "text"}
             >
               <ScrollView
+                ref={textScrollViewRef}
                 style={{ flex: 1 }}
-                contentContainerStyle={styles.scrollContent}
+                contentContainerStyle={[
+                  styles.scrollContent,
+                  keyboardHeight > 0 && {
+                    paddingBottom: Platform.OS === 'ios' ? 100 : keyboardHeight + 80,
+                  },
+                ]}
                 keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}
                 overScrollMode="never"
                 nestedScrollEnabled={true}
+                onScroll={(e) => {
+                  textScrollYRef.current = e.nativeEvent.contentOffset.y;
+                }}
+                scrollEventThrottle={16}
               >
                 {renderAiConnectionBanner()}
                 {/* ========================================================= */}
@@ -1599,7 +1652,12 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
                   </Text>
                 </View>
 
-                <View style={styles.inputCard}>
+                <View
+                  style={styles.inputCard}
+                  onLayout={(e) => {
+                    textInputCardYRef.current = e.nativeEvent.layout.y;
+                  }}
+                >
                   <View style={styles.inputCardHeader}>
                     <View style={styles.inputCardHeaderLeft}>
                       <Ionicons name="pencil-outline" size={18} color={colors.primary} />
@@ -1620,12 +1678,49 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
                   <TextInput
                     style={styles.textInputArea}
                     multiline
+                    scrollEnabled={false}
                     numberOfLines={10}
                     placeholder="Collez ici le texte de votre recette...&#10;&#10;Exemple :&#10;Tarte aux pommes rustique&#10;Ingrédients : 4 pommes, 1 pâte brisée, 50g de beurre, 2 c. à soupe de cassonade...&#10;Préparation : Préchauffer le four à 180°C..."
                     placeholderTextColor={colors.textMuted}
                     value={rawTextInput}
                     onChangeText={setRawTextInput}
                     textAlignVertical="top"
+                    onFocus={() => {
+                      isTextInputFocusedRef.current = true;
+                      setTimeout(() => {
+                        if (
+                          textScrollViewRef.current &&
+                          textScrollYRef.current < textInputCardYRef.current - 10
+                        ) {
+                          textScrollViewRef.current.scrollTo({
+                            y: Math.max(0, textInputCardYRef.current - 8),
+                            animated: true,
+                          });
+                        }
+                      }, 100);
+                    }}
+                    onBlur={() => {
+                      isTextInputFocusedRef.current = false;
+                    }}
+                    onSelectionChange={(e) => {
+                      textSelectionRef.current = e.nativeEvent.selection;
+                    }}
+                    onContentSizeChange={(e) => {
+                      const newHeight = e.nativeEvent.contentSize.height;
+                      if (
+                        prevTextContentHeightRef.current > 0 &&
+                        newHeight > prevTextContentHeightRef.current &&
+                        keyboardHeightRef.current > 0 &&
+                        textSelectionRef.current.start >= rawTextInput.length - 8
+                      ) {
+                        const diff = newHeight - prevTextContentHeightRef.current;
+                        textScrollViewRef.current?.scrollTo({
+                          y: textScrollYRef.current + diff,
+                          animated: true,
+                        });
+                      }
+                      prevTextContentHeightRef.current = newHeight;
+                    }}
                   />
                 </View>
 
@@ -2656,70 +2751,77 @@ export const ScanRecipeScreen: React.FC<ScanRecipeScreenProps> = ({
           onRequestClose={() => setIsApiKeyModalVisible(false)}
         >
           <View style={styles.modalBackdrop}>
-            <View style={styles.modalBox}>
-              <Text style={styles.modalTitle}>Clé API Google Gemini</Text>
-              <Text style={styles.modalSubtitle}>
-                Pour inventer des recettes avec vos restes et analyser vos fiches, l&apos;application utilise l&apos;intelligence artificielle Google Gemini (modèle BYOK).
-              </Text>
+            <KeyboardAvoidingView
+              behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+              style={{ width: '100%', alignItems: 'center' }}
+            >
+              <View style={[styles.modalBox, { maxHeight: '90%' }]}>
+                <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                  <Text style={styles.modalTitle}>Clé API Google Gemini</Text>
+                  <Text style={styles.modalSubtitle}>
+                    Pour inventer des recettes avec vos restes et analyser vos fiches, l&apos;application utilise l&apos;intelligence artificielle Google Gemini (modèle BYOK).
+                  </Text>
 
-              <TouchableOpacity
-                style={styles.apiKeyStudioBtn}
-                onPress={() =>
-                  Linking.openURL('https://aistudio.google.com/app/apikey').catch(() => {
-                    Alert.alert(
-                      'Navigateur indisponible',
-                      'Impossible d’ouvrir automatiquement la page Google AI Studio.'
-                    );
-                  })
-                }
-                activeOpacity={0.8}
-              >
-                <Ionicons name="open-outline" size={15} color={colors.primary} />
-                <Text style={styles.apiKeyStudioBtnText}>
-                  Obtenir ma clé gratuite (Google AI Studio)
-                </Text>
-              </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.apiKeyStudioBtn}
+                    onPress={() =>
+                      Linking.openURL('https://aistudio.google.com/app/apikey').catch(() => {
+                        Alert.alert(
+                          'Navigateur indisponible',
+                          'Impossible d’ouvrir automatiquement la page Google AI Studio.'
+                        );
+                      })
+                    }
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="open-outline" size={15} color={colors.primary} />
+                    <Text style={styles.apiKeyStudioBtnText}>
+                      Obtenir ma clé gratuite (Google AI Studio)
+                    </Text>
+                  </TouchableOpacity>
 
-              <View style={styles.keyInputContainer}>
-                <TextInput
-                  style={styles.keyInput}
-                  value={tempApiKeyInput}
-                  onChangeText={setTempApiKeyInput}
-                  placeholder="Collez votre clé API Gemini ici..."
-                  placeholderTextColor={colors.textMuted}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  secureTextEntry={!isKeyVisible}
-                />
-                <TouchableOpacity
-                  style={styles.eyeBtn}
-                  onPress={() => setIsKeyVisible(!isKeyVisible)}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  accessibilityLabel={isKeyVisible ? 'Masquer la clé' : 'Afficher la clé'}
-                >
-                  <Ionicons
-                    name={isKeyVisible ? 'eye-off-outline' : 'eye-outline'}
-                    size={20}
-                    color={colors.textSecondary}
-                  />
-                </TouchableOpacity>
+                  <View style={styles.keyInputContainer}>
+                    <TextInput
+                      style={styles.keyInput}
+                      value={tempApiKeyInput}
+                      onChangeText={setTempApiKeyInput}
+                      placeholder="Collez votre clé API Gemini ici..."
+                      placeholderTextColor={colors.textMuted}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      secureTextEntry={!isKeyVisible}
+                    />
+                    <TouchableOpacity
+                      style={styles.eyeBtn}
+                      onPress={() => setIsKeyVisible(!isKeyVisible)}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      accessibilityLabel={isKeyVisible ? 'Masquer la clé' : 'Afficher la clé'}
+                    >
+                      <Ionicons
+                        name={isKeyVisible ? 'eye-off-outline' : 'eye-outline'}
+                        size={20}
+                        color={colors.textSecondary}
+                      />
+                    </TouchableOpacity>
+                  </View>
+
+                  <View style={styles.modalActions}>
+                    <TouchableOpacity
+                      style={styles.modalCancelBtn}
+                      onPress={() => setIsApiKeyModalVisible(false)}
+                    >
+                      <Text style={styles.modalCancelText}>Annuler</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.modalSaveBtn}
+                      onPress={handleSaveApiKey}
+                    >
+                      <Text style={styles.modalSaveText}>Tester & Sauvegarder</Text>
+                    </TouchableOpacity>
+                  </View>
+                </ScrollView>
               </View>
-
-              <View style={styles.modalActions}>
-                <TouchableOpacity
-                  style={styles.modalCancelBtn}
-                  onPress={() => setIsApiKeyModalVisible(false)}
-                >
-                  <Text style={styles.modalCancelText}>Annuler</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.modalSaveBtn}
-                  onPress={handleSaveApiKey}
-                >
-                  <Text style={styles.modalSaveText}>Tester & Sauvegarder</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
+            </KeyboardAvoidingView>
           </View>
         </Modal>
 
@@ -3042,6 +3144,7 @@ const styles = createDynamicStyles((colors, shadows) => ({
     borderRadius: 12,
     padding: 14,
     fontSize: 13,
+    lineHeight: 19,
     color: colors.textPrimary,
     minHeight: 180,
     borderWidth: 1,

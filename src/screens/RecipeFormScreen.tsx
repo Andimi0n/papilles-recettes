@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   BackHandler,
+  Keyboard,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -117,6 +118,48 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
   const [isKeyVisible, setIsKeyVisible] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<AiConnectionStatus | null>(null);
   const [isCheckingConnection, setIsCheckingConnection] = useState(false);
+
+  const rawTextScrollViewRef = useRef<React.ElementRef<typeof ScrollView>>(null);
+  const rawTextCardYRef = useRef(0);
+  const rawTextScrollYRef = useRef(0);
+  const rawTextPrevHeightRef = useRef(0);
+  const rawTextSelectionRef = useRef<{ start: number; end: number }>({ start: 0, end: 0 });
+  const isRawTextFocusedRef = useRef(false);
+
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const keyboardHeightRef = useRef(0);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => {
+        const h = e.endCoordinates.height;
+        keyboardHeightRef.current = h;
+        setKeyboardHeight(h);
+        if (
+          isRawTextFocusedRef.current &&
+          rawTextScrollViewRef.current &&
+          rawTextScrollYRef.current < rawTextCardYRef.current - 10
+        ) {
+          rawTextScrollViewRef.current.scrollTo({
+            y: Math.max(0, rawTextCardYRef.current - 8),
+            animated: true,
+          });
+        }
+      }
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => {
+        keyboardHeightRef.current = 0;
+        setKeyboardHeight(0);
+      }
+    );
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -997,9 +1040,19 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
 
         {creationMode === 'text' && showCreationModeTabs ? (
           <ScrollView
+            ref={rawTextScrollViewRef}
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.textModeScroll}
+            contentContainerStyle={[
+              styles.textModeScroll,
+              keyboardHeight > 0 && {
+                paddingBottom: Platform.OS === 'ios' ? 100 : keyboardHeight + 80,
+              },
+            ]}
             keyboardShouldPersistTaps="handled"
+            onScroll={(e) => {
+              rawTextScrollYRef.current = e.nativeEvent.contentOffset.y;
+            }}
+            scrollEventThrottle={16}
           >
             {/* Bannière de statut IA */}
             {connectionStatus && (
@@ -1035,7 +1088,12 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
             )}
 
             {/* Carte de saisie de texte */}
-            <View style={styles.textCard}>
+            <View
+              style={styles.textCard}
+              onLayout={(e) => {
+                rawTextCardYRef.current = e.nativeEvent.layout.y;
+              }}
+            >
               <View style={styles.textCardHeader}>
                 <View style={styles.textCardTitleRow}>
                   <Ionicons name="document-text-outline" size={20} color={colors.primary} />
@@ -1067,7 +1125,44 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
                 placeholder={"Ex: Risotto aux champignons\n300g de riz arborio, 250g de champignons, 1 échalote, parmesan, vin blanc...\n\nFaire revenir l'échalote et le riz, mouiller au vin blanc puis bouillon 20 min..."}
                 placeholderTextColor={colors.textMuted}
                 multiline
+                scrollEnabled={false}
                 textAlignVertical="top"
+                onFocus={() => {
+                  isRawTextFocusedRef.current = true;
+                  setTimeout(() => {
+                    if (
+                      rawTextScrollViewRef.current &&
+                      rawTextScrollYRef.current < rawTextCardYRef.current - 10
+                    ) {
+                      rawTextScrollViewRef.current.scrollTo({
+                        y: Math.max(0, rawTextCardYRef.current - 8),
+                        animated: true,
+                      });
+                    }
+                  }, 100);
+                }}
+                onBlur={() => {
+                  isRawTextFocusedRef.current = false;
+                }}
+                onSelectionChange={(e) => {
+                  rawTextSelectionRef.current = e.nativeEvent.selection;
+                }}
+                onContentSizeChange={(e) => {
+                  const newHeight = e.nativeEvent.contentSize.height;
+                  if (
+                    rawTextPrevHeightRef.current > 0 &&
+                    newHeight > rawTextPrevHeightRef.current &&
+                    keyboardHeightRef.current > 0 &&
+                    rawTextSelectionRef.current.start >= rawTextInput.length - 8
+                  ) {
+                    const diff = newHeight - rawTextPrevHeightRef.current;
+                    rawTextScrollViewRef.current?.scrollTo({
+                      y: rawTextScrollYRef.current + diff,
+                      animated: true,
+                    });
+                  }
+                  rawTextPrevHeightRef.current = newHeight;
+                }}
               />
             </View>
 
@@ -1529,54 +1624,61 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
       onRequestClose={() => setIsApiKeyModalVisible(false)}
     >
       <View style={styles.modalBackdrop}>
-        <View style={styles.modalBox}>
-          <Text style={styles.modalTitle}>Clé API Google Gemini</Text>
-          <Text style={styles.modalSubtitle}>
-            La structuration automatique utilise Gemini (BYOK). Vous pouvez renseigner votre clé personnelle Google AI Studio (gratuite).
-          </Text>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={{ width: '100%', alignItems: 'center' }}
+        >
+          <View style={[styles.modalBox, { width: '100%', maxHeight: '90%' }]}>
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              <Text style={styles.modalTitle}>Clé API Google Gemini</Text>
+              <Text style={styles.modalSubtitle}>
+                La structuration automatique utilise Gemini (BYOK). Vous pouvez renseigner votre clé personnelle Google AI Studio (gratuite).
+              </Text>
 
-          <View style={styles.keyInputContainer}>
-            <TextInput
-              style={styles.keyInput}
-              value={tempApiKeyInput}
-              onChangeText={setTempApiKeyInput}
-              placeholder="Collez votre clé API Gemini ici..."
-              placeholderTextColor={colors.textMuted}
-              autoCapitalize="none"
-              autoCorrect={false}
-              secureTextEntry={!isKeyVisible}
-            />
-            <TouchableOpacity
-              style={styles.eyeBtn}
-              onPress={() => setIsKeyVisible(!isKeyVisible)}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              accessibilityLabel={isKeyVisible ? 'Masquer la clé' : 'Afficher la clé'}
-            >
-              <Ionicons
-                name={isKeyVisible ? 'eye-off-outline' : 'eye-outline'}
-                size={20}
-                color={colors.textSecondary}
-              />
-            </TouchableOpacity>
+              <View style={styles.keyInputContainer}>
+                <TextInput
+                  style={styles.keyInput}
+                  value={tempApiKeyInput}
+                  onChangeText={setTempApiKeyInput}
+                  placeholder="Collez votre clé API Gemini ici..."
+                  placeholderTextColor={colors.textMuted}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  secureTextEntry={!isKeyVisible}
+                />
+                <TouchableOpacity
+                  style={styles.eyeBtn}
+                  onPress={() => setIsKeyVisible(!isKeyVisible)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  accessibilityLabel={isKeyVisible ? 'Masquer la clé' : 'Afficher la clé'}
+                >
+                  <Ionicons
+                    name={isKeyVisible ? 'eye-off-outline' : 'eye-outline'}
+                    size={20}
+                    color={colors.textSecondary}
+                  />
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.modalActions}>
+                <TouchableOpacity
+                  style={styles.modalCancelBtn}
+                  onPress={() => setIsApiKeyModalVisible(false)}
+                >
+                  <Text style={styles.modalCancelText}>Annuler</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.modalSaveBtn}
+                  onPress={handleSaveApiKey}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.modalSaveText}>Enregistrer</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
           </View>
-
-          <View style={styles.modalActions}>
-            <TouchableOpacity
-              style={styles.modalCancelBtn}
-              onPress={() => setIsApiKeyModalVisible(false)}
-            >
-              <Text style={styles.modalCancelText}>Annuler</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.modalSaveBtn}
-              onPress={handleSaveApiKey}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.modalSaveText}>Enregistrer</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+        </KeyboardAvoidingView>
       </View>
     </Modal>
 

@@ -12,6 +12,8 @@ import {
   Keyboard,
   Switch,
   Linking,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -1993,77 +1995,89 @@ const SettingsScreenComponent: React.FC<SettingsScreenProps> = ({
         }}
       >
         <View style={styles.importBackdrop}>
-          <View style={styles.importDialog}>
-            <Text style={styles.importDialogTitle}>Importer un pack de recettes</Text>
-            <Text style={styles.importDialogDesc}>
-              Ajoutez des recettes à votre carnet sans écraser votre stock ni vos courses :
-            </Text>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={{ width: '100%', alignItems: 'center' }}
+          >
+            <View style={[styles.importDialog, { width: '100%', maxHeight: '88%' }]}>
+              <Text style={styles.importDialogTitle}>Importer un pack de recettes</Text>
+              <Text style={styles.importDialogDesc}>
+                Ajoutez des recettes à votre carnet sans écraser votre stock ni vos courses :
+              </Text>
 
-            <TouchableOpacity
-              style={styles.importPickFileBtn}
-              onPress={handlePickFileAndImport}
-              disabled={isImporting}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="folder-open-outline" size={24} color={colors.primary} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.importPickFileText}>Choisir un fichier (.json ou .zip)</Text>
-                <Text style={styles.importPickFileSubtext}>Supporte les archives avec photos de couverture</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-            </TouchableOpacity>
-
-            <View style={styles.importDividerContainer}>
-              <View style={styles.importDividerLine} />
-              <Text style={styles.importDividerText}>OU COLLER DU JSON BRUT</Text>
-              <View style={styles.importDividerLine} />
-            </View>
-
-            <TextInput
-              style={styles.importTextInput}
-              multiline
-              value={importJsonText}
-              onChangeText={setImportJsonText}
-              placeholder='[ { "title": "Ma recette", ... } ]'
-              placeholderTextColor={colors.textMuted}
-              editable={!isImporting}
-            />
-
-            {isImporting && !!importStatusMessage && (
-              <Text style={styles.importStatusText}>{importStatusMessage}</Text>
-            )}
-
-            <View style={styles.importDialogBtnRow}>
-              <TouchableOpacity
-                style={styles.importCancelBtn}
-                onPress={() => {
-                  if (!isImporting) {
-                    setIsImportModalVisible(false);
-                    setImportJsonText('');
-                  }
-                }}
-                disabled={isImporting}
-                activeOpacity={0.7}
+              <ScrollView
+                style={{ flexShrink: 1 }}
+                contentContainerStyle={{ paddingVertical: 4 }}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
               >
-                <Text style={styles.importCancelText}>Annuler</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.importConfirmBtn,
-                  (isImporting || !importJsonText.trim()) && { opacity: 0.6 },
-                ]}
-                onPress={handleConfirmImport}
-                disabled={isImporting || !importJsonText.trim()}
-                activeOpacity={0.8}
-              >
-                {isImporting ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <Text style={styles.importConfirmText}>Fusionner au carnet</Text>
+                <TouchableOpacity
+                  style={styles.importPickFileBtn}
+                  onPress={handlePickFileAndImport}
+                  disabled={isImporting}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="folder-open-outline" size={24} color={colors.primary} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.importPickFileText}>Choisir un fichier (.json ou .zip)</Text>
+                    <Text style={styles.importPickFileSubtext}>Supporte les archives avec photos de couverture</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+                </TouchableOpacity>
+
+                <View style={styles.importDividerContainer}>
+                  <View style={styles.importDividerLine} />
+                  <Text style={styles.importDividerText}>OU COLLER DU JSON BRUT</Text>
+                  <View style={styles.importDividerLine} />
+                </View>
+
+                <TextInput
+                  style={styles.importTextInput}
+                  multiline
+                  value={importJsonText}
+                  onChangeText={setImportJsonText}
+                  placeholder='[ { "title": "Ma recette", ... } ]'
+                  placeholderTextColor={colors.textMuted}
+                  editable={!isImporting}
+                />
+
+                {isImporting && !!importStatusMessage && (
+                  <Text style={styles.importStatusText}>{importStatusMessage}</Text>
                 )}
-              </TouchableOpacity>
+              </ScrollView>
+
+              <View style={styles.importDialogBtnRow}>
+                <TouchableOpacity
+                  style={styles.importCancelBtn}
+                  onPress={() => {
+                    if (!isImporting) {
+                      setIsImportModalVisible(false);
+                      setImportJsonText('');
+                    }
+                  }}
+                  disabled={isImporting}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.importCancelText}>Annuler</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.importConfirmBtn,
+                    (isImporting || !importJsonText.trim()) && { opacity: 0.6 },
+                  ]}
+                  onPress={handleConfirmImport}
+                  disabled={isImporting || !importJsonText.trim()}
+                  activeOpacity={0.8}
+                >
+                  {isImporting ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <Text style={styles.importConfirmText}>Fusionner au carnet</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </View>
       </Modal>
 

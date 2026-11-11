@@ -641,12 +641,22 @@ export const VocabularyManagerModal: React.FC<VocabularyManagerModalProps> = ({
             onRequestClose={() => setIsEditModalOpen(false)}
           >
             <View style={styles.modalOverlay}>
-              <View style={styles.editDialogCard}>
-                <Text style={styles.dialogTitle}>
-                  {editingItem ? 'Modifier l\'ingrédient' : 'Ajouter un ingrédient'}
-                </Text>
+              <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                style={styles.keyboardAvoidContainer}
+              >
+                <View style={styles.editDialogCard}>
+                  <Text style={styles.dialogTitle}>
+                    {editingItem ? 'Modifier l\'ingrédient' : 'Ajouter un ingrédient'}
+                  </Text>
 
-                <Text style={styles.fieldLabel}>Nom canonique (officiel)</Text>
+                  <ScrollView
+                    style={styles.editDialogScroll}
+                    contentContainerStyle={styles.editDialogScrollContent}
+                    keyboardShouldPersistTaps="handled"
+                    showsVerticalScrollIndicator={true}
+                  >
+                    <Text style={styles.fieldLabel}>Nom canonique (officiel)</Text>
                 <TextInput
                   style={styles.dialogInput}
                   value={formName}
@@ -835,21 +845,23 @@ export const VocabularyManagerModal: React.FC<VocabularyManagerModalProps> = ({
                     {formIsPantryStaple && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
                   </View>
                 </TouchableOpacity>
+              </ScrollView>
 
-                <View style={styles.dialogBtnRow}>
-                  <TouchableOpacity
-                    style={styles.dialogCancelBtn}
-                    onPress={() => setIsEditModalOpen(false)}
-                  >
-                    <Text style={styles.dialogCancelText}>Annuler</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.dialogConfirmBtn} onPress={handleSaveItem}>
-                    <Text style={styles.dialogConfirmText}>Enregistrer</Text>
-                  </TouchableOpacity>
-                </View>
+              <View style={styles.dialogBtnRow}>
+                <TouchableOpacity
+                  style={styles.dialogCancelBtn}
+                  onPress={() => setIsEditModalOpen(false)}
+                >
+                  <Text style={styles.dialogCancelText}>Annuler</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.dialogConfirmBtn} onPress={handleSaveItem}>
+                  <Text style={styles.dialogConfirmText}>Enregistrer</Text>
+                </TouchableOpacity>
               </View>
             </View>
-          </Modal>
+          </KeyboardAvoidingView>
+        </View>
+      </Modal>
 
           {/* MODAL DE FUSION DE DEUX INGRÉDIENTS */}
           <Modal
@@ -859,40 +871,45 @@ export const VocabularyManagerModal: React.FC<VocabularyManagerModalProps> = ({
             onRequestClose={() => setIsMergeModalOpen(false)}
           >
             <View style={styles.modalOverlay}>
-              <View style={styles.editDialogCard}>
-                <Text style={styles.dialogTitle}>Fusionner un ingrédient</Text>
-                <Text style={styles.dialogSubtitle}>
-                  Fusionner &laquo; {mergeSource?.canonicalName} &raquo; dans un autre ingrédient cible.
-                </Text>
+              <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                style={styles.keyboardAvoidContainer}
+              >
+                <View style={styles.editDialogCard}>
+                  <Text style={styles.dialogTitle}>Fusionner un ingrédient</Text>
+                  <Text style={styles.dialogSubtitle}>
+                    Fusionner &laquo; {mergeSource?.canonicalName} &raquo; dans un autre ingrédient cible.
+                  </Text>
 
-                <TextInput
-                  style={styles.dialogInput}
-                  placeholder="Rechercher l'ingrédient cible..."
-                  placeholderTextColor={colors.textMuted}
-                  value={mergeTargetSearch}
-                  onChangeText={setMergeTargetSearch}
-                />
+                  <TextInput
+                    style={styles.dialogInput}
+                    placeholder="Rechercher l'ingrédient cible..."
+                    placeholderTextColor={colors.textMuted}
+                    value={mergeTargetSearch}
+                    onChangeText={setMergeTargetSearch}
+                  />
 
-                <ScrollView style={{ maxHeight: 180, marginVertical: 8 }}>
-                  {mergeCandidates.map((cand) => (
-                    <TouchableOpacity
-                      key={cand.id}
-                      style={styles.mergeCandidateRow}
-                      onPress={() => handleConfirmMerge(cand)}
-                    >
-                      <Text style={styles.mergeCandidateName}>{cand.canonicalName}</Text>
-                      <Text style={styles.mergeCandidateAisle}>{cand.defaultAisle}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
+                  <ScrollView style={{ maxHeight: 180, marginVertical: 8 }} keyboardShouldPersistTaps="handled">
+                    {mergeCandidates.map((cand) => (
+                      <TouchableOpacity
+                        key={cand.id}
+                        style={styles.mergeCandidateRow}
+                        onPress={() => handleConfirmMerge(cand)}
+                      >
+                        <Text style={styles.mergeCandidateName}>{cand.canonicalName}</Text>
+                        <Text style={styles.mergeCandidateAisle}>{cand.defaultAisle}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
 
-                <TouchableOpacity
-                  style={[styles.dialogCancelBtn, { marginTop: 10 }]}
-                  onPress={() => setIsMergeModalOpen(false)}
-                >
-                  <Text style={styles.dialogCancelText}>Annuler</Text>
-                </TouchableOpacity>
-              </View>
+                  <TouchableOpacity
+                    style={[styles.dialogCancelBtn, { marginTop: 10 }]}
+                    onPress={() => setIsMergeModalOpen(false)}
+                  >
+                    <Text style={styles.dialogCancelText}>Annuler</Text>
+                  </TouchableOpacity>
+                </View>
+              </KeyboardAvoidingView>
             </View>
           </Modal>
 
@@ -1181,14 +1198,26 @@ const styles = createDynamicStyles((colors, shadows) => ({
     alignItems: 'center',
     padding: 20,
   },
+  keyboardAvoidContainer: {
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   editDialogCard: {
     width: '100%',
+    maxHeight: '88%',
     backgroundColor: colors.cardBackground,
     borderRadius: 18,
     padding: 18,
     borderWidth: 1,
     borderColor: colors.borderLight,
     ...shadows.card,
+  },
+  editDialogScroll: {
+    flexShrink: 1,
+  },
+  editDialogScrollContent: {
+    paddingVertical: 4,
   },
   dialogTitle: {
     fontSize: 17,

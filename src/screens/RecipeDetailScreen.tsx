@@ -1091,37 +1091,44 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
             onRequestClose={() => setIsNoteModalVisible(false)}
           >
             <View style={styles.modalBackdrop}>
-              <View style={styles.modalContent}>
-                <Text style={styles.modalTitle}>Astuce ou note personnelle</Text>
-                <Text style={styles.modalSubtitle}>
-                  Ajoutez vos secrets de cuisson ou remarques pour cette recette.
-                </Text>
+              <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                style={{ width: '100%', alignItems: 'center' }}
+              >
+                <View style={[styles.modalContent, { width: '100%', maxHeight: '90%' }]}>
+                  <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                    <Text style={styles.modalTitle}>Astuce ou note personnelle</Text>
+                    <Text style={styles.modalSubtitle}>
+                      Ajoutez vos secrets de cuisson ou remarques pour cette recette.
+                    </Text>
 
-                <TextInput
-                  style={styles.noteInput}
-                  value={noteText}
-                  onChangeText={setNoteText}
-                  placeholder="Ex: Remplacer le beurre par de l'huile de sésame..."
-                  placeholderTextColor={colors.textMuted}
-                  multiline
-                  numberOfLines={4}
-                />
+                    <TextInput
+                      style={styles.noteInput}
+                      value={noteText}
+                      onChangeText={setNoteText}
+                      placeholder="Ex: Remplacer le beurre par de l'huile de sésame..."
+                      placeholderTextColor={colors.textMuted}
+                      multiline
+                      numberOfLines={4}
+                    />
 
-                <View style={styles.modalButtons}>
-                  <TouchableOpacity
-                    style={styles.modalCancelBtn}
-                    onPress={() => setIsNoteModalVisible(false)}
-                  >
-                    <Text style={styles.modalCancelText}>Annuler</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.modalSaveBtn}
-                    onPress={handleSaveNote}
-                  >
-                    <Text style={styles.modalSaveText}>Enregistrer</Text>
-                  </TouchableOpacity>
+                    <View style={styles.modalButtons}>
+                      <TouchableOpacity
+                        style={styles.modalCancelBtn}
+                        onPress={() => setIsNoteModalVisible(false)}
+                      >
+                        <Text style={styles.modalCancelText}>Annuler</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.modalSaveBtn}
+                        onPress={handleSaveNote}
+                      >
+                        <Text style={styles.modalSaveText}>Enregistrer</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </ScrollView>
                 </View>
-              </View>
+              </KeyboardAvoidingView>
             </View>
           </Modal>
         )}
