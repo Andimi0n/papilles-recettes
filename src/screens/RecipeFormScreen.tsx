@@ -17,7 +17,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { Recipe, Category, Difficulty, Ingredient, RecipeStep } from '../types/recipe';
-import { Colors } from '../theme/colors';
 import { styles } from './RecipeFormScreen.styles';
 import { useTheme } from '../theme/ThemeContext';
 import { StarRating } from '../components/common/StarRating';
@@ -943,7 +942,7 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
                 <View
                   style={[
                     styles.statusDotSmall,
-                    { backgroundColor: connectionStatus.ok ? '#22C55E' : '#EF4444' },
+                    { backgroundColor: connectionStatus.ok ? colors.primary : colors.danger },
                   ]}
                 />
               )}
@@ -1013,12 +1012,12 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
                 <View
                   style={[
                     styles.statusDot,
-                    { backgroundColor: connectionStatus.ok ? '#22C55E' : '#EAB308' },
+                    { backgroundColor: connectionStatus.ok ? colors.primary : colors.amber },
                   ]}
                 />
                 <Text style={styles.statusBannerText} numberOfLines={2}>
                   {connectionStatus.ok
-                    ? 'Gemini 3.8 Flash prêt — extraction automatique'
+                    ? 'Gemini prêt — extraction automatique'
                     : connectionStatus.message}
                 </Text>
                 {!connectionStatus.ok && (
@@ -1171,7 +1170,7 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
             {availableImages.length > 0 && (
               <View style={styles.candidateBlock}>
                 <View style={styles.candidateHeaderRow}>
-                  <Ionicons name="images" size={16} color={Colors.primary} />
+                  <Ionicons name="images" size={16} color={colors.primary} />
                   <Text style={styles.candidateHeaderTitle}>
                     Photos web disponibles ({availableImages.length}) :
                   </Text>
@@ -1254,7 +1253,7 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
               value={title}
               onChangeText={setTitle}
               placeholder="Ex: Tarte aux fraises maison..."
-              placeholderTextColor={Colors.textMuted}
+              placeholderTextColor={colors.textMuted}
             />
 
             <Text style={styles.inputLabel}>Description / Histoire</Text>
@@ -1263,7 +1262,7 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
               value={description}
               onChangeText={setDescription}
               placeholder="Ex: Une pâte croustillante avec crème pâtissière..."
-              placeholderTextColor={Colors.textMuted}
+              placeholderTextColor={colors.textMuted}
               multiline
               numberOfLines={3}
             />
@@ -1434,14 +1433,14 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
                     onPress={() => setServings(Math.max(1, servings - 1))}
                     style={styles.servingBtn}
                   >
-                    <Ionicons name="remove" size={16} color={Colors.textPrimary} />
+                    <Ionicons name="remove" size={16} color={colors.textPrimary} />
                   </TouchableOpacity>
                   <Text style={styles.servingsValue}>{servings}</Text>
                   <TouchableOpacity
                     onPress={() => setServings(servings + 1)}
                     style={styles.servingBtn}
                   >
-                    <Ionicons name="add" size={16} color={Colors.textPrimary} />
+                    <Ionicons name="add" size={16} color={colors.textPrimary} />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -1467,7 +1466,7 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
               value={userNote}
               onChangeText={setUserNote}
               placeholder="Ex: Ajouter une pincée de sel dans les blancs en neige..."
-              placeholderTextColor={Colors.textMuted}
+              placeholderTextColor={colors.textMuted}
               multiline
               numberOfLines={2}
             />
@@ -1529,7 +1528,7 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
         <View style={styles.modalBox}>
           <Text style={styles.modalTitle}>Clé API Google Gemini</Text>
           <Text style={styles.modalSubtitle}>
-            La structuration automatique utilise Gemini 3.8 Flash. Vous pouvez renseigner votre clé personnelle Google AI Studio (gratuite).
+            La structuration automatique utilise Gemini (BYOK). Vous pouvez renseigner votre clé personnelle Google AI Studio (gratuite).
           </Text>
 
           <View style={styles.keyInputContainer}>

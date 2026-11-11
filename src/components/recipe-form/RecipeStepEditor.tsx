@@ -10,7 +10,6 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { RecipeStep } from '../../types/recipe';
 import { useTheme } from '../../theme/ThemeContext';
-import { Colors } from '../../theme/colors';
 import { styles } from '../../screens/RecipeFormScreen.styles';
 
 interface DraggableStepRowProps {
@@ -197,12 +196,14 @@ export const RecipeStepEditor: React.FC<RecipeStepEditorProps> = ({
   onMoveStep,
   setIsDraggingStep,
 }) => {
+  const { colors } = useTheme();
+
   return (
     <View style={styles.section}>
       <View style={styles.sectionHeaderRow}>
         <Text style={styles.sectionLabel}>Étapes ({steps.length})</Text>
         <TouchableOpacity onPress={onAddStep} style={styles.addItemBtn}>
-          <Ionicons name="add-circle" size={18} color={Colors.primary} />
+          <Ionicons name="add-circle" size={18} color={colors.primary} />
           <Text style={styles.addItemBtnText}>Ajouter une étape</Text>
         </TouchableOpacity>
       </View>

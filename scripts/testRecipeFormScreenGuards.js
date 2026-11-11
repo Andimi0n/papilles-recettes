@@ -199,4 +199,57 @@ assert.ok(
 );
 
 console.log('✅ Vérifications P0 validées avec succès.');
+
+// 4. Tests P1 : Thème dynamique strict & éradication du code mort
+console.log('🧪 Tests P1 : Vérification du thème dynamique et suppression du code mort...');
+
+const stylesPath = path.join(__dirname, '../src/screens/RecipeFormScreen.styles.ts');
+const stylesContent = fs.readFileSync(stylesPath, 'utf8');
+
+assert.strictEqual(
+  stylesContent.includes('Colors.'),
+  false,
+  'RecipeFormScreen.styles.ts ne doit contenir AUCUNE occurrence statique de Colors.*'
+);
+assert.strictEqual(
+  stylesContent.includes('Shadows.'),
+  false,
+  'RecipeFormScreen.styles.ts ne doit contenir AUCUNE occurrence statique de Shadows.*'
+);
+assert.strictEqual(
+  content.includes('Colors.'),
+  false,
+  'RecipeFormScreen.tsx ne doit contenir AUCUNE occurrence statique de Colors.*'
+);
+
+const stepEditorPath = path.join(__dirname, '../src/components/recipe-form/RecipeStepEditor.tsx');
+const stepEditorContent = fs.readFileSync(stepEditorPath, 'utf8');
+assert.strictEqual(
+  stepEditorContent.includes('Colors.'),
+  false,
+  'RecipeStepEditor.tsx ne doit contenir AUCUNE occurrence statique de Colors.*'
+);
+
+// Vérification de la suppression du code mort dans les styles
+const deadStyles = [
+  'ingredientColumnsHeader',
+  'colNomHeader',
+  'colQtyHeader',
+  'colUnitHeader',
+  'ingNameContainer',
+  'ingQtyInput',
+  'unitPickerTriggerBtn',
+  'switchAiBanner',
+  'quickAddOptionsRow',
+  'sampleQuickBtn',
+];
+for (const styleName of deadStyles) {
+  assert.strictEqual(
+    stylesContent.includes(styleName),
+    false,
+    `Le style orphelin '${styleName}' doit être supprimé de RecipeFormScreen.styles.ts`
+  );
+}
+
+console.log('✅ Vérifications P1 validées avec succès.');
 console.log('🎉 Tous les tests de protection RecipeFormScreen ont réussi !');
