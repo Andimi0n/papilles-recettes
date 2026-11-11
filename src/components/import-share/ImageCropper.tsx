@@ -341,6 +341,7 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
     displayLayoutRef.current = displayLayout;
   }, [displayLayout]);
 
+  /* eslint-disable react-hooks/refs */
   const panResponder = useMemo(
     () =>
       createCropPanResponder(
@@ -354,6 +355,7 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
       ),
     []
   );
+  /* eslint-enable react-hooks/refs */
 
   const handleContainerLayout = (event: LayoutChangeEvent) => {
     const { width, height } = event.nativeEvent.layout;
