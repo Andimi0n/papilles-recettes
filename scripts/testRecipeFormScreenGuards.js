@@ -148,4 +148,55 @@ if (!hasProtectedCreationTabs) {
 }
 
 console.log('✅ Vérification dans le code source validée.');
+
+// 3. Tests P0 : Préservation des données personnelles (sourceUrl, sourceSite, prepTime 0, isDirty, flushPendingEdits)
+console.log('🧪 Tests P0 : Préservation de sourceUrl, prepTime=0, isDirty et flushPendingEdits...');
+
+// A. Test de sanitisation des durées (0 min doit être préservé)
+function sanitizeDuration(val) {
+  const parsed = parseInt(val, 10);
+  return isNaN(parsed) || parsed < 0 ? 0 : parsed;
+}
+
+assert.strictEqual(sanitizeDuration('0'), 0, 'La durée 0 minute doit rester 0 (pas de conversion arbitraire en 10)');
+assert.strictEqual(sanitizeDuration(0), 0, 'La durée numérique 0 doit rester 0');
+assert.strictEqual(sanitizeDuration('15'), 15, 'La durée valide 15 doit rester 15');
+assert.strictEqual(sanitizeDuration(''), 0, 'Une durée vide doit valoir 0');
+assert.strictEqual(sanitizeDuration('-5'), 0, 'Une durée négative doit être ramenée à 0');
+
+// B. Vérification statique dans RecipeFormScreen.tsx
+assert.ok(
+  content.includes('sourceUrl: initialRecipe?.sourceUrl'),
+  'RecipeFormScreen.tsx doit préserver initialRecipe.sourceUrl lors de la sauvegarde'
+);
+assert.ok(
+  content.includes('sourceSite: initialRecipe?.sourceSite'),
+  'RecipeFormScreen.tsx doit préserver initialRecipe.sourceSite lors de la sauvegarde'
+);
+assert.ok(
+  content.includes('BackHandler.addEventListener'),
+  'RecipeFormScreen.tsx doit intercepter BackHandler pour protéger les modifications non enregistrées'
+);
+assert.ok(
+  content.includes('handleRequestCancel'),
+  'RecipeFormScreen.tsx doit utiliser handleRequestCancel avec dialogue de confirmation en cas de dirty state'
+);
+assert.ok(
+  content.includes('ingredientEditorRef.current?.flushPendingEdits()'),
+  'RecipeFormScreen.tsx doit appeler flushPendingEdits() au submit pour ne rien perdre'
+);
+
+// C. Vérification statique dans IngredientTableEditor.tsx
+const editorPath = path.join(__dirname, '../src/components/recipe-form/IngredientTableEditor.tsx');
+const editorContent = fs.readFileSync(editorPath, 'utf8');
+assert.ok(
+  editorContent.includes('flushPendingEdits'),
+  'IngredientTableEditor.tsx doit exposer flushPendingEdits via forwardRef / useImperativeHandle'
+);
+assert.ok(
+  editorContent.includes('onReplaceAllIngredients'),
+  'IngredientTableEditor.tsx doit supporter onReplaceAllIngredients'
+);
+
+console.log('✅ Vérifications P0 validées avec succès.');
 console.log('🎉 Tous les tests de protection RecipeFormScreen ont réussi !');

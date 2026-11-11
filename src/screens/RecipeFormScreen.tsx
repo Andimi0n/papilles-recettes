@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
   TextInput,
   TouchableOpacity,
@@ -11,7 +10,7 @@ import {
   Modal,
   KeyboardAvoidingView,
   Platform,
-  Animated,
+  BackHandler,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -22,19 +21,20 @@ import { Colors } from '../theme/colors';
 import { styles } from './RecipeFormScreen.styles';
 import { useTheme } from '../theme/ThemeContext';
 import { StarRating } from '../components/common/StarRating';
-import { generateUniqueId, normalizeString } from '../utils/helpers';
+import { generateUniqueId } from '../utils/helpers';
 import { normalizeIngredient } from '../utils/ingredientNormalizer';
 import { CanonicalIngredient } from '../types/vocabulary';
 import { CameraCaptureModal } from '../components/import-share/CameraCaptureModal';
 import { QualifyIngredientModal } from '../components/lexicon-units/QualifyIngredientModal';
 import { UnitPickerModal } from '../components/lexicon-units/UnitPickerModal';
-import { formatQuantityWithUnit } from '../constants/units';
 import { UnifiedIngredientService } from '../services/unifiedIngredientService';
 import { VocabularyService } from '../services/vocabularyService';
 import { ImageStorageService } from '../services/imageStorageService';
-import { isKnownDefaultPantryStaple } from '../data/canonicalVocabulary';
 import { RecipeLinkPickerModal } from '../components/recipe-detail/RecipeLinkPickerModal';
-import { IngredientTableEditor } from '../components/recipe-form/IngredientTableEditor';
+import {
+  IngredientTableEditor,
+  IngredientTableEditorRef,
+} from '../components/recipe-form/IngredientTableEditor';
 import { RecipeStepEditor } from '../components/recipe-form/RecipeStepEditor';
 import {
   RecipeAiService,
@@ -66,6 +66,19 @@ const PRESET_IMAGES = [
   { label: 'Curry/Épices', url: 'https://images.unsplash.com/photo-1455619452474-d2be8b1e70cd?auto=format&fit=crop&w=800&q=80' },
   { label: 'Chocolat', url: 'https://images.unsplash.com/photo-1606313564200-e75d5e30476c?auto=format&fit=crop&w=800&q=80' },
   { label: 'Tarte/Gâteau', url: 'https://images.unsplash.com/photo-1568571780765-9276ac8b75a2?auto=format&fit=crop&w=800&q=80' },
+];
+
+const POPULAR_TAG_SUGGESTIONS = [
+  'Rapide',
+  'Sans gluten',
+  'Sans lactose',
+  'Apéro',
+  'Batch cooking',
+  'Enfant',
+  'Épicé',
+  'Comfort food',
+  'Économique',
+  'Festif',
 ];
 
 export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
@@ -267,19 +280,6 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
     return Array.from(set).sort((a, b) => a.localeCompare(b, 'fr'));
   }, [availableRecipes]);
 
-  const POPULAR_TAG_SUGGESTIONS = [
-    'Rapide',
-    'Sans gluten',
-    'Sans lactose',
-    'Apéro',
-    'Batch cooking',
-    'Enfant',
-    'Épicé',
-    'Comfort food',
-    'Économique',
-    'Festif',
-  ];
-
   const suggestedTags: string[] = useMemo(() => {
     const allAvailable = new Set<string>();
     existingTags.forEach((t: string) => allAvailable.add(t));
@@ -352,6 +352,144 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
     ]
   );
   const [isDraggingStep, setIsDraggingStep] = useState(false);
+  const ingredientEditorRef = useRef<IngredientTableEditorRef>(null);
+
+  // Détection des modifications non sauvegardées (Règle d'or de préservation des données)
+  const isDirty = useMemo(() => {
+    if (!initialRecipe) {
+      const hasTitle = title.trim().length > 0;
+      const hasDesc = description.trim().length > 0;
+      const hasNote = userNote.trim().length > 0;
+      const hasRawText = rawTextInput.trim().length > 0;
+      const hasTags = tags.length > 0;
+      const hasIngredients = ingredients.some((i) => i.name.trim().length > 0);
+      const hasSteps = steps.some((s) => s.instruction.trim().length > 0);
+      const hasCustomTimes = prepTime !== '15' || cookTime !== '20';
+      const hasCustomServings = servings !== 4;
+      const hasCustomRating = rating !== 4;
+      const hasCustomVege = isVegetarian !== false;
+      const hasCustomCategory = category !== 'Plat';
+      const hasCustomDifficulty = difficulty !== 'Facile';
+
+      return (
+        hasTitle ||
+        hasDesc ||
+        hasNote ||
+        hasRawText ||
+        hasTags ||
+        hasIngredients ||
+        hasSteps ||
+        hasCustomTimes ||
+        hasCustomServings ||
+        hasCustomRating ||
+        hasCustomVege ||
+        hasCustomCategory ||
+        hasCustomDifficulty
+      );
+    }
+
+    if (title.trim() !== (initialRecipe.title || '').trim()) return true;
+    if (description.trim() !== (initialRecipe.description || '').trim()) return true;
+    if (category !== (initialRecipe.category || 'Plat')) return true;
+    if (difficulty !== (initialRecipe.difficulty || 'Facile')) return true;
+
+    const initialPrep =
+      initialRecipe.prepTimeMinutes !== undefined
+        ? initialRecipe.prepTimeMinutes.toString()
+        : '15';
+    if (prepTime.trim() !== initialPrep) return true;
+
+    const initialCook =
+      initialRecipe.cookTimeMinutes !== undefined
+        ? initialRecipe.cookTimeMinutes.toString()
+        : '20';
+    if (cookTime.trim() !== initialCook) return true;
+
+    if (servings !== (initialRecipe.servings || 4)) return true;
+    if (rating !== (initialRecipe.rating !== undefined ? initialRecipe.rating : 4)) return true;
+    if (isVegetarian !== (initialRecipe.isVegetarian ?? false)) return true;
+    if (userNote.trim() !== (initialRecipe.userNote || '').trim()) return true;
+    if (imageUrl.trim() !== (initialRecipe.imageUrl || '').trim()) return true;
+
+    const initTags = initialRecipe.tags || [];
+    if (tags.length !== initTags.length || tags.some((t, idx) => t !== initTags[idx])) {
+      return true;
+    }
+
+    const initIngs = initialRecipe.ingredients || [];
+    if (ingredients.length !== initIngs.length) return true;
+    for (let i = 0; i < ingredients.length; i++) {
+      const a = ingredients[i];
+      const b = initIngs[i];
+      if (
+        a.name.trim() !== (b.name || '').trim() ||
+        (a.quantity || '').trim() !== (b.quantity || '').trim() ||
+        (a.unit || '').trim() !== (b.unit || '').trim() ||
+        Boolean(a.isPantryStaple) !== Boolean(b.isPantryStaple) ||
+        Boolean(a.isOptional) !== Boolean(b.isOptional) ||
+        (a.linkedRecipeId || undefined) !== (b.linkedRecipeId || undefined)
+      ) {
+        return true;
+      }
+    }
+
+    const initSteps = initialRecipe.steps || [];
+    if (steps.length !== initSteps.length) return true;
+    for (let i = 0; i < steps.length; i++) {
+      if (steps[i].instruction.trim() !== (initSteps[i].instruction || '').trim()) {
+        return true;
+      }
+    }
+
+    return false;
+  }, [
+    initialRecipe,
+    title,
+    description,
+    category,
+    difficulty,
+    prepTime,
+    cookTime,
+    servings,
+    rating,
+    isVegetarian,
+    userNote,
+    imageUrl,
+    tags,
+    ingredients,
+    steps,
+    rawTextInput,
+  ]);
+
+  const handleRequestCancel = useCallback(() => {
+    if (!isDirty) {
+      onCancel();
+      return;
+    }
+
+    Alert.alert(
+      'Abandonner les modifications ?',
+      'Vos modifications non enregistrées seront perdues.',
+      [
+        { text: "Continuer l'édition", style: 'cancel' },
+        {
+          text: 'Abandonner',
+          style: 'destructive',
+          onPress: onCancel,
+        },
+      ]
+    );
+  }, [isDirty, onCancel]);
+
+  useEffect(() => {
+    const onHardwareBack = () => {
+      handleRequestCancel();
+      return true;
+    };
+
+    const sub = BackHandler.addEventListener('hardwareBackPress', onHardwareBack);
+    return () => sub.remove();
+  }, [handleRequestCancel]);
 
   // Image pickers (Appareil photo in-app & Galerie)
   const handleCaptureImage = () => {
@@ -641,14 +779,19 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
     setPendingQualifyIndex(null);
     setPendingUnrecognizedName('');
 
+    const parsedPrep = parseInt(prepTime, 10);
+    const sanitizedPrepTime = isNaN(parsedPrep) || parsedPrep < 0 ? 0 : parsedPrep;
+    const parsedCook = parseInt(cookTime, 10);
+    const sanitizedCookTime = isNaN(parsedCook) || parsedCook < 0 ? 0 : parsedCook;
+
     const recipe: Recipe = {
       id: initialRecipe?.id || generateUniqueId('rec'),
       title: title.trim(),
       description: description.trim(),
       category,
       difficulty,
-      prepTimeMinutes: parseInt(prepTime, 10) || 10,
-      cookTimeMinutes: parseInt(cookTime, 10) || 0,
+      prepTimeMinutes: sanitizedPrepTime,
+      cookTimeMinutes: sanitizedCookTime,
       servings: Math.max(1, servings),
       rating,
       isVegetarian,
@@ -657,6 +800,8 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
       imageUrl: imageUrl.trim(),
       availableImages: availableImages.length > 0 ? availableImages : undefined,
       isFavorite: initialRecipe?.isFavorite || false,
+      sourceUrl: initialRecipe?.sourceUrl,
+      sourceSite: initialRecipe?.sourceSite,
       createdAt: initialRecipe?.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       ingredients: validatedIngredients,
@@ -673,15 +818,18 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
 
   // Save validation
   const handleSubmit = (overrideIngredients?: unknown) => {
+    // 0. Flush de toute saisie d'ingrédient ou d'ajout rapide en attente
+    const flushed = ingredientEditorRef.current?.flushPendingEdits();
+
     if (!title.trim()) {
       isSubmittingRef.current = false;
       Alert.alert('Titre manquant', 'Veuillez saisir au moins un titre pour la recette.');
       return;
     }
 
-    const currentIngredients = Array.isArray(overrideIngredients)
+    const currentIngredients = flushed || (Array.isArray(overrideIngredients)
       ? (overrideIngredients as Ingredient[])
-      : ingredientsRef.current;
+      : ingredientsRef.current);
     const nonEmptyIngredients = currentIngredients.filter((i) => i.name.trim().length > 0);
     if (nonEmptyIngredients.length === 0) {
       isSubmittingRef.current = false;
@@ -763,7 +911,7 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
       >
         {/* Top Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={onCancel} style={styles.headerBtn}>
+          <TouchableOpacity onPress={handleRequestCancel} style={styles.headerBtn}>
             <Text style={styles.cancelText}>Annuler</Text>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>
@@ -1327,10 +1475,12 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
 
           {/* Ingrédients */}
           <IngredientTableEditor
+            ref={ingredientEditorRef}
             ingredients={ingredients}
             onAddIngredient={handleAddIngredient}
             onUpdateIngredient={handleUpdateIngredient}
             onUpdateFullIngredient={handleUpdateFullIngredient}
+            onReplaceAllIngredients={setIngredients}
             onSelectCanonicalIngredient={handleSelectCanonicalIngredient}
             onRemoveIngredient={handleRemoveIngredient}
             onToggleIngredientStaple={handleToggleIngredientStaple}

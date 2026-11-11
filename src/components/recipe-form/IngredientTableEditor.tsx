@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, forwardRef, useImperativeHandle, useCallback } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Recipe, Ingredient } from '../../types/recipe';
@@ -16,11 +16,16 @@ import {
 } from '../../constants/units';
 import { generateUniqueId } from '../../utils/helpers';
 
+export interface IngredientTableEditorRef {
+  flushPendingEdits: () => Ingredient[];
+}
+
 export interface IngredientTableEditorProps {
   ingredients: Ingredient[];
   onAddIngredient: (newIngredient?: Ingredient) => void;
   onUpdateIngredient: (index: number, field: keyof Ingredient, val: any) => void;
   onUpdateFullIngredient?: (index: number, newIng: Ingredient) => void;
+  onReplaceAllIngredients?: (newList: Ingredient[]) => void;
   onSelectCanonicalIngredient: (index: number, canon: CanonicalIngredient, details?: any) => void;
   onRemoveIngredient: (index: number) => void;
   onToggleIngredientStaple: (index: number) => void;
@@ -43,29 +48,91 @@ function formatIngredientForInput(name: string, quantity?: string | number, unit
   return name || '';
 }
 
-export const IngredientTableEditor: React.FC<IngredientTableEditorProps> = ({
-  ingredients,
-  onAddIngredient,
-  onUpdateIngredient,
-  onUpdateFullIngredient,
-  onSelectCanonicalIngredient,
-  onRemoveIngredient,
-  onToggleIngredientStaple,
-  onToggleIngredientOptional,
-  onOpenLinkModal,
-  onRequestQualify,
-  onOpenUnitModal,
-  availableRecipes,
-  currentRecipeId,
-}) => {
-  const { colors } = useTheme();
-  const [activeIngIndex, setActiveIngIndex] = useState<number | null>(null);
+export const IngredientTableEditor = forwardRef<IngredientTableEditorRef, IngredientTableEditorProps>(
+  (
+    {
+      ingredients,
+      onAddIngredient,
+      onUpdateIngredient,
+      onUpdateFullIngredient,
+      onReplaceAllIngredients,
+      onSelectCanonicalIngredient,
+      onRemoveIngredient,
+      onToggleIngredientStaple,
+      onToggleIngredientOptional,
+      onOpenLinkModal,
+      onRequestQualify,
+      onOpenUnitModal,
+      availableRecipes,
+      currentRecipeId,
+    },
+    ref
+  ) => {
+    const { colors } = useTheme();
+    const [activeIngIndex, setActiveIngIndex] = useState<number | null>(null);
 
-  // Saisie rapide en tête (comme pour les courses)
-  const [quickAddText, setQuickAddText] = useState('');
+    // Saisie rapide en tête (comme pour les courses)
+    const [quickAddText, setQuickAddText] = useState('');
 
-  // Cache des textes en cours de saisie par ligne (pour ne pas écraser pendant la frappe active)
-  const [localTexts, setLocalTexts] = useState<Record<string, string>>({});
+    // Cache des textes en cours de saisie par ligne (pour ne pas écraser pendant la frappe active)
+    const [localTexts, setLocalTexts] = useState<Record<string, string>>({});
+
+    // Flush défensif de toute saisie en cours (ligne active ou quickAdd) pour prévenir toute perte de données
+    useImperativeHandle(
+      ref,
+      () => ({
+        flushPendingEdits: (): Ingredient[] => {
+          let current = [...ingredients];
+
+          const localKeys = Object.keys(localTexts);
+          if (localKeys.length > 0) {
+            current = current.map((ing) => {
+              if (localTexts[ing.id] !== undefined) {
+                const raw = localTexts[ing.id].trim();
+                if (!raw) {
+                  return { ...ing, name: '', quantity: '', unit: '', canonicalId: undefined };
+                }
+                const parsed = parseRecipeIngredientInput(raw);
+                return {
+                  ...ing,
+                  name: parsed.name,
+                  quantity: parsed.quantity || '',
+                  unit: parsed.unit || '',
+                  canonicalId: parsed.canonicalId,
+                  isPantryStaple: ing.isPantryStaple !== undefined ? ing.isPantryStaple : parsed.isPantryStaple,
+                };
+              }
+              return ing;
+            });
+            setLocalTexts({});
+          }
+
+          const trimmedQuick = quickAddText.trim();
+          if (trimmedQuick) {
+            const parsed = parseRecipeIngredientInput(trimmedQuick);
+            if (parsed.name) {
+              const newIng: Ingredient = {
+                id: generateUniqueId('ing'),
+                name: parsed.name,
+                quantity: parsed.quantity || '',
+                unit: parsed.unit || '',
+                canonicalId: parsed.canonicalId,
+                isPantryStaple: parsed.isPantryStaple,
+                isOptional: parsed.isOptional || false,
+              };
+              current.push(newIng);
+              setQuickAddText('');
+            }
+          }
+
+          if (onReplaceAllIngredients) {
+            onReplaceAllIngredients(current);
+          }
+          return current;
+        },
+      }),
+      [ingredients, localTexts, quickAddText, onReplaceAllIngredients]
+    );
 
   // Ajout rapide via le champ libre supérieur
   const handleQuickAdd = () => {
@@ -468,4 +535,4 @@ export const IngredientTableEditor: React.FC<IngredientTableEditorProps> = ({
       </View>
     </View>
   );
-};
+});
