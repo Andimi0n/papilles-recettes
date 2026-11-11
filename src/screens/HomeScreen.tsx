@@ -1362,6 +1362,14 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
   // En-tête de la liste des recettes d'un dossier ouvert
   const folderHeaderElement = useMemo(() => {
     if (!currentFolderId || !activeFolderInfo) return null;
+    const isFolderEmpty = (folderRecipeIds?.size || 0) === 0;
+    const hasActiveFiltersOnFolder =
+      isSearching ||
+      selectedCategories.length > 0 ||
+      activeAdvancedFiltersCount > 0 ||
+      onlyVegetarian ||
+      onlyDoableWithStock;
+
     return (
       <View>
         <View style={styles.folderHeaderBanner}>
@@ -1426,15 +1434,205 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
           )}
         </View>
 
-        {listHeaderElement}
+        {/* Bandeau filtres avancés actifs (Temps, Note, Difficulté, Ingrédients, Tags) */}
+        {(targetTotalTime !== null ||
+          selectedDifficulties.length > 0 ||
+          selectedIngredients.length > 0 ||
+          selectedTags.length > 0 ||
+          minRatingFilter > 0) && (
+          <View style={[styles.listHeaderContainer, { paddingBottom: 0 }]}>
+            <View style={styles.advancedFiltersActiveBanner}>
+              <View style={styles.advancedFiltersActiveLeft}>
+                <Ionicons name="options" size={16} color={colors.primary} style={{ marginRight: 6 }} />
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.activePillsScroll}
+                >
+                  {targetTotalTime !== null && (
+                    <View style={styles.activePillChip}>
+                      <Ionicons
+                        name={timeFilterMode === 'min' ? 'flame-outline' : 'time-outline'}
+                        size={12}
+                        color={colors.primary}
+                        style={{ marginRight: 3 }}
+                      />
+                      <Text style={styles.activePillChipText}>
+                        {timeFilterMode === 'min' ? `≥ ${targetTotalTime} min` : `≤ ${targetTotalTime} min`}
+                      </Text>
+                      <TouchableOpacity
+                        onPress={() => setTargetTotalTime(null)}
+                        hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                      >
+                        <Ionicons name="close" size={12} color={colors.primary} style={{ marginLeft: 2 }} />
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                  {selectedDifficulties.map((diff) => (
+                    <View key={diff} style={styles.activePillChip}>
+                      <Text style={styles.activePillChipText}>{diff}</Text>
+                      <TouchableOpacity
+                        onPress={() =>
+                          setSelectedDifficulties((prev) => prev.filter((d) => d !== diff))
+                        }
+                        hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                      >
+                        <Ionicons name="close" size={12} color={colors.primary} style={{ marginLeft: 2 }} />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                  {selectedIngredients.map((ing) => (
+                    <View key={ing} style={styles.activePillChip}>
+                      <Text style={styles.activePillChipText}>{ing}</Text>
+                      <TouchableOpacity
+                        onPress={() =>
+                          setSelectedIngredients((prev) => prev.filter((i) => i !== ing))
+                        }
+                        hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                      >
+                        <Ionicons name="close" size={12} color={colors.primary} style={{ marginLeft: 2 }} />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                  {selectedTags.map((tag) => (
+                    <View key={tag} style={styles.activePillChip}>
+                      <Text style={styles.activePillChipText}>#{tag}</Text>
+                      <TouchableOpacity
+                        onPress={() =>
+                          setSelectedTags((prev) => prev.filter((t) => t !== tag))
+                        }
+                        hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                      >
+                        <Ionicons name="close" size={12} color={colors.primary} style={{ marginLeft: 2 }} />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                  {minRatingFilter > 0 && (
+                    <View style={styles.activePillChip}>
+                      <Ionicons name="star" size={11} color="#E5A100" style={{ marginRight: 3 }} />
+                      <Text style={styles.activePillChipText}>≥ {minRatingFilter}</Text>
+                      <TouchableOpacity
+                        onPress={() => setMinRatingFilter(0)}
+                        hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                      >
+                        <Ionicons name="close" size={12} color={colors.primary} style={{ marginLeft: 2 }} />
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </ScrollView>
+              </View>
+
+              <TouchableOpacity
+                onPress={() => {
+                  setTargetTotalTime(null);
+                  setTimeFilterMode('max');
+                  setSelectedDifficulties([]);
+                  setSelectedIngredients([]);
+                  setSelectedTags([]);
+                  setMinRatingFilter(0);
+                }}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityLabel="Réinitialiser les filtres avancés"
+              >
+                <Text style={styles.clearAdvancedText}>Effacer</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {/* Résumé des résultats et switcher de vue (uniquement si le dossier n'est pas vide ou si un filtre est actif) */}
+        {(!isFolderEmpty || hasActiveFiltersOnFolder) && (
+          <View style={styles.listHeaderContainer}>
+            <View style={styles.resultsCountRow}>
+              <View style={styles.resultsCountLeft}>
+                {hasActiveFiltersOnFolder ? (
+                  <Text style={styles.resultsCountText}>
+                    {folderFilteredRecipes.length} recette{folderFilteredRecipes.length > 1 ? 's' : ''} trouvée{folderFilteredRecipes.length > 1 ? 's' : ''}
+                  </Text>
+                ) : (
+                  <Text style={styles.resultsCountText}>
+                    {folderFilteredRecipes.length} recette{folderFilteredRecipes.length > 1 ? 's' : ''} au menu
+                  </Text>
+                )}
+
+                {debouncedSearchQuery.trim().length > 0 && (
+                  <View style={styles.smartBadge}>
+                    <Ionicons name="sparkles" size={11} color={colors.primary} />
+                    <Text style={styles.smartBadgeText}>Recherche intelligente</Text>
+                  </View>
+                )}
+              </View>
+
+              {/* Switcher de mode d'affichage des recettes : Détaillé, Compact, Grille */}
+              <View style={styles.viewModeSwitcher}>
+                <TouchableOpacity
+                  style={[styles.viewModeBtn, viewMode === 'detailed' && styles.viewModeBtnActive]}
+                  onPress={() => handleChangeViewMode('detailed')}
+                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Affichage grandes cartes détaillées"
+                >
+                  <Ionicons
+                    name={viewMode === 'detailed' ? 'albums' : 'albums-outline'}
+                    size={16}
+                    color={viewMode === 'detailed' ? colors.primary : colors.textMuted}
+                  />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.viewModeBtn, viewMode === 'compact' && styles.viewModeBtnActive]}
+                  onPress={() => handleChangeViewMode('compact')}
+                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Affichage liste compacte"
+                >
+                  <Ionicons
+                    name={viewMode === 'compact' ? 'list' : 'list-outline'}
+                    size={17}
+                    color={viewMode === 'compact' ? colors.primary : colors.textMuted}
+                  />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.viewModeBtn, viewMode === 'grid' && styles.viewModeBtnActive]}
+                  onPress={() => handleChangeViewMode('grid')}
+                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Affichage en grille 2 colonnes"
+                >
+                  <Ionicons
+                    name={viewMode === 'grid' ? 'grid' : 'grid-outline'}
+                    size={15}
+                    color={viewMode === 'grid' ? colors.primary : colors.textMuted}
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        )}
       </View>
     );
   }, [
     currentFolderId,
     activeFolderInfo,
+    folderRecipeIds,
     folderFilteredRecipes.length,
+    isSearching,
+    selectedCategories.length,
+    activeAdvancedFiltersCount,
+    onlyVegetarian,
+    onlyDoableWithStock,
+    targetTotalTime,
+    selectedDifficulties,
+    selectedIngredients,
+    selectedTags,
+    minRatingFilter,
+    timeFilterMode,
+    debouncedSearchQuery,
     colors,
-    listHeaderElement,
+    styles,
+    viewMode,
+    handleChangeViewMode,
   ]);
 
   // Pied de liste avec navigation complète : début, précédente, sélection directe, suivante, fin
