@@ -23,7 +23,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Recipe, Category, SortOption, Difficulty, TimeFilterMode, RecipeViewMode } from '../types/recipe';
 import { FridgeItem } from '../types/fridge';
 import { UserAllergenItem } from '../types/vocabulary';
-import { FolderSummary } from '../types/folder';
+import { FolderSummary, UNCATEGORIZED_FOLDER_ID } from '../types/folder';
 import { StorageService } from '../services/storageService';
 import { FolderService } from '../services/folderService';
 import {
@@ -117,6 +117,64 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
   const [foldersCount, setFoldersCount] = useState<number>(0);
   const [pageTranslateX] = useState(() => new Animated.Value(0));
 
+  const [folderRecipeIds, setFolderRecipeIds] = useState<Set<string> | null>(null);
+  const [activeFolderInfo, setActiveFolderInfo] = useState<{
+    id: string;
+    name: string;
+    icon: string;
+    count: number;
+  } | null>(null);
+  const [prevFolderIdForDetails, setPrevFolderIdForDetails] = useState<string | null>(currentFolderId);
+  if (prevFolderIdForDetails !== currentFolderId) {
+    setPrevFolderIdForDetails(currentFolderId);
+    if (!currentFolderId) {
+      setFolderRecipeIds(null);
+      setActiveFolderInfo(null);
+    }
+  }
+
+  // Chargement réactif des recettes du dossier actif
+  useEffect(() => {
+    if (!currentFolderId) {
+      return;
+    }
+    let isMounted = true;
+    const loadFolderDetails = async () => {
+      try {
+        const ids = await FolderService.getRecipeIdsForFolder(currentFolderId);
+        if (!isMounted) return;
+        setFolderRecipeIds(new Set(ids));
+
+        if (currentFolderId === UNCATEGORIZED_FOLDER_ID) {
+          setActiveFolderInfo({
+            id: UNCATEGORIZED_FOLDER_ID,
+            name: 'Non classées',
+            icon: '📂',
+            count: ids.length,
+          });
+        } else {
+          const folder = await FolderService.getFolderById(currentFolderId);
+          if (folder && isMounted) {
+            setActiveFolderInfo({
+              id: folder.id,
+              name: folder.name,
+              icon: folder.icon,
+              count: ids.length,
+            });
+          }
+        }
+      } catch (err) {
+        console.error('Erreur chargement détails dossier :', err);
+      }
+    };
+    loadFolderDetails();
+    const unsubscribe = StorageService.onFoldersChange(loadFolderDetails);
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
+  }, [currentFolderId]);
+
   // Chargement réactif du nombre total de dossiers
   useEffect(() => {
     let isMounted = true;
@@ -151,20 +209,6 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
   const [folderToDelete, setFolderToDelete] = useState<FolderSummary | null>(null);
   const isSelectionMode = selectedRecipeIds.size > 0;
 
-  // Interception du BackHandler Android pour quitter le mode sélection en priorité
-  useEffect(() => {
-    const onBackPress = () => {
-      if (!isActive) return false;
-      if (selectedRecipeIds.size > 0) {
-        setSelectedRecipeIds(new Set());
-        return true;
-      }
-      return false;
-    };
-    const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
-    return () => sub.remove();
-  }, [isActive, selectedRecipeIds.size]);
-
   const handleToggleSelectRecipe = useCallback((id: string) => {
     setSelectedRecipeIds((prev) => {
       const next = new Set(prev);
@@ -190,14 +234,14 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
   }, []);
 
   const handleRemoveSelectedFromFolder = useCallback(async () => {
-    if (!activeFolderId || activeFolderId === 'UNCATEGORIZED' || selectedRecipeIds.size === 0) return;
+    if (!currentFolderId || currentFolderId === UNCATEGORIZED_FOLDER_ID || selectedRecipeIds.size === 0) return;
     try {
-      await FolderService.removeRecipesFromFolder(Array.from(selectedRecipeIds), activeFolderId);
+      await FolderService.removeRecipesFromFolder(Array.from(selectedRecipeIds), currentFolderId);
       setSelectedRecipeIds(new Set());
     } catch (err) {
       console.error('Erreur lors du retrait du dossier :', err);
     }
-  }, [activeFolderId, selectedRecipeIds]);
+  }, [currentFolderId, selectedRecipeIds]);
 
   // Debounce fluide sur la recherche pour ne jamais bloquer le thread UI à la frappe
   useEffect(() => {
@@ -308,6 +352,28 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
     },
     [activeTab, screenWidth, pageTranslateX]
   );
+
+  // Interception du BackHandler Android :
+  // 1. Quitter le mode sélection
+  // 2. Quitter le dossier actif pour revenir à la grille des dossiers
+  // 3. Quitter l'écran
+  useEffect(() => {
+    const onBackPress = () => {
+      if (!isActive) return false;
+      if (selectedRecipeIds.size > 0) {
+        setSelectedRecipeIds(new Set());
+        return true;
+      }
+      if (currentFolderId) {
+        setCurrentFolderId(null);
+        switchTab('folders', true);
+        return true;
+      }
+      return false;
+    };
+    const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => sub.remove();
+  }, [isActive, selectedRecipeIds.size, currentFolderId, switchTab]);
 
   // PanResponder gestuel pour le swipe horizontal strict entre Recettes et Dossiers
   const screenSwipePanResponder = useMemo(() => {
@@ -832,6 +898,11 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
       result = result.filter((r) => !recipesWithAllergensSet.has(r.recipe.id));
     }
 
+    // Filtrage contextuel de dossier (activeFolderId)
+    if (currentFolderId && folderRecipeIds) {
+      result = result.filter((r) => folderRecipeIds.has(r.recipe.id));
+    }
+
     return {
       baseFilteredResults: result,
       isSearching: searching,
@@ -853,6 +924,8 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
     userAllergens.length,
     recipesWithAllergensSet,
     doableRecipesMap,
+    currentFolderId,
+    folderRecipeIds,
   ]);
 
   // Category counts synchronisés avec les filtres actifs (stock, recherche, diététique, etc.)
@@ -1467,6 +1540,82 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
             </View>
           )}
 
+          {/* Bandeau d'en-tête contextuel de dossier : [ ← Tous les dossiers | Nom (compteur) | ✏️ / 🗑️ ] */}
+          {currentFolderId && activeFolderInfo && (
+            <View style={styles.folderHeaderBanner}>
+              {/* Bouton retour vers tous les dossiers */}
+              <TouchableOpacity
+                style={styles.folderBackBtn}
+                onPress={() => {
+                  setCurrentFolderId(null);
+                  switchTab('folders', true);
+                }}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Revenir à tous les dossiers"
+              >
+                <Ionicons name="arrow-back" size={17} color={colors.primary} />
+                <Text style={styles.folderBackBtnText}>Dossiers</Text>
+              </TouchableOpacity>
+
+              {/* Titre & Compteur au centre */}
+              <View style={styles.folderTitleContainer}>
+                <Text style={styles.folderIconText}>{activeFolderInfo.icon}</Text>
+                <Text style={styles.folderTitleText} numberOfLines={1}>
+                  {activeFolderInfo.name}
+                </Text>
+                <View style={styles.folderCountBadge}>
+                  <Text style={styles.folderCountBadgeText}>
+                    {filteredRecipes.length}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Actions Modifier / Supprimer (uniquement pour les dossiers utilisateur) */}
+              {currentFolderId !== UNCATEGORIZED_FOLDER_ID ? (
+                <View style={styles.folderActionsRow}>
+                  <TouchableOpacity
+                    style={styles.folderActionBtn}
+                    onPress={() => {
+                      setFolderToEdit({
+                        id: activeFolderInfo.id,
+                        name: activeFolderInfo.name,
+                        icon: activeFolderInfo.icon,
+                        recipeCount: activeFolderInfo.count,
+                        recipeImages: [],
+                      });
+                    }}
+                    activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityLabel="Modifier le nom et l'icône du dossier"
+                  >
+                    <Ionicons name="pencil-outline" size={17} color={colors.textSecondary} />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.folderActionBtn}
+                    onPress={() => {
+                      setFolderToDelete({
+                        id: activeFolderInfo.id,
+                        name: activeFolderInfo.name,
+                        icon: activeFolderInfo.icon,
+                        recipeCount: activeFolderInfo.count,
+                        recipeImages: [],
+                      });
+                    }}
+                    activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityLabel="Supprimer le dossier"
+                  >
+                    <Ionicons name="trash-outline" size={17} color={colors.danger} />
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <View style={styles.folderActionsPlaceholder} />
+              )}
+            </View>
+          )}
+
           {/* Barre de Recherche & Bouton Filtres Avancés (affiché sur l'onglet Recettes) */}
           {activeTab === 'recipes' && (
             <SearchBar
@@ -1937,11 +2086,11 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
           onClearSelection={handleClearSelection}
           onAssignToFolder={() => setIsFolderAssignmentOpen(true)}
           onRemoveFromFolder={
-            activeFolderId && activeFolderId !== 'UNCATEGORIZED'
+            currentFolderId && currentFolderId !== UNCATEGORIZED_FOLDER_ID
               ? handleRemoveSelectedFromFolder
               : undefined
           }
-          activeFolderId={activeFolderId}
+          activeFolderId={currentFolderId}
           bottomInset={0}
         />
 
