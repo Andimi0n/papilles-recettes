@@ -1247,28 +1247,6 @@ const SettingsScreenComponent: React.FC<SettingsScreenProps> = ({
                         <Text style={styles.moodSubtitle} numberOfLines={1}>
                           {m.userDirective || m.systemPersona}
                         </Text>
-                        <View style={styles.moodSpeedsRow}>
-                          <View style={styles.moodSpeedPill}>
-                            <Ionicons
-                              name={(m.ideasModelSpeed || (m.id === 'creatif' ? 'thoughtful' : 'fast')) === 'thoughtful' ? 'bulb-outline' : 'flash-outline'}
-                              size={10}
-                              color={(m.ideasModelSpeed || (m.id === 'creatif' ? 'thoughtful' : 'fast')) === 'thoughtful' ? colors.amber : colors.primary}
-                            />
-                            <Text style={styles.moodSpeedPillText}>
-                              Idées : {(m.ideasModelSpeed || (m.id === 'creatif' ? 'thoughtful' : 'fast')) === 'thoughtful' ? 'Réfléchi' : 'Rapide'}
-                            </Text>
-                          </View>
-                          <View style={styles.moodSpeedPill}>
-                            <Ionicons
-                              name={(m.recipeModelSpeed || 'fast') === 'thoughtful' ? 'bulb-outline' : 'flash-outline'}
-                              size={10}
-                              color={(m.recipeModelSpeed || 'fast') === 'thoughtful' ? colors.amber : colors.primary}
-                            />
-                            <Text style={styles.moodSpeedPillText}>
-                              Recette : {(m.recipeModelSpeed || 'fast') === 'thoughtful' ? 'Réfléchi' : 'Rapide'}
-                            </Text>
-                          </View>
-                        </View>
                       </View>
                     </View>
 
