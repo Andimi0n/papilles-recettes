@@ -23,7 +23,7 @@
 - [x] Task: Modales de Gestion de Dossiers (07af8bc)
   - [x] Créer `CreateEditFolderModal.tsx` (création/renommage avec sélecteur d'emojis culinaires)
   - [x] Créer la confirmation de suppression sécurisée rappelant la préservation des recettes
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: Phase Verification & Checkpoint (cd63ec8)
 
 ## Phase 3 : Mode Sélection Multiple & Rangement Groupé
 - [ ] Task: Mise à jour de `RecipeCard.tsx` pour le Mode Sélection
