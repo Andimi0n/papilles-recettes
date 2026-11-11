@@ -11,6 +11,7 @@ import {
   Vibration,
   KeyboardAvoidingView,
   Animated,
+  AppState,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -47,6 +48,12 @@ import {
   getNextConversionTarget,
   isIngredientConvertible,
 } from '../utils/unitConverter';
+import {
+  scheduleTimerNotification,
+  cancelTimerNotification,
+  calculateTargetTimestamp,
+  syncTimerTick,
+} from '../services/timerNotificationService';
 
 interface InlineStepTimer {
   id: string;
@@ -56,6 +63,8 @@ interface InlineStepTimer {
   totalSeconds: number;
   remainingSeconds: number;
   isRunning: boolean;
+  targetTimestamp?: number;
+  notificationId?: string;
 }
 
 interface RecipeDetailScreenProps {
@@ -330,6 +339,11 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
     setGlobalConversionMode('original');
     setIngredientModes({});
     setModalDraftTags(recipe.tags || []);
+    Object.values(inlineTimers).forEach((t) => {
+      if (t.notificationId) {
+        void cancelTimerNotification(t.notificationId);
+      }
+    });
     setInlineTimers({});
   }
 
@@ -365,46 +379,81 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
     } catch (e) {}
   };
 
-  // Compte à rebours temps réel pour l'ensemble des minuteurs actifs
+  // Compte à rebours temps réel synchronisé avec l'horloge système
   useEffect(() => {
     const hasRunningTimer = Object.values(inlineTimers).some(
-      (t) => t.isRunning && t.remainingSeconds > 0
+      (t) => t.isRunning
     );
 
     if (!hasRunningTimer) return;
 
     const interval = setInterval(() => {
+      let triggeredAlert = false;
       setInlineTimers((prev) => {
         let hasChanges = false;
         const nextState = { ...prev };
 
         Object.keys(nextState).forEach((key) => {
           const timer = nextState[key];
-          if (timer.isRunning && timer.remainingSeconds > 0) {
-            hasChanges = true;
-            const newRemaining = timer.remainingSeconds - 1;
-            if (newRemaining === 0) {
-              triggerInlineTimerAlert();
-              nextState[key] = {
-                ...timer,
-                remainingSeconds: 0,
-                isRunning: false,
-              };
-            } else {
-              nextState[key] = {
-                ...timer,
-                remainingSeconds: newRemaining,
-              };
+          if (timer.isRunning) {
+            const { timer: updated, hasFinished } = syncTimerTick(timer);
+            if (hasFinished) {
+              triggeredAlert = true;
+              hasChanges = true;
+              nextState[key] = updated;
+            } else if (updated.remainingSeconds !== timer.remainingSeconds) {
+              hasChanges = true;
+              nextState[key] = updated;
             }
           }
         });
 
         return hasChanges ? nextState : prev;
       });
+
+      if (triggeredAlert) {
+        triggerInlineTimerAlert();
+      }
     }, 1000);
 
     return () => clearInterval(interval);
   }, [inlineTimers]);
+
+  // Synchronisation instantanée dès que l'application revient au premier plan
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'active') {
+        let triggeredAlert = false;
+        setInlineTimers((prev) => {
+          let hasChanges = false;
+          const nextState = { ...prev };
+
+          Object.keys(nextState).forEach((key) => {
+            const timer = nextState[key];
+            if (timer.isRunning) {
+              const { timer: updated, hasFinished } = syncTimerTick(timer);
+              if (hasFinished) {
+                triggeredAlert = true;
+                hasChanges = true;
+                nextState[key] = updated;
+              } else if (updated.remainingSeconds !== timer.remainingSeconds) {
+                hasChanges = true;
+                nextState[key] = updated;
+              }
+            }
+          });
+
+          return hasChanges ? nextState : prev;
+        });
+
+        if (triggeredAlert) {
+          triggerInlineTimerAlert();
+        }
+      }
+    });
+
+    return () => subscription.remove();
+  }, []);
 
   const handleStartInlineTimer = (
     stepId: string,
@@ -414,6 +463,8 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
     totalSeconds: number
   ) => {
     const key = `${stepId}_${timerId}`;
+    const targetTimestamp = calculateTargetTimestamp(totalSeconds);
+
     setInlineTimers((prev) => ({
       ...prev,
       [key]: {
@@ -424,21 +475,75 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
         totalSeconds,
         remainingSeconds: totalSeconds,
         isRunning: true,
+        targetTimestamp,
       },
     }));
+
+    void scheduleTimerNotification({
+      label,
+      stepIndex,
+      seconds: totalSeconds,
+    }).then((notificationId) => {
+      if (notificationId) {
+        setInlineTimers((prev) => {
+          const current = prev[key];
+          if (!current) return prev;
+          return {
+            ...prev,
+            [key]: { ...current, notificationId },
+          };
+        });
+      }
+    });
   };
 
   const handleToggleInlineTimerPause = (key: string) => {
     setInlineTimers((prev) => {
       const existing = prev[key];
       if (!existing) return prev;
-      return {
-        ...prev,
-        [key]: {
-          ...existing,
-          isRunning: !existing.isRunning,
-        },
-      };
+
+      if (existing.isRunning) {
+        if (existing.notificationId) {
+          void cancelTimerNotification(existing.notificationId);
+        }
+        return {
+          ...prev,
+          [key]: {
+            ...existing,
+            isRunning: false,
+            targetTimestamp: undefined,
+            notificationId: undefined,
+          },
+        };
+      } else {
+        const targetTimestamp = calculateTargetTimestamp(existing.remainingSeconds);
+        void scheduleTimerNotification({
+          label: existing.label,
+          stepIndex: existing.stepIndex,
+          seconds: existing.remainingSeconds,
+        }).then((notificationId) => {
+          if (notificationId) {
+            setInlineTimers((p) => {
+              const cur = p[key];
+              if (!cur) return p;
+              return {
+                ...p,
+                [key]: { ...cur, notificationId },
+              };
+            });
+          }
+        });
+
+        return {
+          ...prev,
+          [key]: {
+            ...existing,
+            isRunning: true,
+            targetTimestamp,
+            notificationId: undefined,
+          },
+        };
+      }
     });
   };
 
@@ -447,20 +552,59 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
       const existing = prev[key];
       if (!existing) return prev;
       const newRem = existing.remainingSeconds + 60;
-      return {
-        ...prev,
-        [key]: {
-          ...existing,
-          remainingSeconds: newRem,
-          totalSeconds: Math.max(existing.totalSeconds, newRem),
-          isRunning: true,
-        },
-      };
+
+      if (existing.isRunning) {
+        if (existing.notificationId) {
+          void cancelTimerNotification(existing.notificationId);
+        }
+        const targetTimestamp = calculateTargetTimestamp(newRem);
+        void scheduleTimerNotification({
+          label: existing.label,
+          stepIndex: existing.stepIndex,
+          seconds: newRem,
+        }).then((notificationId) => {
+          if (notificationId) {
+            setInlineTimers((p) => {
+              const cur = p[key];
+              if (!cur) return p;
+              return {
+                ...p,
+                [key]: { ...cur, notificationId },
+              };
+            });
+          }
+        });
+
+        return {
+          ...prev,
+          [key]: {
+            ...existing,
+            remainingSeconds: newRem,
+            totalSeconds: Math.max(existing.totalSeconds, newRem),
+            targetTimestamp,
+            notificationId: undefined,
+            isRunning: true,
+          },
+        };
+      } else {
+        return {
+          ...prev,
+          [key]: {
+            ...existing,
+            remainingSeconds: newRem,
+            totalSeconds: Math.max(existing.totalSeconds, newRem),
+          },
+        };
+      }
     });
   };
 
   const handleStopInlineTimer = (key: string) => {
     setInlineTimers((prev) => {
+      const existing = prev[key];
+      if (existing?.notificationId) {
+        void cancelTimerNotification(existing.notificationId);
+      }
       const copy = { ...prev };
       delete copy[key];
       return copy;

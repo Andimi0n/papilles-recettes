@@ -257,6 +257,7 @@ papilles-recettes/
     │   ├── recipePackService.ts      # Extraction de packs JSON et archives ZIP
     │   ├── recipePdfService.ts       # Génération et export de fiches PDF (expo-print)
     │   ├── recipeShareService.ts     # Partage QR code compressé (toqr, lz-string)
+    │   ├── timerNotificationService.ts# Minuteurs de cuisson & notifications locales (expo-notifications)
     │   ├── vocabularyService.ts      # CRUD du lexique canonique & observateurs
     │   ├── unifiedIngredientService.ts# Résolution et suggestions d'ingrédients
     │   ├── recipeAiService.ts        # Extraction IA Gemini & cascade multi-modèles

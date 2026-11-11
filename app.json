@@ -27,7 +27,9 @@
       "predictiveBackGestureEnabled": false,
       "allowBackup": false,
       "permissions": [
-        "android.permission.CAMERA"
+        "android.permission.CAMERA",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.VIBRATE"
       ]
     },
     "web": {
@@ -66,6 +68,13 @@
         }
       ],
       "expo-sqlite",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#1B3D2C"
+        }
+      ],
       "./plugins/withLargeHeap"
     ],
     "extra": {

@@ -14,6 +14,8 @@ export interface InlineStepTimer {
   totalSeconds: number;
   remainingSeconds: number;
   isRunning: boolean;
+  targetTimestamp?: number;
+  notificationId?: string;
 }
 
 export interface RecipeInstructionsListProps {

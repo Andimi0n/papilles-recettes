@@ -63,6 +63,7 @@
 - **`recipePackService.ts`** : Extraction et analyse séquentielle par petits lots (protection Zip Slip) de packs de recettes JSON et archives ZIP avec photos de couverture.
 - **`recipePdfService.ts`** : Génération de fiches recettes PDF haute résolution prêtes à imprimer ou partager (`expo-print`, `expo-sharing`) avec photo, QR code optionnel et réglage des portions.
 - **`recipeShareService.ts`** : Partage et importation offline de recettes de smartphone à smartphone via QR codes compacts compressés (`lz-string`, `toqr`) ou partage texte standard.
+- **`timerNotificationService.ts`** : Gestionnaire des minuteurs de cuisson avec notifications système locales (`expo-notifications`), calcul d'horodatage absolu (`targetTimestamp`), resynchronisation instantanée au retour en avant-plan (`AppState`), canal Android haute priorité (`cooking_timers`), vibration et carillon.
 - **`vocabularyService.ts`** : CRUD du lexique canonique, gestion des alias, rayons (`defaultAisle`), promotion de synonymes et propagation automatique (Observer pattern). Les accesseurs synchrones `getSyncList()` / `getSyncMap*()` renvoient un lexique de repli mémorisé à identité stable.
 - **`unifiedIngredientService.ts`** : Résolution unifiée d'ingrédients, découplage nom/quantité/unité et suggestions de synonymes.
 - **`recipeAiService.ts`** : Appels REST Gemini (`v1beta`) avec découverte dynamique via `GET /models` et cascade multi-modèles (`GEMINI_MODELS_CASCADE` : 2e meilleur modèle en tête ex: `gemini-3.7-flash` en mode réfléchi et pour les scans, et meilleur Flash-Lite ex: `gemini-3.5-flash-lite` en mode rapide), sélection du modèle par humeur/mood (`ideasModelSpeed` et `recipeModelSpeed` : 'fast' ou 'thoughtful'), backoff exponentiel, prompts sobres et auto-réparation JSON (`repairTruncatedJsonString`).
@@ -177,7 +178,7 @@ sg -p 'interface $NAME {$$$ }' -l ts src/types/     # Inspecter les interfaces T
 # 1. Vérification obligatoire avant fin de tâche (0 erreur tolérée)
 npx tsc --noEmit && npx expo lint
 
-# 2. Suite complète de tests métier (36 suites exécutées en CLI Node)
+# 2. Suite complète de tests métier (37 suites exécutées en CLI Node)
 npm test
 
 # 3. Tests ciblés par sous-système (à lancer selon les fichiers modifiés)
@@ -188,6 +189,7 @@ npm run test:shopping-shelves  # Tests du transfert courses -> étagères et pur
 npm run test:allergens         # Tests unitaires sécurité allergènes INCO & racines sémantiques
 npm run test:cascade           # Tests de propagation en cascade des modifications de lexique
 npm run test:normalizer        # Tests du normalisateur d'ingrédients à 3 niveaux
+npm run test:timer             # Tests des minuteurs, notifications d'arrière-plan et horodatage
 npm run test:camera            # Tests d'intégration et sécurité mémoire de la caméra
 npm run test:images            # Tests unitaires persistance et isolation ImageStorageService
 npm run test:pack              # Tests unitaires extraction JSON/ZIP RecipePackService

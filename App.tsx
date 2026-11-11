@@ -26,6 +26,7 @@ import { MealPlannerScreen } from './src/screens/MealPlannerScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
 import { ImportRecipeModal } from './src/components/import-share/ImportRecipeModal';
 import { RecipeShareService } from './src/services/recipeShareService';
+import { initTimerNotifications } from './src/services/timerNotificationService';
 import { OnboardingScreen } from './src/screens/OnboardingScreen';
 import { createDynamicStyles, ThemeMode } from './src/theme/colors';
 import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
@@ -123,6 +124,11 @@ function AppContent({ initialData }: AppContentProps) {
   // Recette reçue en partage (via Deep Link ou scan QR code)
   const [receivedSharedRecipe, setReceivedSharedRecipe] = useState<Recipe | null>(null);
   const [isImportModalVisible, setIsImportModalVisible] = useState(false);
+
+  // Initialisation du canal de notification Android et du handler en avant-plan
+  useEffect(() => {
+    void initTimerNotifications();
+  }, []);
 
   // Nettoyage préventif des anciens brouillons caméra résiduels
   useEffect(() => {
