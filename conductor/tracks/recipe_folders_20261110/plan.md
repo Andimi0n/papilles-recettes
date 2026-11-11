@@ -29,10 +29,10 @@
 - [x] Task: Mise à jour de `RecipeCard.tsx` pour le Mode Sélection (509b345)
   - [x] Ajouter les props `isSelectionMode`, `isSelected`, `onLongPress` et adapter `onPress` (déviation vers la sélection au lieu d'ouvrir la recette)
   - [x] Appliquer la bordure `colors.primary` (2px), la pastille cochée (`✓`) / cercle vide discret et l'animation de rebond élastique (`scale: 0.97` ➔ `1.0`) sans retour haptique
-- [ ] Task: Pilule Flottante (`FloatingSelectionBar.tsx`) & État Persistant dans `HomeScreen`
-  - [ ] Créer la barre flottante au-dessus de la barre d'onglets (`[ ✕  X sélectionnée(s)  |  📁 Ranger dans... ]` ou `[ 📤 Retirer du dossier  |  📁 Autre dossier... ]` selon `activeFolderId`)
-  - [ ] Gérer l'état `selectedRecipeIds: Set<string>` dans `HomeScreen` persistant lors de la recherche et du filtrage
-  - [ ] Intercepter le `BackHandler` Android pour quitter le mode sélection en priorité
+- [x] Task: Pilule Flottante (`FloatingSelectionBar.tsx`) & État Persistant dans `HomeScreen` (7100ed5)
+  - [x] Créer la barre flottante au-dessus de la barre d'onglets (`[ ✕  X sélectionnée(s)  |  📁 Ranger dans... ]` ou `[ 📤 Retirer du dossier  |  📁 Autre dossier... ]` selon `activeFolderId`)
+  - [x] Gérer l'état `selectedRecipeIds: Set<string>` dans `HomeScreen` persistant lors de la recherche et du filtrage
+  - [x] Intercepter le `BackHandler` Android pour quitter le mode sélection en priorité
 - [ ] Task: Bottom Sheet de Rangement (`FolderAssignmentBottomSheet.tsx`)
   - [ ] Liste des dossiers avec état pré-coché (si 1 recette) ou mode additif (si N recettes)
   - [ ] Possibilité de créer un nouveau dossier directement dans la Bottom Sheet
