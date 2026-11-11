@@ -10,6 +10,11 @@ import {
   NativeScrollEvent,
   Alert,
   BackHandler,
+  PanResponder,
+  PanResponderGestureState,
+  GestureResponderEvent,
+  useWindowDimensions,
+  Keyboard,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { FlashList, FlashListRef } from '@shopify/flash-list';
@@ -31,6 +36,11 @@ import { StockCookModal } from '../components/chef-ai/StockCookModal';
 import { AdvancedFiltersModal } from '../components/common/AdvancedFiltersModal';
 import { PageJumpModal } from '../components/common/PageJumpModal';
 import { AddRecipeMode } from './ScanRecipeScreen';
+import {
+  HomeViewTab,
+  shouldCaptureHomeTabSwipe,
+  calculateHomeTabSwipeDestination,
+} from '../utils/homePagerHelper';
 import {
   searchRecipes,
   RecipeSearchResult,
@@ -88,6 +98,39 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
   activeFolderId = null,
 }) => {
   const { isDark, colors, themeId } = useTheme();
+  const { width: screenWidth } = useWindowDimensions();
+  const [activeTab, setActiveTab] = useState<HomeViewTab>('recipes');
+  const [currentFolderId, setCurrentFolderId] = useState<string | null>(activeFolderId);
+  const [prevActiveFolderId, setPrevActiveFolderId] = useState(activeFolderId);
+  if (prevActiveFolderId !== activeFolderId) {
+    setPrevActiveFolderId(activeFolderId);
+    setCurrentFolderId(activeFolderId);
+  }
+
+  const [foldersCount, setFoldersCount] = useState<number>(0);
+  const [pageTranslateX] = useState(() => new Animated.Value(0));
+
+  // Chargement réactif du nombre total de dossiers
+  useEffect(() => {
+    let isMounted = true;
+    const loadFolderCount = async () => {
+      try {
+        const folders = await FolderService.getAllFolders();
+        if (isMounted) {
+          setFoldersCount(folders.length + 1); // +1 pour le dossier virtuel « Non classées »
+        }
+      } catch (err) {
+        console.error('Erreur chargement nombre de dossiers :', err);
+      }
+    };
+    loadFolderCount();
+    const unsubscribe = StorageService.onFoldersChange(loadFolderCount);
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
+  }, []);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -229,6 +272,123 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
       setIsStockModalVisible(true);
     }
   }
+
+  // Basculement d'onglet fluide (Recettes <-> Dossiers)
+  const switchTab = useCallback(
+    (target: HomeViewTab, animated = true) => {
+      if (activeTab === target) return;
+      Keyboard.dismiss();
+      const targetX = target === 'recipes' ? 0 : -screenWidth;
+      if (!animated) {
+        pageTranslateX.setValue(targetX);
+        setActiveTab(target);
+        return;
+      }
+      Animated.spring(pageTranslateX, {
+        toValue: targetX,
+        tension: 80,
+        friction: 10,
+        restSpeedThreshold: 1,
+        restDisplacementThreshold: 1,
+        overshootClamping: true,
+        useNativeDriver: true,
+      }).start(() => {
+        setActiveTab(target);
+      });
+    },
+    [activeTab, screenWidth, pageTranslateX]
+  );
+
+  // PanResponder gestuel pour le swipe horizontal strict entre Recettes et Dossiers
+  const screenSwipePanResponder = useMemo(() => {
+    const shouldCapture = (e: GestureResponderEvent, gestureState: PanResponderGestureState) => {
+      const isAnyModalOpen =
+        isAddMenuVisible ||
+        isFilterModalVisible ||
+        isAdvancedFiltersModalVisible ||
+        isStockModalVisible ||
+        isPageJumpModalVisible ||
+        isFolderAssignmentOpen;
+
+      return shouldCaptureHomeTabSwipe({
+        gestureState,
+        locationY: e.nativeEvent.locationY,
+        activeTab,
+        activeFolderId: currentFolderId,
+        isSelectionMode,
+        isModalOpen: isAnyModalOpen,
+        filterBarHeight: 88,
+      });
+    };
+
+    return PanResponder.create({
+      onMoveShouldSetPanResponderCapture: shouldCapture,
+      onMoveShouldSetPanResponder: shouldCapture,
+      onPanResponderTerminationRequest: () => false,
+      onPanResponderGrant: () => {
+        Keyboard.dismiss();
+        pageTranslateX.stopAnimation();
+      },
+      onPanResponderMove: (_, gestureState) => {
+        const base = activeTab === 'recipes' ? 0 : -screenWidth;
+        let newX = base + gestureState.dx;
+        if (newX > 0) {
+          newX = newX * 0.15;
+        } else if (newX < -screenWidth) {
+          const over = newX + screenWidth;
+          newX = -screenWidth + over * 0.15;
+        }
+        pageTranslateX.setValue(newX);
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        const destination = calculateHomeTabSwipeDestination(
+          activeTab,
+          gestureState.dx,
+          gestureState.vx,
+          screenWidth
+        );
+        const targetX = destination === 'recipes' ? 0 : -screenWidth;
+        Animated.spring(pageTranslateX, {
+          toValue: targetX,
+          velocity: gestureState.vx,
+          tension: 80,
+          friction: 10,
+          restSpeedThreshold: 1,
+          restDisplacementThreshold: 1,
+          overshootClamping: true,
+          useNativeDriver: true,
+        }).start(() => {
+          setActiveTab(destination);
+        });
+      },
+      onPanResponderTerminate: () => {
+        const targetX = activeTab === 'recipes' ? 0 : -screenWidth;
+        Animated.spring(pageTranslateX, {
+          toValue: targetX,
+          tension: 80,
+          friction: 10,
+          restSpeedThreshold: 1,
+          restDisplacementThreshold: 1,
+          overshootClamping: true,
+          useNativeDriver: true,
+        }).start(() => {
+          setActiveTab(activeTab);
+        });
+      },
+    });
+  }, [
+    activeTab,
+    currentFolderId,
+    isSelectionMode,
+    isAddMenuVisible,
+    isFilterModalVisible,
+    isAdvancedFiltersModalVisible,
+    isStockModalVisible,
+    isPageJumpModalVisible,
+    isFolderAssignmentOpen,
+    screenWidth,
+    pageTranslateX,
+  ]);
 
   // Double bandeau de filtres rétractable au défilement (haute performance, 60fps via useNativeDriver)
   const FILTER_BAR_HEIGHT = 88;
@@ -1164,33 +1324,127 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
             </TouchableOpacity>
           </View>
 
-          {/* Barre de Recherche & Bouton Filtres Avancés (Famille 2) */}
-          <SearchBar
-            value={searchQuery}
-            onChangeText={(text) => {
-              setSearchQuery(text);
-              if (!text.trim()) {
+          {/* Sélecteur segmenté : Recettes / Dossiers (affiché si aucun dossier ouvert) */}
+          {!currentFolderId && (
+            <View style={styles.tabSwitcherWrapper}>
+              <View style={styles.tabSwitcherContainer}>
+                <TouchableOpacity
+                  style={[
+                    styles.tabSwitcherBtn,
+                    activeTab === 'recipes' && styles.tabSwitcherBtnActive,
+                  ]}
+                  onPress={() => switchTab('recipes')}
+                  activeOpacity={0.8}
+                  accessibilityRole="tab"
+                  accessibilityLabel="Onglet Recettes"
+                  accessibilityState={{ selected: activeTab === 'recipes' }}
+                >
+                  <Text
+                    style={[
+                      styles.tabSwitcherText,
+                      activeTab === 'recipes' && styles.tabSwitcherTextActive,
+                    ]}
+                  >
+                    Recettes
+                  </Text>
+                  <View
+                    style={[
+                      styles.tabBadge,
+                      activeTab === 'recipes' && styles.tabBadgeActive,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.tabBadgeText,
+                        activeTab === 'recipes' && styles.tabBadgeTextActive,
+                      ]}
+                    >
+                      {recipes.length}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.tabSwitcherBtn,
+                    activeTab === 'folders' && styles.tabSwitcherBtnActive,
+                  ]}
+                  onPress={() => switchTab('folders')}
+                  activeOpacity={0.8}
+                  accessibilityRole="tab"
+                  accessibilityLabel="Onglet Dossiers"
+                  accessibilityState={{ selected: activeTab === 'folders' }}
+                >
+                  <Text
+                    style={[
+                      styles.tabSwitcherText,
+                      activeTab === 'folders' && styles.tabSwitcherTextActive,
+                    ]}
+                  >
+                    Dossiers
+                  </Text>
+                  {foldersCount > 0 && (
+                    <View
+                      style={[
+                        styles.tabBadge,
+                        activeTab === 'folders' && styles.tabBadgeActive,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.tabBadgeText,
+                          activeTab === 'folders' && styles.tabBadgeTextActive,
+                        ]}
+                      >
+                        {foldersCount}
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
+          {/* Barre de Recherche & Bouton Filtres Avancés (affiché sur l'onglet Recettes) */}
+          {activeTab === 'recipes' && (
+            <SearchBar
+              value={searchQuery}
+              onChangeText={(text) => {
+                setSearchQuery(text);
+                if (!text.trim()) {
+                  setDebouncedSearchQuery('');
+                  setCurrentPage(1);
+                }
+                forceShowFilterBar();
+              }}
+              placeholder="Rechercher ingrédients, plats, synonymes..."
+              onClear={() => {
+                setSearchQuery('');
                 setDebouncedSearchQuery('');
                 setCurrentPage(1);
-              }
-              forceShowFilterBar();
-            }}
-            placeholder="Rechercher ingrédients, plats, synonymes..."
-            onClear={() => {
-              setSearchQuery('');
-              setDebouncedSearchQuery('');
-              setCurrentPage(1);
-              forceShowFilterBar();
-            }}
-            onOpenAdvancedFilters={() => setIsAdvancedFiltersModalVisible(true)}
-            activeFiltersCount={activeAdvancedFiltersCount}
-          />
+                forceShowFilterBar();
+              }}
+              onOpenAdvancedFilters={() => setIsAdvancedFiltersModalVisible(true)}
+              activeFiltersCount={activeAdvancedFiltersCount}
+            />
+          )}
         </View>
 
-        {/* Zone de contenu principale (FlashList + Double bandeau rétractable en superposition native) */}
-        <View style={styles.contentArea}>
-          {/* Liste des recettes avec virtualisation FlashList haute performance et layout dynamique */}
-          <FlashList
+        {/* Zone de contenu principale (Pager gestuel horizontal Recettes <-> Dossiers) */}
+        <View style={styles.contentArea} {...screenSwipePanResponder.panHandlers}>
+          <Animated.View
+            style={[
+              styles.pagerContainer,
+              {
+                width: screenWidth * 2,
+                transform: [{ translateX: pageTranslateX }],
+              },
+            ]}
+          >
+            {/* Page 1 : Recettes (FlashList + Double bandeau rétractable en superposition native) */}
+            <View style={[styles.pagerPage, { width: screenWidth }]}>
+              {/* Liste des recettes avec virtualisation FlashList haute performance et layout dynamique */}
+              <FlashList
             key={viewMode === 'grid' ? 'recipes-grid-2' : `recipes-${viewMode}-1`}
             ref={flashListRef}
             data={paginatedRecipes}
@@ -1326,6 +1580,13 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
                 </Text>
               </TouchableOpacity>
             </ScrollView>
+          </Animated.View>
+            </View>
+
+            {/* Page 2 : Dossiers */}
+            <View style={[styles.pagerPage, { width: screenWidth }]}>
+              {/* FoldersGridView inséré dans la Task 2 */}
+            </View>
           </Animated.View>
         </View>
 

@@ -21,6 +21,69 @@ export const styles = createDynamicStyles((colors, shadows) => ({
     zIndex: 10,
     elevation: 4,
   },
+  tabSwitcherWrapper: {
+    paddingHorizontal: 16,
+    paddingTop: 4,
+    paddingBottom: 6,
+  },
+  tabSwitcherContainer: {
+    position: 'relative',
+    flexDirection: 'row',
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: 14,
+    padding: 3,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  tabSwitcherBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 7,
+    borderRadius: 11,
+    gap: 6,
+  },
+  tabSwitcherBtnActive: {
+    backgroundColor: colors.primary,
+    ...shadows.card,
+  },
+  tabSwitcherText: {
+    fontSize: 13.5,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  tabSwitcherTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  tabBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 8,
+    backgroundColor: colors.borderLight,
+  },
+  tabBadgeActive: {
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+  },
+  tabBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.textSecondary,
+  },
+  tabBadgeTextActive: {
+    color: '#FFFFFF',
+  },
+  pagerContainer: {
+    flex: 1,
+    flexDirection: 'row',
+  },
+  pagerPage: {
+    flex: 1,
+    height: '100%',
+    position: 'relative',
+    overflow: 'hidden',
+  },
   collapsibleFilterContainer: {
     position: 'absolute',
     top: 0,
