@@ -267,6 +267,52 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
   const [folderToDelete, setFolderToDelete] = useState<FolderSummary | null>(null);
   const isSelectionMode = selectedRecipeIds.size > 0;
 
+  // Snackbar de confirmation des opérations de dossiers
+  const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
+  const [snackbarFadeAnim] = useState(() => new Animated.Value(0));
+  const snackbarTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showSnackbar = useCallback(
+    (message: string) => {
+      if (snackbarTimerRef.current) {
+        clearTimeout(snackbarTimerRef.current);
+        snackbarTimerRef.current = null;
+      }
+      setSnackbarMessage(message);
+      snackbarFadeAnim.setValue(0);
+      Animated.timing(snackbarFadeAnim, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+
+      snackbarTimerRef.current = setTimeout(() => {
+        Animated.timing(snackbarFadeAnim, {
+          toValue: 0,
+          duration: 250,
+          useNativeDriver: true,
+        }).start(() => {
+          setSnackbarMessage(null);
+        });
+      }, 4000);
+    },
+    [snackbarFadeAnim]
+  );
+
+  const handleDismissSnackbar = useCallback(() => {
+    if (snackbarTimerRef.current) {
+      clearTimeout(snackbarTimerRef.current);
+      snackbarTimerRef.current = null;
+    }
+    Animated.timing(snackbarFadeAnim, {
+      toValue: 0,
+      duration: 180,
+      useNativeDriver: true,
+    }).start(() => {
+      setSnackbarMessage(null);
+    });
+  }, [snackbarFadeAnim]);
+
   const handleToggleSelectRecipe = useCallback((id: string) => {
     setSelectedRecipeIds((prev) => {
       const next = new Set(prev);
@@ -294,23 +340,26 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
   const handleRemoveSelectedFromFolder = useCallback(async () => {
     if (!currentFolderId || currentFolderId === UNCATEGORIZED_FOLDER_ID || selectedRecipeIds.size === 0) return;
     try {
+      const count = selectedRecipeIds.size;
       await FolderService.removeRecipesFromFolder(Array.from(selectedRecipeIds), currentFolderId);
       setSelectedRecipeIds(new Set());
+      showSnackbar(`${count} recette${count > 1 ? 's' : ''} retirée${count > 1 ? 's' : ''} du dossier`);
     } catch (err) {
       console.error('Erreur lors du retrait du dossier :', err);
     }
-  }, [currentFolderId, selectedRecipeIds]);
+  }, [currentFolderId, selectedRecipeIds, showSnackbar]);
 
   const handleAddRecipeToFolder = useCallback(
     async (recipe: Recipe) => {
       if (!currentFolderId || currentFolderId === UNCATEGORIZED_FOLDER_ID) return;
       try {
         await FolderService.addRecipesToFolders([recipe.id], [currentFolderId]);
+        showSnackbar(`« ${recipe.title} » ajoutée au dossier`);
       } catch (err) {
         console.error("Erreur lors de l'ajout de la recette au dossier :", err);
       }
     },
-    [currentFolderId]
+    [currentFolderId, showSnackbar]
   );
 
   // Debounce fluide sur la recherche pour ne jamais bloquer le thread UI à la frappe
@@ -2481,8 +2530,9 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
           visible={isFolderAssignmentOpen}
           recipeIds={Array.from(selectedRecipeIds)}
           onClose={() => setIsFolderAssignmentOpen(false)}
-          onSuccess={(_msg) => {
+          onSuccess={(msg) => {
             setSelectedRecipeIds(new Set());
+            if (msg) showSnackbar(msg);
           }}
         />
 
@@ -2519,6 +2569,43 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
           onSelectRecipe={handleAddRecipeToFolder}
           onClose={() => setIsAddRecipeToFolderOpen(false)}
         />
+
+        {/* Barre Snackbar de confirmation d'action dossiers */}
+        {snackbarMessage && (
+          <Animated.View
+            style={[
+              styles.snackbarContainer,
+              {
+                opacity: snackbarFadeAnim,
+                transform: [
+                  {
+                    translateY: snackbarFadeAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [20, 0],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
+            <View style={styles.snackbarContent}>
+              <View style={styles.snackbarLeft}>
+                <Ionicons name="folder-open-outline" size={18} color="#FFFFFF" />
+                <Text style={styles.snackbarText} numberOfLines={1}>
+                  {snackbarMessage}
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={styles.snackbarCloseBtn}
+                onPress={handleDismissSnackbar}
+                activeOpacity={0.6}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="close" size={18} color="rgba(255,255,255,0.7)" />
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
+        )}
       </View>
     </SafeAreaView>
   );
