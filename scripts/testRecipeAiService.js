@@ -53,6 +53,7 @@ async function main() {
     prioritizeHealthyModels,
     CHEF_MOODS,
     discoverGeminiModels,
+    getModelCascadeForSpeed,
     RecipeAiService,
     cleanApiKey,
     getGeminiHeaders,
@@ -251,16 +252,52 @@ async function main() {
 
 
   // =========================================================================
-  // TEST SECTION 7 : CHEF_MOODS
+  // TEST SECTION 7 : CHEF_MOODS & getModelCascadeForSpeed
   // =========================================================================
-  console.log('\n--- Test 7 : CHEF_MOODS ---');
+  console.log('\n--- Test 7 : CHEF_MOODS & getModelCascadeForSpeed ---');
   assert.ok(Array.isArray(CHEF_MOODS), 'CHEF_MOODS doit être un tableau');
   assert.ok(CHEF_MOODS.length >= 6, 'CHEF_MOODS doit proposer au moins 6 styles');
   assert.ok(CHEF_MOODS.some((m) => m.id === 'quotidien'), 'Doit inclure le mood quotidien');
   assert.ok(CHEF_MOODS.some((m) => m.id === 'creatif'), 'Doit inclure le mood creatif');
   assert.ok(CHEF_MOODS.some((m) => m.id === 'express'), 'Doit inclure le mood express');
   assert.ok(CHEF_MOODS.some((m) => m.id === 'reconfort'), 'Doit inclure le mood reconfort');
-  console.log('✓ Catalogue des styles & moods du Chef validé');
+
+  // Vérification de la règle métier : tous les moods par défaut ont recipeModelSpeed: 'fast'
+  for (const mood of CHEF_MOODS) {
+    assert.strictEqual(
+      mood.recipeModelSpeed,
+      'fast',
+      `Mood ${mood.id} doit avoir recipeModelSpeed: 'fast'`
+    );
+  }
+
+  // Vérification de la règle métier : mood gastronomique/créatif a ideasModelSpeed: 'thoughtful'
+  const creatif = CHEF_MOODS.find((m) => m.id === 'creatif');
+  assert.strictEqual(
+    creatif.ideasModelSpeed,
+    'thoughtful',
+    'Mood creatif doit avoir ideasModelSpeed: \'thoughtful\''
+  );
+
+  // Vérification : les autres moods par défaut ont ideasModelSpeed: 'fast'
+  const quotidien = CHEF_MOODS.find((m) => m.id === 'quotidien');
+  assert.strictEqual(
+    quotidien.ideasModelSpeed,
+    'fast',
+    'Mood quotidien doit avoir ideasModelSpeed: \'fast\''
+  );
+
+  // Test de getModelCascadeForSpeed
+  const discovered = await discoverGeminiModels('');
+  const fastCascade = await getModelCascadeForSpeed('', 'fast');
+  const thoughtfulCascade = await getModelCascadeForSpeed('', 'thoughtful');
+  const defaultCascade = await getModelCascadeForSpeed('');
+
+  assert.deepStrictEqual(fastCascade, discovered.fast, 'Mode fast doit retourner la cascade .fast');
+  assert.deepStrictEqual(thoughtfulCascade, discovered.all, 'Mode thoughtful doit retourner la cascade .all');
+  assert.deepStrictEqual(defaultCascade, discovered.fast, 'Mode par défaut doit être fast');
+
+  console.log('✓ Catalogue des styles & moods du Chef et résolution des vitesses de modèle validés');
 
   // =========================================================================
   // TEST SECTION 8 : Sécurisation & Assainissement des Clés API (BYOK)

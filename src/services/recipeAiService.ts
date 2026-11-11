@@ -277,6 +277,21 @@ export function invalidateModelDiscoveryCache(): void {
   _modelCacheTimestamp = 0;
 }
 
+/**
+ * Résout la cascade de modèles Gemini selon la vitesse / profondeur souhaitée :
+ * - 'fast' (Rapide) : MEILLEUR modèle Flash-Lite en tête (.fast), idéal pour génération réactive et économe
+ * - 'thoughtful' (Réfléchi) : 2e meilleur modèle Flash en tête (.all), plus inventif et approfondi
+ */
+export async function getModelCascadeForSpeed(
+  apiKey: string,
+  speed: ChefAiModelSpeed = 'fast'
+): Promise<string[]> {
+  const discovered = await discoverGeminiModels(apiKey);
+  return speed === 'thoughtful' ? discovered.all : discovered.fast;
+}
+
+export type ChefAiModelSpeed = 'fast' | 'thoughtful';
+
 export interface ChefMoodOption {
   id: string;
   label: string;
@@ -289,6 +304,10 @@ export interface ChefMoodOption {
   recipeExecutionPrompt: string;
   /** Indique si cette humeur a été créée sur-mesure par l'utilisateur */
   isCustom?: boolean;
+  /** Mode IA pour la suggestion des 3 idées (Étape 1) : 'fast' (Flash-Lite) ou 'thoughtful' (2e meilleur Flash) */
+  ideasModelSpeed?: ChefAiModelSpeed;
+  /** Mode IA pour la rédaction de la recette complète (Étape 2) : 'fast' (Flash-Lite) ou 'thoughtful' (2e meilleur Flash) */
+  recipeModelSpeed?: ChefAiModelSpeed;
 }
 
 export const CHEF_MOODS: ChefMoodOption[] = [
@@ -296,6 +315,8 @@ export const CHEF_MOODS: ChefMoodOption[] = [
     id: 'quotidien',
     label: 'Quotidien',
     icon: 'sparkles-outline',
+    ideasModelSpeed: 'fast',
+    recipeModelSpeed: 'fast',
     systemPersona: `Tu es un chef spécialisé dans la cuisine de tous les jours : simple, savoureuse, bien équilibrée et accessible.
 Ta philosophie : aller à l'essentiel avec des cuissons maîtrisées, des gestes simples et des associations valeurs sûres qui plaisent à toute la table sans passer des heures en cuisine.`,
     userDirective: 'Conçois 3 idées de repas du quotidien simples, équilibrées et faciles à réaliser',
@@ -306,12 +327,14 @@ Ta philosophie : aller à l'essentiel avec des cuissons maîtrisées, des gestes
   },
   {
     id: 'creatif',
-    label: 'Créatif & Bistronomie',
+    label: 'Créatif & Gastronomie',
     icon: 'color-palette-outline',
-    systemPersona: `Tu es un jeune chef de restaurant bistronomique créatif et audacieux.
-Ta philosophie : surprendre avec des associations de saveurs originales mais harmonieuses, des contrastes de textures (croquant/fondant, chaud/froid, sucré/salé subtil) et des plats dignes d'un dîner avec des invités.`,
-    userDirective: 'Surprends-moi avec 3 idées bistronomiques créatives et originales',
-    recipeExecutionPrompt: `Tu es un chef de restaurant bistronomique créatif et exigeant sur les textures et le dressage.
+    ideasModelSpeed: 'thoughtful',
+    recipeModelSpeed: 'fast',
+    systemPersona: `Tu es un chef cuisinier créatif et passionné par la gastronomie moderne.
+Ta philosophie : surprendre avec des associations de saveurs originales mais harmonieuses, des contrastes de textures (croquant/fondant, chaud/froid, sucré/salé subtil) et des plats dignes d'un dîner gastronomique.`,
+    userDirective: 'Surprends-moi avec 3 idées gastronomiques créatives et originales',
+    recipeExecutionPrompt: `Tu es un chef de restaurant gastronomique créatif et exigeant sur les textures et le dressage.
 - Style de rédaction : soigné et inspirant. Détaille le travail des textures (éléments croquants, crémeux, rôtis) et consacre la dernière étape à un dressage élégant à l'assiette.
 - Astuce ('userNote') : donne un conseil de chef sur le dressage ou la touche finale visuelle et gustative.`,
   },
@@ -319,6 +342,8 @@ Ta philosophie : surprendre avec des associations de saveurs originales mais har
     id: 'express',
     label: 'Express 15 min',
     icon: 'flash-outline',
+    ideasModelSpeed: 'fast',
+    recipeModelSpeed: 'fast',
     systemPersona: `Tu es le roi de la cuisine ultra-rapide pour les soirs de semaine pressés.
 Ta philosophie : ZÉRO prise de tête, temps total (préparation + cuisson) strictement inférieur à 15-20 minutes, et minimum de vaisselle (privilégie le "one-pan" / une seule poêle ou casserole).
 Interdiction de proposer des plats mijotés, des cuissons au four longues, des pâtes à étaler ou des préparations multi-étapes.`,
@@ -332,6 +357,8 @@ Interdiction de proposer des plats mijotés, des cuissons au four longues, des p
     id: 'reconfort',
     label: 'Réconfortant',
     icon: 'flame-outline',
+    ideasModelSpeed: 'fast',
+    recipeModelSpeed: 'fast',
     systemPersona: `Tu es un chef expert en "Comfort Food" généreuse, gourmande et chaleureuse.
 Ta philosophie : faire plaisir avec des textures enveloppantes, fondantes ou croustillantes. Privilégie les plats gratinés, les sauces onctueuses, les poêlées généreuses, les plats mijotés ou les classiques régressifs qui réchauffent le cœur.`,
     userDirective: 'Imagine 3 idées de plats ultra-réconfortants, généreux et gourmands',
@@ -344,6 +371,8 @@ Ta philosophie : faire plaisir avec des textures enveloppantes, fondantes ou cro
     id: 'leger',
     label: 'Léger & Saisonnier',
     icon: 'leaf-outline',
+    ideasModelSpeed: 'fast',
+    recipeModelSpeed: 'fast',
     systemPersona: `Tu es un chef spécialisé en cuisine bien-être, fraîche, digeste et pleine de vitalité.
 Ta philosophie : sublimer le goût brut des produits avec des cuissons douces ou minutes (vapeur, saisi rapide, cru/mariné), peu de matières grasses lourdes, une belle place aux légumes et aux herbes fraîches pour une assiette saine et rassasiante.`,
     userDirective: 'Compose 3 idées fraîches, saines, légères et digestes',
@@ -356,6 +385,8 @@ Ta philosophie : sublimer le goût brut des produits avec des cuissons douces ou
     id: 'vide_frigo',
     label: 'Vide-frigo',
     icon: 'basket-outline',
+    ideasModelSpeed: 'fast',
+    recipeModelSpeed: 'fast',
     systemPersona: `Tu es un chef expert en cuisine anti-gaspillage et d'assemblage malin.
 Ta philosophie : combiner un maximum d'ingrédients disponibles dans un même plat cohérent pour vider le frigo intelligemment. Privilégie les formats caméléons : grandes poêlées complètes, frittatas/omelettes garnies, quiches/tartes rustiques, buddha bowls, woks ou soupes-repas.`,
     userDirective: 'Crée 3 idées "zéro gaspi" malignes qui combinent un maximum de ces ingrédients',
@@ -368,6 +399,8 @@ Ta philosophie : combiner un maximum d'ingrédients disponibles dans un même pl
     id: 'bistrot',
     label: 'Bistrot & Tradition',
     icon: 'wine-outline',
+    ideasModelSpeed: 'fast',
+    recipeModelSpeed: 'fast',
     systemPersona: `Tu es un chef de bistrot attaché au terroir, aux grands classiques familiaux et au savoir-faire traditionnel.
 Ta philosophie : proposer des valeurs sûres de la cuisine de brasserie et de grand-mère (beurre, herbes aromatiques, déglaçage, jus réduits, cuissons justes) avec des intitulés authentiques.`,
     userDirective: 'Propose 3 idées esprit bistrot ou cuisine traditionnelle familiale',
@@ -380,6 +413,8 @@ Ta philosophie : proposer des valeurs sûres de la cuisine de brasserie et de gr
     id: 'voyage',
     label: 'Voyage & Épices',
     icon: 'earth-outline',
+    ideasModelSpeed: 'fast',
+    recipeModelSpeed: 'fast',
     systemPersona: `Tu es un chef globe-trotter passionné par les cuisines du monde (Asie, Méditerranée, Moyen-Orient, Amérique Latine, Inde).
 Ta philosophie : faire voyager les papilles en transformant des ingrédients simples grâce aux épices, aux condiments, aux marinades, aux sautés au wok, aux currys ou aux saveurs ensoleillées.`,
     userDirective: 'Fais voyager avec 3 idées dépaysantes inspirées des cuisines du monde',
@@ -1757,6 +1792,7 @@ ${sanitizedInput}
       excludedAllergens?: string[];
       chefMood?: string;
       availableMoods?: ChefMoodOption[];
+      ideasModelSpeed?: ChefAiModelSpeed;
       signal?: AbortSignal;
       onModelAttempt?: (modelName: string, isFallback: boolean) => void;
     },
@@ -1832,12 +1868,29 @@ ${sanitizedInput}
       },
     };
 
+    const availableMoods =
+      options?.availableMoods && options.availableMoods.length > 0
+        ? options.availableMoods
+        : CHEF_MOODS;
+    const moodConfig =
+      availableMoods.find((m) => m.id === options?.chefMood) || availableMoods[0] || CHEF_MOODS[0];
+
+    const modelSpeed: ChefAiModelSpeed =
+      options?.ideasModelSpeed ||
+      moodConfig.ideasModelSpeed ||
+      (moodConfig.id === 'creatif' ? 'thoughtful' : 'fast');
+    const candidateModels = await getModelCascadeForSpeed(apiKey, modelSpeed);
+
+    console.log(
+      `🧠 [CHEF IA - MODÈLE ÉTAPE 1] Humeur: "${moodConfig.label}", Mode: "${modelSpeed}" (priorité: ${candidateModels[0]})`
+    );
+
     const { parsed } = await fetchGeminiJsonWithFallbackAndRetry(
       apiKey,
       payload,
-      (await discoverGeminiModels(apiKey)).all,
+      candidateModels,
       options?.onModelAttempt,
-      15000,
+      modelSpeed === 'thoughtful' ? 25000 : 15000,
       options?.signal
     );
     const rawParsed = parsed;
@@ -1904,6 +1957,7 @@ ${sanitizedInput}
       additionalPreferences?: string;
       chefMood?: string; // <-- AJOUT ICI
       availableMoods?: ChefMoodOption[];
+      recipeModelSpeed?: ChefAiModelSpeed;
       signal?: AbortSignal;
       onModelAttempt?: (modelName: string, isFallback: boolean) => void;
     },
@@ -2007,12 +2061,20 @@ ${sanitizedIngredients.join(', ')}
       },
     };
 
+    const modelSpeed: ChefAiModelSpeed =
+      options?.recipeModelSpeed || moodConfig.recipeModelSpeed || 'fast';
+    const candidateModels = await getModelCascadeForSpeed(apiKey, modelSpeed);
+
+    console.log(
+      `🧠 [CHEF IA - MODÈLE ÉTAPE 2] Humeur: "${moodConfig.label}", Mode: "${modelSpeed}" (priorité: ${candidateModels[0]})`
+    );
+
     const { parsed } = await fetchGeminiJsonWithFallbackAndRetry(
       apiKey,
       payload,
-      (await discoverGeminiModels(apiKey)).fast,
+      candidateModels,
       options?.onModelAttempt,
-      20000,
+      modelSpeed === 'thoughtful' ? 30000 : 20000,
       options?.signal
     );
     const sanitized = sanitizeExtractedRecipe(parsed);

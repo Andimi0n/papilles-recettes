@@ -2432,7 +2432,12 @@ export const StorageService = {
       }
       const parsed = JSON.parse(stored);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
+        return parsed.map((m: any) => ({
+          ...m,
+          ideasModelSpeed:
+            m.ideasModelSpeed || (m.id === 'creatif' ? 'thoughtful' : 'fast'),
+          recipeModelSpeed: m.recipeModelSpeed || 'fast',
+        }));
       }
       return [...CHEF_MOODS];
     } catch (e) {
@@ -2446,13 +2451,19 @@ export const StorageService = {
    */
   async saveChefMood(mood: ChefMoodOption): Promise<ChefMoodOption[]> {
     const currentList = await this.getChefMoods();
+    const normalizedMood: ChefMoodOption = {
+      ...mood,
+      ideasModelSpeed:
+        mood.ideasModelSpeed || (mood.id === 'creatif' ? 'thoughtful' : 'fast'),
+      recipeModelSpeed: mood.recipeModelSpeed || 'fast',
+    };
     const index = currentList.findIndex((m) => m.id === mood.id);
     let updatedList: ChefMoodOption[];
     if (index >= 0) {
       updatedList = [...currentList];
-      updatedList[index] = { ...mood };
+      updatedList[index] = normalizedMood;
     } else {
-      updatedList = [...currentList, { ...mood }];
+      updatedList = [...currentList, normalizedMood];
     }
     await DatabaseService.setSetting(SETTING_CHEF_MOODS, JSON.stringify(updatedList));
     return updatedList;

@@ -58,7 +58,7 @@ Application **100 % offline-first**, sécurisée, sans création de compte oblig
   - **Processus en 2 étapes ludique et sans surcharge** :
     - *Étape 1* : Taper sur *"💡 Trouver 3 idées"* génère quasi instantanément 3 propositions originales avec titre appétissant, temps estimé et accroche culinaire valorisant vos restes (< 300 tokens).
     - *Étape 2* : Choisissez l'idée qui vous donne envie (*"Cuisiner cette recette →"*) pour obtenir la recette pas-à-pas détaillée avec dosages précis.
-  - **Personnalisation du Chef IA** : configurez son humeur culinaire (`ChefMoodEditModal` : réconfortant, équilibré, express, gastronomique) et enregistrez des prompts favoris (`ChefFavoritePromptsModal`).
+  - **Personnalisation du Chef IA** : configurez son humeur culinaire (`ChefMoodEditModal` : réconfortant, équilibré, express, gastronomique) avec choix du mode de modèle pour chaque étape (Rapide avec le meilleur Flash-Lite ou Réfléchi avec le 2e meilleur Flash), et enregistrez des prompts favoris (`ChefFavoritePromptsModal`).
   - **Résilience absolue & Cascade de secours multi-modèles** : basculement automatique et invisible entre `gemini-3.8-flash`, `gemini-2.5-flash`, `gemini-2.0-flash` et `gemini-1.5-flash` en cas de pic de charge (503/429) sur les serveurs Google.
   - **Sélection verticale des ingrédients par rayons** : ingrédients en stock regroupés par rayons avec compteurs et raccourcis *"Tout cocher"* / *"Tout décocher"*.
   - Configuration du nombre de portions (synchronisé avec vos préférences), option 100% végétarienne et pré-remplissage direct du formulaire de recette.

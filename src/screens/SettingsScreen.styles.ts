@@ -985,6 +985,28 @@ export const styles = createDynamicStyles((colors, shadows) => ({
     marginTop: 2,
     lineHeight: 16,
   },
+  moodSpeedsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 4,
+  },
+  moodSpeedPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: colors.cardBackground,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    paddingHorizontal: 5,
+    paddingVertical: 1.5,
+    borderRadius: 4,
+  },
+  moodSpeedPillText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
   moodButtonsRow: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -67,8 +67,30 @@ async function main() {
   assert.strictEqual(initialMoods.length, CHEF_MOODS.length, `Doit contenir initialement ${CHEF_MOODS.length} humeurs par défaut`);
   assert.strictEqual(initialMoods[0].id, 'quotidien', 'La première humeur par défaut doit être "quotidien"');
 
-  // 2. Test ajout d'une nouvelle humeur personnalisée
-  console.log('  2. Ajout d\'une nouvelle humeur personnalisée...');
+  // Vérification de la configuration des vitesses pour chaque étape (demande utilisateur)
+  for (const m of initialMoods) {
+    assert.strictEqual(
+      m.recipeModelSpeed,
+      'fast',
+      `L'humeur "${m.id}" doit avoir le mode rapide ('fast') par défaut pour la recette complète`
+    );
+  }
+  const creatifMood = initialMoods.find((m) => m.id === 'creatif');
+  assert(creatifMood, 'Le mood gastronomique / créatif doit exister');
+  assert.strictEqual(
+    creatifMood.ideasModelSpeed,
+    'thoughtful',
+    'Le mood gastronomique / créatif doit être en mode réfléchi (\'thoughtful\') pour les 3 idées'
+  );
+  const quotidienMood = initialMoods.find((m) => m.id === 'quotidien');
+  assert.strictEqual(
+    quotidienMood.ideasModelSpeed,
+    'fast',
+    'Le mood quotidien doit être en mode rapide (\'fast\') pour les 3 idées'
+  );
+
+  // 2. Test ajout d'une nouvelle humeur personnalisée avec modes spécifiques
+  console.log('  2. Ajout d\'une nouvelle humeur personnalisée avec modes spécifiques...');
   assert(typeof StorageService.saveChefMood === 'function', 'StorageService.saveChefMood doit être une fonction');
 
   const customMood = {
@@ -79,6 +101,8 @@ async function main() {
     userDirective: 'Propose 3 idées de grillades et marinades intenses',
     recipeExecutionPrompt: 'Détaille la marinade et le temps de braisage ou fumage.',
     isCustom: true,
+    ideasModelSpeed: 'thoughtful',
+    recipeModelSpeed: 'thoughtful',
   };
 
   const afterAdd = await StorageService.saveChefMood(customMood);
@@ -86,6 +110,8 @@ async function main() {
   const foundAdded = afterAdd.find((m) => m.id === 'custom_barbecue');
   assert(foundAdded, 'La nouvelle humeur doit être présente');
   assert.strictEqual(foundAdded.label, 'Barbecue & Fumoir');
+  assert.strictEqual(foundAdded.ideasModelSpeed, 'thoughtful');
+  assert.strictEqual(foundAdded.recipeModelSpeed, 'thoughtful');
 
   // 3. Test modification d'une humeur existante
   console.log('  3. Modification d\'une humeur existante...');

@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets, EdgeInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { ChefMoodOption } from '../../services/recipeAiService';
+import { ChefMoodOption, ChefAiModelSpeed } from '../../services/recipeAiService';
 import { useTheme } from '../../theme/ThemeContext';
 import { createDynamicStyles } from '../../theme/colors';
 
@@ -64,6 +64,12 @@ const ChefMoodForm: React.FC<ChefMoodFormProps> = ({
   const [systemPersona, setSystemPersona] = useState(mood?.systemPersona || '');
   const [userDirective, setUserDirective] = useState(mood?.userDirective || '');
   const [recipeExecutionPrompt, setRecipeExecutionPrompt] = useState(mood?.recipeExecutionPrompt || '');
+  const [ideasModelSpeed, setIdeasModelSpeed] = useState<ChefAiModelSpeed>(
+    mood?.ideasModelSpeed || (mood?.id === 'creatif' ? 'thoughtful' : 'fast')
+  );
+  const [recipeModelSpeed, setRecipeModelSpeed] = useState<ChefAiModelSpeed>(
+    mood?.recipeModelSpeed || 'fast'
+  );
   const [showPromptStructure, setShowPromptStructure] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -112,6 +118,8 @@ const ChefMoodForm: React.FC<ChefMoodFormProps> = ({
         userDirective: trimmedDirective,
         recipeExecutionPrompt: trimmedExecution,
         isCustom: mood ? (mood.isCustom ?? false) : true,
+        ideasModelSpeed,
+        recipeModelSpeed,
       };
 
       await onSave(savedMood);
@@ -293,6 +301,81 @@ const ChefMoodForm: React.FC<ChefMoodFormProps> = ({
             multiline
             scrollEnabled={false}
           />
+          {/* Sélecteur de modèle pour Étape 1 */}
+          <View style={styles.speedSelectorContainer}>
+            <Text style={styles.speedSelectorLabel}>Modèle IA pour les 3 idées :</Text>
+            <View style={styles.speedButtonsRow}>
+              <TouchableOpacity
+                style={[
+                  styles.speedButton,
+                  ideasModelSpeed === 'fast' && styles.speedButtonSelected,
+                ]}
+                onPress={() => setIdeasModelSpeed('fast')}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Mode rapide Flash Lite pour les 3 idées"
+              >
+                <Ionicons
+                  name="flash"
+                  size={16}
+                  color={ideasModelSpeed === 'fast' ? '#FFFFFF' : colors.primary}
+                />
+                <View style={styles.speedButtonTextCol}>
+                  <Text
+                    style={[
+                      styles.speedButtonText,
+                      ideasModelSpeed === 'fast' && styles.speedButtonTextSelected,
+                    ]}
+                  >
+                    Rapide
+                  </Text>
+                  <Text
+                    style={[
+                      styles.speedButtonSubtext,
+                      ideasModelSpeed === 'fast' && styles.speedButtonSubtextSelected,
+                    ]}
+                  >
+                    Flash-Lite
+                  </Text>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.speedButton,
+                  ideasModelSpeed === 'thoughtful' && styles.speedButtonSelected,
+                ]}
+                onPress={() => setIdeasModelSpeed('thoughtful')}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Mode réfléchi Flash standard pour les 3 idées"
+              >
+                <Ionicons
+                  name="bulb"
+                  size={16}
+                  color={ideasModelSpeed === 'thoughtful' ? '#FFFFFF' : colors.amber}
+                />
+                <View style={styles.speedButtonTextCol}>
+                  <Text
+                    style={[
+                      styles.speedButtonText,
+                      ideasModelSpeed === 'thoughtful' && styles.speedButtonTextSelected,
+                    ]}
+                  >
+                    Réfléchi
+                  </Text>
+                  <Text
+                    style={[
+                      styles.speedButtonSubtext,
+                      ideasModelSpeed === 'thoughtful' && styles.speedButtonSubtextSelected,
+                    ]}
+                  >
+                    Flash 2e
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
 
         {/* 5. Directives de rédaction (Étape 2 - Fiche recette) */}
@@ -315,6 +398,81 @@ const ChefMoodForm: React.FC<ChefMoodFormProps> = ({
             multiline
             scrollEnabled={false}
           />
+          {/* Sélecteur de modèle pour Étape 2 */}
+          <View style={styles.speedSelectorContainer}>
+            <Text style={styles.speedSelectorLabel}>Modèle IA pour la recette complète :</Text>
+            <View style={styles.speedButtonsRow}>
+              <TouchableOpacity
+                style={[
+                  styles.speedButton,
+                  recipeModelSpeed === 'fast' && styles.speedButtonSelected,
+                ]}
+                onPress={() => setRecipeModelSpeed('fast')}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Mode rapide Flash Lite pour la recette complète"
+              >
+                <Ionicons
+                  name="flash"
+                  size={16}
+                  color={recipeModelSpeed === 'fast' ? '#FFFFFF' : colors.primary}
+                />
+                <View style={styles.speedButtonTextCol}>
+                  <Text
+                    style={[
+                      styles.speedButtonText,
+                      recipeModelSpeed === 'fast' && styles.speedButtonTextSelected,
+                    ]}
+                  >
+                    Rapide
+                  </Text>
+                  <Text
+                    style={[
+                      styles.speedButtonSubtext,
+                      recipeModelSpeed === 'fast' && styles.speedButtonSubtextSelected,
+                    ]}
+                  >
+                    Flash-Lite
+                  </Text>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.speedButton,
+                  recipeModelSpeed === 'thoughtful' && styles.speedButtonSelected,
+                ]}
+                onPress={() => setRecipeModelSpeed('thoughtful')}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Mode réfléchi Flash standard pour la recette complète"
+              >
+                <Ionicons
+                  name="bulb"
+                  size={16}
+                  color={recipeModelSpeed === 'thoughtful' ? '#FFFFFF' : colors.amber}
+                />
+                <View style={styles.speedButtonTextCol}>
+                  <Text
+                    style={[
+                      styles.speedButtonText,
+                      recipeModelSpeed === 'thoughtful' && styles.speedButtonTextSelected,
+                    ]}
+                  >
+                    Réfléchi
+                  </Text>
+                  <Text
+                    style={[
+                      styles.speedButtonSubtext,
+                      recipeModelSpeed === 'thoughtful' && styles.speedButtonSubtextSelected,
+                    ]}
+                  >
+                    Flash 2e
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
 
         {/* Submit Button */}
@@ -554,6 +712,59 @@ const styles = createDynamicStyles((colors, shadows) => ({
   iconChipSelected: {
     backgroundColor: colors.primary,
     borderColor: colors.primary,
+  },
+  speedSelectorContainer: {
+    marginTop: 10,
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: 12,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  speedSelectorLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.textSecondary,
+    marginBottom: 8,
+  },
+  speedButtonsRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  speedButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    backgroundColor: colors.cardBackground,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  speedButtonSelected: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  speedButtonTextCol: {
+    flex: 1,
+  },
+  speedButtonText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  speedButtonTextSelected: {
+    color: '#FFFFFF',
+  },
+  speedButtonSubtext: {
+    fontSize: 10,
+    color: colors.textSecondary,
+    marginTop: 1,
+  },
+  speedButtonSubtextSelected: {
+    color: 'rgba(255, 255, 255, 0.85)',
   },
   saveBtn: {
     flexDirection: 'row',
