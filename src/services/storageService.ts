@@ -716,6 +716,7 @@ export const StorageService = {
         }
       }
       await DatabaseService.deleteRecipesByPrefix('rec_top100_');
+      this.notifyFolderChange();
       memoryCache.recipes = null;
       return this.getRecipes();
     } catch (error) {

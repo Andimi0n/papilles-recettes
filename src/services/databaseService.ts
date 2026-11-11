@@ -682,8 +682,21 @@ export const DatabaseService = {
     if (!db) {
       const recipes = await this.getRecipes();
       await AsyncStorage.setItem(AS_RECIPES_KEY, JSON.stringify(recipes.filter((r) => !r.id.startsWith(prefix))));
+      const rfData = await AsyncStorage.getItem(AS_RECIPE_FOLDERS_KEY);
+      if (rfData) {
+        try {
+          const list: RecipeFolder[] = JSON.parse(rfData);
+          await AsyncStorage.setItem(
+            AS_RECIPE_FOLDERS_KEY,
+            JSON.stringify(list.filter((rf) => !rf.recipeId.startsWith(prefix)))
+          );
+        } catch {
+          // ignore
+        }
+      }
       return;
     }
+    await runDb(db, 'DELETE FROM recipe_folders WHERE recipe_id LIKE ?', [`${prefix}%`]);
     await runDb(db, 'DELETE FROM recipes WHERE id LIKE ?', [`${prefix}%`]);
   },
 
