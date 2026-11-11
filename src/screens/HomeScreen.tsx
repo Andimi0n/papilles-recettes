@@ -43,6 +43,7 @@ import { EmptyState } from '../components/common/EmptyState';
 import { StockCookModal } from '../components/chef-ai/StockCookModal';
 import { AdvancedFiltersModal } from '../components/common/AdvancedFiltersModal';
 import { PageJumpModal } from '../components/common/PageJumpModal';
+import { RecipePickerModal } from '../components/common/RecipePickerModal';
 import { AddRecipeMode } from './ScanRecipeScreen';
 import {
   HomeViewTab,
@@ -181,11 +182,13 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
     icon: string;
     count: number;
   } | null>(null);
+  const [isAddRecipeToFolderOpen, setIsAddRecipeToFolderOpen] = useState(false);
   const [prevFolderIdForDetails, setPrevFolderIdForDetails] = useState<string | null>(currentFolderId);
   if (prevFolderIdForDetails !== currentFolderId) {
     setPrevFolderIdForDetails(currentFolderId);
     setFolderRecipeIds(null);
     setActiveFolderInfo(null);
+    setIsAddRecipeToFolderOpen(false);
   }
 
   // Chargement réactif des recettes du dossier actif
@@ -297,6 +300,18 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
       console.error('Erreur lors du retrait du dossier :', err);
     }
   }, [currentFolderId, selectedRecipeIds]);
+
+  const handleAddRecipeToFolder = useCallback(
+    async (recipe: Recipe) => {
+      if (!currentFolderId || currentFolderId === UNCATEGORIZED_FOLDER_ID) return;
+      try {
+        await FolderService.addRecipesToFolders([recipe.id], [currentFolderId]);
+      } catch (err) {
+        console.error("Erreur lors de l'ajout de la recette au dossier :", err);
+      }
+    },
+    [currentFolderId]
+  );
 
   // Debounce fluide sur la recherche pour ne jamais bloquer le thread UI à la frappe
   useEffect(() => {
@@ -445,6 +460,7 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
         isPageJumpModalVisible ||
         isFolderAssignmentOpen ||
         isCreateFolderModalVisible ||
+        isAddRecipeToFolderOpen ||
         Boolean(folderToEdit) ||
         Boolean(folderToDelete);
 
@@ -524,6 +540,7 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
     isPageJumpModalVisible,
     isFolderAssignmentOpen,
     isCreateFolderModalVisible,
+    isAddRecipeToFolderOpen,
     folderToEdit,
     folderToDelete,
     screenWidth,
@@ -1373,7 +1390,7 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
             </View>
           </View>
 
-          {/* Actions Modifier / Supprimer (uniquement pour les dossiers utilisateur) */}
+          {/* Actions Modifier / Ajouter des recettes (uniquement pour les dossiers utilisateur) */}
           {currentFolderId !== UNCATEGORIZED_FOLDER_ID ? (
             <View style={styles.folderActionsRow}>
               <TouchableOpacity
@@ -1396,20 +1413,12 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
 
               <TouchableOpacity
                 style={styles.folderActionBtn}
-                onPress={() => {
-                  setFolderToDelete({
-                    id: activeFolderInfo.id,
-                    name: activeFolderInfo.name,
-                    icon: activeFolderInfo.icon,
-                    recipeCount: activeFolderInfo.count,
-                    recipeImages: [],
-                  });
-                }}
+                onPress={() => setIsAddRecipeToFolderOpen(true)}
                 activeOpacity={0.7}
                 accessibilityRole="button"
-                accessibilityLabel="Supprimer le dossier"
+                accessibilityLabel="Ajouter des recettes au dossier"
               >
-                <Ionicons name="trash-outline" size={17} color={colors.danger} />
+                <Ionicons name="add" size={19} color={colors.primary} />
               </TouchableOpacity>
             </View>
           ) : (
@@ -1877,10 +1886,10 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
                     folderRecipeIds.size === 0 && !isSearching && selectedCategories.length === 0 && activeAdvancedFiltersCount === 0 ? (
                       <EmptyState
                         title="Ce dossier est vide"
-                        description="Sélectionnez des recettes depuis l'onglet « Recettes » avec un appui long pour les ranger dans ce dossier."
-                        actionLabel="Parcourir toutes les recettes"
+                        description="Appuyez sur le bouton + pour ajouter des recettes à ce dossier."
+                        actionLabel="Ajouter une recette"
                         onAction={() => {
-                          switchTab('recipes', true);
+                          setIsAddRecipeToFolderOpen(true);
                         }}
                       />
                     ) : (
@@ -2305,6 +2314,17 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
           folder={folderToDelete}
           onClose={() => setFolderToDelete(null)}
           onConfirmDelete={handleDeleteFolderConfirm}
+        />
+
+        {/* Modale d'ajout de recettes au dossier ouvert */}
+        <RecipePickerModal
+          visible={isAddRecipeToFolderOpen}
+          title={activeFolderInfo ? `${activeFolderInfo.icon} ${activeFolderInfo.name}` : 'Ajouter au dossier'}
+          subtitle="Sélectionner une recette à ajouter"
+          recipes={recipes}
+          alreadyAddedRecipeIds={folderRecipeIds ?? undefined}
+          onSelectRecipe={handleAddRecipeToFolder}
+          onClose={() => setIsAddRecipeToFolderOpen(false)}
         />
       </View>
     </SafeAreaView>

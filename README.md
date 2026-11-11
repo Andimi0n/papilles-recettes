@@ -311,6 +311,7 @@ papilles-recettes/
     │   │   ├── CategoryPills.tsx     # Pilules horizontales de catégories
     │   │   ├── EmptyState.tsx        # Écran d'état vide réutilisable
     │   │   ├── RecipeCard.tsx        # Carte de recette dans le flux & sélection multiple
+    │   │   ├── RecipePickerModal.tsx # Sélecteur modal unifié (planning de repas & dossiers)
     │   │   ├── SearchBar.tsx         # Barre de recherche avec filtres rapides
     │   │   ├── StarRating.tsx        # Notation par étoiles 0.5–5.0
     │   │   └── AdvancedFiltersModal.tsx # Modale de filtres multicritères
@@ -352,7 +353,7 @@ papilles-recettes/
     │   │   └── StockCookModal.tsx    # Wrapper rétrocompatible Chef IA anti-gaspi
     │   ├── planner/                  # Planification hebdomadaire & journal de repas
     │   │   ├── MealCalendarModal.tsx # Calendrier interactif de planification
-    │   │   ├── MealSlotPickerModal.tsx # Choix du créneau dans la semaine
+    │   │   ├── MealSlotPickerModal.tsx # Choix du créneau (réexporte RecipePickerModal)
     │   │   ├── PlanRecipeModal.tsx   # Planification depuis la fiche recette
     │   │   └── QuickMealLogModal.tsx # Saisie rapide d'un repas consommé
     │   └── import-share/             # Caméra, Web, PDF & QR Code hors-ligne
