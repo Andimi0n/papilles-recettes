@@ -70,6 +70,7 @@ export const styles = createDynamicStyles((colors, shadows) => ({
     fontSize: 13.5,
     fontWeight: '600',
     color: colors.textSecondary,
+    includeFontPadding: false,
   },
   tabSwitcherTextActive: {
     color: '#FFFFFF',
@@ -79,6 +80,8 @@ export const styles = createDynamicStyles((colors, shadows) => ({
     fontSize: 11,
     fontWeight: '700',
     color: colors.textSecondary,
+    includeFontPadding: false,
+    transform: [{ translateY: 1.2 }],
   },
   tabBadgeTextActive: {
     color: '#FFFFFF',

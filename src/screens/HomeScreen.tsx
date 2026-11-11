@@ -1695,6 +1695,7 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
               >
                 {/* Couche au repos */}
                 <View style={styles.tabSwitcherBtnInner}>
+                  <Ionicons name="book-outline" size={16} color={colors.textSecondary} />
                   <Text style={styles.tabSwitcherText}>Recettes</Text>
                   <Text style={styles.tabBadgeText}>{recipes.length}</Text>
                 </View>
@@ -1708,6 +1709,7 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
                   ]}
                   pointerEvents="none"
                 >
+                  <Ionicons name="book" size={16} color="#FFFFFF" />
                   <Text style={[styles.tabSwitcherText, styles.tabSwitcherTextActive]}>Recettes</Text>
                   <Text style={[styles.tabBadgeText, styles.tabBadgeTextActive]}>{recipes.length}</Text>
                 </Animated.View>
@@ -1724,6 +1726,7 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
               >
                 {/* Couche au repos */}
                 <View style={styles.tabSwitcherBtnInner}>
+                  <Ionicons name="folder-outline" size={16} color={colors.textSecondary} />
                   <Text style={styles.tabSwitcherText}>Dossiers</Text>
                   {foldersCount > 0 && (
                     <Text style={styles.tabBadgeText}>{foldersCount}</Text>
@@ -1739,6 +1742,7 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
                   ]}
                   pointerEvents="none"
                 >
+                  <Ionicons name="folder" size={16} color="#FFFFFF" />
                   <Text style={[styles.tabSwitcherText, styles.tabSwitcherTextActive]}>Dossiers</Text>
                   {foldersCount > 0 && (
                     <Text style={[styles.tabBadgeText, styles.tabBadgeTextActive]}>{foldersCount}</Text>
