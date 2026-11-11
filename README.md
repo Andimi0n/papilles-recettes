@@ -32,12 +32,13 @@ Application **100 % offline-first**, sécurisée, sans création de compte oblig
   - **Navigation par swipe horizontal fluide** : passez d'un geste naturel entre la liste et vos dossiers, avec seuil gestuel strict (`dx > 25 && Math.abs(dx) > Math.abs(dy) * 2`) excluant la zone des filtres (`FILTER_BAR_HEIGHT = 88`) pour ne jamais parasiter le défilement vertical.
   - **Grille visuelle des dossiers (FlashList 2 colonnes)** : cartes soignées (`FolderCard`) avec mosaïque 2x2 des 4 premières photos de recettes (`FolderMosaic`), emoji personnalisé et compteur dynamique (ex: `12 recettes`).
   - **Dossier virtuel « Non classées »** : regroupe automatiquement et sans configuration les recettes qui ne sont rangées dans aucun dossier.
-  - **Navigation intérieure sans duplication d'écran (`activeFolderId`)** : ouvrir un dossier réutilise à 100 % le flux de recettes, la recherche et les filtres, avec bandeau contextuel d'en-tête `[ ← Tous les dossiers | Nom (compteur) | ✏️ / 🗑️ ]`.
+  - **Navigation intérieure sans duplication d'écran (`activeFolderId`)** : ouvrir un dossier réutilise à 100 % le flux de recettes, la recherche et les filtres, avec bandeau contextuel d'en-tête propre, compte local exact, et bouton `+` pour l'ajout continu de recettes (`RecipePickerModal`).
+  - **Fiche recette (`RecipeDetailScreen`)** : visualisation immédiate des dossiers assignés sous forme de puces interactives avec bouton rapide `+ Dossier` ouvrant directement le tiroir de rangement.
   - **Gestion prioritaire du retour Android (`BackHandler`)** : l'appui physique sur Retour quitte d'abord la sélection multiple, ou referme le dossier ouvert vers la grille, avant de quitter l'écran.
 - **Mode Sélection Multiple par appui long & Rangement groupé** :
   - **Activation par appui long** sur une carte de recette : sans vibration haptique parasite, avec rebond élastique subtil, pastille cochée / cercle vide et contour d'accent `colors.primary` (2px).
   - **Persistance intégrale** : la sélection reste active et mémorisée pendant la frappe dans la recherche ou le filtrage par catégories.
-  - **Barre d'action flottante (`FloatingSelectionBar`)** : affiche le décompte et propose l'action rapide `[ ✕  X sélectionnée(s)  |  📁 Ranger dans... ]` ou `[ 📤 Retirer du dossier  |  📁 Autre dossier... ]` depuis l'intérieur d'un dossier.
+  - **Barre d'action flottante (`FloatingSelectionBar`)** : affiche le décompte, propose l'action rapide « Tout sélectionner / Tout désélectionner », et permet `[ 📁 Ranger dans... ]` ou `[ 📤 Retirer du dossier  |  📁 Autre dossier... ]` depuis l'intérieur d'un dossier, avec notification Snackbar de confirmation (4s).
   - **Bottom Sheet de rangement (`FolderAssignmentBottomSheet`)** : cochez un ou plusieurs dossiers avec mode additif sécurisé pour N recettes ou gestion unitaire pour 1 recette, et création de nouveau dossier à la volée.
 - **Règle d'or absolue de préservation des données** : supprimer un dossier n'efface JAMAIS aucune recette de votre carnet (seules les liaisons sont supprimées et les recettes réintègrent « Non classées »).
 

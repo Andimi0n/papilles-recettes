@@ -147,8 +147,9 @@
    - **Modèle N-N** : Tables `folders` (`id`, `name`, `icon`) et `recipe_folders` (`recipe_id`, `folder_id`, `added_at`) avec index SQLite.
    - **RÈGLE D'OR ABSOLUE** : La suppression d'un dossier ne supprime JAMAIS de recettes de la base. Seules les liaisons `recipe_folders` et la ligne du dossier dans `folders` sont effacées. Les recettes redeviennent immédiatement « Non classées » si elles n'ont plus d'autre dossier.
    - **Dossier virtuel « Non classées » (`UNCATEGORIZED`)** : calculé dynamiquement (recettes sans aucune liaison dans `recipe_folders`), non modifiable et non supprimable.
-   - **Mode sélection multiple** : activé par appui long sur `RecipeCard` (sans vibration haptique parasite), persistant au fil des filtres/recherches, avec barre flottante `FloatingSelectionBar` et rangement groupé additif via `FolderAssignmentBottomSheet`.
-   - **Bandeau de dossier ouvert & Ajout de recettes** : le bouton d'action contextuel principal est un bouton `+` ouvrant `RecipePickerModal` pour ajouter des recettes directement au dossier actif (avec badge « Dans le dossier » et désactivation sur les recettes déjà présentes), accompagné du bouton de modification du dossier (nom et icône).
+   - **Mode sélection multiple** : activé par appui long sur `RecipeCard` (sans vibration haptique parasite), persistant au fil des filtres/recherches, avec barre flottante `FloatingSelectionBar` dotée de l'action rapide « Tout sélectionner / Tout désélectionner », rangement groupé additif via `FolderAssignmentBottomSheet` et confirmation par Snackbar temporaire (4s).
+   - **Bandeau de dossier ouvert & Ajout de recettes** : le bouton d'action contextuel principal est un bouton `+` ouvrant `RecipePickerModal` en mode continu (`closeOnSelect={false}` avec bouton « Terminer » et badge « Dans le dossier »), affichage du compte local sans pagination globale, accompagné du bouton de modification du dossier (nom et icône).
+   - **Fiche recette (`RecipeDetailScreen`)** : puces des dossiers d'appartenance cliquables et bouton rapide `+ Dossier` ouvrant directement `FolderAssignmentBottomSheet`.
    - **Hiérarchie BackHandler Android** : Quitter le mode sélection -> Fermer le dossier ouvert vers la grille -> Sortir de l'écran.
 
 ---
