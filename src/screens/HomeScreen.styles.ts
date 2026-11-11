@@ -75,15 +75,6 @@ export const styles = createDynamicStyles((colors, shadows) => ({
     color: '#FFFFFF',
     fontWeight: '700',
   },
-  tabBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    borderRadius: 8,
-    backgroundColor: colors.borderLight,
-  },
-  tabBadgeActive: {
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
-  },
   tabBadgeText: {
     fontSize: 11,
     fontWeight: '700',

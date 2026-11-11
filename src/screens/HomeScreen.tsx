@@ -1696,9 +1696,7 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
                 {/* Couche au repos */}
                 <View style={styles.tabSwitcherBtnInner}>
                   <Text style={styles.tabSwitcherText}>Recettes</Text>
-                  <View style={styles.tabBadge}>
-                    <Text style={styles.tabBadgeText}>{recipes.length}</Text>
-                  </View>
+                  <Text style={styles.tabBadgeText}>{recipes.length}</Text>
                 </View>
 
                 {/* Couche active avec fondu enchaîné continu */}
@@ -1711,9 +1709,7 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
                   pointerEvents="none"
                 >
                   <Text style={[styles.tabSwitcherText, styles.tabSwitcherTextActive]}>Recettes</Text>
-                  <View style={[styles.tabBadge, styles.tabBadgeActive]}>
-                    <Text style={[styles.tabBadgeText, styles.tabBadgeTextActive]}>{recipes.length}</Text>
-                  </View>
+                  <Text style={[styles.tabBadgeText, styles.tabBadgeTextActive]}>{recipes.length}</Text>
                 </Animated.View>
               </TouchableOpacity>
 
@@ -1730,9 +1726,7 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
                 <View style={styles.tabSwitcherBtnInner}>
                   <Text style={styles.tabSwitcherText}>Dossiers</Text>
                   {foldersCount > 0 && (
-                    <View style={styles.tabBadge}>
-                      <Text style={styles.tabBadgeText}>{foldersCount}</Text>
-                    </View>
+                    <Text style={styles.tabBadgeText}>{foldersCount}</Text>
                   )}
                 </View>
 
@@ -1747,9 +1741,7 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
                 >
                   <Text style={[styles.tabSwitcherText, styles.tabSwitcherTextActive]}>Dossiers</Text>
                   {foldersCount > 0 && (
-                    <View style={[styles.tabBadge, styles.tabBadgeActive]}>
-                      <Text style={[styles.tabBadgeText, styles.tabBadgeTextActive]}>{foldersCount}</Text>
-                    </View>
+                    <Text style={[styles.tabBadgeText, styles.tabBadgeTextActive]}>{foldersCount}</Text>
                   )}
                 </Animated.View>
               </TouchableOpacity>
