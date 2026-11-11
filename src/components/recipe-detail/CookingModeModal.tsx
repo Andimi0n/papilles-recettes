@@ -39,6 +39,7 @@ import {
   cancelTimerNotification,
   calculateTargetTimestamp,
   syncTimerTick,
+  getTimerNotificationIdentifier,
 } from '../../services/timerNotificationService';
 
 interface CookingModeModalProps {
@@ -148,7 +149,12 @@ export const CookingModeModal: React.FC<CookingModeModalProps> = ({
   const [checkedIngredients, setCheckedIngredients] = useState<Record<string, boolean>>({});
   const [isIngredientsSheetVisible, setIsIngredientsSheetVisible] = useState(false);
   const [activeTimers, setActiveTimers] = useState<RunningTimer[]>([]);
-  const [finishedTimerId, setFinishedTimerId] = useState<string | null>(null);
+  const activeTimersRef = useRef(activeTimers);
+  useEffect(() => {
+    activeTimersRef.current = activeTimers;
+  }, [activeTimers]);
+
+  const [finishedTimerIds, setFinishedTimerIds] = useState<string[]>([]);
   const [isTimerFinishedModalVisible, setIsTimerFinishedModalVisible] = useState(false);
   const [isCompletedModalVisible, setIsCompletedModalVisible] = useState(false);
   const [userRating, setUserRating] = useState(recipe.rating || 0);
@@ -292,16 +298,54 @@ export const CookingModeModal: React.FC<CookingModeModalProps> = ({
     triggerTimerAlertRef.current = triggerTimerAlert;
   });
 
+  const hasRunningTimer = activeTimers.some((t) => t.isRunning);
+
   // Décompte temps réel synchronisé avec l'horloge système
   useEffect(() => {
-    const hasRunningTimer = activeTimers.some((t) => t.isRunning);
     if (!hasRunningTimer) return;
 
     const interval = setInterval(() => {
+      const current = activeTimersRef.current;
       const finished: string[] = [];
-      setActiveTimers((prev) => {
+      let hasChanges = false;
+
+      const next = current.map((t) => {
+        if (!t.isRunning) return t;
+        const { timer: updated, hasFinished } = syncTimerTick(t);
+        if (hasFinished) {
+          finished.push(t.id);
+          hasChanges = true;
+          return updated;
+        }
+        if (updated.remainingSeconds !== t.remainingSeconds) {
+          hasChanges = true;
+        }
+        return updated;
+      });
+
+      if (hasChanges) {
+        setActiveTimers(next);
+      }
+
+      if (finished.length > 0) {
+        setFinishedTimerIds((prev) => Array.from(new Set([...prev, ...finished])));
+        setIsTimerFinishedModalVisible(true);
+        triggerTimerAlertRef.current();
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [hasRunningTimer]);
+
+  // Synchronisation instantanée lors du retour en avant-plan (sortie d'arrière-plan/veille)
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'active') {
+        const current = activeTimersRef.current;
+        const finished: string[] = [];
         let hasChanges = false;
-        const next = prev.map((t) => {
+
+        const next = current.map((t) => {
           if (!t.isRunning) return t;
           const { timer: updated, hasFinished } = syncTimerTick(t);
           if (hasFinished) {
@@ -314,44 +358,13 @@ export const CookingModeModal: React.FC<CookingModeModalProps> = ({
           }
           return updated;
         });
-        return hasChanges ? next : prev;
-      });
 
-      if (finished.length > 0) {
-        setFinishedTimerId(finished[0]);
-        setIsTimerFinishedModalVisible(true);
-        triggerTimerAlertRef.current();
-      }
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [activeTimers]);
-
-  // Synchronisation instantanée lors du retour en avant-plan (sortie d'arrière-plan/veille)
-  useEffect(() => {
-    const subscription = AppState.addEventListener('change', (nextAppState) => {
-      if (nextAppState === 'active') {
-        const finished: string[] = [];
-        setActiveTimers((prev) => {
-          let hasChanges = false;
-          const next = prev.map((t) => {
-            if (!t.isRunning) return t;
-            const { timer: updated, hasFinished } = syncTimerTick(t);
-            if (hasFinished) {
-              finished.push(t.id);
-              hasChanges = true;
-              return updated;
-            }
-            if (updated.remainingSeconds !== t.remainingSeconds) {
-              hasChanges = true;
-            }
-            return updated;
-          });
-          return hasChanges ? next : prev;
-        });
+        if (hasChanges) {
+          setActiveTimers(next);
+        }
 
         if (finished.length > 0) {
-          setFinishedTimerId(finished[0]);
+          setFinishedTimerIds((prev) => Array.from(new Set([...prev, ...finished])));
           setIsTimerFinishedModalVisible(true);
           triggerTimerAlertRef.current();
         }
@@ -362,8 +375,9 @@ export const CookingModeModal: React.FC<CookingModeModalProps> = ({
   }, []);
 
   const handleStartTimer = useCallback((label: string, totalSec: number) => {
-    const targetTimestamp = calculateTargetTimestamp(totalSec);
     const timerId = `timer_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    const notificationId = getTimerNotificationIdentifier(timerId);
+    const targetTimestamp = calculateTargetTimestamp(totalSec);
 
     setActiveTimers((prev) => [
       ...prev,
@@ -375,118 +389,106 @@ export const CookingModeModal: React.FC<CookingModeModalProps> = ({
         remainingSeconds: totalSec,
         isRunning: true,
         targetTimestamp,
+        notificationId,
       },
     ]);
 
-    // Programmation asynchrone de la notification locale
+    // Programmation asynchrone de la notification locale avec identifiant déterministe
     void scheduleTimerNotification({
+      timerId,
       label,
       stepIndex: currentStepIndex,
       seconds: totalSec,
-    }).then((notificationId) => {
-      if (notificationId) {
-        setActiveTimers((prev) =>
-          prev.map((t) => (t.id === timerId ? { ...t, notificationId } : t))
-        );
-      }
     });
   }, [currentStepIndex]);
 
   const handleToggleTimerPause = (id: string) => {
-    setActiveTimers((prev) => {
-      const timer = prev.find((t) => t.id === id);
-      if (!timer) return prev;
+    const timer = activeTimersRef.current.find((t) => t.id === id);
+    if (!timer) return;
 
-      if (timer.isRunning) {
-        if (timer.notificationId) {
-          void cancelTimerNotification(timer.notificationId);
-        }
-        return prev.map((t) =>
-          t.id === id
-            ? { ...t, isRunning: false, targetTimestamp: undefined, notificationId: undefined }
-            : t
-        );
-      } else {
-        const targetTimestamp = calculateTargetTimestamp(timer.remainingSeconds);
-        void scheduleTimerNotification({
-          label: timer.label,
-          stepIndex: timer.stepIndex,
-          seconds: timer.remainingSeconds,
-        }).then((notificationId) => {
-          if (notificationId) {
-            setActiveTimers((p) =>
-              p.map((t) => (t.id === id ? { ...t, notificationId } : t))
-            );
-          }
-        });
-
-        return prev.map((t) =>
-          t.id === id
-            ? { ...t, isRunning: true, targetTimestamp, notificationId: undefined }
-            : t
-        );
+    if (timer.isRunning) {
+      if (timer.notificationId) {
+        void cancelTimerNotification(timer.notificationId);
       }
-    });
+      setActiveTimers((prev) =>
+        prev.map((t) =>
+          t.id === id
+            ? { ...t, isRunning: false, targetTimestamp: undefined }
+            : t
+        )
+      );
+    } else {
+      const targetTimestamp = calculateTargetTimestamp(timer.remainingSeconds);
+      const notificationId = timer.notificationId || getTimerNotificationIdentifier(id);
+      void scheduleTimerNotification({
+        timerId: id,
+        label: timer.label,
+        stepIndex: timer.stepIndex,
+        seconds: timer.remainingSeconds,
+      });
+
+      setActiveTimers((prev) =>
+        prev.map((t) =>
+          t.id === id
+            ? { ...t, isRunning: true, targetTimestamp, notificationId }
+            : t
+        )
+      );
+    }
   };
 
   const handleAdjustTimerMinutes = (id: string, deltaMinutes: number) => {
-    setActiveTimers((prev) => {
-      const timer = prev.find((t) => t.id === id);
-      if (!timer) return prev;
+    const timer = activeTimersRef.current.find((t) => t.id === id);
+    if (!timer) return;
 
-      const newRem = Math.max(1, timer.remainingSeconds + deltaMinutes * 60);
+    const newRem = Math.max(1, timer.remainingSeconds + deltaMinutes * 60);
+    const newTotal = Math.max(newRem, timer.totalSeconds);
 
-      if (timer.isRunning) {
-        if (timer.notificationId) {
-          void cancelTimerNotification(timer.notificationId);
-        }
-        const targetTimestamp = calculateTargetTimestamp(newRem);
-        void scheduleTimerNotification({
-          label: timer.label,
-          stepIndex: timer.stepIndex,
-          seconds: newRem,
-        }).then((notificationId) => {
-          if (notificationId) {
-            setActiveTimers((p) =>
-              p.map((t) => (t.id === id ? { ...t, notificationId } : t))
-            );
-          }
-        });
+    if (timer.isRunning) {
+      const targetTimestamp = calculateTargetTimestamp(newRem);
+      const notificationId = timer.notificationId || getTimerNotificationIdentifier(id);
+      void scheduleTimerNotification({
+        timerId: id,
+        label: timer.label,
+        stepIndex: timer.stepIndex,
+        seconds: newRem,
+      });
 
-        return prev.map((t) =>
+      setActiveTimers((prev) =>
+        prev.map((t) =>
           t.id === id
             ? {
                 ...t,
                 remainingSeconds: newRem,
-                totalSeconds: Math.max(newRem, t.totalSeconds),
+                totalSeconds: newTotal,
                 targetTimestamp,
-                notificationId: undefined,
+                notificationId,
                 isRunning: true,
               }
             : t
-        );
-      } else {
-        return prev.map((t) =>
+        )
+      );
+    } else {
+      setActiveTimers((prev) =>
+        prev.map((t) =>
           t.id === id
             ? {
                 ...t,
                 remainingSeconds: newRem,
-                totalSeconds: Math.max(newRem, t.totalSeconds),
+                totalSeconds: newTotal,
               }
             : t
-        );
-      }
-    });
+        )
+      );
+    }
   };
 
   const handleStopTimer = (id: string) => {
-    setActiveTimers((prev) => {
-      const timer = prev.find((t) => t.id === id);
-      if (timer?.notificationId) {
-        void cancelTimerNotification(timer.notificationId);
-      }
-      return prev.filter((t) => t.id !== id);
-    });
+    const timer = activeTimersRef.current.find((t) => t.id === id);
+    if (timer?.notificationId) {
+      void cancelTimerNotification(timer.notificationId);
+    }
+    setActiveTimers((prev) => prev.filter((t) => t.id !== id));
   };
 
   const handleNextStep = () => {
@@ -544,6 +546,12 @@ export const CookingModeModal: React.FC<CookingModeModalProps> = ({
         ]
       );
     } else {
+      activeTimers.forEach((t) => {
+        if (t.notificationId) {
+          void cancelTimerNotification(t.notificationId);
+        }
+      });
+      setActiveTimers([]);
       onClose();
     }
   };
@@ -557,6 +565,13 @@ export const CookingModeModal: React.FC<CookingModeModalProps> = ({
 
   const handleLogCookedMeal = async (slot: 'lunch' | 'dinner') => {
     try {
+      activeTimers.forEach((t) => {
+        if (t.notificationId) {
+          void cancelTimerNotification(t.notificationId);
+        }
+      });
+      setActiveTimers([]);
+
       const todayStr = getLocalDateString();
       await StorageService.setMealLog(todayStr, slot, {
         title: recipe.title,
@@ -804,19 +819,29 @@ export const CookingModeModal: React.FC<CookingModeModalProps> = ({
                 {/* Minuteur détecté automatiquement (s'il y en a un) */}
                 {detectedTimers.length > 0 && (
                   <View style={styles.detectedTimersRow} pointerEvents="box-none">
-                    {detectedTimers.map((t) => (
-                      <TouchableOpacity
-                        key={t.id}
-                        style={styles.startTimerChip}
-                        onPress={() => handleStartTimer(t.label, t.totalSeconds)}
-                        activeOpacity={0.8}
-                      >
-                        <Ionicons name="timer" size={16} color="#FFFFFF" />
-                        <Text style={styles.startTimerChipText}>
-                          Lancer le minuteur ({t.label})
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
+                    {detectedTimers.map((t) => {
+                      const isTimerActive = activeTimers.some(
+                        (active) => active.stepIndex === currentStepIndex && active.label === t.label && active.isRunning
+                      );
+                      return (
+                        <TouchableOpacity
+                          key={t.id}
+                          style={[styles.startTimerChip, isTimerActive && { opacity: 0.6 }]}
+                          onPress={() => {
+                            if (!isTimerActive) {
+                              handleStartTimer(t.label, t.totalSeconds);
+                            }
+                          }}
+                          disabled={isTimerActive}
+                          activeOpacity={0.8}
+                        >
+                          <Ionicons name={isTimerActive ? 'checkmark-circle' : 'timer'} size={16} color="#FFFFFF" />
+                          <Text style={styles.startTimerChipText}>
+                            {isTimerActive ? `Minuteur en cours (${t.label})` : `Lancer le minuteur (${t.label})`}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
                   </View>
                 )}
               </View>
@@ -989,10 +1014,15 @@ export const CookingModeModal: React.FC<CookingModeModalProps> = ({
               <Text style={styles.alertTitle}>Minuteur Terminé !</Text>
               <Text style={styles.alertMessage}>
                 {(() => {
-                  const finished = activeTimers.find((t) => t.id === finishedTimerId);
-                  return finished
-                    ? `Le minuteur « ${finished.label} » (Étape ${finished.stepIndex + 1}) est écoulé.`
-                    : 'Le temps de cuisson est écoulé.';
+                  const finishedList = activeTimers.filter((t) => finishedTimerIds.includes(t.id));
+                  if (finishedList.length > 0) {
+                    return (
+                      finishedList
+                        .map((f) => `« ${f.label} » (Étape ${f.stepIndex + 1})`)
+                        .join(' et ') + (finishedList.length > 1 ? ' sont terminés !' : ' est terminé !')
+                    );
+                  }
+                  return 'Le temps de cuisson est écoulé.';
                 })()}
               </Text>
 
@@ -1000,9 +1030,9 @@ export const CookingModeModal: React.FC<CookingModeModalProps> = ({
                 style={styles.alertDismissBtn}
                 onPress={() => {
                   setIsTimerFinishedModalVisible(false);
-                  if (finishedTimerId) {
-                    setActiveTimers((prev) => prev.filter((t) => t.id !== finishedTimerId));
-                    setFinishedTimerId(null);
+                  if (finishedTimerIds.length > 0) {
+                    setActiveTimers((prev) => prev.filter((t) => !finishedTimerIds.includes(t.id)));
+                    setFinishedTimerIds([]);
                   }
                 }}
                 activeOpacity={0.85}
@@ -1066,6 +1096,12 @@ export const CookingModeModal: React.FC<CookingModeModalProps> = ({
               <TouchableOpacity
                 style={styles.completeFinishBtn}
                 onPress={() => {
+                  activeTimers.forEach((t) => {
+                    if (t.notificationId) {
+                      void cancelTimerNotification(t.notificationId);
+                    }
+                  });
+                  setActiveTimers([]);
                   setIsCompletedModalVisible(false);
                   onClose();
                 }}

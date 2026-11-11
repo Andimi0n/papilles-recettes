@@ -51,9 +51,9 @@ async function main() {
     },
     getPermissionsAsync: async () => ({ granted: true }),
     requestPermissionsAsync: async () => ({ granted: true }),
-    scheduleNotificationAsync: async ({ content, trigger }) => {
-      const id = `notif_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-      scheduledList.push({ id, content, trigger });
+    scheduleNotificationAsync: async ({ identifier, content, trigger }) => {
+      const id = identifier || `notif_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+      scheduledList.push({ id, identifier, content, trigger });
       return id;
     },
     cancelScheduledNotificationAsync: async (id) => {
@@ -100,13 +100,29 @@ async function main() {
   assert.strictEqual(scheduledList[0].trigger.seconds, 480);
   assert(scheduledList[0].content.body.includes('Cuisson des pâtes'));
   assert(scheduledList[0].content.body.includes('Étape 2'));
+
+  // 3.B Programmation avec timerId déterministe
+  const customTimerId = 'pasta_timer_123';
+  const customNotifId = await timerService.scheduleTimerNotification({
+    timerId: customTimerId,
+    label: 'Rissolage',
+    stepIndex: 0,
+    seconds: 120,
+  });
+  const expectedIdentifier = timerService.getTimerNotificationIdentifier(customTimerId);
+  assert.strictEqual(customNotifId, expectedIdentifier, 'Doit utiliser l\'identifiant déterministe');
+  assert.strictEqual(scheduledList[1].identifier, expectedIdentifier);
   console.log('  ✓ Programmation validée');
 
-  // 4. Annulation de notification
+  // 4. Annulation de notification (par notifId et par timerId direct)
   console.log('  4. Annulation d\'une notification programmée...');
   await timerService.cancelTimerNotification(notifId);
   assert.strictEqual(cancelledList.length, 1);
   assert.strictEqual(cancelledList[0], notifId);
+
+  await timerService.cancelTimerNotification(customTimerId);
+  assert.strictEqual(cancelledList.length, 2);
+  assert.strictEqual(cancelledList[1], expectedIdentifier);
   console.log('  ✓ Annulation validée');
 
   // 5. Synchro du tick et AppState
