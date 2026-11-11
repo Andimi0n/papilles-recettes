@@ -563,3 +563,5 @@ export const IngredientTableEditor = forwardRef<IngredientTableEditorRef, Ingred
     </View>
   );
 });
+
+IngredientTableEditor.displayName = 'IngredientTableEditor';
