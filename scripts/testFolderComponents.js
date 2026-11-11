@@ -54,6 +54,11 @@ async function main() {
   };
   require.cache[require.resolve('@expo/vector-icons')] = { exports: ExpoVectorIconsMock };
 
+  const FlashListMock = {
+    FlashList: () => 'FlashList',
+  };
+  require.cache[require.resolve('@shopify/flash-list')] = { exports: FlashListMock };
+
   const folderComponents = require(path.join(tmpDir, 'components/folders/index.js'));
   const { FolderMosaic, FolderCard, CreateEditFolderModal, DeleteFolderConfirmModal, CULINARY_FOLDER_EMOJIS } = folderComponents;
   const { getFolderMosaicImages } = require(path.join(tmpDir, 'utils/folderMosaicHelper.js'));
