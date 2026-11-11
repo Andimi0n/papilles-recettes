@@ -40,9 +40,9 @@
 - [x] Task: Phase Verification & Checkpoint (4596451)
 
 ## Phase 4 : Navigation Gestuelle, Vue Grille & Vue Intérieure de Dossier
-- [ ] Task: Sélecteur Segmenté & Pager Gestuel Filtré
-  - [ ] Ajouter les onglets `Recettes` / `Dossiers` en en-tête d'accueil
-  - [ ] Gérer le swipe horizontal strict (`dx > 25 && Math.abs(dx) > Math.abs(dy) * 2`) en excluant la zone des filtres (`FILTER_BAR_HEIGHT = 88`)
+- [x] Task: Sélecteur Segmenté & Pager Gestuel Filtré (79395cd)
+  - [x] Ajouter les onglets `Recettes` / `Dossiers` en en-tête d'accueil
+  - [x] Gérer le swipe horizontal strict (`dx > 25 && Math.abs(dx) > Math.abs(dy) * 2`) en excluant la zone des filtres (`FILTER_BAR_HEIGHT = 88`)
 - [ ] Task: Vue Grille des Dossiers (`FoldersGridView.tsx`)
   - [ ] Intégrer `FlashList` (`numColumns: 2`), tuile « Non classées » et action « + Nouveau dossier »
 - [ ] Task: Navigation Intérieure de Dossier (`activeFolderId`) & Actions Contextuelles
