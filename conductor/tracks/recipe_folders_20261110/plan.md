@@ -52,9 +52,9 @@
 - [x] Task: Phase Verification & Checkpoint (24a0be5)
 
 ## Phase 5 : Tests d'Intégration, Documentation & Validation Finale
-- [ ] Task: Tests d'Intégration Finaux
-  - [ ] Tester le cycle complet de bout en bout (Création dossier ➔ Sélection multiple ➔ Rangement ➔ Filtrage intérieur ➔ Retrait ➔ Suppression dossier)
-  - [ ] Vérifier formellement la règle d'or (aucune suppression silencieuse de recettes)
+- [x] Task: Tests d'Intégration Finaux (5ceac4a)
+  - [x] Tester le cycle complet de bout en bout (Création dossier ➔ Sélection multiple ➔ Rangement ➔ Filtrage intérieur ➔ Retrait ➔ Suppression dossier)
+  - [x] Vérifier formellement la règle d'or (aucune suppression silencieuse de recettes)
 - [ ] Task: Mise à Jour Documentaire
   - [ ] Mettre à jour la cartographie et les fonctionnalités dans `README.md` et `AGENTS.md`
 - [ ] Task: Validation Qualité Finale & Santé du Projet
