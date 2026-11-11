@@ -145,6 +145,7 @@ const FoldersGridViewComponent: React.FC<FoldersGridViewProps> = ({
         extraData={`${themeId}_${summaries.length}`}
         keyExtractor={(item) => item.id}
         numColumns={2}
+        getItemType={(item) => (item.isNewFolderButton ? 'new' : 'folder')}
         renderItem={renderGridItem}
         contentContainerStyle={[
           styles.listContent,

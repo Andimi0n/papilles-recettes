@@ -157,7 +157,7 @@ async function main() {
   console.log('✓ Directionnalité validée');
 
   // Test 5 : Désactivation en mode sélection ou modal
-  console.log('\n--- Test 5 : Gardes (mode sélection & modales) ---');
+  console.log('\n--- Test 5 : Gardes (mode sélection, modales & dossier actif) ---');
   assert.strictEqual(
     shouldCaptureHomeTabSwipe({
       gestureState: { dx: -60, dy: 0 },
@@ -177,6 +177,16 @@ async function main() {
     }),
     false,
     'Le swipe doit être désactivé si une modal est ouverte'
+  );
+  assert.strictEqual(
+    shouldCaptureHomeTabSwipe({
+      gestureState: { dx: -60, dy: 0 },
+      activeTab: 'recipes',
+      locationY: 120,
+      activeFolderId: 'folder_desserts',
+    }),
+    false,
+    'Le swipe doit être désactivé si activeFolderId est défini'
   );
   console.log('✓ Gardes validées');
 

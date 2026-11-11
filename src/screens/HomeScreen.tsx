@@ -127,10 +127,8 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
   const [prevFolderIdForDetails, setPrevFolderIdForDetails] = useState<string | null>(currentFolderId);
   if (prevFolderIdForDetails !== currentFolderId) {
     setPrevFolderIdForDetails(currentFolderId);
-    if (!currentFolderId) {
-      setFolderRecipeIds(null);
-      setActiveFolderInfo(null);
-    }
+    setFolderRecipeIds(null);
+    setActiveFolderInfo(null);
   }
 
   // Chargement réactif des recettes du dossier actif
@@ -353,6 +351,11 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
     [activeTab, screenWidth, pageTranslateX]
   );
 
+  // Synchronisation de la translation du pager lors de variations de dimensions d'écran (ex: rotation)
+  useEffect(() => {
+    pageTranslateX.setValue(activeTab === 'recipes' ? 0 : -screenWidth);
+  }, [screenWidth, activeTab, pageTranslateX]);
+
   // Interception du BackHandler Android :
   // 1. Quitter le mode sélection
   // 2. Quitter le dossier actif pour revenir à la grille des dossiers
@@ -510,13 +513,14 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
       await FolderService.deleteFolder(folderToDelete.id);
       if (currentFolderId === folderToDelete.id) {
         setCurrentFolderId(null);
+        switchTab('folders', true);
       }
       setFolderToDelete(null);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Impossible de supprimer le dossier';
       Alert.alert('Erreur', msg);
     }
-  }, [folderToDelete, currentFolderId]);
+  }, [folderToDelete, currentFolderId, switchTab]);
 
   // Double bandeau de filtres rétractable au défilement (haute performance, 60fps via useNativeDriver)
   const FILTER_BAR_HEIGHT = 88;
@@ -899,8 +903,8 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
     }
 
     // Filtrage contextuel de dossier (activeFolderId)
-    if (currentFolderId && folderRecipeIds) {
-      result = result.filter((r) => folderRecipeIds.has(r.recipe.id));
+    if (currentFolderId) {
+      result = folderRecipeIds ? result.filter((r) => folderRecipeIds.has(r.recipe.id)) : [];
     }
 
     return {
@@ -1679,7 +1683,17 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
             onScroll={handleScroll}
             scrollEventThrottle={16}
             ListEmptyComponent={
-              onlyDoableWithStock ? (
+              currentFolderId && folderRecipeIds && folderRecipeIds.size === 0 && !isSearching && selectedCategories.length === 0 && activeAdvancedFiltersCount === 0 ? (
+                <EmptyState
+                  title="Ce dossier est vide"
+                  description="Sélectionnez des recettes depuis l'onglet « Recettes » avec un appui long pour les ranger dans ce dossier."
+                  actionLabel="Parcourir toutes les recettes"
+                  onAction={() => {
+                    setCurrentFolderId(null);
+                    switchTab('recipes', true);
+                  }}
+                />
+              ) : onlyDoableWithStock ? (
                 <EmptyState
                   title="Aucune recette 100% en stock"
                   description="Aucune recette de votre carnet ne correspond exactement aux ingrédients actuellement enregistrés dans vos étagères."

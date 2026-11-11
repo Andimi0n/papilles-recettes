@@ -19,10 +19,10 @@ async function main() {
 
   // Helper pur de filtrage de recettes par dossier
   function filterRecipesByFolder(recipes, folderId, folderRecipeIds) {
-    if (!folderId || !folderRecipeIds) {
+    if (!folderId) {
       return recipes;
     }
-    return recipes.filter((r) => folderRecipeIds.has(r.id));
+    return folderRecipeIds ? recipes.filter((r) => folderRecipeIds.has(r.id)) : [];
   }
 
   // Helper de résolution de la hiérarchie BackHandler
@@ -65,6 +65,12 @@ async function main() {
   const allRecipes = filterRecipesByFolder(mockRecipes, null, null);
   assert.strictEqual(allRecipes.length, 4);
   console.log('✓ Rendu racine validé');
+
+  // Test 3.B : Dossier actif en cours de chargement (folderRecipeIds = null)
+  console.log('\n--- Test 3.B : Dossier actif en cours de chargement (anti-flash) ---');
+  const loadingRecipes = filterRecipesByFolder(mockRecipes, 'folder_desserts', null);
+  assert.strictEqual(loadingRecipes.length, 0, 'Ne doit afficher aucune recette pendant le chargement des IDs du dossier');
+  console.log('✓ Anti-flash de chargement validé');
 
   // Test 4 : Hiérarchie BackHandler Android
   console.log('\n--- Test 4 : Hiérarchie BackHandler Android ---');

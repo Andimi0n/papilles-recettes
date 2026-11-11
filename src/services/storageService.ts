@@ -509,7 +509,7 @@ export const StorageService = {
         : { ...safeRecipe, id: safeRecipe.id || generateUniqueId('rec'), createdAt: now, updatedAt: now };
 
       await DatabaseService.saveRecipe(finalRecipe);
-      if (isNewRecipe) {
+      if (isNewRecipe || existing?.imageUrl !== finalRecipe.imageUrl || existing?.title !== finalRecipe.title) {
         this.notifyFolderChange();
       }
 
@@ -2851,6 +2851,9 @@ export const StorageService = {
 
       await DatabaseService.saveAllRecipes(mergedList);
       memoryCache.recipes = mergedList;
+      if (addedCount > 0) {
+        this.notifyFolderChange();
+      }
 
       return {
         success: true,

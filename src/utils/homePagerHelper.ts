@@ -37,13 +37,14 @@ export function shouldCaptureHomeTabSwipe(options: ShouldCaptureSwipeOptions): b
     gestureState,
     locationY,
     activeTab,
+    activeFolderId,
     isSelectionMode = false,
     isModalOpen = false,
     filterBarHeight = 88,
   } = options;
 
-  // 1. Gardes : modale ouverte ou mode sélection multiple actif
-  if (isModalOpen || isSelectionMode) {
+  // 1. Gardes : modale ouverte, mode sélection multiple actif ou navigation intérieure d'un dossier
+  if (isModalOpen || isSelectionMode || Boolean(activeFolderId)) {
     return false;
   }
 
