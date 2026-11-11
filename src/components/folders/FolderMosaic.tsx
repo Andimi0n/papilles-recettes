@@ -29,7 +29,7 @@ export interface FolderMosaicProps {
   fallbackIcon?: keyof typeof Ionicons.glyphMap;
 }
 
-export const FolderMosaic: React.FC<FolderMosaicProps> = ({
+const FolderMosaicComponent: React.FC<FolderMosaicProps> = ({
   images,
   size,
   borderRadius = 14,
@@ -94,6 +94,8 @@ export const FolderMosaic: React.FC<FolderMosaicProps> = ({
     </View>
   );
 };
+
+export const FolderMosaic = React.memo(FolderMosaicComponent);
 
 const dynamicStyles = createDynamicStyles((colors) => ({
   container: {

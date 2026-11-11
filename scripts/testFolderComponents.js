@@ -59,10 +59,10 @@ async function main() {
   const { getFolderMosaicImages } = require(path.join(tmpDir, 'utils/folderMosaicHelper.js'));
 
   console.log('\n--- Test 1 : Vérification des exports des composants ---');
-  assert.strictEqual(typeof FolderMosaic, 'function', 'FolderMosaic doit être un composant React (fonction)');
-  assert.strictEqual(typeof FolderCard, 'function', 'FolderCard doit être un composant React (fonction)');
-  assert.strictEqual(typeof CreateEditFolderModal, 'function', 'CreateEditFolderModal doit être un composant React (fonction)');
-  assert.strictEqual(typeof DeleteFolderConfirmModal, 'function', 'DeleteFolderConfirmModal doit être un composant React (fonction)');
+  assert(['function', 'object'].includes(typeof FolderMosaic), 'FolderMosaic doit être un composant React (fonction ou React.memo)');
+  assert(['function', 'object'].includes(typeof FolderCard), 'FolderCard doit être un composant React (fonction ou React.memo)');
+  assert(['function', 'object'].includes(typeof CreateEditFolderModal), 'CreateEditFolderModal doit être un composant React (fonction ou React.memo)');
+  assert(['function', 'object'].includes(typeof DeleteFolderConfirmModal), 'DeleteFolderConfirmModal doit être un composant React (fonction ou React.memo)');
   console.log('✓ Tous les composants sont correctement exportés');
 
   console.log('\n--- Test 2 : Palette d\'emojis culinaires de CreateEditFolderModal ---');

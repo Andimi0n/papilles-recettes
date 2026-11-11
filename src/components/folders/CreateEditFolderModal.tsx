@@ -45,10 +45,16 @@ export const CreateEditFolderModal: React.FC<CreateEditFolderModalProps> = ({
 
   // Pattern React 19 : Ajustement d'état synchronisé lors de l'ouverture ou du changement de dossier
   const [prevFolder, setPrevFolder] = useState(folder);
-  if (prevFolder !== folder) {
+  const [prevVisible, setPrevVisible] = useState(visible);
+
+  if (prevFolder !== folder || (!prevVisible && visible)) {
     setPrevFolder(folder);
+    setPrevVisible(visible);
     setName(folder?.name || '');
     setSelectedEmoji(folder?.icon || '📁');
+    setIsSubmitting(false);
+  } else if (prevVisible !== visible) {
+    setPrevVisible(visible);
   }
 
   const isEditing = Boolean(folder && folder.id);
@@ -216,6 +222,8 @@ export const CreateEditFolderModal: React.FC<CreateEditFolderModalProps> = ({
               onPress={onClose}
               activeOpacity={0.7}
               disabled={isSubmitting}
+              accessibilityRole="button"
+              accessibilityLabel="Annuler"
             >
               <Text style={[styles.cancelBtnText, { color: colors.textSecondary }]}>
                 Annuler
@@ -231,6 +239,8 @@ export const CreateEditFolderModal: React.FC<CreateEditFolderModalProps> = ({
               onPress={handleSave}
               activeOpacity={0.85}
               disabled={isSubmitting}
+              accessibilityRole="button"
+              accessibilityLabel={isEditing ? 'Enregistrer les modifications' : 'Créer le dossier'}
             >
               <Ionicons name="checkmark" size={18} color="#FFFFFF" />
               <Text style={styles.saveBtnText}>

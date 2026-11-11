@@ -102,7 +102,7 @@ export const DeleteFolderConfirmModal: React.FC<DeleteFolderConfirmModalProps> =
             <View style={styles.preservationNoticeHeader}>
               <Ionicons name="shield-checkmark" size={16} color={colors.primary} />
               <Text style={[styles.preservationNoticeTitle, { color: colors.primary }]}>
-                Règle d'or de préservation
+                {"Règle d'or de préservation"}
               </Text>
             </View>
             <Text style={[styles.preservationNoticeText, { color: colors.textSecondary }]}>

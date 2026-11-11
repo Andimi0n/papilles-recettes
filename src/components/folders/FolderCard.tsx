@@ -43,7 +43,7 @@ export interface FolderCardProps {
   style?: StyleProp<ViewStyle>;
 }
 
-export const FolderCard: React.FC<FolderCardProps> = ({
+const FolderCardComponent: React.FC<FolderCardProps> = ({
   folder,
   isNewFolderButton = false,
   onPress,
@@ -157,7 +157,7 @@ export const FolderCard: React.FC<FolderCardProps> = ({
                 <TouchableOpacity
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   onPress={(e) => {
-                    e.stopPropagation();
+                    e?.stopPropagation?.();
                     onEdit();
                   }}
                   accessibilityRole="button"
@@ -165,6 +165,20 @@ export const FolderCard: React.FC<FolderCardProps> = ({
                   style={styles.actionIconButton}
                 >
                   <Ionicons name="pencil-sharp" size={14} color={colors.textMuted} />
+                </TouchableOpacity>
+              )}
+              {onDelete && (
+                <TouchableOpacity
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  onPress={(e) => {
+                    e?.stopPropagation?.();
+                    onDelete();
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Supprimer le dossier ${folder.name}`}
+                  style={styles.actionIconButton}
+                >
+                  <Ionicons name="trash-outline" size={14} color={colors.danger} />
                 </TouchableOpacity>
               )}
             </View>
@@ -178,6 +192,8 @@ export const FolderCard: React.FC<FolderCardProps> = ({
     </TouchableOpacity>
   );
 };
+
+export const FolderCard = React.memo(FolderCardComponent);
 
 const dynamicStyles = createDynamicStyles((colors, shadows) => ({
   card: {
