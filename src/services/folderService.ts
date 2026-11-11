@@ -177,11 +177,13 @@ export class FolderService {
     for (const f of folders) {
       const rIds = folderToRecipeIds.get(f.id) || [];
       const images: string[] = [];
+      const validRecipeIds: string[] = [];
       let validCount = 0;
       for (const rId of rIds) {
         const recipe = recipeMap.get(rId);
         if (recipe) {
           validCount++;
+          validRecipeIds.push(rId);
           if (recipe.imageUrl && images.length < 4) {
             images.push(recipe.imageUrl);
           }
@@ -193,6 +195,7 @@ export class FolderService {
         icon: f.icon,
         recipeCount: validCount,
         recipeImages: images,
+        recipeIds: validRecipeIds,
         createdAt: f.createdAt,
         updatedAt: f.updatedAt,
       });
@@ -214,6 +217,7 @@ export class FolderService {
       icon: '📂',
       recipeCount: uncategorizedRecipes.length,
       recipeImages: uncatImages,
+      recipeIds: uncategorizedRecipes.map((r) => r.id),
     });
 
     return summaries;

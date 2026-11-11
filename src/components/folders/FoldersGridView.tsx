@@ -26,7 +26,7 @@ export interface FolderRecipeMap {
  */
 export function calculateFilteredFolderSummaries(
   summaries: FolderSummary[],
-  folderRecipeMap: FolderRecipeMap,
+  folderRecipeMap?: FolderRecipeMap,
   matchingRecipeIds?: Set<string> | null
 ): FolderSummary[] {
   if (!matchingRecipeIds) {
@@ -34,11 +34,17 @@ export function calculateFilteredFolderSummaries(
   }
   return summaries.map((s) => {
     let count = 0;
-    if (s.id === UNCATEGORIZED_FOLDER_ID) {
-      count = folderRecipeMap.uncategorized.filter((id) => matchingRecipeIds.has(id)).length;
+    if (s.recipeIds) {
+      count = s.recipeIds.filter((id) => matchingRecipeIds.has(id)).length;
+    } else if (folderRecipeMap) {
+      if (s.id === UNCATEGORIZED_FOLDER_ID) {
+        count = folderRecipeMap.uncategorized.filter((id) => matchingRecipeIds.has(id)).length;
+      } else {
+        const ids = folderRecipeMap.userFolders.get(s.id) || [];
+        count = ids.filter((id) => matchingRecipeIds.has(id)).length;
+      }
     } else {
-      const ids = folderRecipeMap.userFolders.get(s.id) || [];
-      count = ids.filter((id) => matchingRecipeIds.has(id)).length;
+      count = s.recipeCount;
     }
     return {
       ...s,
@@ -142,28 +148,9 @@ const FoldersGridViewComponent: React.FC<FoldersGridViewProps> = ({
     let isMounted = true;
     const fetchSummaries = async () => {
       try {
-        const [data, recipeFolders, allRecipes] = await Promise.all([
-          FolderService.getFolderSummaries(),
-          FolderService.getRecipeFolders(),
-          StorageService.getRecipes(),
-        ]);
-
-        const userFolders = new Map<string, string[]>();
-        const categorized = new Set<string>();
-        for (const rf of recipeFolders) {
-          if (!userFolders.has(rf.folderId)) {
-            userFolders.set(rf.folderId, []);
-          }
-          userFolders.get(rf.folderId)!.push(rf.recipeId);
-          categorized.add(rf.recipeId);
-        }
-        const uncategorized = allRecipes
-          .filter((r) => !categorized.has(r.id))
-          .map((r) => r.id);
-
+        const data = await FolderService.getFolderSummaries();
         if (isMounted) {
           setSummaries(data);
-          setFolderRecipeMap({ userFolders, uncategorized });
         }
       } catch (err) {
         console.error('Erreur lors du chargement des dossiers :', err);
@@ -217,7 +204,7 @@ const FoldersGridViewComponent: React.FC<FoldersGridViewProps> = ({
     <View style={styles.container}>
       <FlashList
         data={gridItems}
-        extraData={`${themeId}_${displaySummaries.map((s) => `${s.id}:${s.recipeCount}`).join(',')}`}
+        extraData={`${themeId}_${displaySummaries.map((s) => `${s.id}:${s.name}:${s.icon}:${s.recipeCount}`).join(',')}`}
         keyExtractor={(item) => item.id}
         numColumns={2}
         getItemType={(item) => (item.isNewFolderButton ? 'new' : 'folder')}

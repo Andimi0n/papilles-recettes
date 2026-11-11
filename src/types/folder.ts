@@ -24,6 +24,7 @@ export interface FolderSummary {
   icon: string;
   recipeCount: number;
   recipeImages: string[]; // Jusqu'à 4 URLs/chemins d'images pour la mosaïque 2x2
+  recipeIds?: string[]; // Identifiants des recettes contenues dans ce dossier
   createdAt?: string;
   updatedAt?: string;
 }
