@@ -12,3 +12,6 @@ export type { DeleteFolderConfirmModalProps } from './DeleteFolderConfirmModal';
 
 export { FloatingSelectionBar } from './FloatingSelectionBar';
 export type { FloatingSelectionBarProps } from './FloatingSelectionBar';
+
+export { FolderAssignmentBottomSheet } from './FolderAssignmentBottomSheet';
+export type { FolderAssignmentBottomSheetProps } from './FolderAssignmentBottomSheet';

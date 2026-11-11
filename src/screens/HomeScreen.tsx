@@ -20,7 +20,7 @@ import { FridgeItem } from '../types/fridge';
 import { UserAllergenItem } from '../types/vocabulary';
 import { StorageService } from '../services/storageService';
 import { FolderService } from '../services/folderService';
-import { FloatingSelectionBar } from '../components/folders';
+import { FloatingSelectionBar, FolderAssignmentBottomSheet } from '../components/folders';
 import { styles } from './HomeScreen.styles';
 import { useTheme } from '../theme/ThemeContext';
 import { RecipeCard, RecipeStockProgress } from '../components/common/RecipeCard';
@@ -95,7 +95,6 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
 
   // État de sélection multiple persistant au fil des filtres et recherches
   const [selectedRecipeIds, setSelectedRecipeIds] = useState<Set<string>>(new Set());
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [isFolderAssignmentOpen, setIsFolderAssignmentOpen] = useState(false);
   const isSelectionMode = selectedRecipeIds.size > 0;
 
@@ -1614,6 +1613,16 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
           }
           activeFolderId={activeFolderId}
           bottomInset={0}
+        />
+
+        {/* Bottom Sheet de rangement dans les dossiers */}
+        <FolderAssignmentBottomSheet
+          visible={isFolderAssignmentOpen}
+          recipeIds={Array.from(selectedRecipeIds)}
+          onClose={() => setIsFolderAssignmentOpen(false)}
+          onSuccess={(_msg) => {
+            setSelectedRecipeIds(new Set());
+          }}
         />
       </View>
     </SafeAreaView>
