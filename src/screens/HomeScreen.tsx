@@ -1702,7 +1702,6 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
     timeFilterMode,
     debouncedSearchQuery,
     colors,
-    styles,
     viewMode,
     handleChangeViewMode,
   ]);

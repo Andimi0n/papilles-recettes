@@ -140,7 +140,7 @@ const FoldersGridViewComponent: React.FC<FoldersGridViewProps> = ({
   const { themeId } = useTheme();
   const styles = dynamicStyles;
   const [summaries, setSummaries] = useState<FolderSummary[]>(initialSummaries || []);
-  const [folderRecipeMap, setFolderRecipeMap] = useState<FolderRecipeMap>(
+  const [folderRecipeMap] = useState<FolderRecipeMap>(
     initialFolderRecipeMap || { userFolders: new Map(), uncategorized: [] }
   );
 
