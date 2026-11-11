@@ -18,7 +18,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useKeepAwake } from 'expo-keep-awake';
 import { Recipe, Ingredient } from '../types/recipe';
 import { UserAllergenItem, CanonicalIngredient } from '../types/vocabulary';
+import { Folder } from '../types/folder';
 import { StorageService } from '../services/storageService';
+import { FolderService } from '../services/folderService';
 import { styles } from './RecipeDetailScreen.styles';
 import { useTheme } from '../theme/ThemeContext';
 import { StarRating } from '../components/common/StarRating';
@@ -26,6 +28,7 @@ import { CookingModeModal } from '../components/recipe-detail/CookingModeModal';
 import { RecipeQrModal } from '../components/import-share/RecipeQrModal';
 import { RecipePrintModal } from '../components/import-share/RecipePrintModal';
 import { PlanRecipeModal } from '../components/planner/PlanRecipeModal';
+import { FolderAssignmentBottomSheet } from '../components/folders';
 import { RecipeIngredientsList } from '../components/recipe-detail/RecipeIngredientsList';
 import { RecipeInstructionsList } from '../components/recipe-detail/RecipeInstructionsList';
 import { QualifyIngredientModal } from '../components/lexicon-units/QualifyIngredientModal';
@@ -481,15 +484,70 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
   const [qualifyModalTarget, setQualifyModalTarget] = useState<Ingredient | null>(null);
   const [isQualifyModalVisible, setIsQualifyModalVisible] = useState(false);
 
-  // Snackbar de confirmation lors du swipe (courses ou retrait stock)
+  // Dossiers d'appartenance de la recette
+  const [assignedFolders, setAssignedFolders] = useState<Folder[]>([]);
+  const [isFolderBottomSheetVisible, setIsFolderBottomSheetVisible] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    const loadAssignedFolders = async () => {
+      try {
+        const [allFolders, folderIds] = await Promise.all([
+          FolderService.getAllFolders(),
+          FolderService.getFolderIdsForRecipe(recipe.id),
+        ]);
+        if (isMounted) {
+          const idSet = new Set(folderIds);
+          setAssignedFolders(allFolders.filter((f) => idSet.has(f.id)));
+        }
+      } catch (err) {
+        console.error('Erreur chargement dossiers recette:', err);
+      }
+    };
+    loadAssignedFolders();
+    const unsub = StorageService.onFoldersChange(loadAssignedFolders);
+    return () => {
+      isMounted = false;
+      unsub();
+    };
+  }, [recipe.id]);
+
+  // Snackbar de confirmation lors du swipe (courses ou retrait stock) ou action dossier
   interface DetailSnackbarState {
-    type: 'shopping' | 'stock_removed';
+    type: 'shopping' | 'stock_removed' | 'folder';
     name: string;
     removedItem?: FridgeItem;
   }
   const [detailSnackbar, setDetailSnackbar] = useState<DetailSnackbarState | null>(null);
   const [snackbarFadeAnim] = useState(() => new Animated.Value(0));
   const snackbarTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showFolderSnackbar = (message: string) => {
+    if (snackbarTimerRef.current) {
+      clearTimeout(snackbarTimerRef.current);
+      snackbarTimerRef.current = null;
+    }
+    setDetailSnackbar({
+      type: 'folder',
+      name: message,
+    });
+    snackbarFadeAnim.setValue(0);
+    Animated.timing(snackbarFadeAnim, {
+      toValue: 1,
+      duration: 220,
+      useNativeDriver: true,
+    }).start();
+
+    snackbarTimerRef.current = setTimeout(() => {
+      Animated.timing(snackbarFadeAnim, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }).start(() => {
+        setDetailSnackbar(null);
+      });
+    }, 3500);
+  };
 
   const showShoppingSnackbar = (ingredient: Ingredient) => {
     if (snackbarTimerRef.current) {
@@ -882,6 +940,31 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
                 </TouchableOpacity>
 
                 <TouchableOpacity
+                  onPress={() => setIsFolderBottomSheetVisible(true)}
+                  style={styles.compactNoteBtn}
+                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                  activeOpacity={0.75}
+                  accessibilityRole="button"
+                  accessibilityLabel="Gérer les dossiers de cette recette"
+                >
+                  <Ionicons
+                    name="folder-outline"
+                    size={14}
+                    color={assignedFolders.length > 0 ? colors.primary : colors.textSecondary}
+                  />
+                  <Text
+                    style={[
+                      styles.compactNoteBtnText,
+                      assignedFolders.length > 0 && { color: colors.primary },
+                    ]}
+                  >
+                    {assignedFolders.length > 0
+                      ? `${assignedFolders.length} dossier${assignedFolders.length > 1 ? 's' : ''}`
+                      : '+ Dossier'}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
                   onPress={() => setIsNoteModalVisible(true)}
                   style={styles.compactNoteBtn}
                   hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
@@ -950,6 +1033,41 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
                 </TouchableOpacity>
               </ScrollView>
             </View>
+
+            {/* Dossiers d'appartenance */}
+            {assignedFolders.length > 0 && (
+              <View style={styles.detailFoldersContainer}>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.detailTagsScroll}
+                >
+                  {assignedFolders.map((f) => (
+                    <TouchableOpacity
+                      key={f.id}
+                      style={styles.detailFolderBadge}
+                      onPress={() => setIsFolderBottomSheetVisible(true)}
+                      activeOpacity={0.75}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Dossier ${f.name}`}
+                    >
+                      <Text style={styles.detailFolderEmoji}>{f.icon}</Text>
+                      <Text style={styles.detailFolderText}>{f.name}</Text>
+                    </TouchableOpacity>
+                  ))}
+                  <TouchableOpacity
+                    style={styles.detailAddFolderBtn}
+                    onPress={() => setIsFolderBottomSheetVisible(true)}
+                    activeOpacity={0.75}
+                    accessibilityRole="button"
+                    accessibilityLabel="Modifier les dossiers"
+                  >
+                    <Ionicons name="folder-outline" size={12} color={colors.primary} />
+                    <Text style={styles.detailAddFolderBtnText}>+ Dossier</Text>
+                  </TouchableOpacity>
+                </ScrollView>
+              </View>
+            )}
           </View>
 
           {/* Key Facts / Metadata Grid épuré */}
@@ -1512,14 +1630,22 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
             <View style={styles.snackbarContent}>
               <View style={styles.snackbarLeft}>
                 <Ionicons
-                  name={detailSnackbar.type === 'shopping' ? 'cart-outline' : 'trash-outline'}
+                  name={
+                    detailSnackbar.type === 'shopping'
+                      ? 'cart-outline'
+                      : detailSnackbar.type === 'stock_removed'
+                        ? 'trash-outline'
+                        : 'folder-open-outline'
+                  }
                   size={18}
                   color="#FFFFFF"
                 />
                 <Text style={styles.snackbarText} numberOfLines={1}>
-                  {detailSnackbar.type === 'shopping'
-                    ? `« ${detailSnackbar.name} » ajouté aux courses`
-                    : `« ${detailSnackbar.name} » retiré du stock`}
+                  {detailSnackbar.type === 'folder'
+                    ? detailSnackbar.name
+                    : detailSnackbar.type === 'shopping'
+                      ? `« ${detailSnackbar.name} » ajouté aux courses`
+                      : `« ${detailSnackbar.name} » retiré du stock`}
                 </Text>
               </View>
               <View style={styles.snackbarActions}>
@@ -1553,6 +1679,15 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
           </Animated.View>
         )}
 
+        {/* Modale de rangement dans les dossiers */}
+        <FolderAssignmentBottomSheet
+          visible={isFolderBottomSheetVisible}
+          recipeIds={[recipe.id]}
+          onClose={() => setIsFolderBottomSheetVisible(false)}
+          onSuccess={(msg) => {
+            if (msg) showFolderSnackbar(msg);
+          }}
+        />
       </View>
     </SafeAreaView>
   );
