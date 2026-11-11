@@ -426,7 +426,6 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
       }
       if (currentFolderId) {
         setCurrentFolderId(null);
-        switchTab('folders', true);
         return true;
       }
       return false;
@@ -534,9 +533,8 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
   const handleSelectFolderFromGrid = useCallback(
     (folderId: string) => {
       setCurrentFolderId(folderId);
-      switchTab('recipes', true);
     },
-    [switchTab]
+    []
   );
 
   const handleCreateFolderSubmit = useCallback(async (name: string, icon: string) => {
@@ -569,7 +567,6 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
       await FolderService.deleteFolder(folderToDelete.id);
       if (currentFolderId === folderToDelete.id) {
         setCurrentFolderId(null);
-        switchTab('folders', true);
       }
       setFolderToDelete(null);
     } catch (err: unknown) {
@@ -958,11 +955,6 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
       result = result.filter((r) => !recipesWithAllergensSet.has(r.recipe.id));
     }
 
-    // Filtrage contextuel de dossier (activeFolderId)
-    if (currentFolderId) {
-      result = folderRecipeIds ? result.filter((r) => folderRecipeIds.has(r.recipe.id)) : [];
-    }
-
     return {
       baseFilteredResults: result,
       isSearching: searching,
@@ -984,8 +976,6 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
     userAllergens.length,
     recipesWithAllergensSet,
     doableRecipesMap,
-    currentFolderId,
-    folderRecipeIds,
   ]);
 
   // Category counts synchronisés avec les filtres actifs (stock, recherche, diététique, etc.)
@@ -1020,6 +1010,34 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
     return sorted.map((r) => r.recipe);
   }, [baseFilteredResults, selectedCategories, isSearching, sortBy, doableRecipesMap]);
 
+  // Recettes filtrées à l'intérieur du dossier sélectionné
+  const folderFilteredRecipes = useMemo(() => {
+    if (!currentFolderId || !folderRecipeIds) return [];
+    let result = baseFilteredResults.filter((r) => folderRecipeIds.has(r.recipe.id));
+
+    if (selectedCategories.length > 0) {
+      result = result.filter((r) => selectedCategories.includes(r.recipe.category));
+    }
+
+    const sorted = [...result];
+    sorted.sort((a, b) => {
+      if (isSearching && sortBy === 'recent' && b.score !== a.score) {
+        return b.score - a.score;
+      }
+      return compareRecipes(a.recipe, b.recipe, sortBy, doableRecipesMap);
+    });
+
+    return sorted.map((r) => r.recipe);
+  }, [
+    currentFolderId,
+    folderRecipeIds,
+    baseFilteredResults,
+    selectedCategories,
+    isSearching,
+    sortBy,
+    doableRecipesMap,
+  ]);
+
   // Détection des filtres actifs et calcul du Set d'identifiants pour mise à jour des dossiers
   const isFilterActive = useMemo(() => {
     return (
@@ -1049,9 +1067,9 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
   ]);
 
   const matchingRecipeIds = useMemo(() => {
-    if (!isFilterActive || currentFolderId) return null;
+    if (!isFilterActive) return null;
     return new Set(filteredRecipes.map((r) => r.id));
-  }, [isFilterActive, currentFolderId, filteredRecipes]);
+  }, [isFilterActive, filteredRecipes]);
 
   // Pagination (20 recettes par page pour une fluidité maximale)
   const totalPages = Math.max(1, Math.ceil(filteredRecipes.length / RECIPES_PER_PAGE));
@@ -1324,6 +1342,93 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
     ]
   );
 
+  // En-tête de la liste des recettes d'un dossier ouvert
+  const folderHeaderElement = useMemo(() => {
+    if (!currentFolderId || !activeFolderInfo) return null;
+    return (
+      <View>
+        <View style={styles.folderHeaderBanner}>
+          {/* Bouton retour vers tous les dossiers */}
+          <TouchableOpacity
+            style={styles.folderBackBtn}
+            onPress={() => setCurrentFolderId(null)}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Revenir à tous les dossiers"
+          >
+            <Ionicons name="arrow-back" size={17} color={colors.primary} />
+            <Text style={styles.folderBackBtnText}>Dossiers</Text>
+          </TouchableOpacity>
+
+          {/* Titre & Compteur au centre */}
+          <View style={styles.folderTitleContainer}>
+            <Text style={styles.folderIconText}>{activeFolderInfo.icon}</Text>
+            <Text style={styles.folderTitleText} numberOfLines={1}>
+              {activeFolderInfo.name}
+            </Text>
+            <View style={styles.folderCountBadge}>
+              <Text style={styles.folderCountBadgeText}>
+                {folderFilteredRecipes.length}
+              </Text>
+            </View>
+          </View>
+
+          {/* Actions Modifier / Supprimer (uniquement pour les dossiers utilisateur) */}
+          {currentFolderId !== UNCATEGORIZED_FOLDER_ID ? (
+            <View style={styles.folderActionsRow}>
+              <TouchableOpacity
+                style={styles.folderActionBtn}
+                onPress={() => {
+                  setFolderToEdit({
+                    id: activeFolderInfo.id,
+                    name: activeFolderInfo.name,
+                    icon: activeFolderInfo.icon,
+                    recipeCount: activeFolderInfo.count,
+                    recipeImages: [],
+                  });
+                }}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Modifier le nom et l'icône du dossier"
+              >
+                <Ionicons name="pencil-outline" size={17} color={colors.textSecondary} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.folderActionBtn}
+                onPress={() => {
+                  setFolderToDelete({
+                    id: activeFolderInfo.id,
+                    name: activeFolderInfo.name,
+                    icon: activeFolderInfo.icon,
+                    recipeCount: activeFolderInfo.count,
+                    recipeImages: [],
+                  });
+                }}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Supprimer le dossier"
+              >
+                <Ionicons name="trash-outline" size={17} color={colors.danger} />
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.folderActionsPlaceholder} />
+          )}
+        </View>
+
+        {listHeaderElement}
+      </View>
+    );
+  }, [
+    currentFolderId,
+    activeFolderInfo,
+    folderFilteredRecipes.length,
+    colors,
+    styles,
+    listHeaderElement,
+  ]);
+
   // Pied de liste avec navigation complète : début, précédente, sélection directe, suivante, fin
   const listFooterElement = useMemo(() => {
     if (filteredRecipes.length === 0) return undefined;
@@ -1552,173 +1657,95 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
             </TouchableOpacity>
           </View>
 
-          {/* Sélecteur segmenté : Recettes / Dossiers (affiché si aucun dossier ouvert) */}
-          {!currentFolderId && (
-            <View style={styles.tabSwitcherWrapper}>
-              <View style={styles.tabSwitcherContainer}>
-                {/* Pilule verte animée continue (glisse 1:1 sous le doigt) */}
+          {/* Sélecteur segmenté : Recettes / Dossiers */}
+          <View style={styles.tabSwitcherWrapper}>
+            <View style={styles.tabSwitcherContainer}>
+              {/* Pilule verte animée continue (glisse 1:1 sous le doigt) */}
+              <Animated.View
+                style={[
+                  styles.tabSwitcherPill,
+                  {
+                    left: tabLayout.x,
+                    top: tabLayout.y,
+                    width: tabLayout.width,
+                    height: tabLayout.height,
+                    transform: [{ translateX: indicatorTranslateX }],
+                  },
+                ]}
+              />
+
+              {/* Onglet 1 : Recettes */}
+              <TouchableOpacity
+                style={styles.tabSwitcherBtn}
+                onLayout={onFirstTabLayout}
+                onPress={() => switchTab('recipes')}
+                activeOpacity={0.8}
+                accessibilityRole="tab"
+                accessibilityLabel="Onglet Recettes"
+                accessibilityState={{ selected: activeTab === 'recipes' }}
+              >
+                {/* Couche au repos */}
+                <View style={styles.tabSwitcherBtnInner}>
+                  <Text style={styles.tabSwitcherText}>Recettes</Text>
+                  <View style={styles.tabBadge}>
+                    <Text style={styles.tabBadgeText}>{recipes.length}</Text>
+                  </View>
+                </View>
+
+                {/* Couche active avec fondu enchaîné continu */}
                 <Animated.View
                   style={[
-                    styles.tabSwitcherPill,
-                    {
-                      left: tabLayout.x,
-                      top: tabLayout.y,
-                      width: tabLayout.width,
-                      height: tabLayout.height,
-                      transform: [{ translateX: indicatorTranslateX }],
-                    },
+                    styles.tabSwitcherBtnInner,
+                    styles.tabSwitcherBtnOverlay,
+                    { opacity: recipesActiveOpacity },
                   ]}
-                />
-
-                {/* Onglet 1 : Recettes */}
-                <TouchableOpacity
-                  style={styles.tabSwitcherBtn}
-                  onLayout={onFirstTabLayout}
-                  onPress={() => switchTab('recipes')}
-                  activeOpacity={0.8}
-                  accessibilityRole="tab"
-                  accessibilityLabel="Onglet Recettes"
-                  accessibilityState={{ selected: activeTab === 'recipes' }}
+                  pointerEvents="none"
                 >
-                  {/* Couche au repos */}
-                  <View style={styles.tabSwitcherBtnInner}>
-                    <Text style={styles.tabSwitcherText}>Recettes</Text>
-                    <View style={styles.tabBadge}>
-                      <Text style={styles.tabBadgeText}>{recipes.length}</Text>
-                    </View>
+                  <Text style={[styles.tabSwitcherText, styles.tabSwitcherTextActive]}>Recettes</Text>
+                  <View style={[styles.tabBadge, styles.tabBadgeActive]}>
+                    <Text style={[styles.tabBadgeText, styles.tabBadgeTextActive]}>{recipes.length}</Text>
                   </View>
-
-                  {/* Couche active avec fondu enchaîné continu */}
-                  <Animated.View
-                    style={[
-                      styles.tabSwitcherBtnInner,
-                      styles.tabSwitcherBtnOverlay,
-                      { opacity: recipesActiveOpacity },
-                    ]}
-                    pointerEvents="none"
-                  >
-                    <Text style={[styles.tabSwitcherText, styles.tabSwitcherTextActive]}>Recettes</Text>
-                    <View style={[styles.tabBadge, styles.tabBadgeActive]}>
-                      <Text style={[styles.tabBadgeText, styles.tabBadgeTextActive]}>{recipes.length}</Text>
-                    </View>
-                  </Animated.View>
-                </TouchableOpacity>
-
-                {/* Onglet 2 : Dossiers */}
-                <TouchableOpacity
-                  style={styles.tabSwitcherBtn}
-                  onPress={() => switchTab('folders')}
-                  activeOpacity={0.8}
-                  accessibilityRole="tab"
-                  accessibilityLabel="Onglet Dossiers"
-                  accessibilityState={{ selected: activeTab === 'folders' }}
-                >
-                  {/* Couche au repos */}
-                  <View style={styles.tabSwitcherBtnInner}>
-                    <Text style={styles.tabSwitcherText}>Dossiers</Text>
-                    {foldersCount > 0 && (
-                      <View style={styles.tabBadge}>
-                        <Text style={styles.tabBadgeText}>{foldersCount}</Text>
-                      </View>
-                    )}
-                  </View>
-
-                  {/* Couche active avec fondu enchaîné continu */}
-                  <Animated.View
-                    style={[
-                      styles.tabSwitcherBtnInner,
-                      styles.tabSwitcherBtnOverlay,
-                      { opacity: foldersActiveOpacity },
-                    ]}
-                    pointerEvents="none"
-                  >
-                    <Text style={[styles.tabSwitcherText, styles.tabSwitcherTextActive]}>Dossiers</Text>
-                    {foldersCount > 0 && (
-                      <View style={[styles.tabBadge, styles.tabBadgeActive]}>
-                        <Text style={[styles.tabBadgeText, styles.tabBadgeTextActive]}>{foldersCount}</Text>
-                      </View>
-                    )}
-                  </Animated.View>
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
-
-          {/* Bandeau d'en-tête contextuel de dossier : [ ← Tous les dossiers | Nom (compteur) | ✏️ / 🗑️ ] */}
-          {currentFolderId && activeFolderInfo && (
-            <View style={styles.folderHeaderBanner}>
-              {/* Bouton retour vers tous les dossiers */}
-              <TouchableOpacity
-                style={styles.folderBackBtn}
-                onPress={() => {
-                  setCurrentFolderId(null);
-                  switchTab('folders', true);
-                }}
-                activeOpacity={0.7}
-                accessibilityRole="button"
-                accessibilityLabel="Revenir à tous les dossiers"
-              >
-                <Ionicons name="arrow-back" size={17} color={colors.primary} />
-                <Text style={styles.folderBackBtnText}>Dossiers</Text>
+                </Animated.View>
               </TouchableOpacity>
 
-              {/* Titre & Compteur au centre */}
-              <View style={styles.folderTitleContainer}>
-                <Text style={styles.folderIconText}>{activeFolderInfo.icon}</Text>
-                <Text style={styles.folderTitleText} numberOfLines={1}>
-                  {activeFolderInfo.name}
-                </Text>
-                <View style={styles.folderCountBadge}>
-                  <Text style={styles.folderCountBadgeText}>
-                    {filteredRecipes.length}
-                  </Text>
+              {/* Onglet 2 : Dossiers */}
+              <TouchableOpacity
+                style={styles.tabSwitcherBtn}
+                onPress={() => switchTab('folders')}
+                activeOpacity={0.8}
+                accessibilityRole="tab"
+                accessibilityLabel="Onglet Dossiers"
+                accessibilityState={{ selected: activeTab === 'folders' }}
+              >
+                {/* Couche au repos */}
+                <View style={styles.tabSwitcherBtnInner}>
+                  <Text style={styles.tabSwitcherText}>Dossiers</Text>
+                  {foldersCount > 0 && (
+                    <View style={styles.tabBadge}>
+                      <Text style={styles.tabBadgeText}>{foldersCount}</Text>
+                    </View>
+                  )}
                 </View>
-              </View>
 
-              {/* Actions Modifier / Supprimer (uniquement pour les dossiers utilisateur) */}
-              {currentFolderId !== UNCATEGORIZED_FOLDER_ID ? (
-                <View style={styles.folderActionsRow}>
-                  <TouchableOpacity
-                    style={styles.folderActionBtn}
-                    onPress={() => {
-                      setFolderToEdit({
-                        id: activeFolderInfo.id,
-                        name: activeFolderInfo.name,
-                        icon: activeFolderInfo.icon,
-                        recipeCount: activeFolderInfo.count,
-                        recipeImages: [],
-                      });
-                    }}
-                    activeOpacity={0.7}
-                    accessibilityRole="button"
-                    accessibilityLabel="Modifier le nom et l'icône du dossier"
-                  >
-                    <Ionicons name="pencil-outline" size={17} color={colors.textSecondary} />
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.folderActionBtn}
-                    onPress={() => {
-                      setFolderToDelete({
-                        id: activeFolderInfo.id,
-                        name: activeFolderInfo.name,
-                        icon: activeFolderInfo.icon,
-                        recipeCount: activeFolderInfo.count,
-                        recipeImages: [],
-                      });
-                    }}
-                    activeOpacity={0.7}
-                    accessibilityRole="button"
-                    accessibilityLabel="Supprimer le dossier"
-                  >
-                    <Ionicons name="trash-outline" size={17} color={colors.danger} />
-                  </TouchableOpacity>
-                </View>
-              ) : (
-                <View style={styles.folderActionsPlaceholder} />
-              )}
+                {/* Couche active avec fondu enchaîné continu */}
+                <Animated.View
+                  style={[
+                    styles.tabSwitcherBtnInner,
+                    styles.tabSwitcherBtnOverlay,
+                    { opacity: foldersActiveOpacity },
+                  ]}
+                  pointerEvents="none"
+                >
+                  <Text style={[styles.tabSwitcherText, styles.tabSwitcherTextActive]}>Dossiers</Text>
+                  {foldersCount > 0 && (
+                    <View style={[styles.tabBadge, styles.tabBadgeActive]}>
+                      <Text style={[styles.tabBadgeText, styles.tabBadgeTextActive]}>{foldersCount}</Text>
+                    </View>
+                  )}
+                </Animated.View>
+              </TouchableOpacity>
             </View>
-          )}
+          </View>
 
           {/* Barre de Recherche & Bouton Filtres Avancés (affiché de façon permanente sans saut de hauteur) */}
           <SearchBar
@@ -1781,18 +1808,7 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
             onScroll={handleScroll}
             scrollEventThrottle={16}
             ListEmptyComponent={
-              currentFolderId && !folderRecipeIds ? null :
-              currentFolderId && folderRecipeIds && folderRecipeIds.size === 0 && !isSearching && selectedCategories.length === 0 && activeAdvancedFiltersCount === 0 ? (
-                <EmptyState
-                  title="Ce dossier est vide"
-                  description="Sélectionnez des recettes depuis l'onglet « Recettes » avec un appui long pour les ranger dans ce dossier."
-                  actionLabel="Parcourir toutes les recettes"
-                  onAction={() => {
-                    setCurrentFolderId(null);
-                    switchTab('recipes', true);
-                  }}
-                />
-              ) : onlyDoableWithStock ? (
+              onlyDoableWithStock ? (
                 <EmptyState
                   title="Aucune recette 100% en stock"
                   description="Aucune recette de votre carnet ne correspond exactement aux ingrédients actuellement enregistrés dans vos étagères."
@@ -1821,18 +1837,63 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
 
             {/* Page 2 : Dossiers */}
             <View style={[styles.pagerPage, { width: screenWidth }]}>
-              <FoldersGridView
-                onSelectFolder={handleSelectFolderFromGrid}
-                onCreateFolder={() => setIsCreateFolderModalVisible(true)}
-                onEditFolder={(folder) => setFolderToEdit(folder)}
-                onDeleteFolder={(folder) => setFolderToDelete(folder)}
-                contentContainerStyle={{
-                  paddingTop: FILTER_BAR_HEIGHT + 6,
-                }}
-                bottomInset={isSelectionMode ? 88 : 30}
-                onScroll={handleScroll}
-                matchingRecipeIds={matchingRecipeIds}
-              />
+              {!currentFolderId ? (
+                <FoldersGridView
+                  onSelectFolder={handleSelectFolderFromGrid}
+                  onCreateFolder={() => setIsCreateFolderModalVisible(true)}
+                  onEditFolder={(folder) => setFolderToEdit(folder)}
+                  onDeleteFolder={(folder) => setFolderToDelete(folder)}
+                  contentContainerStyle={{
+                    paddingTop: FILTER_BAR_HEIGHT + 6,
+                  }}
+                  bottomInset={isSelectionMode ? 88 : 30}
+                  onScroll={handleScroll}
+                  matchingRecipeIds={matchingRecipeIds}
+                />
+              ) : (
+                <FlashList
+                  key={`folder-recipes-${viewMode}-${currentFolderId}`}
+                  data={folderFilteredRecipes}
+                  extraData={`${themeId}_${viewMode}_${selectedRecipeIds.size}_${isSelectionMode}`}
+                  keyExtractor={(item) => item.id}
+                  numColumns={viewMode === 'grid' ? 2 : 1}
+                  getItemType={() => viewMode}
+                  ListHeaderComponent={folderHeaderElement}
+                  contentContainerStyle={[
+                    styles.listContent,
+                    viewMode === 'grid' ? styles.listContentGrid : undefined,
+                    {
+                      paddingTop: FILTER_BAR_HEIGHT + 6,
+                      paddingBottom: isSelectionMode ? 88 : 24,
+                    },
+                  ]}
+                  showsVerticalScrollIndicator={false}
+                  keyboardShouldPersistTaps="handled"
+                  renderItem={renderRecipeItem}
+                  onScroll={handleScroll}
+                  scrollEventThrottle={16}
+                  ListEmptyComponent={
+                    !folderRecipeIds ? null :
+                    folderRecipeIds.size === 0 && !isSearching && selectedCategories.length === 0 && activeAdvancedFiltersCount === 0 ? (
+                      <EmptyState
+                        title="Ce dossier est vide"
+                        description="Sélectionnez des recettes depuis l'onglet « Recettes » avec un appui long pour les ranger dans ce dossier."
+                        actionLabel="Parcourir toutes les recettes"
+                        onAction={() => {
+                          switchTab('recipes', true);
+                        }}
+                      />
+                    ) : (
+                      <EmptyState
+                        title="Aucune recette trouvée"
+                        description="Aucune recette de ce dossier ne correspond aux critères de recherche actuels."
+                        actionLabel="Réinitialiser les filtres"
+                        onAction={handleResetAllFilters}
+                      />
+                    )
+                  }
+                />
+              )}
             </View>
           </Animated.View>
 
