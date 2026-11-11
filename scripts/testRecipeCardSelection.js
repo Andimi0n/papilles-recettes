@@ -17,8 +17,10 @@ const { execSync } = require('child_process');
 async function main() {
   console.log('🧪 Lancement des tests de validation du mode sélection de RecipeCard...');
   const tmpDir = path.join(__dirname, '../.tmp_test_recipecard_selection');
+  fs.rmSync(tmpDir, { recursive: true, force: true });
 
-  // 1. Vérification statique de l'absence de retour haptique
+  try {
+    // 1. Vérification statique de l'absence de retour haptique
   console.log('\n--- Test 1 : Vérification de l\'absence de vibration haptique ---');
   const recipeCardSource = fs.readFileSync(path.join(__dirname, '../src/components/common/RecipeCard.tsx'), 'utf8');
   assert(!recipeCardSource.includes('expo-haptics'), 'RecipeCard ne doit pas importer expo-haptics (vibrations désactivées)');
@@ -134,7 +136,10 @@ async function main() {
   assert(recipeCardSource.includes('onLongPress'), 'RecipeCard doit accepter et brancher la prop onLongPress');
   console.log('✓ Props et styles de sélection présents dans RecipeCard');
 
-  console.log('\n🎉 Tous les tests du mode sélection de RecipeCard sont au vert !');
+    console.log('\n🎉 Tous les tests du mode sélection de RecipeCard sont au vert !');
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
 }
 
 main().catch((err) => {

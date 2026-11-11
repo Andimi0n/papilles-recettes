@@ -17,8 +17,10 @@ const { execSync } = require('child_process');
 async function main() {
   console.log('🧪 Lancement des tests de FolderAssignmentBottomSheet...');
   const tmpDir = path.join(__dirname, '../.tmp_test_folder_assignment');
+  fs.rmSync(tmpDir, { recursive: true, force: true });
 
-  // 1. Compilation TypeScript
+  try {
+    // 1. Compilation TypeScript
   console.log('\n--- Test 1 : Compilation TypeScript de FolderAssignmentBottomSheet ---');
   try {
     const tscBin = path.join(__dirname, '../node_modules/.bin/tsc');
@@ -77,6 +79,9 @@ async function main() {
   console.log('✓ Intégration de FolderAssignmentBottomSheet dans HomeScreen validée');
 
   console.log('\n🎉 Tous les tests de FolderAssignmentBottomSheet sont au vert !');
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
 }
 
 main().catch((err) => {

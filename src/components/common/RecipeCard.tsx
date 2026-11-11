@@ -80,7 +80,7 @@ const RecipeCardComponent: React.FC<RecipeCardProps> = ({
           { transform: [{ scale: scaleAnim }] },
         ]}
         accessibilityRole={isSelectionMode ? 'checkbox' : 'button'}
-        accessibilityState={isSelectionMode ? { selected: isSelected } : undefined}
+        accessibilityState={isSelectionMode ? { checked: isSelected, selected: isSelected } : undefined}
         accessibilityLabel={`Recette ${recipe.title}`}
       >
         {/* Vignette carrée gauche avec micro-indicateurs */}
@@ -212,7 +212,7 @@ const RecipeCardComponent: React.FC<RecipeCardProps> = ({
           { transform: [{ scale: scaleAnim }] },
         ]}
         accessibilityRole={isSelectionMode ? 'checkbox' : 'button'}
-        accessibilityState={isSelectionMode ? { selected: isSelected } : undefined}
+        accessibilityState={isSelectionMode ? { checked: isSelected, selected: isSelected } : undefined}
         accessibilityLabel={`Recette ${recipe.title}`}
       >
         {/* Image panoramique réduite avec badges */}
@@ -340,7 +340,7 @@ const RecipeCardComponent: React.FC<RecipeCardProps> = ({
         { transform: [{ scale: scaleAnim }] },
       ]}
       accessibilityRole={isSelectionMode ? 'checkbox' : 'button'}
-      accessibilityState={isSelectionMode ? { selected: isSelected } : undefined}
+      accessibilityState={isSelectionMode ? { checked: isSelected, selected: isSelected } : undefined}
       accessibilityLabel={`Recette ${recipe.title}`}
     >
       {/* Image & Badges */}

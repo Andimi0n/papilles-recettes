@@ -17,8 +17,10 @@ const { execSync } = require('child_process');
 async function main() {
   console.log('🧪 Lancement des tests de FloatingSelectionBar & Mode Sélection...');
   const tmpDir = path.join(__dirname, '../.tmp_test_floating_bar');
+  fs.rmSync(tmpDir, { recursive: true, force: true });
 
-  // 1. Compilation TypeScript
+  try {
+    // 1. Compilation TypeScript
   console.log('\n--- Test 1 : Compilation TypeScript de FloatingSelectionBar ---');
   try {
     const tscBin = path.join(__dirname, '../node_modules/.bin/tsc');
@@ -75,8 +77,9 @@ async function main() {
   console.log('✓ Règles de pluriel du libellé de sélection validées');
 
   console.log('\n--- Test 4 : Vérification de la logique BackHandler Android ---');
-  // Logique BackHandler : si selectedCount > 0 -> true (intercepte et vide), sinon false
-  const handleHardwareBack = (selectedCount, clearFn) => {
+  // Logique BackHandler : si isActive && selectedCount > 0 -> true (intercepte et vide), sinon false
+  const handleHardwareBack = (isActive, selectedCount, clearFn) => {
+    if (!isActive) return false;
     if (selectedCount > 0) {
       clearFn();
       return true; // Événement consommé
@@ -87,10 +90,13 @@ async function main() {
   let cleared = false;
   const mockClear = () => { cleared = true; };
 
-  assert.strictEqual(handleHardwareBack(0, mockClear), false, 'Doit laisser passer l\'événement retour si aucune sélection');
+  assert.strictEqual(handleHardwareBack(true, 0, mockClear), false, 'Doit laisser passer l\'événement retour si aucune sélection');
   assert.strictEqual(cleared, false);
 
-  assert.strictEqual(handleHardwareBack(3, mockClear), true, 'Doit intercepter l\'événement retour si sélection active');
+  assert.strictEqual(handleHardwareBack(false, 3, mockClear), false, 'Ne doit PAS intercepter le retour si l\'écran est inactif');
+  assert.strictEqual(cleared, false);
+
+  assert.strictEqual(handleHardwareBack(true, 3, mockClear), true, 'Doit intercepter l\'événement retour si actif avec sélection');
   assert.strictEqual(cleared, true, 'Doit avoir appelé la fonction de déselection');
   console.log('✓ Hiérarchie BackHandler Android validée');
 
@@ -99,9 +105,13 @@ async function main() {
   assert(homeScreenSource.includes('FloatingSelectionBar'), 'HomeScreen doit importer et utiliser FloatingSelectionBar');
   assert(homeScreenSource.includes('selectedRecipeIds'), 'HomeScreen doit gérer selectedRecipeIds');
   assert(homeScreenSource.includes('BackHandler'), 'HomeScreen doit gérer BackHandler pour la sélection');
+  assert(homeScreenSource.includes('!isActive'), 'HomeScreen doit vérifier isActive avant d\'intercepter BackHandler');
   console.log('✓ Intégration de la sélection multiple et de FloatingSelectionBar dans HomeScreen validée');
 
   console.log('\n🎉 Tous les tests de FloatingSelectionBar sont au vert !');
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
 }
 
 main().catch((err) => {

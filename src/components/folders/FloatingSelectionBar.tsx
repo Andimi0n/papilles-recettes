@@ -31,6 +31,19 @@ export const FloatingSelectionBar: React.FC<FloatingSelectionBarProps> = ({
   const [translateYAnim] = useState(() => new Animated.Value(60));
   const [opacityAnim] = useState(() => new Animated.Value(0));
 
+  // Pattern React 19 : Ajustement d'état synchronisé pendant le rendu
+  const [prevCount, setPrevCount] = useState(selectedCount);
+  const [displayedCount, setDisplayedCount] = useState(selectedCount);
+  const [isRendered, setIsRendered] = useState(selectedCount > 0);
+
+  if (selectedCount !== prevCount) {
+    setPrevCount(selectedCount);
+    if (selectedCount > 0) {
+      setDisplayedCount(selectedCount);
+      setIsRendered(true);
+    }
+  }
+
   const isInsideFolder = Boolean(activeFolderId && activeFolderId !== 'UNCATEGORIZED');
 
   useEffect(() => {
@@ -60,11 +73,13 @@ export const FloatingSelectionBar: React.FC<FloatingSelectionBarProps> = ({
           duration: 120,
           useNativeDriver: true,
         }),
-      ]).start();
+      ]).start(() => {
+        setIsRendered(false);
+      });
     }
   }, [selectedCount, translateYAnim, opacityAnim]);
 
-  if (selectedCount === 0) {
+  if (!isRendered && selectedCount === 0) {
     return null;
   }
 
@@ -92,8 +107,8 @@ export const FloatingSelectionBar: React.FC<FloatingSelectionBarProps> = ({
         >
           <Ionicons name="close" size={18} color={colors.textSecondary} />
         </TouchableOpacity>
-        <Text style={styles.countText}>
-          {selectedCount} sélectionnée{selectedCount > 1 ? 's' : ''}
+        <Text style={styles.countText} numberOfLines={1}>
+          {displayedCount} sélectionnée{displayedCount > 1 ? 's' : ''}
         </Text>
       </View>
 

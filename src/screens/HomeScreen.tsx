@@ -101,6 +101,7 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
   // Interception du BackHandler Android pour quitter le mode sélection en priorité
   useEffect(() => {
     const onBackPress = () => {
+      if (!isActive) return false;
       if (selectedRecipeIds.size > 0) {
         setSelectedRecipeIds(new Set());
         return true;
@@ -109,7 +110,7 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
     };
     const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
     return () => sub.remove();
-  }, [selectedRecipeIds.size]);
+  }, [isActive, selectedRecipeIds.size]);
 
   const handleToggleSelectRecipe = useCallback((id: string) => {
     setSelectedRecipeIds((prev) => {

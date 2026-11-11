@@ -37,6 +37,15 @@ export const FolderAssignmentBottomSheet: React.FC<FolderAssignmentBottomSheetPr
   const [isSaving, setIsSaving] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
+  // Pattern React 19 : Ajustement d'état synchronisé lors de l'ouverture
+  const [prevVisible, setPrevVisible] = useState(visible);
+  if (!prevVisible && visible) {
+    setPrevVisible(true);
+    setIsLoading(true);
+  } else if (prevVisible && !visible) {
+    setPrevVisible(false);
+  }
+
   const isSingleRecipe = recipeIds.length === 1;
 
   // Chargement asynchrone des dossiers existants et des liaisons initiales
@@ -267,10 +276,10 @@ export const FolderAssignmentBottomSheet: React.FC<FolderAssignmentBottomSheetPr
 
               <TouchableOpacity
                 onPress={handleSave}
-                disabled={isSaving}
+                disabled={isSaving || folders.length === 0}
                 style={[
                   styles.saveButton,
-                  isSaving && styles.saveButtonDisabled,
+                  (isSaving || folders.length === 0) && styles.saveButtonDisabled,
                 ]}
                 activeOpacity={0.85}
                 accessibilityRole="button"
