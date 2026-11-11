@@ -363,16 +363,19 @@ export const styles = createDynamicStyles((colors, shadows) => ({
     borderRadius: 12,
     padding: 8,
     marginBottom: 10,
+    overflow: 'visible',
     ...shadows.card,
   },
   quickAddMainRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    overflow: 'visible',
   },
   quickAddInput: {
     flex: 1,
     marginBottom: 0,
+    overflow: 'visible',
   },
   quickAddBtn: {
     width: 42,
@@ -389,9 +392,11 @@ export const styles = createDynamicStyles((colors, shadows) => ({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    overflow: 'visible',
   },
   freeformInputWrap: {
     flex: 1,
+    overflow: 'visible',
   },
   freeformInput: {
     marginBottom: 0,

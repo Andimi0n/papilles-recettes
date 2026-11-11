@@ -1509,7 +1509,11 @@ export const RecipeFormScreen: React.FC<RecipeFormScreenProps> = ({
           />
 
           {/* Bouton d'enregistrement bas de page */}
-          <TouchableOpacity onPress={handleSubmit} style={styles.bottomSaveBtn} activeOpacity={0.85}>
+          <TouchableOpacity
+            onPress={handleSubmit}
+            style={[styles.bottomSaveBtn, { zIndex: 0 }]}
+            activeOpacity={0.85}
+          >
             <Ionicons name="checkmark-circle-outline" size={20} color="#FFFFFF" />
             <Text style={styles.bottomSaveBtnText}>Enregistrer la recette</Text>
           </TouchableOpacity>

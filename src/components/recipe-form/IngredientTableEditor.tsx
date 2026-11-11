@@ -238,7 +238,16 @@ export const IngredientTableEditor = forwardRef<IngredientTableEditorRef, Ingred
   };
 
   return (
-    <View style={styles.section}>
+    <View
+      style={[
+        styles.section,
+        {
+          zIndex: activeIngIndex !== null ? 1000 : 2,
+          elevation: activeIngIndex !== null ? 30 : 2,
+          overflow: 'visible',
+        },
+      ]}
+    >
       <View style={styles.sectionHeaderRow}>
         <Text style={styles.sectionLabel}>Ingrédients ({ingredients.length})</Text>
       </View>
@@ -258,12 +267,21 @@ export const IngredientTableEditor = forwardRef<IngredientTableEditorRef, Ingred
               {
                 zIndex: activeIngIndex === index ? 9999 : (ingredients.length - index) * 10,
                 elevation: activeIngIndex === index ? 20 : (ingredients.length - index),
+                overflow: 'visible',
               },
             ]}
           >
-            <View style={styles.freeformIngRow}>
+            <View
+              style={[
+                styles.freeformIngRow,
+                { zIndex: activeIngIndex === index ? 1001 : 1, overflow: 'visible' },
+              ]}
+            >
               <UnifiedIngredientInput
-                containerStyle={styles.freeformInputWrap}
+                containerStyle={[
+                  styles.freeformInputWrap,
+                  { zIndex: activeIngIndex === index ? 1002 : 1, overflow: 'visible' },
+                ]}
                 style={[styles.textInput, styles.freeformInput]}
                 value={rowText}
                 onChangeText={(val) => {
@@ -481,14 +499,23 @@ export const IngredientTableEditor = forwardRef<IngredientTableEditorRef, Ingred
           {
             zIndex: activeIngIndex === -1 ? 9999 : 1,
             elevation: activeIngIndex === -1 ? 25 : 1,
+            overflow: 'visible',
             marginTop: ingredients.length > 0 ? 6 : 0,
             marginBottom: 4,
           },
         ]}
       >
-        <View style={styles.quickAddMainRow}>
+        <View
+          style={[
+            styles.quickAddMainRow,
+            { zIndex: activeIngIndex === -1 ? 1001 : 1, overflow: 'visible' },
+          ]}
+        >
           <UnifiedIngredientInput
-            containerStyle={styles.quickAddInput}
+            containerStyle={[
+              styles.quickAddInput,
+              { zIndex: activeIngIndex === -1 ? 1002 : 1, overflow: 'visible' },
+            ]}
             style={[styles.textInput, { marginBottom: 0 }]}
             placeholder="Ex: 250g farine, 3 œufs, sel..."
             placeholderTextColor={colors.textMuted}

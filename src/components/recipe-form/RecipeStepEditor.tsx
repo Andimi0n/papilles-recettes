@@ -199,7 +199,7 @@ export const RecipeStepEditor: React.FC<RecipeStepEditorProps> = ({
   const { colors } = useTheme();
 
   return (
-    <View style={styles.section}>
+    <View style={[styles.section, { zIndex: 1, elevation: 1 }]}>
       <View style={styles.sectionHeaderRow}>
         <Text style={styles.sectionLabel}>Étapes ({steps.length})</Text>
         <TouchableOpacity onPress={onAddStep} style={styles.addItemBtn}>
