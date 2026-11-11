@@ -23,9 +23,16 @@ import { Ionicons } from '@expo/vector-icons';
 import { Recipe, Category, SortOption, Difficulty, TimeFilterMode, RecipeViewMode } from '../types/recipe';
 import { FridgeItem } from '../types/fridge';
 import { UserAllergenItem } from '../types/vocabulary';
+import { FolderSummary } from '../types/folder';
 import { StorageService } from '../services/storageService';
 import { FolderService } from '../services/folderService';
-import { FloatingSelectionBar, FolderAssignmentBottomSheet } from '../components/folders';
+import {
+  FloatingSelectionBar,
+  FolderAssignmentBottomSheet,
+  FoldersGridView,
+  CreateEditFolderModal,
+  DeleteFolderConfirmModal,
+} from '../components/folders';
 import { styles } from './HomeScreen.styles';
 import { useTheme } from '../theme/ThemeContext';
 import { RecipeCard, RecipeStockProgress } from '../components/common/RecipeCard';
@@ -139,6 +146,9 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
   // État de sélection multiple persistant au fil des filtres et recherches
   const [selectedRecipeIds, setSelectedRecipeIds] = useState<Set<string>>(new Set());
   const [isFolderAssignmentOpen, setIsFolderAssignmentOpen] = useState(false);
+  const [isCreateFolderModalVisible, setIsCreateFolderModalVisible] = useState(false);
+  const [folderToEdit, setFolderToEdit] = useState<FolderSummary | null>(null);
+  const [folderToDelete, setFolderToDelete] = useState<FolderSummary | null>(null);
   const isSelectionMode = selectedRecipeIds.size > 0;
 
   // Interception du BackHandler Android pour quitter le mode sélection en priorité
@@ -308,7 +318,10 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
         isAdvancedFiltersModalVisible ||
         isStockModalVisible ||
         isPageJumpModalVisible ||
-        isFolderAssignmentOpen;
+        isFolderAssignmentOpen ||
+        isCreateFolderModalVisible ||
+        Boolean(folderToEdit) ||
+        Boolean(folderToDelete);
 
       return shouldCaptureHomeTabSwipe({
         gestureState,
@@ -386,9 +399,58 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
     isStockModalVisible,
     isPageJumpModalVisible,
     isFolderAssignmentOpen,
+    isCreateFolderModalVisible,
+    folderToEdit,
+    folderToDelete,
     screenWidth,
     pageTranslateX,
   ]);
+
+  const handleSelectFolderFromGrid = useCallback(
+    (folderId: string) => {
+      setCurrentFolderId(folderId);
+      switchTab('recipes', true);
+    },
+    [switchTab]
+  );
+
+  const handleCreateFolderSubmit = useCallback(async (name: string, icon: string) => {
+    try {
+      await FolderService.createFolder(name, icon);
+      setIsCreateFolderModalVisible(false);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Impossible de créer le dossier';
+      Alert.alert('Erreur', msg);
+    }
+  }, []);
+
+  const handleEditFolderSubmit = useCallback(
+    async (name: string, icon: string) => {
+      if (!folderToEdit) return;
+      try {
+        await FolderService.updateFolder(folderToEdit.id, { name, icon });
+        setFolderToEdit(null);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Impossible de modifier le dossier';
+        Alert.alert('Erreur', msg);
+      }
+    },
+    [folderToEdit]
+  );
+
+  const handleDeleteFolderConfirm = useCallback(async () => {
+    if (!folderToDelete) return;
+    try {
+      await FolderService.deleteFolder(folderToDelete.id);
+      if (currentFolderId === folderToDelete.id) {
+        setCurrentFolderId(null);
+      }
+      setFolderToDelete(null);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Impossible de supprimer le dossier';
+      Alert.alert('Erreur', msg);
+    }
+  }, [folderToDelete, currentFolderId]);
 
   // Double bandeau de filtres rétractable au défilement (haute performance, 60fps via useNativeDriver)
   const FILTER_BAR_HEIGHT = 88;
@@ -1585,7 +1647,13 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
 
             {/* Page 2 : Dossiers */}
             <View style={[styles.pagerPage, { width: screenWidth }]}>
-              {/* FoldersGridView inséré dans la Task 2 */}
+              <FoldersGridView
+                onSelectFolder={handleSelectFolderFromGrid}
+                onCreateFolder={() => setIsCreateFolderModalVisible(true)}
+                onEditFolder={(folder) => setFolderToEdit(folder)}
+                onDeleteFolder={(folder) => setFolderToDelete(folder)}
+                bottomInset={isSelectionMode ? 88 : 30}
+              />
             </View>
           </Animated.View>
         </View>
@@ -1885,6 +1953,29 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
           onSuccess={(_msg) => {
             setSelectedRecipeIds(new Set());
           }}
+        />
+
+        {/* Modale de création d'un nouveau dossier */}
+        <CreateEditFolderModal
+          visible={isCreateFolderModalVisible}
+          onClose={() => setIsCreateFolderModalVisible(false)}
+          onSave={({ name, icon }) => handleCreateFolderSubmit(name, icon)}
+        />
+
+        {/* Modale de modification / renommage de dossier */}
+        <CreateEditFolderModal
+          visible={Boolean(folderToEdit)}
+          folder={folderToEdit}
+          onClose={() => setFolderToEdit(null)}
+          onSave={({ name, icon }) => handleEditFolderSubmit(name, icon)}
+        />
+
+        {/* Modale de confirmation de suppression de dossier */}
+        <DeleteFolderConfirmModal
+          visible={Boolean(folderToDelete)}
+          folder={folderToDelete}
+          onClose={() => setFolderToDelete(null)}
+          onConfirmDelete={handleDeleteFolderConfirm}
         />
       </View>
     </SafeAreaView>

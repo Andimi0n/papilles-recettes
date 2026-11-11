@@ -15,3 +15,6 @@ export type { FloatingSelectionBarProps } from './FloatingSelectionBar';
 
 export { FolderAssignmentBottomSheet } from './FolderAssignmentBottomSheet';
 export type { FolderAssignmentBottomSheetProps } from './FolderAssignmentBottomSheet';
+
+export { FoldersGridView, prepareFolderGridItems, NEW_FOLDER_ITEM_ID } from './FoldersGridView';
+export type { FoldersGridViewProps, FolderGridItem } from './FoldersGridView';

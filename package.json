@@ -82,6 +82,7 @@
     "test:folders": "node scripts/testFolderService.js",
     "test:folders-mosaic": "node scripts/testFolderMosaic.js",
     "test:folders-components": "node scripts/testFolderComponents.js",
+    "test:folders-grid": "node scripts/testFoldersGridView.js",
     "test:recipe-card-selection": "node scripts/testRecipeCardSelection.js",
     "test:floating-bar": "node scripts/testFloatingSelectionBar.js",
     "test:folder-assignment": "node scripts/testFolderAssignmentBottomSheet.js",
