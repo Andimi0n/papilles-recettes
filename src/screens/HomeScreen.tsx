@@ -9,6 +9,7 @@ import {
   NativeSyntheticEvent,
   NativeScrollEvent,
   Alert,
+  BackHandler,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { FlashList, FlashListRef } from '@shopify/flash-list';
@@ -18,6 +19,8 @@ import { Recipe, Category, SortOption, Difficulty, TimeFilterMode, RecipeViewMod
 import { FridgeItem } from '../types/fridge';
 import { UserAllergenItem } from '../types/vocabulary';
 import { StorageService } from '../services/storageService';
+import { FolderService } from '../services/folderService';
+import { FloatingSelectionBar } from '../components/folders';
 import { styles } from './HomeScreen.styles';
 import { useTheme } from '../theme/ThemeContext';
 import { RecipeCard, RecipeStockProgress } from '../components/common/RecipeCard';
@@ -65,6 +68,7 @@ interface HomeScreenProps {
   isActive?: boolean;
   reopenStockModal?: boolean;
   onStockModalReopened?: () => void;
+  activeFolderId?: string | null;
 }
 
 const HomeScreenComponent: React.FC<HomeScreenProps> = ({
@@ -81,12 +85,66 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
   isActive = true,
   reopenStockModal = false,
   onStockModalReopened,
+  activeFolderId = null,
 }) => {
   const { isDark, colors, themeId } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const flashListRef = useRef<FlashListRef<Recipe>>(null);
+
+  // État de sélection multiple persistant au fil des filtres et recherches
+  const [selectedRecipeIds, setSelectedRecipeIds] = useState<Set<string>>(new Set());
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [isFolderAssignmentOpen, setIsFolderAssignmentOpen] = useState(false);
+  const isSelectionMode = selectedRecipeIds.size > 0;
+
+  // Interception du BackHandler Android pour quitter le mode sélection en priorité
+  useEffect(() => {
+    const onBackPress = () => {
+      if (selectedRecipeIds.size > 0) {
+        setSelectedRecipeIds(new Set());
+        return true;
+      }
+      return false;
+    };
+    const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => sub.remove();
+  }, [selectedRecipeIds.size]);
+
+  const handleToggleSelectRecipe = useCallback((id: string) => {
+    setSelectedRecipeIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleLongPressRecipe = useCallback((id: string) => {
+    setSelectedRecipeIds((prev) => {
+      const next = new Set(prev);
+      next.add(id);
+      return next;
+    });
+  }, []);
+
+  const handleClearSelection = useCallback(() => {
+    setSelectedRecipeIds(new Set());
+  }, []);
+
+  const handleRemoveSelectedFromFolder = useCallback(async () => {
+    if (!activeFolderId || activeFolderId === 'UNCATEGORIZED' || selectedRecipeIds.size === 0) return;
+    try {
+      await FolderService.removeRecipesFromFolder(Array.from(selectedRecipeIds), activeFolderId);
+      setSelectedRecipeIds(new Set());
+    } catch (err) {
+      console.error('Erreur lors du retrait du dossier :', err);
+    }
+  }, [activeFolderId, selectedRecipeIds]);
 
   // Debounce fluide sur la recherche pour ne jamais bloquer le thread UI à la frappe
   useEffect(() => {
@@ -1043,11 +1101,21 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
   // Rendu mémoïsé de chaque carte recette (accès direct O(1) sans allocations de tableaux ou recalculs)
   const renderRecipeItem = useCallback(
     ({ item }: { item: Recipe }) => {
+      const isSelected = selectedRecipeIds.has(item.id);
       return (
         <RecipeCard
           recipe={item}
           viewMode={viewMode}
-          onPress={() => onSelectRecipe(item)}
+          isSelectionMode={isSelectionMode}
+          isSelected={isSelected}
+          onPress={() => {
+            if (isSelectionMode) {
+              handleToggleSelectRecipe(item.id);
+            } else {
+              onSelectRecipe(item);
+            }
+          }}
+          onLongPress={() => handleLongPressRecipe(item.id)}
           hasAllergen={recipesWithAllergensSet.has(item.id)}
           stockProgress={stockProgressMap.get(item.id)}
         />
@@ -1058,6 +1126,10 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
       recipesWithAllergensSet,
       stockProgressMap,
       viewMode,
+      isSelectionMode,
+      selectedRecipeIds,
+      handleToggleSelectRecipe,
+      handleLongPressRecipe,
     ]
   );
 
@@ -1122,7 +1194,7 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
             key={viewMode === 'grid' ? 'recipes-grid-2' : `recipes-${viewMode}-1`}
             ref={flashListRef}
             data={paginatedRecipes}
-            extraData={`${themeId}_${viewMode}`}
+            extraData={`${themeId}_${viewMode}_${selectedRecipeIds.size}_${isSelectionMode}`}
             keyExtractor={(item) => item.id}
             numColumns={viewMode === 'grid' ? 2 : 1}
             getItemType={() => viewMode}
@@ -1131,7 +1203,10 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
             contentContainerStyle={[
               styles.listContent,
               viewMode === 'grid' ? styles.listContentGrid : undefined,
-              { paddingTop: FILTER_BAR_HEIGHT + 6 },
+              {
+                paddingTop: FILTER_BAR_HEIGHT + 6,
+                paddingBottom: isSelectionMode ? 88 : 24,
+              },
             ]}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
@@ -1525,6 +1600,20 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
           totalRecipes={filteredRecipes.length}
           onSelectPage={goToPage}
           onClose={() => setIsPageJumpModalVisible(false)}
+        />
+
+        {/* Barre flottante d'actions de sélection multiple */}
+        <FloatingSelectionBar
+          selectedCount={selectedRecipeIds.size}
+          onClearSelection={handleClearSelection}
+          onAssignToFolder={() => setIsFolderAssignmentOpen(true)}
+          onRemoveFromFolder={
+            activeFolderId && activeFolderId !== 'UNCATEGORIZED'
+              ? handleRemoveSelectedFromFolder
+              : undefined
+          }
+          activeFolderId={activeFolderId}
+          bottomInset={0}
         />
       </View>
     </SafeAreaView>

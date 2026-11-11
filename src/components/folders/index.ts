@@ -9,3 +9,6 @@ export type { CreateEditFolderModalProps } from './CreateEditFolderModal';
 
 export { DeleteFolderConfirmModal } from './DeleteFolderConfirmModal';
 export type { DeleteFolderConfirmModalProps } from './DeleteFolderConfirmModal';
+
+export { FloatingSelectionBar } from './FloatingSelectionBar';
+export type { FloatingSelectionBarProps } from './FloatingSelectionBar';
