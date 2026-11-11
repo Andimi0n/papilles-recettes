@@ -447,7 +447,7 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
     };
     const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
     return () => sub.remove();
-  }, [isActive, selectedRecipeIds.size, currentFolderId, switchTab]);
+  }, [isActive, selectedRecipeIds.size, currentFolderId]);
 
   // PanResponder gestuel pour le swipe horizontal strict entre Recettes et Dossiers
   const screenSwipePanResponder = useMemo(() => {
@@ -590,7 +590,7 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
       const msg = err instanceof Error ? err.message : 'Impossible de supprimer le dossier';
       Alert.alert('Erreur', msg);
     }
-  }, [folderToDelete, currentFolderId, switchTab]);
+  }, [folderToDelete, currentFolderId]);
 
   // Double bandeau de filtres rétractable au défilement (haute performance, 60fps via useNativeDriver)
   const FILTER_BAR_HEIGHT = 88;
@@ -1434,7 +1434,6 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
     activeFolderInfo,
     folderFilteredRecipes.length,
     colors,
-    styles,
     listHeaderElement,
   ]);
 
