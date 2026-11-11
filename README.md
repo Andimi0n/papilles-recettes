@@ -26,12 +26,27 @@ Application **100 % offline-first**, sécurisée, sans création de compte oblig
   - **Courses & Étagères** : stocks du frigo/placard et liste de courses avec badge des articles restants.
   - **Paramètres** : ambiance visuelle, clé IA, portions, gestionnaire de lexique, humeurs du chef et sauvegardes.
 
-### 3. 📅 Suivi des Repas Quotidien & Menu de la Semaine
+### 3. 📁 Système de Dossiers & Sélection Multiple
+- **Organisation par dossiers & Pager horizontal gestuel** :
+  - **Sélecteur segmenté en tête d'accueil** : basculez d'un tap entre vos `Recettes` et vos `Dossiers`.
+  - **Navigation par swipe horizontal fluide** : passez d'un geste naturel entre la liste et vos dossiers, avec seuil gestuel strict (`dx > 25 && Math.abs(dx) > Math.abs(dy) * 2`) excluant la zone des filtres (`FILTER_BAR_HEIGHT = 88`) pour ne jamais parasiter le défilement vertical.
+  - **Grille visuelle des dossiers (FlashList 2 colonnes)** : cartes soignées (`FolderCard`) avec mosaïque 2x2 des 4 premières photos de recettes (`FolderMosaic`), emoji personnalisé et compteur dynamique (ex: `12 recettes`).
+  - **Dossier virtuel « Non classées »** : regroupe automatiquement et sans configuration les recettes qui ne sont rangées dans aucun dossier.
+  - **Navigation intérieure sans duplication d'écran (`activeFolderId`)** : ouvrir un dossier réutilise à 100 % le flux de recettes, la recherche et les filtres, avec bandeau contextuel d'en-tête `[ ← Tous les dossiers | Nom (compteur) | ✏️ / 🗑️ ]`.
+  - **Gestion prioritaire du retour Android (`BackHandler`)** : l'appui physique sur Retour quitte d'abord la sélection multiple, ou referme le dossier ouvert vers la grille, avant de quitter l'écran.
+- **Mode Sélection Multiple par appui long & Rangement groupé** :
+  - **Activation par appui long** sur une carte de recette : sans vibration haptique parasite, avec rebond élastique subtil, pastille cochée / cercle vide et contour d'accent `colors.primary` (2px).
+  - **Persistance intégrale** : la sélection reste active et mémorisée pendant la frappe dans la recherche ou le filtrage par catégories.
+  - **Barre d'action flottante (`FloatingSelectionBar`)** : affiche le décompte et propose l'action rapide `[ ✕  X sélectionnée(s)  |  📁 Ranger dans... ]` ou `[ 📤 Retirer du dossier  |  📁 Autre dossier... ]` depuis l'intérieur d'un dossier.
+  - **Bottom Sheet de rangement (`FolderAssignmentBottomSheet`)** : cochez un ou plusieurs dossiers avec mode additif sécurisé pour N recettes ou gestion unitaire pour 1 recette, et création de nouveau dossier à la volée.
+- **Règle d'or absolue de préservation des données** : supprimer un dossier n'efface JAMAIS aucune recette de votre carnet (seules les liaisons sont supprimées et les recettes réintègrent « Non classées »).
+
+### 4. 📅 Suivi des Repas Quotidien & Menu de la Semaine
 - **Suivi des repas du jour** : saisie fluide avec autocomplétion intelligente prédictive depuis vos recettes enregistrées (scoring en direct par titre, ingrédients et catégorie) et recommandations en 1 clic.
 - **Journal chronologique** : historique complet de vos repas passés avec possibilité de modification à tout moment.
 - **Menu de la semaine** : planifiez vos déjeuners et dîners du lundi au dimanche (`MealPlannerScreen`), visualisez vos menus d'un coup d'œil et exportez automatiquement les ingrédients nécessaires vers la liste de courses.
 
-### 4. 🥫 Hub "Courses & Étagères" (Gestion des Stocks & Courses)
+### 5. 🥫 Hub "Courses & Étagères" (Gestion des Stocks & Courses)
 - **Mes étagères (Stock Frigo & Placard)** :
   - Suivi rapide et sans friction des denrées disponibles chez vous.
   - **Ajout rapide en 1 clic 100% raccord avec le lexique canonique** : suggestions basées sur les noms canoniques réels (*Œufs, Beurre, Lait, Farine, Pâtes, Riz, Huile d'olive, Tomate, Oignon, Ail, Carotte, Courgette...*), avec masquage intelligent des articles déjà en stock et mise en avant de vos ingrédients fréquents.
@@ -46,7 +61,7 @@ Application **100 % offline-first**, sécurisée, sans création de compte oblig
   - **Mode Courses en Magasin plein écran (`InStoreShoppingModal`)** : interface dédiée pour cocher rapidement ses articles dans les rayons avec barre de progression et interface épurée.
   - **Passerelle intelligente & Protection des étagères** : bouton *"Ranger dans mes étagères 🥫"* pour basculer vos courses achetées dans vos stocks. Si la liste contient des articles non alimentaires ou non catalogués (produits d'entretien, essuie-tout), une modale propose automatiquement de les purger sans polluer l'inventaire culinaire.
 
-### 5. 🍳 Cuisiner avec mon stock & Suggestions du Chef IA ("Anti-gaspillage")
+### 6. 🍳 Cuisiner avec mon stock & Suggestions du Chef IA ("Anti-gaspillage")
 - **Filtrage des recettes 100% faisables avec le stock** :
   - Calcule en temps réel (< 1 ms, avec indexation $O(1)$ et cache de normalisation) quelles recettes de votre carnet peuvent être cuisinées immédiatement avec vos aliments en stock (`stockMatcher.ts`).
   - Tolérance intelligente des fonds de placard (`isPantryStaple` : sel, poivre, eau, huiles usuelles, épices) et exclusion des ingrédients facultatifs (`isOptional`).
@@ -63,7 +78,7 @@ Application **100 % offline-first**, sécurisée, sans création de compte oblig
   - **Sélection verticale des ingrédients par rayons** : ingrédients en stock regroupés par rayons avec compteurs et raccourcis *"Tout cocher"* / *"Tout décocher"*.
   - Configuration du nombre de portions (synchronisé avec vos préférences), option 100% végétarienne et pré-remplissage direct du formulaire de recette.
 
-### 6. 🏷️ Lexique Canonique (426 Ingrédients) & Architecture "Lexique-First"
+### 7. 🏷️ Lexique Canonique (426 Ingrédients) & Architecture "Lexique-First"
 - **Pipeline de normalisation à 3 niveaux** :
   1. *Lookup $O(1)$ exact* sur les noms canoniques et alias avant tout stripping regex destructif. Les termes sensibles composés (*Crème fraîche*, *Poudre d'amande*) sont résolus immédiatement sans altération ;
   2. *Élagage des labels de qualité* (AOP, AOC, bio) avec gardes anti-faux-amis et normalisation transparente des ligatures (`œ` → `oe`, `æ` → `ae`) ;
@@ -74,7 +89,7 @@ Application **100 % offline-first**, sécurisée, sans création de compte oblig
 - **Propagation réactive & Cascade automatique** : toute modification du vocabulaire (détachement, fusion, modification de rayon) est répercutée instantanément sur les recettes, stocks et courses sans action manuelle.
 - **Gestionnaire de vocabulaire complet (`VocabularyManagerModal`)** : accessible dans les Paramètres pour consulter les 426 ingrédients canoniques, rechercher par rayon, qualifier un ingrédient inconnu (`QualifyIngredientModal`), gérer les indispensables de placard, renommer, ajouter des alias ou fusionner des doublons.
 
-### 7. 📖 Structure "Livre de Chef", Fiches Recettes & Portions Dynamiques
+### 8. 📖 Structure "Livre de Chef", Fiches Recettes & Portions Dynamiques
 - **Organisation culinaire par sections** :
   - **Ingrédients principaux** : les denrées maîtresses du plat.
   - **Assaisonnements & condiments** : huiles, vinaigres, assaisonnements réputés déjà disponibles en cuisine.
@@ -89,7 +104,7 @@ Application **100 % offline-first**, sécurisée, sans création de compte oblig
   - Puces d'organisation `En placard` et `En finition (au goût)`.
   - Éditeur d'étapes ordonnables et liens de recettes associées (`RecipeStepEditor`).
 
-### 8. 📷 Scanner de Recettes par IA (Gemini BYOK) & Import Web
+### 9. 📷 Scanner de Recettes par IA (Gemini BYOK) & Import Web
 - **Prise de vue native et sécurisée anti-crash OOM (`CameraCaptureModal`)** :
   - Module caméra natif haute performance basé sur `expo-camera` avec prévisualisation plein écran, contrôle du flash, obturateur silencieux et inversion d'objectif.
   - Conçu pour prévenir les dépassements de mémoire (OOM) et les pertes d'état sur Android grâce au plugin `withLargeHeap` et à la suppression automatique des fichiers temporaires bruts du cache.
@@ -106,7 +121,7 @@ Application **100 % offline-first**, sécurisée, sans création de compte oblig
   - Importation instantanée par simple collage d'URL depuis Marmiton ou n'importe quel site culinaire.
   - Validation d'URL stricte avec protection anti-SSRF (rejet des IP locales et identifiants masqués).
 
-### 9. 📤 Partage Hors-Ligne par QR Code & Impression PDF
+### 10. 📤 Partage Hors-Ligne par QR Code & Impression PDF
 - **Partage sans réseau par QR Code compact (`RecipeQrModal` & `QrScannerModal`)** :
   - Encodage ultra-compact sans perte de la recette via compression `lz-string` et rendu matriciel optimisé `toqr`.
   - Permet de transférer instantanément une recette complète d'un smartphone à un autre sans aucune connexion Internet ni serveur tiers.
@@ -115,7 +130,7 @@ Application **100 % offline-first**, sécurisée, sans création de compte oblig
   - Génération de fiches recettes élégantes au format A4 prêtes à imprimer ou à exporter en PDF via `expo-print` et `expo-sharing`.
   - Personnalisation avant export : choix du nombre de convives, inclusion/exclusion de la photo de couverture, ajout d'un QR code de partage et lignes lignées pour notes manuscrites.
 
-### 10. ⭐ Notation, Filtres Avancés & Mode Cuisine Interactif
+### 11. ⭐ Notation, Filtres Avancés & Mode Cuisine Interactif
 - **Système de notation épuré** : notez vos recettes de 0.5 à 5.0 étoiles de façon visuelle et mémorisez des notes secrètes.
 - **Double bandeau de filtres rétractable au scroll** :
   - Catégories horizontales (*Tous, Plats, Desserts, Entrées...*).
@@ -126,7 +141,7 @@ Application **100 % offline-first**, sécurisée, sans création de compte oblig
   - Vue plein écran sans distraction empêchant la mise en veille de l'appareil.
   - Ingrédients et étapes avec cases à cocher interactives pour suivre votre avancée pas à pas sans toucher l'écran avec les mains sales.
 
-### 11. 💾 100% Hors-Ligne, Scalable (SQLite) & Photos Permanentes
+### 12. 💾 100% Hors-Ligne, Scalable (SQLite) & Photos Permanentes
 - **Moteur SQLite natif (`expo-sqlite`)** : base de données relationnelle locale (`papilles.db` en mode WAL avec clés étrangères) assurant un stockage instantané et sans limite de taille arbitraire.
 - **Sécurisation permanente des photos (`expo-file-system`)** : toutes les photos (prises avec la caméra ou choisies dans la galerie) sont copiées dans le stockage permanent sécurisé (`documentDirectory/recipe_photos/`), vous protégeant contre tout nettoyage de cache par l'OS.
 - **Sauvegarde, Restauration & Import de Packs (JSON & ZIP)** :
@@ -159,7 +174,7 @@ npm run ios
 ```
 
 ### Tests & Vérification du code
-La suite de tests automatisée comprend **36 suites de tests** exécutables directement en CLI Node.js sans simulateur :
+La suite de tests automatisée comprend **54 suites de tests** exécutables directement en CLI Node.js sans simulateur :
 
 ```bash
 # Lancement de toute la suite de tests automatisée
@@ -176,6 +191,18 @@ npm run test:shopping
 
 # Tests du transfert courses -> étagères et purge des non-alimentaires
 npm run test:shopping-shelves
+
+# Tests du système de dossiers de recettes (CRUD, modèle N-N, sélection multiple & règle d'or)
+npm run test:folders
+npm run test:folders-mosaic
+npm run test:folders-components
+npm run test:folders-grid
+npm run test:folder-interior
+npm run test:recipe-card-selection
+npm run test:floating-bar
+npm run test:folder-assignment
+npm run test:home-pager
+npm run test:folder-cycle
 
 # Tests du normalisateur d'ingrédients à 3 niveaux
 npm run test:normalizer
@@ -232,10 +259,11 @@ papilles-recettes/
 │   ├── testShoppingToShelves.js      # Tests du rangement et purge non-alimentaire
 │   ├── testIngredientNormalizer.js   # Tests du pipeline de normalisation
 │   ├── testCameraIntegration.js      # Tests de gestion mémoire caméra
-│   └── ...                           # (36 suites de tests au total)
+│   └── ...                           # (54 suites de tests au total)
 └── src/
     ├── types/                        # Modèles de données TypeScript stricts
     │   ├── recipe.ts                 # Recettes, ingrédients, étapes, catégories
+    │   ├── folder.ts                 # Dossiers de recettes, résumés et liaisons N-N
     │   ├── shopping.ts               # Articles de courses et rayons
     │   ├── fridge.ts                 # Articles d'étagères ("Mes étagères")
     │   ├── planner.ts                # Menus hebdomadaires et créneaux
@@ -253,6 +281,7 @@ papilles-recettes/
     ├── services/                     # Logique métier & persistance
     │   ├── storageService.ts         # Coordinateur métier, cache mémoire & listeners
     │   ├── databaseService.ts        # Persistance relationnelle SQLite (papilles.db, WAL)
+    │   ├── folderService.ts          # CRUD dossiers, liaisons N-N & résumés mosaïque
     │   ├── imageStorageService.ts    # Stockage permanent des photos (expo-file-system)
     │   ├── recipePackService.ts      # Extraction de packs JSON et archives ZIP
     │   ├── recipePdfService.ts       # Génération et export de fiches PDF (expo-print)
@@ -275,15 +304,24 @@ papilles-recettes/
     │   ├── unitConverter.ts          # Conversion masse / volume / cuillères
     │   ├── ingredientSearchMatcher.ts# Recherche optimisée d'ingrédients
     │   ├── sectionListLayoutHelper.ts# Optimisation layout SectionList (zéro lag)
+    │   ├── folderMosaicHelper.ts     # Calcul des 4 slots mosaïque 2x2 de dossier
     │   └── helpers.ts                # Scalaires de portions, durées et IDs
     ├── components/                   # Composants d'interface utilisateur
     │   ├── common/                   # UI générique & flux principal
     │   │   ├── CategoryPills.tsx     # Pilules horizontales de catégories
     │   │   ├── EmptyState.tsx        # Écran d'état vide réutilisable
-    │   │   ├── RecipeCard.tsx        # Carte de recette dans le flux
+    │   │   ├── RecipeCard.tsx        # Carte de recette dans le flux & sélection multiple
     │   │   ├── SearchBar.tsx         # Barre de recherche avec filtres rapides
     │   │   ├── StarRating.tsx        # Notation par étoiles 0.5–5.0
     │   │   └── AdvancedFiltersModal.tsx # Modale de filtres multicritères
+    │   ├── folders/                  # Gestion de dossiers & sélection multiple
+    │   │   ├── CreateEditFolderModal.tsx # Création et renommage de dossier
+    │   │   ├── DeleteFolderConfirmModal.tsx # Confirmation de suppression sécurisée
+    │   │   ├── FloatingSelectionBar.tsx # Pilule flottante de sélection multiple
+    │   │   ├── FolderAssignmentBottomSheet.tsx # Rangement groupé de recettes
+    │   │   ├── FolderCard.tsx        # Carte dossier avec mosaïque 2x2
+    │   │   ├── FolderMosaic.tsx      # Rendu mosaïque 2x2 des 4 premières photos
+    │   │   └── FoldersGridView.tsx   # Grille FlashList 2 colonnes des dossiers
     │   ├── recipe-detail/            # Fiche recette & mode cuisine
     │   │   ├── CookingModeModal.tsx  # Mode cuisine pas à pas plein écran
     │   │   ├── RecipeIngredientsList.tsx
