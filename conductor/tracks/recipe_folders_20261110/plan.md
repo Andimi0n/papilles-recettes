@@ -26,9 +26,9 @@
 - [x] Task: Phase Verification & Checkpoint (cd63ec8)
 
 ## Phase 3 : Mode Sélection Multiple & Rangement Groupé
-- [ ] Task: Mise à jour de `RecipeCard.tsx` pour le Mode Sélection
-  - [ ] Ajouter les props `isSelectionMode`, `isSelected`, `onLongPress` et adapter `onPress` (déviation vers la sélection au lieu d'ouvrir la recette)
-  - [ ] Appliquer la bordure `colors.primary` (2px), la pastille cochée (`✓`) / cercle vide discret et l'animation de rebond élastique (`scale: 0.97` ➔ `1.0`) sans retour haptique
+- [x] Task: Mise à jour de `RecipeCard.tsx` pour le Mode Sélection (509b345)
+  - [x] Ajouter les props `isSelectionMode`, `isSelected`, `onLongPress` et adapter `onPress` (déviation vers la sélection au lieu d'ouvrir la recette)
+  - [x] Appliquer la bordure `colors.primary` (2px), la pastille cochée (`✓`) / cercle vide discret et l'animation de rebond élastique (`scale: 0.97` ➔ `1.0`) sans retour haptique
 - [ ] Task: Pilule Flottante (`FloatingSelectionBar.tsx`) & État Persistant dans `HomeScreen`
   - [ ] Créer la barre flottante au-dessus de la barre d'onglets (`[ ✕  X sélectionnée(s)  |  📁 Ranger dans... ]` ou `[ 📤 Retirer du dossier  |  📁 Autre dossier... ]` selon `activeFolderId`)
   - [ ] Gérer l'état `selectedRecipeIds: Set<string>` dans `HomeScreen` persistant lors de la recherche et du filtrage
