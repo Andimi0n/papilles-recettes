@@ -55,8 +55,8 @@
 - [x] Task: Tests d'Intégration Finaux (5ceac4a)
   - [x] Tester le cycle complet de bout en bout (Création dossier ➔ Sélection multiple ➔ Rangement ➔ Filtrage intérieur ➔ Retrait ➔ Suppression dossier)
   - [x] Vérifier formellement la règle d'or (aucune suppression silencieuse de recettes)
-- [ ] Task: Mise à Jour Documentaire
-  - [ ] Mettre à jour la cartographie et les fonctionnalités dans `README.md` et `AGENTS.md`
+- [x] Task: Mise à Jour Documentaire (effd236)
+  - [x] Mettre à jour la cartographie et les fonctionnalités dans `README.md` et `AGENTS.md`
 - [ ] Task: Validation Qualité Finale & Santé du Projet
   - [ ] Exécuter `npx tsc --noEmit && npx expo lint` (0 erreur requise)
   - [ ] Exécuter la suite complète `npm test`
