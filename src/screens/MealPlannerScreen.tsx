@@ -30,7 +30,7 @@ import { MealLogEntry, MealLogMap, DayMealLogSummary } from '../types/mealLog';
 import { StorageService } from '../services/storageService';
 import { styles } from './MealPlannerScreen.styles';
 import { useTheme } from '../theme/ThemeContext';
-import { MealSlotPickerModal } from '../components/planner/MealSlotPickerModal';
+import { RecipePickerModal } from '../components/common/RecipePickerModal';
 import { QuickMealLogModal } from '../components/planner/QuickMealLogModal';
 import { MealCalendarModal } from '../components/planner/MealCalendarModal';
 import {
@@ -1644,7 +1644,7 @@ const MealPlannerScreenComponent: React.FC<MealPlannerScreenProps> = ({
 
       {/* Modal de sélection de recette pour le planning prévisionnel */}
       {Boolean(activeSlot) && (
-        <MealSlotPickerModal
+        <RecipePickerModal
           visible={Boolean(activeSlot)}
           day={
             activeSlot

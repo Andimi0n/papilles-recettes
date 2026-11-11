@@ -9,6 +9,13 @@ import {
   NativeSyntheticEvent,
   NativeScrollEvent,
   Alert,
+  BackHandler,
+  PanResponder,
+  PanResponderGestureState,
+  GestureResponderEvent,
+  useWindowDimensions,
+  Keyboard,
+  LayoutChangeEvent,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { FlashList, FlashListRef } from '@shopify/flash-list';
@@ -17,7 +24,16 @@ import { Ionicons } from '@expo/vector-icons';
 import { Recipe, Category, SortOption, Difficulty, TimeFilterMode, RecipeViewMode } from '../types/recipe';
 import { FridgeItem } from '../types/fridge';
 import { UserAllergenItem } from '../types/vocabulary';
+import { FolderSummary, UNCATEGORIZED_FOLDER_ID } from '../types/folder';
 import { StorageService } from '../services/storageService';
+import { FolderService } from '../services/folderService';
+import {
+  FloatingSelectionBar,
+  FolderAssignmentBottomSheet,
+  FoldersGridView,
+  CreateEditFolderModal,
+  DeleteFolderConfirmModal,
+} from '../components/folders';
 import { styles } from './HomeScreen.styles';
 import { useTheme } from '../theme/ThemeContext';
 import { RecipeCard, RecipeStockProgress } from '../components/common/RecipeCard';
@@ -27,7 +43,13 @@ import { EmptyState } from '../components/common/EmptyState';
 import { StockCookModal } from '../components/chef-ai/StockCookModal';
 import { AdvancedFiltersModal } from '../components/common/AdvancedFiltersModal';
 import { PageJumpModal } from '../components/common/PageJumpModal';
+import { RecipePickerModal } from '../components/common/RecipePickerModal';
 import { AddRecipeMode } from './ScanRecipeScreen';
+import {
+  HomeViewTab,
+  shouldCaptureHomeTabSwipe,
+  calculateHomeTabSwipeDestination,
+} from '../utils/homePagerHelper';
 import {
   searchRecipes,
   RecipeSearchResult,
@@ -65,6 +87,7 @@ interface HomeScreenProps {
   isActive?: boolean;
   reopenStockModal?: boolean;
   onStockModalReopened?: () => void;
+  activeFolderId?: string | null;
 }
 
 const HomeScreenComponent: React.FC<HomeScreenProps> = ({
@@ -81,12 +104,267 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
   isActive = true,
   reopenStockModal = false,
   onStockModalReopened,
+  activeFolderId = null,
 }) => {
   const { isDark, colors, themeId } = useTheme();
+  const { width: screenWidth } = useWindowDimensions();
+  const [activeTab, setActiveTab] = useState<HomeViewTab>('recipes');
+  const [currentFolderId, setCurrentFolderId] = useState<string | null>(activeFolderId);
+  const [prevActiveFolderId, setPrevActiveFolderId] = useState(activeFolderId);
+  if (prevActiveFolderId !== activeFolderId) {
+    setPrevActiveFolderId(activeFolderId);
+    setCurrentFolderId(activeFolderId);
+  }
+
+  const [foldersCount, setFoldersCount] = useState<number>(0);
+  const [pageTranslateX] = useState(() => new Animated.Value(0));
+
+  // Mesure dynamique exacte du premier onglet pour positionner et dimensionner la pastille verte
+  const [tabLayout, setTabLayout] = useState<{
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  }>(() => ({
+    x: 3,
+    y: 3,
+    width: Math.max(0, (screenWidth - 38) / 2),
+    height: 32,
+  }));
+
+  const onFirstTabLayout = useCallback((e: LayoutChangeEvent) => {
+    const { x, y, width, height } = e.nativeEvent.layout;
+    if (width > 0 && height > 0) {
+      setTabLayout((prev) => {
+        if (
+          Math.abs(prev.x - x) < 0.5 &&
+          Math.abs(prev.y - y) < 0.5 &&
+          Math.abs(prev.width - width) < 0.5 &&
+          Math.abs(prev.height - height) < 0.5
+        ) {
+          return prev;
+        }
+        return { x, y, width, height };
+      });
+    }
+  }, []);
+
+  // Interpolation de la position de la pilule indicatrice active (0 -> tabLayout.width)
+  const indicatorTranslateX = useMemo(() => {
+    return pageTranslateX.interpolate({
+      inputRange: [-screenWidth, 0],
+      outputRange: [tabLayout.width, 0],
+      extrapolate: 'clamp',
+    });
+  }, [pageTranslateX, screenWidth, tabLayout.width]);
+
+  // Interpolations d'opacité croisée pour les libellés et badges des onglets
+  const recipesActiveOpacity = useMemo(() => {
+    return pageTranslateX.interpolate({
+      inputRange: [-screenWidth, 0],
+      outputRange: [0, 1],
+      extrapolate: 'clamp',
+    });
+  }, [pageTranslateX, screenWidth]);
+
+  const foldersActiveOpacity = useMemo(() => {
+    return pageTranslateX.interpolate({
+      inputRange: [-screenWidth, 0],
+      outputRange: [1, 0],
+      extrapolate: 'clamp',
+    });
+  }, [pageTranslateX, screenWidth]);
+
+  const [folderRecipeIds, setFolderRecipeIds] = useState<Set<string> | null>(null);
+  const [activeFolderInfo, setActiveFolderInfo] = useState<{
+    id: string;
+    name: string;
+    icon: string;
+    count: number;
+  } | null>(null);
+  const [isAddRecipeToFolderOpen, setIsAddRecipeToFolderOpen] = useState(false);
+  const [prevFolderIdForDetails, setPrevFolderIdForDetails] = useState<string | null>(currentFolderId);
+  if (prevFolderIdForDetails !== currentFolderId) {
+    setPrevFolderIdForDetails(currentFolderId);
+    setFolderRecipeIds(null);
+    setActiveFolderInfo(null);
+    setIsAddRecipeToFolderOpen(false);
+  }
+
+  // Chargement réactif des recettes du dossier actif
+  useEffect(() => {
+    if (!currentFolderId) {
+      return;
+    }
+    let isMounted = true;
+    const loadFolderDetails = async () => {
+      try {
+        const ids = await FolderService.getRecipeIdsForFolder(currentFolderId);
+        if (!isMounted) return;
+        setFolderRecipeIds(new Set(ids));
+
+        if (currentFolderId === UNCATEGORIZED_FOLDER_ID) {
+          setActiveFolderInfo({
+            id: UNCATEGORIZED_FOLDER_ID,
+            name: 'Non classées',
+            icon: '📂',
+            count: ids.length,
+          });
+        } else {
+          const folder = await FolderService.getFolderById(currentFolderId);
+          if (folder && isMounted) {
+            setActiveFolderInfo({
+              id: folder.id,
+              name: folder.name,
+              icon: folder.icon,
+              count: ids.length,
+            });
+          }
+        }
+      } catch (err) {
+        console.error('Erreur chargement détails dossier :', err);
+      }
+    };
+    loadFolderDetails();
+    const unsubscribe = StorageService.onFoldersChange(loadFolderDetails);
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
+  }, [currentFolderId]);
+
+  // Chargement réactif du nombre total de dossiers
+  useEffect(() => {
+    let isMounted = true;
+    const loadFolderCount = async () => {
+      try {
+        const folders = await FolderService.getAllFolders();
+        if (isMounted) {
+          setFoldersCount(folders.length + 1); // +1 pour le dossier virtuel « Non classées »
+        }
+      } catch (err) {
+        console.error('Erreur chargement nombre de dossiers :', err);
+      }
+    };
+    loadFolderCount();
+    const unsubscribe = StorageService.onFoldersChange(loadFolderCount);
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
+  }, []);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const flashListRef = useRef<FlashListRef<Recipe>>(null);
+
+  // État de sélection multiple persistant au fil des filtres et recherches
+  const [selectedRecipeIds, setSelectedRecipeIds] = useState<Set<string>>(new Set());
+  const [selectionVersion, setSelectionVersion] = useState(0);
+  const [isFolderAssignmentOpen, setIsFolderAssignmentOpen] = useState(false);
+  const [isCreateFolderModalVisible, setIsCreateFolderModalVisible] = useState(false);
+  const [folderToEdit, setFolderToEdit] = useState<FolderSummary | null>(null);
+  const [folderToDelete, setFolderToDelete] = useState<FolderSummary | null>(null);
+  const isSelectionMode = selectedRecipeIds.size > 0;
+
+  // Snackbar de confirmation des opérations de dossiers
+  const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
+  const [snackbarFadeAnim] = useState(() => new Animated.Value(0));
+  const snackbarTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showSnackbar = useCallback(
+    (message: string) => {
+      if (snackbarTimerRef.current) {
+        clearTimeout(snackbarTimerRef.current);
+        snackbarTimerRef.current = null;
+      }
+      setSnackbarMessage(message);
+      snackbarFadeAnim.setValue(0);
+      Animated.timing(snackbarFadeAnim, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+
+      snackbarTimerRef.current = setTimeout(() => {
+        Animated.timing(snackbarFadeAnim, {
+          toValue: 0,
+          duration: 250,
+          useNativeDriver: true,
+        }).start(() => {
+          setSnackbarMessage(null);
+        });
+      }, 4000);
+    },
+    [snackbarFadeAnim]
+  );
+
+  const handleDismissSnackbar = useCallback(() => {
+    if (snackbarTimerRef.current) {
+      clearTimeout(snackbarTimerRef.current);
+      snackbarTimerRef.current = null;
+    }
+    Animated.timing(snackbarFadeAnim, {
+      toValue: 0,
+      duration: 180,
+      useNativeDriver: true,
+    }).start(() => {
+      setSnackbarMessage(null);
+    });
+  }, [snackbarFadeAnim]);
+
+  const handleToggleSelectRecipe = useCallback((id: string) => {
+    setSelectionVersion((v) => v + 1);
+    setSelectedRecipeIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleLongPressRecipe = useCallback((id: string) => {
+    setSelectionVersion((v) => v + 1);
+    setSelectedRecipeIds((prev) => {
+      const next = new Set(prev);
+      next.add(id);
+      return next;
+    });
+  }, []);
+
+  const handleClearSelection = useCallback(() => {
+    setSelectionVersion((v) => v + 1);
+    setSelectedRecipeIds(new Set());
+  }, []);
+
+  const handleRemoveSelectedFromFolder = useCallback(async () => {
+    if (!currentFolderId || currentFolderId === UNCATEGORIZED_FOLDER_ID || selectedRecipeIds.size === 0) return;
+    try {
+      const count = selectedRecipeIds.size;
+      await FolderService.removeRecipesFromFolder(Array.from(selectedRecipeIds), currentFolderId);
+      setSelectedRecipeIds(new Set());
+      showSnackbar(`${count} recette${count > 1 ? 's' : ''} retirée${count > 1 ? 's' : ''} du dossier`);
+    } catch (err) {
+      console.error('Erreur lors du retrait du dossier :', err);
+    }
+  }, [currentFolderId, selectedRecipeIds, showSnackbar]);
+
+  const handleAddRecipeToFolder = useCallback(
+    async (recipe: Recipe) => {
+      if (!currentFolderId || currentFolderId === UNCATEGORIZED_FOLDER_ID) return;
+      try {
+        await FolderService.addRecipesToFolders([recipe.id], [currentFolderId]);
+        showSnackbar(`« ${recipe.title} » ajoutée au dossier`);
+      } catch (err) {
+        console.error("Erreur lors de l'ajout de la recette au dossier :", err);
+      }
+    },
+    [currentFolderId, showSnackbar]
+  );
 
   // Debounce fluide sur la recherche pour ne jamais bloquer le thread UI à la frappe
   useEffect(() => {
@@ -171,6 +449,201 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
       setIsStockModalVisible(true);
     }
   }
+
+  // Synchronisation de la translation du pager lors de variations de dimensions d'écran (ex: rotation)
+  const [prevScreenWidth, setPrevScreenWidth] = useState(screenWidth);
+  if (prevScreenWidth !== screenWidth) {
+    setPrevScreenWidth(screenWidth);
+    pageTranslateX.setValue(activeTab === 'recipes' ? 0 : -screenWidth);
+  }
+
+  // Basculement d'onglet fluide (Recettes <-> Dossiers)
+  const switchTab = useCallback(
+    (target: HomeViewTab, animated = true) => {
+      if (activeTab === target) return;
+      Keyboard.dismiss();
+      const targetX = target === 'recipes' ? 0 : -screenWidth;
+      setActiveTab(target);
+      if (!animated) {
+        pageTranslateX.setValue(targetX);
+        return;
+      }
+      Animated.spring(pageTranslateX, {
+        toValue: targetX,
+        tension: 80,
+        friction: 10,
+        restSpeedThreshold: 1,
+        restDisplacementThreshold: 1,
+        overshootClamping: true,
+        useNativeDriver: true,
+      }).start();
+    },
+    [activeTab, screenWidth, pageTranslateX]
+  );
+
+  // Interception du BackHandler Android :
+  // 1. Quitter le mode sélection
+  // 2. Quitter le dossier actif pour revenir à la grille des dossiers
+  // 3. Quitter l'écran
+  useEffect(() => {
+    const onBackPress = () => {
+      if (!isActive) return false;
+      if (selectedRecipeIds.size > 0) {
+        setSelectedRecipeIds(new Set());
+        return true;
+      }
+      if (currentFolderId) {
+        setCurrentFolderId(null);
+        return true;
+      }
+      return false;
+    };
+    const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => sub.remove();
+  }, [isActive, selectedRecipeIds.size, currentFolderId]);
+
+  // PanResponder gestuel pour le swipe horizontal strict entre Recettes et Dossiers
+  const screenSwipePanResponder = useMemo(() => {
+    const shouldCapture = (e: GestureResponderEvent, gestureState: PanResponderGestureState) => {
+      const isAnyModalOpen =
+        isAddMenuVisible ||
+        isFilterModalVisible ||
+        isAdvancedFiltersModalVisible ||
+        isStockModalVisible ||
+        isPageJumpModalVisible ||
+        isFolderAssignmentOpen ||
+        isCreateFolderModalVisible ||
+        isAddRecipeToFolderOpen ||
+        Boolean(folderToEdit) ||
+        Boolean(folderToDelete);
+
+      return shouldCaptureHomeTabSwipe({
+        gestureState,
+        locationY: e.nativeEvent.locationY,
+        activeTab,
+        activeFolderId: currentFolderId,
+        isSelectionMode,
+        isModalOpen: isAnyModalOpen,
+        filterBarHeight: 88,
+      });
+    };
+
+    return PanResponder.create({
+      onMoveShouldSetPanResponderCapture: shouldCapture,
+      onMoveShouldSetPanResponder: shouldCapture,
+      onPanResponderTerminationRequest: () => false,
+      onPanResponderGrant: () => {
+        Keyboard.dismiss();
+        pageTranslateX.stopAnimation();
+      },
+      onPanResponderMove: (_, gestureState) => {
+        const base = activeTab === 'recipes' ? 0 : -screenWidth;
+        let newX = base + gestureState.dx;
+        if (newX > 0) {
+          newX = newX * 0.15;
+        } else if (newX < -screenWidth) {
+          const over = newX + screenWidth;
+          newX = -screenWidth + over * 0.15;
+        }
+        pageTranslateX.setValue(newX);
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        const destination = calculateHomeTabSwipeDestination(
+          activeTab,
+          gestureState.dx,
+          gestureState.vx,
+          screenWidth
+        );
+        const targetX = destination === 'recipes' ? 0 : -screenWidth;
+        setActiveTab(destination);
+        Animated.spring(pageTranslateX, {
+          toValue: targetX,
+          velocity: gestureState.vx,
+          tension: 80,
+          friction: 10,
+          restSpeedThreshold: 1,
+          restDisplacementThreshold: 1,
+          overshootClamping: true,
+          useNativeDriver: true,
+        }).start();
+      },
+      onPanResponderTerminate: () => {
+        const targetX = activeTab === 'recipes' ? 0 : -screenWidth;
+        Animated.spring(pageTranslateX, {
+          toValue: targetX,
+          tension: 80,
+          friction: 10,
+          restSpeedThreshold: 1,
+          restDisplacementThreshold: 1,
+          overshootClamping: true,
+          useNativeDriver: true,
+        }).start(() => {
+          setActiveTab(activeTab);
+        });
+      },
+    });
+  }, [
+    activeTab,
+    currentFolderId,
+    isSelectionMode,
+    isAddMenuVisible,
+    isFilterModalVisible,
+    isAdvancedFiltersModalVisible,
+    isStockModalVisible,
+    isPageJumpModalVisible,
+    isFolderAssignmentOpen,
+    isCreateFolderModalVisible,
+    isAddRecipeToFolderOpen,
+    folderToEdit,
+    folderToDelete,
+    screenWidth,
+    pageTranslateX,
+  ]);
+
+  const handleSelectFolderFromGrid = useCallback(
+    (folderId: string) => {
+      setCurrentFolderId(folderId);
+    },
+    []
+  );
+
+  const handleCreateFolderSubmit = useCallback(async (name: string, icon: string) => {
+    try {
+      await FolderService.createFolder(name, icon);
+      setIsCreateFolderModalVisible(false);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Impossible de créer le dossier';
+      Alert.alert('Erreur', msg);
+    }
+  }, []);
+
+  const handleEditFolderSubmit = useCallback(
+    async (name: string, icon: string) => {
+      if (!folderToEdit) return;
+      try {
+        await FolderService.updateFolder(folderToEdit.id, { name, icon });
+        setFolderToEdit(null);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Impossible de modifier le dossier';
+        Alert.alert('Erreur', msg);
+      }
+    },
+    [folderToEdit]
+  );
+
+  const handleDeleteFolderConfirm = useCallback(async () => {
+    if (!folderToDelete) return;
+    try {
+      await FolderService.deleteFolder(folderToDelete.id);
+      if (currentFolderId === folderToDelete.id) {
+        setCurrentFolderId(null);
+      }
+      setFolderToDelete(null);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Impossible de supprimer le dossier';
+      Alert.alert('Erreur', msg);
+    }
+  }, [folderToDelete, currentFolderId]);
 
   // Double bandeau de filtres rétractable au défilement (haute performance, 60fps via useNativeDriver)
   const FILTER_BAR_HEIGHT = 88;
@@ -607,6 +1080,86 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
     return sorted.map((r) => r.recipe);
   }, [baseFilteredResults, selectedCategories, isSearching, sortBy, doableRecipesMap]);
 
+  // Recettes filtrées à l'intérieur du dossier sélectionné
+  const folderFilteredRecipes = useMemo(() => {
+    if (!currentFolderId || !folderRecipeIds) return [];
+    let result = baseFilteredResults.filter((r) => folderRecipeIds.has(r.recipe.id));
+
+    if (selectedCategories.length > 0) {
+      result = result.filter((r) => selectedCategories.includes(r.recipe.category));
+    }
+
+    const sorted = [...result];
+    sorted.sort((a, b) => {
+      if (isSearching && sortBy === 'recent' && b.score !== a.score) {
+        return b.score - a.score;
+      }
+      return compareRecipes(a.recipe, b.recipe, sortBy, doableRecipesMap);
+    });
+
+    return sorted.map((r) => r.recipe);
+  }, [
+    currentFolderId,
+    folderRecipeIds,
+    baseFilteredResults,
+    selectedCategories,
+    isSearching,
+    sortBy,
+    doableRecipesMap,
+  ]);
+
+  // Recettes sélectionnables dans le contexte actif (Dossier ou Carnet)
+  const currentSelectableRecipes = useMemo(() => {
+    return currentFolderId ? folderFilteredRecipes : filteredRecipes;
+  }, [currentFolderId, folderFilteredRecipes, filteredRecipes]);
+
+  const isAllSelected = useMemo(() => {
+    if (currentSelectableRecipes.length === 0) return false;
+    return currentSelectableRecipes.every((r) => selectedRecipeIds.has(r.id));
+  }, [currentSelectableRecipes, selectedRecipeIds]);
+
+  const handleToggleSelectAll = useCallback(() => {
+    setSelectionVersion((v) => v + 1);
+    if (isAllSelected) {
+      setSelectedRecipeIds(new Set());
+    } else {
+      setSelectedRecipeIds(new Set(currentSelectableRecipes.map((r) => r.id)));
+    }
+  }, [isAllSelected, currentSelectableRecipes]);
+
+  // Détection des filtres actifs et calcul du Set d'identifiants pour mise à jour des dossiers
+  const isFilterActive = useMemo(() => {
+    return (
+      debouncedSearchQuery.trim().length > 0 ||
+      selectedCategories.length > 0 ||
+      onlyVegetarian ||
+      onlyDoableWithStock ||
+      minRatingFilter > 0 ||
+      selectedIngredients.length > 0 ||
+      targetTotalTime !== null ||
+      selectedDifficulties.length > 0 ||
+      selectedTags.length > 0 ||
+      (isAllergenFilterEnabled && userAllergens.length > 0)
+    );
+  }, [
+    debouncedSearchQuery,
+    selectedCategories.length,
+    onlyVegetarian,
+    onlyDoableWithStock,
+    minRatingFilter,
+    selectedIngredients.length,
+    targetTotalTime,
+    selectedDifficulties.length,
+    selectedTags.length,
+    isAllergenFilterEnabled,
+    userAllergens.length,
+  ]);
+
+  const matchingRecipeIds = useMemo(() => {
+    if (!isFilterActive) return null;
+    return new Set(filteredRecipes.map((r) => r.id));
+  }, [isFilterActive, filteredRecipes]);
+
   // Pagination (20 recettes par page pour une fluidité maximale)
   const totalPages = Math.max(1, Math.ceil(filteredRecipes.length / RECIPES_PER_PAGE));
   const safeCurrentPage = Math.min(currentPage, totalPages);
@@ -878,6 +1431,281 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
     ]
   );
 
+  // En-tête de la liste des recettes d'un dossier ouvert
+  const folderHeaderElement = useMemo(() => {
+    if (!currentFolderId || !activeFolderInfo) return null;
+    const isFolderEmpty = (folderRecipeIds?.size || 0) === 0;
+    const hasActiveFiltersOnFolder =
+      isSearching ||
+      selectedCategories.length > 0 ||
+      activeAdvancedFiltersCount > 0 ||
+      onlyVegetarian ||
+      onlyDoableWithStock;
+
+    return (
+      <View>
+        <View style={styles.folderHeaderBanner}>
+          {/* Bouton retour vers tous les dossiers */}
+          <TouchableOpacity
+            style={styles.folderBackBtn}
+            onPress={() => setCurrentFolderId(null)}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Revenir à tous les dossiers"
+          >
+            <Ionicons name="arrow-back" size={17} color={colors.primary} />
+            <Text style={styles.folderBackBtnText}>Dossiers</Text>
+          </TouchableOpacity>
+
+          {/* Titre & Compteur au centre */}
+          <View style={styles.folderTitleContainer}>
+            <Text style={styles.folderIconText}>{activeFolderInfo.icon}</Text>
+            <Text style={styles.folderTitleText} numberOfLines={1}>
+              {activeFolderInfo.name}
+            </Text>
+            <View style={styles.folderCountBadge}>
+              <Text style={styles.folderCountBadgeText}>
+                {folderFilteredRecipes.length}
+              </Text>
+            </View>
+          </View>
+
+          {/* Actions Modifier / Ajouter des recettes (uniquement pour les dossiers utilisateur) */}
+          {currentFolderId !== UNCATEGORIZED_FOLDER_ID ? (
+            <View style={styles.folderActionsRow}>
+              <TouchableOpacity
+                style={styles.folderActionBtn}
+                onPress={() => {
+                  setFolderToEdit({
+                    id: activeFolderInfo.id,
+                    name: activeFolderInfo.name,
+                    icon: activeFolderInfo.icon,
+                    recipeCount: activeFolderInfo.count,
+                    recipeImages: [],
+                  });
+                }}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Modifier le nom et l'icône du dossier"
+              >
+                <Ionicons name="pencil-outline" size={17} color={colors.textSecondary} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.folderActionBtn}
+                onPress={() => setIsAddRecipeToFolderOpen(true)}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Ajouter des recettes au dossier"
+              >
+                <Ionicons name="add" size={19} color={colors.primary} />
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.folderActionsPlaceholder} />
+          )}
+        </View>
+
+        {/* Bandeau filtres avancés actifs (Temps, Note, Difficulté, Ingrédients, Tags) */}
+        {(targetTotalTime !== null ||
+          selectedDifficulties.length > 0 ||
+          selectedIngredients.length > 0 ||
+          selectedTags.length > 0 ||
+          minRatingFilter > 0) && (
+          <View style={[styles.listHeaderContainer, { paddingBottom: 0 }]}>
+            <View style={styles.advancedFiltersActiveBanner}>
+              <View style={styles.advancedFiltersActiveLeft}>
+                <Ionicons name="options" size={16} color={colors.primary} style={{ marginRight: 6 }} />
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.activePillsScroll}
+                >
+                  {targetTotalTime !== null && (
+                    <View style={styles.activePillChip}>
+                      <Ionicons
+                        name={timeFilterMode === 'min' ? 'flame-outline' : 'time-outline'}
+                        size={12}
+                        color={colors.primary}
+                        style={{ marginRight: 3 }}
+                      />
+                      <Text style={styles.activePillChipText}>
+                        {timeFilterMode === 'min' ? `≥ ${targetTotalTime} min` : `≤ ${targetTotalTime} min`}
+                      </Text>
+                      <TouchableOpacity
+                        onPress={() => setTargetTotalTime(null)}
+                        hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                      >
+                        <Ionicons name="close" size={12} color={colors.primary} style={{ marginLeft: 2 }} />
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                  {selectedDifficulties.map((diff) => (
+                    <View key={diff} style={styles.activePillChip}>
+                      <Text style={styles.activePillChipText}>{diff}</Text>
+                      <TouchableOpacity
+                        onPress={() =>
+                          setSelectedDifficulties((prev) => prev.filter((d) => d !== diff))
+                        }
+                        hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                      >
+                        <Ionicons name="close" size={12} color={colors.primary} style={{ marginLeft: 2 }} />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                  {selectedIngredients.map((ing) => (
+                    <View key={ing} style={styles.activePillChip}>
+                      <Text style={styles.activePillChipText}>{ing}</Text>
+                      <TouchableOpacity
+                        onPress={() =>
+                          setSelectedIngredients((prev) => prev.filter((i) => i !== ing))
+                        }
+                        hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                      >
+                        <Ionicons name="close" size={12} color={colors.primary} style={{ marginLeft: 2 }} />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                  {selectedTags.map((tag) => (
+                    <View key={tag} style={styles.activePillChip}>
+                      <Text style={styles.activePillChipText}>#{tag}</Text>
+                      <TouchableOpacity
+                        onPress={() =>
+                          setSelectedTags((prev) => prev.filter((t) => t !== tag))
+                        }
+                        hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                      >
+                        <Ionicons name="close" size={12} color={colors.primary} style={{ marginLeft: 2 }} />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                  {minRatingFilter > 0 && (
+                    <View style={styles.activePillChip}>
+                      <Ionicons name="star" size={11} color="#E5A100" style={{ marginRight: 3 }} />
+                      <Text style={styles.activePillChipText}>≥ {minRatingFilter}</Text>
+                      <TouchableOpacity
+                        onPress={() => setMinRatingFilter(0)}
+                        hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                      >
+                        <Ionicons name="close" size={12} color={colors.primary} style={{ marginLeft: 2 }} />
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </ScrollView>
+              </View>
+
+              <TouchableOpacity
+                onPress={() => {
+                  setTargetTotalTime(null);
+                  setTimeFilterMode('max');
+                  setSelectedDifficulties([]);
+                  setSelectedIngredients([]);
+                  setSelectedTags([]);
+                  setMinRatingFilter(0);
+                }}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityLabel="Réinitialiser les filtres avancés"
+              >
+                <Text style={styles.clearAdvancedText}>Effacer</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {/* Résumé des résultats et switcher de vue (uniquement si le dossier n'est pas vide ou si un filtre est actif) */}
+        {(!isFolderEmpty || hasActiveFiltersOnFolder) && (
+          <View style={styles.listHeaderContainer}>
+            <View style={styles.resultsCountRow}>
+              <View style={styles.resultsCountLeft}>
+                {hasActiveFiltersOnFolder ? (
+                  <Text style={styles.resultsCountText}>
+                    {folderFilteredRecipes.length} recette{folderFilteredRecipes.length > 1 ? 's' : ''} trouvée{folderFilteredRecipes.length > 1 ? 's' : ''}
+                  </Text>
+                ) : (
+                  <Text style={styles.resultsCountText}>
+                    {folderFilteredRecipes.length} recette{folderFilteredRecipes.length > 1 ? 's' : ''} au menu
+                  </Text>
+                )}
+
+                {debouncedSearchQuery.trim().length > 0 && (
+                  <View style={styles.smartBadge}>
+                    <Ionicons name="sparkles" size={11} color={colors.primary} />
+                    <Text style={styles.smartBadgeText}>Recherche intelligente</Text>
+                  </View>
+                )}
+              </View>
+
+              {/* Switcher de mode d'affichage des recettes : Détaillé, Compact, Grille */}
+              <View style={styles.viewModeSwitcher}>
+                <TouchableOpacity
+                  style={[styles.viewModeBtn, viewMode === 'detailed' && styles.viewModeBtnActive]}
+                  onPress={() => handleChangeViewMode('detailed')}
+                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Affichage grandes cartes détaillées"
+                >
+                  <Ionicons
+                    name={viewMode === 'detailed' ? 'albums' : 'albums-outline'}
+                    size={16}
+                    color={viewMode === 'detailed' ? colors.primary : colors.textMuted}
+                  />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.viewModeBtn, viewMode === 'compact' && styles.viewModeBtnActive]}
+                  onPress={() => handleChangeViewMode('compact')}
+                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Affichage liste compacte"
+                >
+                  <Ionicons
+                    name={viewMode === 'compact' ? 'list' : 'list-outline'}
+                    size={17}
+                    color={viewMode === 'compact' ? colors.primary : colors.textMuted}
+                  />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.viewModeBtn, viewMode === 'grid' && styles.viewModeBtnActive]}
+                  onPress={() => handleChangeViewMode('grid')}
+                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Affichage en grille 2 colonnes"
+                >
+                  <Ionicons
+                    name={viewMode === 'grid' ? 'grid' : 'grid-outline'}
+                    size={15}
+                    color={viewMode === 'grid' ? colors.primary : colors.textMuted}
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        )}
+      </View>
+    );
+  }, [
+    currentFolderId,
+    activeFolderInfo,
+    folderRecipeIds,
+    folderFilteredRecipes.length,
+    isSearching,
+    selectedCategories.length,
+    activeAdvancedFiltersCount,
+    onlyVegetarian,
+    onlyDoableWithStock,
+    targetTotalTime,
+    selectedDifficulties,
+    selectedIngredients,
+    selectedTags,
+    minRatingFilter,
+    timeFilterMode,
+    debouncedSearchQuery,
+    colors,
+    viewMode,
+    handleChangeViewMode,
+  ]);
+
   // Pied de liste avec navigation complète : début, précédente, sélection directe, suivante, fin
   const listFooterElement = useMemo(() => {
     if (filteredRecipes.length === 0) return undefined;
@@ -1043,11 +1871,21 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
   // Rendu mémoïsé de chaque carte recette (accès direct O(1) sans allocations de tableaux ou recalculs)
   const renderRecipeItem = useCallback(
     ({ item }: { item: Recipe }) => {
+      const isSelected = selectedRecipeIds.has(item.id);
       return (
         <RecipeCard
           recipe={item}
           viewMode={viewMode}
-          onPress={() => onSelectRecipe(item)}
+          isSelectionMode={isSelectionMode}
+          isSelected={isSelected}
+          onPress={() => {
+            if (isSelectionMode) {
+              handleToggleSelectRecipe(item.id);
+            } else {
+              onSelectRecipe(item);
+            }
+          }}
+          onLongPress={() => handleLongPressRecipe(item.id)}
           hasAllergen={recipesWithAllergensSet.has(item.id)}
           stockProgress={stockProgressMap.get(item.id)}
         />
@@ -1058,6 +1896,10 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
       recipesWithAllergensSet,
       stockProgressMap,
       viewMode,
+      isSelectionMode,
+      selectedRecipeIds,
+      handleToggleSelectRecipe,
+      handleLongPressRecipe,
     ]
   );
 
@@ -1092,7 +1934,93 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
             </TouchableOpacity>
           </View>
 
-          {/* Barre de Recherche & Bouton Filtres Avancés (Famille 2) */}
+          {/* Sélecteur segmenté : Recettes / Dossiers */}
+          <View style={styles.tabSwitcherWrapper}>
+            <View style={styles.tabSwitcherContainer}>
+              {/* Pilule verte animée continue (glisse 1:1 sous le doigt) */}
+              <Animated.View
+                style={[
+                  styles.tabSwitcherPill,
+                  {
+                    left: tabLayout.x,
+                    top: tabLayout.y,
+                    width: tabLayout.width,
+                    height: tabLayout.height,
+                    transform: [{ translateX: indicatorTranslateX }],
+                  },
+                ]}
+              />
+
+              {/* Onglet 1 : Recettes */}
+              <TouchableOpacity
+                style={styles.tabSwitcherBtn}
+                onLayout={onFirstTabLayout}
+                onPress={() => switchTab('recipes')}
+                activeOpacity={0.8}
+                accessibilityRole="tab"
+                accessibilityLabel="Onglet Recettes"
+                accessibilityState={{ selected: activeTab === 'recipes' }}
+              >
+                {/* Couche au repos */}
+                <View style={styles.tabSwitcherBtnInner}>
+                  <Ionicons name="book-outline" size={16} color={colors.textSecondary} />
+                  <Text style={styles.tabSwitcherText}>Recettes</Text>
+                  <Text style={styles.tabBadgeText}>{recipes.length}</Text>
+                </View>
+
+                {/* Couche active avec fondu enchaîné continu */}
+                <Animated.View
+                  style={[
+                    styles.tabSwitcherBtnInner,
+                    styles.tabSwitcherBtnOverlay,
+                    { opacity: recipesActiveOpacity },
+                  ]}
+                  pointerEvents="none"
+                >
+                  <Ionicons name="book" size={16} color="#FFFFFF" />
+                  <Text style={[styles.tabSwitcherText, styles.tabSwitcherTextActive]}>Recettes</Text>
+                  <Text style={[styles.tabBadgeText, styles.tabBadgeTextActive]}>{recipes.length}</Text>
+                </Animated.View>
+              </TouchableOpacity>
+
+              {/* Onglet 2 : Dossiers */}
+              <TouchableOpacity
+                style={styles.tabSwitcherBtn}
+                onPress={() => switchTab('folders')}
+                activeOpacity={0.8}
+                accessibilityRole="tab"
+                accessibilityLabel="Onglet Dossiers"
+                accessibilityState={{ selected: activeTab === 'folders' }}
+              >
+                {/* Couche au repos */}
+                <View style={styles.tabSwitcherBtnInner}>
+                  <Ionicons name="folder-outline" size={16} color={colors.textSecondary} />
+                  <Text style={styles.tabSwitcherText}>Dossiers</Text>
+                  {foldersCount > 0 && (
+                    <Text style={styles.tabBadgeText}>{foldersCount}</Text>
+                  )}
+                </View>
+
+                {/* Couche active avec fondu enchaîné continu */}
+                <Animated.View
+                  style={[
+                    styles.tabSwitcherBtnInner,
+                    styles.tabSwitcherBtnOverlay,
+                    { opacity: foldersActiveOpacity },
+                  ]}
+                  pointerEvents="none"
+                >
+                  <Ionicons name="folder" size={16} color="#FFFFFF" />
+                  <Text style={[styles.tabSwitcherText, styles.tabSwitcherTextActive]}>Dossiers</Text>
+                  {foldersCount > 0 && (
+                    <Text style={[styles.tabBadgeText, styles.tabBadgeTextActive]}>{foldersCount}</Text>
+                  )}
+                </Animated.View>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Barre de Recherche & Bouton Filtres Avancés (affiché de façon permanente sans saut de hauteur) */}
           <SearchBar
             value={searchQuery}
             onChangeText={(text) => {
@@ -1115,14 +2043,25 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
           />
         </View>
 
-        {/* Zone de contenu principale (FlashList + Double bandeau rétractable en superposition native) */}
-        <View style={styles.contentArea}>
-          {/* Liste des recettes avec virtualisation FlashList haute performance et layout dynamique */}
-          <FlashList
+        {/* Zone de contenu principale (Pager gestuel horizontal Recettes <-> Dossiers) */}
+        <View style={styles.contentArea} {...screenSwipePanResponder.panHandlers}>
+          <Animated.View
+            style={[
+              styles.pagerContainer,
+              {
+                width: screenWidth * 2,
+                transform: [{ translateX: pageTranslateX }],
+              },
+            ]}
+          >
+            {/* Page 1 : Recettes (FlashList + Double bandeau rétractable en superposition native) */}
+            <View style={[styles.pagerPage, { width: screenWidth }]}>
+              {/* Liste des recettes avec virtualisation FlashList haute performance et layout dynamique */}
+              <FlashList
             key={viewMode === 'grid' ? 'recipes-grid-2' : `recipes-${viewMode}-1`}
             ref={flashListRef}
             data={paginatedRecipes}
-            extraData={`${themeId}_${viewMode}`}
+            extraData={`${themeId}_${viewMode}_${isSelectionMode}_${selectionVersion}`}
             keyExtractor={(item) => item.id}
             numColumns={viewMode === 'grid' ? 2 : 1}
             getItemType={() => viewMode}
@@ -1131,7 +2070,10 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
             contentContainerStyle={[
               styles.listContent,
               viewMode === 'grid' ? styles.listContentGrid : undefined,
-              { paddingTop: FILTER_BAR_HEIGHT + 6 },
+              {
+                paddingTop: FILTER_BAR_HEIGHT + 6,
+                paddingBottom: isSelectionMode ? 88 : 24,
+              },
             ]}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
@@ -1164,7 +2106,71 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
             }
           />
 
-          {/* Double bandeau de filtres rétractable natif (disparaît au défilement vers le bas, réapparaît vers le haut) */}
+            </View>
+
+            {/* Page 2 : Dossiers */}
+            <View style={[styles.pagerPage, { width: screenWidth }]}>
+              {!currentFolderId ? (
+                <FoldersGridView
+                  onSelectFolder={handleSelectFolderFromGrid}
+                  onCreateFolder={() => setIsCreateFolderModalVisible(true)}
+                  onEditFolder={(folder) => setFolderToEdit(folder)}
+                  onDeleteFolder={(folder) => setFolderToDelete(folder)}
+                  contentContainerStyle={{
+                    paddingTop: FILTER_BAR_HEIGHT + 6,
+                  }}
+                  bottomInset={isSelectionMode ? 88 : 30}
+                  onScroll={handleScroll}
+                  matchingRecipeIds={matchingRecipeIds}
+                />
+              ) : (
+                <FlashList
+                  key={`folder-recipes-${viewMode}-${currentFolderId}`}
+                  data={folderFilteredRecipes}
+                  extraData={`${themeId}_${viewMode}_${isSelectionMode}_${selectionVersion}`}
+                  keyExtractor={(item) => item.id}
+                  numColumns={viewMode === 'grid' ? 2 : 1}
+                  getItemType={() => viewMode}
+                  ListHeaderComponent={folderHeaderElement}
+                  contentContainerStyle={[
+                    styles.listContent,
+                    viewMode === 'grid' ? styles.listContentGrid : undefined,
+                    {
+                      paddingTop: FILTER_BAR_HEIGHT + 6,
+                      paddingBottom: isSelectionMode ? 88 : 24,
+                    },
+                  ]}
+                  showsVerticalScrollIndicator={false}
+                  keyboardShouldPersistTaps="handled"
+                  renderItem={renderRecipeItem}
+                  onScroll={handleScroll}
+                  scrollEventThrottle={16}
+                  ListEmptyComponent={
+                    !folderRecipeIds ? null :
+                    folderRecipeIds.size === 0 && !isSearching && selectedCategories.length === 0 && activeAdvancedFiltersCount === 0 ? (
+                      <EmptyState
+                        title="Ce dossier est vide"
+                        description="Appuyez sur le bouton + pour ajouter des recettes à ce dossier."
+                        actionLabel="Ajouter une recette"
+                        onAction={() => {
+                          setIsAddRecipeToFolderOpen(true);
+                        }}
+                      />
+                    ) : (
+                      <EmptyState
+                        title="Aucune recette trouvée"
+                        description="Aucune recette de ce dossier ne correspond aux critères de recherche actuels."
+                        actionLabel="Réinitialiser les filtres"
+                        onAction={handleResetAllFilters}
+                      />
+                    )
+                  }
+                />
+              )}
+            </View>
+          </Animated.View>
+
+          {/* Double bandeau de filtres rétractable natif (partagé en superposition au-dessus du Pager) */}
           <Animated.View
             style={[
               styles.collapsibleFilterContainer,
@@ -1526,6 +2532,106 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
           onSelectPage={goToPage}
           onClose={() => setIsPageJumpModalVisible(false)}
         />
+
+        {/* Barre flottante d'actions de sélection multiple */}
+        <FloatingSelectionBar
+          selectedCount={selectedRecipeIds.size}
+          onClearSelection={handleClearSelection}
+          onAssignToFolder={() => setIsFolderAssignmentOpen(true)}
+          onRemoveFromFolder={
+            currentFolderId && currentFolderId !== UNCATEGORIZED_FOLDER_ID
+              ? handleRemoveSelectedFromFolder
+              : undefined
+          }
+          onToggleSelectAll={handleToggleSelectAll}
+          isAllSelected={isAllSelected}
+          activeFolderId={currentFolderId}
+          bottomInset={0}
+        />
+
+        {/* Bottom Sheet de rangement dans les dossiers */}
+        <FolderAssignmentBottomSheet
+          visible={isFolderAssignmentOpen}
+          recipeIds={Array.from(selectedRecipeIds)}
+          onClose={() => setIsFolderAssignmentOpen(false)}
+          onSuccess={(msg) => {
+            setSelectedRecipeIds(new Set());
+            if (msg) showSnackbar(msg);
+          }}
+        />
+
+        {/* Modale de création d'un nouveau dossier */}
+        <CreateEditFolderModal
+          visible={isCreateFolderModalVisible}
+          onClose={() => setIsCreateFolderModalVisible(false)}
+          onSave={({ name, icon }) => handleCreateFolderSubmit(name, icon)}
+        />
+
+        {/* Modale de modification / renommage de dossier */}
+        <CreateEditFolderModal
+          visible={Boolean(folderToEdit)}
+          folder={folderToEdit}
+          onClose={() => setFolderToEdit(null)}
+          onSave={({ name, icon }) => handleEditFolderSubmit(name, icon)}
+        />
+
+        {/* Modale de confirmation de suppression de dossier */}
+        <DeleteFolderConfirmModal
+          visible={Boolean(folderToDelete)}
+          folder={folderToDelete}
+          onClose={() => setFolderToDelete(null)}
+          onConfirmDelete={handleDeleteFolderConfirm}
+        />
+
+        {/* Modale d'ajout de recettes au dossier ouvert */}
+        <RecipePickerModal
+          visible={isAddRecipeToFolderOpen}
+          title={activeFolderInfo ? `${activeFolderInfo.icon} ${activeFolderInfo.name}` : 'Ajouter au dossier'}
+          subtitle="Sélectionner des recettes à ajouter"
+          recipes={recipes}
+          alreadyAddedRecipeIds={folderRecipeIds ?? undefined}
+          alreadyAddedLabel="Dans le dossier"
+          closeOnSelect={false}
+          onSelectRecipe={handleAddRecipeToFolder}
+          onClose={() => setIsAddRecipeToFolderOpen(false)}
+        />
+
+        {/* Barre Snackbar de confirmation d'action dossiers */}
+        {snackbarMessage && (
+          <Animated.View
+            style={[
+              styles.snackbarContainer,
+              {
+                opacity: snackbarFadeAnim,
+                transform: [
+                  {
+                    translateY: snackbarFadeAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [20, 0],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
+            <View style={styles.snackbarContent}>
+              <View style={styles.snackbarLeft}>
+                <Ionicons name="folder-open-outline" size={18} color="#FFFFFF" />
+                <Text style={styles.snackbarText} numberOfLines={1}>
+                  {snackbarMessage}
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={styles.snackbarCloseBtn}
+                onPress={handleDismissSnackbar}
+                activeOpacity={0.6}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="close" size={18} color="rgba(255,255,255,0.7)" />
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
+        )}
       </View>
     </SafeAreaView>
   );

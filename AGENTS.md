@@ -48,8 +48,8 @@
 #### `App.tsx` & Écrans (`src/screens/`) :
 - **`App.tsx`** : Racine (`SafeAreaProvider` + `ThemeProvider`), routeur d'écrans en mémoire, gestion de l'onboarding et barre d'onglets inférieure à 4 entrées (`Recettes`, `Repas`, `Courses & Étagères`, `Paramètres`).
 - **`OnboardingScreen.tsx`** : Parcours d'accueil en 3 étapes au premier démarrage : découverte guidée, configuration optionnelle des allergies (14 familles INCO et aliments spécifiques avec option Passer) et clé IA Gemini BYOK.
-- **`HomeScreen.tsx`** (`HomeScreen.styles.ts`) : Flux de recettes, barre d'actions (Marmiton/Web, Scan IA, Ajout manuel, Chef IA), recherche textuelle, double bandeau de filtres rétractable au scroll (`useNativeDriver: true`).
-- **`RecipeDetailScreen.tsx`** (`RecipeDetailScreen.styles.ts`) : Fiche recette complète, ajustement dynamique des portions, sous-sections *Livre de Chef*, conversion d'unités métriques, mode cuisine pas à pas, indicateurs verticaux et affordance de swipe pour retrait direct du stock (si en stock), envoi intelligent aux courses ou qualification lexique (`RecipeIngredientsList`, `SwipeableRecipeIngredientRow`), menu unifié de partage et export (`RecipeShareModal` avec message enrichi, QR code hors-ligne, fiche PDF/impression via `RecipePrintModal` et copie presse-papier des ingrédients avec portions adaptées), liaisons de recettes associées et ajout intelligent aux courses.
+- **`HomeScreen.tsx`** (`HomeScreen.styles.ts`) : Flux de recettes, sélecteur segmenté `Recettes` / `Dossiers` avec pager gestuel filtré, mode sélection multiple par appui long avec pilule flottante (`FloatingSelectionBar`), bandeau d'en-tête contextuel de dossier (`activeFolderId`) avec bouton d'ajout de recettes (`+`) ouvrant `RecipePickerModal` et modification, barre d'actions (Marmiton/Web, Scan IA, Ajout manuel, Chef IA), recherche textuelle, double bandeau de filtres rétractable au scroll (`useNativeDriver: true`).
+- **`RecipeDetailScreen.tsx`** (`RecipeDetailScreen.styles.ts`) : Fiche recette complète, ajustement dynamique des portions, sous-sections *Livre de Chef*, conversion d'unités métriques, mode cuisine pas à pas, indicateurs verticaux et affordance de swipe pour retrait direct du stock (si en stock), envoi intelligent aux courses ou qualification lexique (`RecipeIngredientsList`, `SwipeableRecipeIngredientRow`), puces des dossiers assignés et action rapide `+ Dossier` (`FolderAssignmentBottomSheet`), menu unifié de partage et export (`RecipeShareModal` avec message enrichi, QR code hors-ligne, fiche PDF/impression via `RecipePrintModal` et copie presse-papier des ingrédients avec portions adaptées), liaisons de recettes associées et ajout intelligent aux courses.
 - **`RecipeFormScreen.tsx`** (`RecipeFormScreen.styles.ts`) : Création/édition (tableau Nom / Quantité / Unité via `IngredientTableEditor`, liaisons entre recettes, étapes ordonnables avec `RecipeStepEditor`, puces `En placard` et `En finition`).
 - **`ScanRecipeScreen.tsx`** : Hub unifié d'ajout et d'extraction IA à 4 onglets : Scan photo caméra/galerie (`CameraCaptureModal`), Saisie texte libre, Import par URL web, et Chef IA complet intégré (format repas, envies/humeur, sélection tactile 3 états des étagères ou inspiration libre sans ingrédient imposé et génération d'idées/recettes).
 - **`ShoppingListScreen.tsx`** (`ShoppingListScreen.styles.ts`) : Hub unifié **Courses & Étagères** (switch segmenté entre stock `FridgeStockView` et liste de courses catégorisée par rayon), mode magasin plein écran `InStoreShoppingModal`, passerelle de rangement et proposition de purge des articles non alimentaires.
@@ -58,7 +58,8 @@
 
 #### Logique métier & Persistance (`src/services/`) :
 - **`storageService.ts`** : Wrapper métier central et coordinateur de persistance. Gère le cache mémoire `memoryCache`, les listeners réactifs, `sanitizeStoredRecipe()`, `sanitizeImageUrl()`, la cascade du lexique `handleVocabularyCascade()`, l'onboarding, l'import dédoublé de packs de recettes (`mergeRecipePack` : skip des doublons stricts par titre et hash d'étapes sans écrasement de données personnelles), et délègue à `DatabaseService` et `ImageStorageService`.
-- **`databaseService.ts`** : Couche de persistance relationnelle SQLite native (`papilles.db` avec mode WAL et PRAGMA foreign_keys). Tables indexées : `recipes`, `fridge_items`, `shopping_items`, `weekly_plan`, `meal_logs`, `user_allergens`, `settings`. Supporte le fallback transparent en mémoire pour l'environnement de test CLI Node.js.
+- **`databaseService.ts`** : Couche de persistance relationnelle SQLite native (`papilles.db` avec mode WAL et PRAGMA foreign_keys). Tables indexées : `recipes`, `folders`, `recipe_folders`, `fridge_items`, `shopping_items`, `weekly_plan`, `meal_logs`, `user_allergens`, `settings`. Supporte le fallback transparent en mémoire pour l'environnement de test CLI Node.js.
+- **`folderService.ts`** : Service de gestion des dossiers personnalisés, liaisons N-N (`recipe_folders`), calcul dynamique du dossier virtuel « Non classées » (`UNCATEGORIZED`), assignation unitaire ou groupée additive, résumés de dossiers avec mosaïque (`getFolderSummaries`), et synchronisation réactive avec `StorageService`.
 - **`imageStorageService.ts`** : Gestionnaire de persistance permanente des photos de recettes via `expo-file-system`. Déplace les images locales du cache temporaire de l'OS vers le dossier permanent sécurisé `documentDirectory/recipe_photos/`, prévient les fuites de cache et nettoie les photos orphelines.
 - **`recipePackService.ts`** : Extraction et analyse séquentielle par petits lots (protection Zip Slip) de packs de recettes JSON et archives ZIP avec photos de couverture.
 - **`recipePdfService.ts`** : Génération de fiches recettes PDF haute résolution prêtes à imprimer ou partager (`expo-print`, `expo-sharing`) avec photo, QR code optionnel et réglage des portions.
@@ -86,23 +87,25 @@
 - **`unitConverter.ts`** : Moteur de conversion d'unités de mesure culinaires (masse `g`/`kg`, volume métrique `ml`/`cl`/`L`, cuillères).
 - **`ingredientSearchMatcher.ts`** : Moteur de recherche et de scoring prédictif pour la saisie d'ingrédients.
 - **`sectionListLayoutHelper.ts`** : Calcul haute performance d'offsets pour la virtualisation `SectionList` sans lag de mesure Yoga.
+- **`folderMosaicHelper.ts`** : Helper pur garantissant 4 slots d'images (`(string | null)[]`) pour le rendu de mosaïque 2x2 des dossiers (`FolderMosaic`).
 - **`helpers.ts`** : Fonctions d'assainissement, calcul de portions (`scaleQuantity`), formatage de durées et identifiants uniques.
 
 #### Composants réutilisables (`src/components/`) :
-- **`common/` (UI générique & flux principal)** : `CategoryPills.tsx`, `EmptyState.tsx`, `RecipeCard.tsx`, `SearchBar.tsx`, `StarRating.tsx` (0.5–5.0 sans label parasite), `AdvancedFiltersModal.tsx`.
+- **`common/` (UI générique & flux principal)** : `CategoryPills.tsx`, `EmptyState.tsx`, `RecipeCard.tsx` (mode sélection multiple, bordure 2px, pastille et animation élastique), `RecipePickerModal.tsx` (sélecteur modal unifié de recettes pour le planning de repas et l'intérieur des dossiers, avec recherche, filtres par catégorie, détection des doublons et gestion des portions), `SearchBar.tsx`, `StarRating.tsx` (0.5–5.0 sans label parasite), `AdvancedFiltersModal.tsx`.
+- **`folders/` (Gestion de dossiers & sélection multiple)** : `FolderCard.tsx`, `FolderMosaic.tsx`, `FoldersGridView.tsx`, `CreateEditFolderModal.tsx`, `DeleteFolderConfirmModal.tsx`, `FolderAssignmentBottomSheet.tsx`, `FloatingSelectionBar.tsx`.
 - **`recipe-detail/` (Fiche recette & mode cuisine)** : `RecipeIngredientsList.tsx`, `SwipeableRecipeIngredientRow.tsx`, `RecipeInstructionsList.tsx`, `RecipeServingsController.tsx`, `CookingModeModal.tsx`, `RecipeLinkPickerModal.tsx`.
 - **`recipe-form/` (Création & édition de recette)** : `IngredientTableEditor.tsx`, `RecipeStepEditor.tsx`.
 - **`stock-shopping/` (Hub Courses & Étagères)** : `FridgeStockView.tsx`, `SwipeableStockItemRow.tsx`, `SwipeableShoppingItemRow.tsx`, `EditShoppingItemModal.tsx`, `InStoreShoppingModal.tsx`, `TransferAnimationOverlay.tsx`.
 - **`lexicon-units/` (Saisie normalisée, unités & allergènes INCO)** : `UnifiedIngredientInput.tsx`, `IngredientSearchBar.tsx`, `UnitQuickPicker.tsx`, `UnitPickerModal.tsx`, `VocabularyManagerModal.tsx`, `QualifyIngredientModal.tsx`, `AllergenFamilyPickerModal.tsx`.
 - **`chef-ai/` (Inspiration anti-gaspi & personnalisation IA)** : `StockCookModal.tsx` (wrapper de rétrocompatibilité réexportant les types et encapsulant `ScanRecipeScreen` en mode Chef), `ChefMoodEditModal.tsx`, `ChefFavoritePromptsModal.tsx`.
-- **`planner/` (Planification hebdomadaire & suivi de repas)** : `MealCalendarModal.tsx`, `MealSlotPickerModal.tsx`, `PlanRecipeModal.tsx`, `QuickMealLogModal.tsx`.
+- **`planner/` (Planification hebdomadaire & suivi de repas)** : `MealCalendarModal.tsx`, `MealSlotPickerModal.tsx` (réexporte `RecipePickerModal` pour rétrocompatibilité), `PlanRecipeModal.tsx`, `QuickMealLogModal.tsx`.
 - **`import-share/` (Caméra, Web, PDF & QR Code hors-ligne)** : `CameraCaptureModal.tsx` (capture photo native `expo-camera` sécurisée anti-crash OOM, obturateur silencieux `shutterSound: false`, rotation et aperçu), `ImageCropper.tsx` (recadrage tactile interactif PanResponder au format carré 1:1 avec rotation et compression `expo-image-manipulator`), `ImportRecipeModal.tsx` (importation web unifiée), `RecipeShareModal.tsx` (feuille de partage unifiée à 3 actions), `RecipePrintModal.tsx` (export PDF), `RecipeQrModal.tsx` (QR code offline), `QrScannerModal.tsx` (scanner QR).
 
 #### Données, Constantes, Types & Configuration :
 - **`src/constants/units.ts`** : Catalogue standardisé des unités culinaires (5 catégories) et `formatQuantityWithUnit`.
 - **`src/data/canonicalVocabulary.ts`** : Référentiel de **426 ingrédients canoniques** avec rayons, statuts placard et allergènes INCO.
 - **`src/data/initialRecipes.ts`** : Recettes de démonstration initiales (**ignoré par défaut** via `.geminiignore`).
-- **`src/types/`** : `recipe.ts`, `shopping.ts`, `fridge.ts`, `planner.ts`, `mealLog.ts`, `vocabulary.ts`, `analytics.ts`.
+- **`src/types/`** : `recipe.ts`, `folder.ts`, `shopping.ts`, `fridge.ts`, `planner.ts`, `mealLog.ts`, `vocabulary.ts`, `analytics.ts`.
 - **`plugins/withLargeHeap.js`** : Plugin de configuration Expo injectant `android:largeHeap="true"` pour immuniser l'application contre les dépassements de mémoire lors de la manipulation d'images haute définition.
 
 ---
@@ -141,6 +144,14 @@
    - Ne jamais reconstruire le lexique (`getInitialCanonicalVocabulary()`) ni un index dérivé à chaque appel : l'identité du tableau renvoyé par `getSyncList()` doit rester stable pour que `getVocabLookupIndex()` reste en cache.
    - `getRecipes()` attend `VocabularyService.getAll()` avant d'assainir ; `sanitizeStoredRecipe()` saute `normalizeIngredient()` pour les ingrédients déjà résolus (`canonicalId`, `isPantryStaple` et `isOptional` définis).
    - Le log `⚡ [Papilles Startup] N recettes assainies en Xms` mesure ce coût sur l'appareil.
+7. **Système de Dossiers, Sélection Multiple & Règle d'or de Préservation :**
+   - **Modèle N-N** : Tables `folders` (`id`, `name`, `icon`) et `recipe_folders` (`recipe_id`, `folder_id`, `added_at`) avec index SQLite.
+   - **RÈGLE D'OR ABSOLUE** : La suppression d'un dossier ne supprime JAMAIS de recettes de la base. Seules les liaisons `recipe_folders` et la ligne du dossier dans `folders` sont effacées. Les recettes redeviennent immédiatement « Non classées » si elles n'ont plus d'autre dossier.
+   - **Dossier virtuel « Non classées » (`UNCATEGORIZED`)** : calculé dynamiquement (recettes sans aucune liaison dans `recipe_folders`), non modifiable et non supprimable.
+   - **Mode sélection multiple** : activé par appui long sur `RecipeCard` (sans vibration haptique parasite), persistant au fil des filtres/recherches, avec barre flottante `FloatingSelectionBar` dotée de l'action rapide « Tout sélectionner / Tout désélectionner », rangement groupé additif via `FolderAssignmentBottomSheet` et confirmation par Snackbar temporaire (4s).
+   - **Bandeau de dossier ouvert & Ajout de recettes** : le bouton d'action contextuel principal est un bouton `+` ouvrant `RecipePickerModal` en mode continu (`closeOnSelect={false}` avec bouton « Terminer » et badge « Dans le dossier »), affichage du compte local sans pagination globale, accompagné du bouton de modification du dossier (nom et icône).
+   - **Fiche recette (`RecipeDetailScreen`)** : puces des dossiers d'appartenance cliquables et bouton rapide `+ Dossier` ouvrant directement `FolderAssignmentBottomSheet`.
+   - **Hiérarchie BackHandler Android** : Quitter le mode sélection -> Fermer le dossier ouvert vers la grille -> Sortir de l'écran.
 
 ---
 
@@ -199,6 +210,17 @@ npm run test:share             # Tests du partage et encodage/décodage QR code 
 npm run test:recipe-stock-bar # Tests de la barre de stock / statut d'ingrédient
 npm run test:recipe-swipe     # Tests du swipe d'ingrédients vers courses / qualification
 npm run test:web-recipe        # Tests du scraping web et validation d'URL anti-SSRF
+npm run test:folders           # Tests unitaires CRUD et modèle N-N FolderService
+npm run test:folders-mosaic    # Tests unitaires helper mosaïque 2x2
+npm run test:folders-components # Tests des composants FolderCard et modales
+npm run test:folders-grid      # Tests de la grille FlashList des dossiers et tuile non classées
+npm run test:folder-interior   # Tests du filtrage intérieur de dossier et bandeau contextuel
+npm run test:recipe-card-selection # Tests de la sélection visuelle sur RecipeCard
+npm run test:floating-bar      # Tests de la barre flottante de sélection contextuelle
+npm run test:folder-assignment # Tests de la Bottom Sheet de rangement additif / unitaire
+npm run test:home-pager        # Tests du switcher segmenté et pager gestuel filtré
+npm run test:folder-cycle      # Tests d'intégration du cycle complet et règle d'or
+npm run test:recipe-picker     # Tests de RecipePickerModal unifié (dossiers & planning)
 
 # 4. Utilitaires de maintenance (si pertinent)
 npx expo-doctor                # Diagnostic santé Expo

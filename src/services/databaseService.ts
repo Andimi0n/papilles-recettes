@@ -24,6 +24,7 @@ import {
 } from '../types/planner';
 import { MealLogEntry, MealLogMap } from '../types/mealLog';
 import { UserAllergenItem, AllergenFamily } from '../types/vocabulary';
+import { Folder, RecipeFolder } from '../types/folder';
 
 // ─── Clés AsyncStorage (fallback Node.js test & web) ─────────────────────────
 const AS_RECIPES_KEY = '@papilles_recipes_v4';
@@ -33,6 +34,8 @@ const AS_WEEKLY_PLAN_KEY = '@papilles_weekly_plan_v1';
 const AS_MEAL_LOG_KEY = '@papilles_meal_log_v1';
 const AS_PLANNER_SETTINGS_KEY = '@papilles_planner_settings_v1';
 const AS_USER_ALLERGENS_KEY = '@papilles_user_allergens_v1';
+const AS_FOLDERS_KEY = '@papilles_folders_v1';
+const AS_RECIPE_FOLDERS_KEY = '@papilles_recipe_folders_v1';
 
 // ─── Détection et chargement sécurisé d'expo-sqlite ─────────────────────────
 let _sqliteModule: typeof import('expo-sqlite') | null = null;
@@ -352,7 +355,37 @@ async function _createSchema(db: SQLiteTypes.SQLiteDatabase): Promise<void> {
       key TEXT PRIMARY KEY NOT NULL,
       value TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS folders (
+      id TEXT PRIMARY KEY NOT NULL,
+      name TEXT NOT NULL,
+      icon TEXT NOT NULL DEFAULT '📁',
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_folders_created_at ON folders(created_at ASC);
+
+    CREATE TABLE IF NOT EXISTS recipe_folders (
+      recipe_id TEXT NOT NULL,
+      folder_id TEXT NOT NULL,
+      added_at TEXT NOT NULL,
+      PRIMARY KEY (recipe_id, folder_id),
+      FOREIGN KEY (recipe_id) REFERENCES recipes(id) ON DELETE CASCADE,
+      FOREIGN KEY (folder_id) REFERENCES folders(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_recipe_folders_folder ON recipe_folders(folder_id);
+    CREATE INDEX IF NOT EXISTS idx_recipe_folders_recipe ON recipe_folders(recipe_id);
   `);
+}
+
+function _rowToFolder(row: any): Folder {
+  return {
+    id: row.id,
+    name: row.name,
+    icon: row.icon || '📁',
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
 }
 
 // ─── Helpers settings ────────────────────────────────────────────────────────
@@ -629,8 +662,18 @@ export const DatabaseService = {
     if (!db) {
       const recipes = await this.getRecipes();
       await AsyncStorage.setItem(AS_RECIPES_KEY, JSON.stringify(recipes.filter((r) => r.id !== id)));
+      const rfData = await AsyncStorage.getItem(AS_RECIPE_FOLDERS_KEY);
+      if (rfData) {
+        try {
+          const list: RecipeFolder[] = JSON.parse(rfData);
+          await AsyncStorage.setItem(AS_RECIPE_FOLDERS_KEY, JSON.stringify(list.filter((rf) => rf.recipeId !== id)));
+        } catch {
+          // ignore
+        }
+      }
       return;
     }
+    await runDb(db, 'DELETE FROM recipe_folders WHERE recipe_id = ?', [id]);
     await runDb(db, 'DELETE FROM recipes WHERE id = ?', [id]);
   },
 
@@ -639,8 +682,21 @@ export const DatabaseService = {
     if (!db) {
       const recipes = await this.getRecipes();
       await AsyncStorage.setItem(AS_RECIPES_KEY, JSON.stringify(recipes.filter((r) => !r.id.startsWith(prefix))));
+      const rfData = await AsyncStorage.getItem(AS_RECIPE_FOLDERS_KEY);
+      if (rfData) {
+        try {
+          const list: RecipeFolder[] = JSON.parse(rfData);
+          await AsyncStorage.setItem(
+            AS_RECIPE_FOLDERS_KEY,
+            JSON.stringify(list.filter((rf) => !rf.recipeId.startsWith(prefix)))
+          );
+        } catch {
+          // ignore
+        }
+      }
       return;
     }
+    await runDb(db, 'DELETE FROM recipe_folders WHERE recipe_id LIKE ?', [`${prefix}%`]);
     await runDb(db, 'DELETE FROM recipes WHERE id LIKE ?', [`${prefix}%`]);
   },
 
@@ -1230,6 +1286,241 @@ export const DatabaseService = {
       return;
     }
     await _setSetting(db, 'planner_settings_v1', JSON.stringify(settings));
+  },
+
+  // ══════════════════════════════════════════════════════
+  // DOSSIERS & LIAISONS RECETTES (N-N)
+  // ══════════════════════════════════════════════════════
+
+  async getFolders(): Promise<Folder[]> {
+    const db = await getDb();
+    if (!db) {
+      const data = await AsyncStorage.getItem(AS_FOLDERS_KEY);
+      if (!data) return [];
+      try {
+        return JSON.parse(data);
+      } catch {
+        return [];
+      }
+    }
+    const rows = await getAllDb<any>(db, 'SELECT * FROM folders ORDER BY created_at ASC');
+    return rows.map(_rowToFolder);
+  },
+
+  async getFolderById(id: string): Promise<Folder | null> {
+    const db = await getDb();
+    if (!db) {
+      const folders = await this.getFolders();
+      return folders.find((f) => f.id === id) ?? null;
+    }
+    const row = await getFirstDb<any>(db, 'SELECT * FROM folders WHERE id = ?', [id]);
+    return row ? _rowToFolder(row) : null;
+  },
+
+  async createFolder(folder: Folder): Promise<void> {
+    const db = await getDb();
+    if (!db) {
+      const folders = await this.getFolders();
+      folders.push(folder);
+      await AsyncStorage.setItem(AS_FOLDERS_KEY, JSON.stringify(folders));
+      return;
+    }
+    await runDb(
+      db,
+      'INSERT INTO folders (id, name, icon, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
+      [folder.id, folder.name, folder.icon, folder.createdAt, folder.updatedAt]
+    );
+  },
+
+  async updateFolder(id: string, updates: Partial<Pick<Folder, 'name' | 'icon'>>): Promise<void> {
+    const db = await getDb();
+    const now = new Date().toISOString();
+    if (!db) {
+      const folders = await this.getFolders();
+      const updated = folders.map((f) =>
+        f.id === id
+          ? {
+              ...f,
+              name: updates.name !== undefined ? updates.name : f.name,
+              icon: updates.icon !== undefined ? updates.icon : f.icon,
+              updatedAt: now,
+            }
+          : f
+      );
+      await AsyncStorage.setItem(AS_FOLDERS_KEY, JSON.stringify(updated));
+      return;
+    }
+    await runDb(
+      db,
+      'UPDATE folders SET name = COALESCE(?, name), icon = COALESCE(?, icon), updated_at = ? WHERE id = ?',
+      [updates.name ?? null, updates.icon ?? null, now, id]
+    );
+  },
+
+  async deleteFolder(id: string): Promise<void> {
+    const db = await getDb();
+    if (!db) {
+      const folders = await this.getFolders();
+      await AsyncStorage.setItem(AS_FOLDERS_KEY, JSON.stringify(folders.filter((f) => f.id !== id)));
+      const rfData = await AsyncStorage.getItem(AS_RECIPE_FOLDERS_KEY);
+      if (rfData) {
+        try {
+          const list: RecipeFolder[] = JSON.parse(rfData);
+          await AsyncStorage.setItem(
+            AS_RECIPE_FOLDERS_KEY,
+            JSON.stringify(list.filter((rf) => rf.folderId !== id))
+          );
+        } catch {
+          // ignore
+        }
+      }
+      return;
+    }
+    await runDb(db, 'DELETE FROM recipe_folders WHERE folder_id = ?', [id]);
+    await runDb(db, 'DELETE FROM folders WHERE id = ?', [id]);
+  },
+
+  async getRecipeFolders(): Promise<RecipeFolder[]> {
+    const db = await getDb();
+    if (!db) {
+      const data = await AsyncStorage.getItem(AS_RECIPE_FOLDERS_KEY);
+      if (!data) return [];
+      try {
+        return JSON.parse(data);
+      } catch {
+        return [];
+      }
+    }
+    const rows = await getAllDb<any>(db, 'SELECT recipe_id, folder_id, added_at FROM recipe_folders ORDER BY added_at DESC');
+    return rows.map((r) => ({
+      recipeId: r.recipe_id,
+      folderId: r.folder_id,
+      addedAt: r.added_at,
+    }));
+  },
+
+  async getFolderIdsForRecipe(recipeId: string): Promise<string[]> {
+    const db = await getDb();
+    if (!db) {
+      const list = await this.getRecipeFolders();
+      return list.filter((rf) => rf.recipeId === recipeId).map((rf) => rf.folderId);
+    }
+    const rows = await getAllDb<{ folder_id: string }>(
+      db,
+      'SELECT folder_id FROM recipe_folders WHERE recipe_id = ?',
+      [recipeId]
+    );
+    return rows.map((r) => r.folder_id);
+  },
+
+  async getRecipeIdsForFolder(folderId: string): Promise<string[]> {
+    const db = await getDb();
+    if (!db) {
+      const list = await this.getRecipeFolders();
+      return list.filter((rf) => rf.folderId === folderId).map((rf) => rf.recipeId);
+    }
+    const rows = await getAllDb<{ recipe_id: string }>(
+      db,
+      'SELECT recipe_id FROM recipe_folders WHERE folder_id = ? ORDER BY added_at DESC',
+      [folderId]
+    );
+    return rows.map((r) => r.recipe_id);
+  },
+
+  async addRecipesToFolders(recipeIds: string[], folderIds: string[]): Promise<void> {
+    if (recipeIds.length === 0 || folderIds.length === 0) return;
+    const db = await getDb();
+    const now = new Date().toISOString();
+
+    if (!db) {
+      const list = await this.getRecipeFolders();
+      const existingKeySet = new Set(list.map((item) => `${item.recipeId}::${item.folderId}`));
+      const toAdd: RecipeFolder[] = [];
+      for (const rId of recipeIds) {
+        for (const fId of folderIds) {
+          const key = `${rId}::${fId}`;
+          if (!existingKeySet.has(key)) {
+            existingKeySet.add(key);
+            toAdd.push({ recipeId: rId, folderId: fId, addedAt: now });
+          }
+        }
+      }
+      if (toAdd.length > 0) {
+        await AsyncStorage.setItem(AS_RECIPE_FOLDERS_KEY, JSON.stringify([...list, ...toAdd]));
+      }
+      return;
+    }
+
+    await transactionDb(db, (run) => {
+      for (const rId of recipeIds) {
+        for (const fId of folderIds) {
+          run(
+            'INSERT OR IGNORE INTO recipe_folders (recipe_id, folder_id, added_at) VALUES (?, ?, ?)',
+            [rId, fId, now]
+          );
+        }
+      }
+    });
+  },
+
+  async setRecipeFolders(recipeId: string, folderIds: string[]): Promise<void> {
+    const db = await getDb();
+    const now = new Date().toISOString();
+
+    if (!db) {
+      const list = await this.getRecipeFolders();
+      const filtered = list.filter((item) => item.recipeId !== recipeId);
+      const toAdd: RecipeFolder[] = folderIds.map((fId) => ({
+        recipeId,
+        folderId: fId,
+        addedAt: now,
+      }));
+      await AsyncStorage.setItem(AS_RECIPE_FOLDERS_KEY, JSON.stringify([...filtered, ...toAdd]));
+      return;
+    }
+
+    await transactionDb(db, (run) => {
+      run('DELETE FROM recipe_folders WHERE recipe_id = ?', [recipeId]);
+      for (const fId of folderIds) {
+        run(
+          'INSERT OR IGNORE INTO recipe_folders (recipe_id, folder_id, added_at) VALUES (?, ?, ?)',
+          [recipeId, fId, now]
+        );
+      }
+    });
+  },
+
+  async removeRecipesFromFolder(recipeIds: string[], folderId: string): Promise<void> {
+    if (recipeIds.length === 0) return;
+    const db = await getDb();
+    if (!db) {
+      const list = await this.getRecipeFolders();
+      const removeSet = new Set(recipeIds);
+      const updated = list.filter((item) => !(item.folderId === folderId && removeSet.has(item.recipeId)));
+      await AsyncStorage.setItem(AS_RECIPE_FOLDERS_KEY, JSON.stringify(updated));
+      return;
+    }
+
+    await transactionDb(db, (run) => {
+      for (const rId of recipeIds) {
+        run('DELETE FROM recipe_folders WHERE recipe_id = ? AND folder_id = ?', [rId, folderId]);
+      }
+    });
+  },
+
+  async getUncategorizedRecipeIds(): Promise<string[]> {
+    const db = await getDb();
+    if (!db) {
+      const recipes = await this.getRecipes();
+      const list = await this.getRecipeFolders();
+      const categorizedSet = new Set(list.map((item) => item.recipeId));
+      return recipes.filter((r) => !categorizedSet.has(r.id)).map((r) => r.id);
+    }
+    const rows = await getAllDb<{ id: string }>(
+      db,
+      'SELECT r.id FROM recipes r LEFT JOIN recipe_folders rf ON r.id = rf.recipe_id WHERE rf.recipe_id IS NULL ORDER BY r.created_at DESC'
+    );
+    return rows.map((r) => r.id);
   },
 
   // ══════════════════════════════════════════════════════

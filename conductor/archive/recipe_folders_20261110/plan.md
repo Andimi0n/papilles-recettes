@@ -1,0 +1,63 @@
+# Plan d'Implémentation : Système de Dossiers & Sélection Multiple
+
+## Phase 1 : Modèle de Données & Couche Service SQLite (TDD)
+- [x] Task: Schéma SQLite & Types TypeScript
+  - [x] Définir les types `Folder`, `FolderSummary`, `RecipeFolder` dans `src/types/folder.ts`
+  - [x] Ajouter les migrations SQLite dans `src/services/databaseService.ts` (tables `folders` et `recipe_folders`, index et cascades) avec support du fallback mémoire pour les tests
+- [x] Task: Tests Unitaires Red Phase (`scripts/testFolderService.js`)
+  - [x] Écrire la suite de tests CLI Node pour le CRUD des dossiers, les liaisons N-N, le calcul de `'UNCATEGORIZED'` et la suppression sécurisée sans perte de recettes
+  - [x] Ajouter le script `"test:folders": "node scripts/testFolderService.js"` dans `package.json`
+- [x] Task: Implémentation du Service (`folderService.ts` & intégration réactive `storageService.ts`)
+  - [x] Implémenter les méthodes CRUD et les associations multi-recettes (additif pour N recettes, toggle pour 1 recette)
+  - [x] Intégrer un cache mémoire synchronisé et un système de listeners réactifs dans `storageService.ts` pour notifier instantanément les composants (`HomeScreen`, compteurs de `FolderCard`, `activeFolderId`) lors de toute modification
+  - [x] Valider le passage de tous les tests au vert (`npm run test:folders`)
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+
+## Phase 2 : Composants UI Fondamentaux (FolderCard, Mosaïque 2x2 & Modales)
+- [x] Task: Helper Pur & Tests Mosaïque (489275a)
+  - [x] Implémenter la fonction pure `getFolderMosaicImages(recipes): (string | null)[]` garantissant toujours un tableau de 4 slots
+  - [x] Créer `scripts/testFolderMosaic.js` et ajouter `"test:folders-mosaic": "node scripts/testFolderMosaic.js"` dans `package.json`
+- [x] Task: Composants `FolderMosaic` & `FolderCard` (85f5b42)
+  - [x] Créer `src/components/folders/FolderMosaic.tsx` (rendu mosaïque 2x2 basé sur les 4 slots)
+  - [x] Créer `src/components/folders/FolderCard.tsx` (mosaïque, titre, emoji, compteur, carte spéciale « Non classées »)
+- [x] Task: Modales de Gestion de Dossiers (07af8bc)
+  - [x] Créer `CreateEditFolderModal.tsx` (création/renommage avec sélecteur d'emojis culinaires)
+  - [x] Créer la confirmation de suppression sécurisée rappelant la préservation des recettes
+- [x] Task: Phase Verification & Checkpoint (cd63ec8)
+
+## Phase 3 : Mode Sélection Multiple & Rangement Groupé
+- [x] Task: Mise à jour de `RecipeCard.tsx` pour le Mode Sélection (509b345)
+  - [x] Ajouter les props `isSelectionMode`, `isSelected`, `onLongPress` et adapter `onPress` (déviation vers la sélection au lieu d'ouvrir la recette)
+  - [x] Appliquer la bordure `colors.primary` (2px), la pastille cochée (`✓`) / cercle vide discret et l'animation de rebond élastique (`scale: 0.97` ➔ `1.0`) sans retour haptique
+- [x] Task: Pilule Flottante (`FloatingSelectionBar.tsx`) & État Persistant dans `HomeScreen` (7100ed5)
+  - [x] Créer la barre flottante au-dessus de la barre d'onglets (`[ ✕  X sélectionnée(s)  |  📁 Ranger dans... ]` ou `[ 📤 Retirer du dossier  |  📁 Autre dossier... ]` selon `activeFolderId`)
+  - [x] Gérer l'état `selectedRecipeIds: Set<string>` dans `HomeScreen` persistant lors de la recherche et du filtrage
+  - [x] Intercepter le `BackHandler` Android pour quitter le mode sélection en priorité
+- [x] Task: Bottom Sheet de Rangement (`FolderAssignmentBottomSheet.tsx`) (4596451)
+  - [x] Liste des dossiers avec état pré-coché (si 1 recette) ou mode additif (si N recettes)
+  - [x] Possibilité de créer un nouveau dossier directement dans la Bottom Sheet
+  - [x] Enregistrement SQLite réactif et notification visuelle
+- [x] Task: Phase Verification & Checkpoint (4596451)
+
+## Phase 4 : Navigation Gestuelle, Vue Grille & Vue Intérieure de Dossier
+- [x] Task: Sélecteur Segmenté & Pager Gestuel Filtré (79395cd)
+  - [x] Ajouter les onglets `Recettes` / `Dossiers` en en-tête d'accueil
+  - [x] Gérer le swipe horizontal strict (`dx > 25 && Math.abs(dx) > Math.abs(dy) * 2`) en excluant la zone des filtres (`FILTER_BAR_HEIGHT = 88`)
+- [x] Task: Vue Grille des Dossiers (`FoldersGridView.tsx`) (7a9f1f7)
+  - [x] Intégrer `FlashList` (`numColumns: 2`), tuile « Non classées » et action « + Nouveau dossier »
+- [x] Task: Navigation Intérieure de Dossier (`activeFolderId`) & Actions Contextuelles (3f835b9)
+  - [x] Filtrer la liste de recettes existante selon `activeFolderId` (réutilisation complète de la FlashList et de la SearchBar)
+  - [x] Afficher le bandeau d'en-tête contextuel `[ ← Tous les dossiers | Nom (compteur) | ✏️ / 🗑️ ]`
+  - [x] Intercepter le `BackHandler` Android pour fermer le dossier et revenir à la grille
+- [x] Task: Phase Verification & Checkpoint (24a0be5)
+
+## Phase 5 : Tests d'Intégration, Documentation & Validation Finale
+- [x] Task: Tests d'Intégration Finaux (5ceac4a)
+  - [x] Tester le cycle complet de bout en bout (Création dossier ➔ Sélection multiple ➔ Rangement ➔ Filtrage intérieur ➔ Retrait ➔ Suppression dossier)
+  - [x] Vérifier formellement la règle d'or (aucune suppression silencieuse de recettes)
+- [x] Task: Mise à Jour Documentaire (effd236)
+  - [x] Mettre à jour la cartographie et les fonctionnalités dans `README.md` et `AGENTS.md`
+- [x] Task: Validation Qualité Finale & Santé du Projet (258b340)
+  - [x] Exécuter `npx tsc --noEmit && npx expo lint` (0 erreur requise)
+  - [x] Exécuter la suite complète `npm test`
+- [x] Task: Phase Verification & Checkpoint (258b340)
