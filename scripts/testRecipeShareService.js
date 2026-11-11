@@ -54,6 +54,18 @@ async function main() {
     exports: { default: AsyncStorageMock, ...AsyncStorageMock },
   };
 
+  let lastCopiedText = '';
+  const ClipboardMock = {
+    setStringAsync: async (text) => {
+      lastCopiedText = text;
+      return true;
+    },
+    getStringAsync: async () => lastCopiedText,
+  };
+  require.cache[require.resolve('expo-clipboard')] = {
+    exports: { default: ClipboardMock, ...ClipboardMock },
+  };
+
   console.log('🧪 Démarrage des tests unitaires RecipeShareService...');
 
   const { RecipeShareService } = require(path.join(tmpDir, 'services/recipeShareService.js'));
@@ -132,10 +144,31 @@ async function main() {
   assert(!RecipeShareService.isSharePayload('bonjour'));
   console.log('  ✅ 6. isSharePayload identifie correctement les URLs Papilles');
 
-  // 7. Test system sharing trigger
-  const shared = await RecipeShareService.shareRecipeViaSystem(sampleRecipe);
+  // 7. Test system sharing trigger & text formatting
+  const formattedIngs = RecipeShareService.formatIngredientsText(sampleRecipe, 6);
+  assert(formattedIngs.includes('1.5 kg Pomme'));
+  assert(formattedIngs.includes('100 g Beurre doux'));
+
+  const scaledIngs = RecipeShareService.formatIngredientsText(sampleRecipe, 12);
+  assert(scaledIngs.includes('3 kg Pomme'));
+  assert(scaledIngs.includes('200 g Beurre doux'));
+  assert(scaledIngs.includes('portions adaptées'));
+
+  const fullShareText = RecipeShareService.formatRecipeShareText(sampleRecipe, 12);
+  assert(fullShareText.includes('Tarte tatin maison (12 pers. - portions adaptées)'));
+  assert(fullShareText.includes('Préparation : 25 min'));
+  assert(fullShareText.includes('3 kg Pomme'));
+  assert(fullShareText.includes('1. Éplucher les pommes'));
+  assert(!fullShareText.includes('papilles://import?r='));
+
+  const copySuccess = await RecipeShareService.copyIngredientsToClipboard(sampleRecipe, 12);
+  assert.strictEqual(copySuccess, true);
+  assert(lastCopiedText.includes('3 kg Pomme'));
+  assert(lastCopiedText.includes('200 g Beurre doux'));
+
+  const shared = await RecipeShareService.shareRecipeViaSystem(sampleRecipe, 6);
   assert.strictEqual(shared, true);
-  console.log('  ✅ 7. shareRecipeViaSystem déclenche le partage natif sans erreur');
+  console.log('  ✅ 7. formatage riche, portions dynamiques, copie presse-papier et partage natif validés');
 
   // 8. Test SEC-04: Rejet des URIs locales système file:// dans les recettes décodées
   const payloadWithLocalFile = JSON.stringify({

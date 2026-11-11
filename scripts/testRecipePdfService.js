@@ -50,6 +50,13 @@ async function main() {
     },
   };
 
+  require.cache[require.resolve('expo-clipboard')] = {
+    exports: {
+      setStringAsync: async () => true,
+      getStringAsync: async () => '',
+    },
+  };
+
   let printCallCount = 0;
   let printToFileCallCount = 0;
   let shareAsyncCallCount = 0;

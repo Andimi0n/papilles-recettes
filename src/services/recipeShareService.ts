@@ -1,8 +1,9 @@
 import { Share } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import LZString from 'lz-string';
 import { toQR } from 'toqr';
 import { Recipe, Ingredient } from '../types/recipe';
-import { generateUniqueId } from '../utils/helpers';
+import { generateUniqueId, scaleQuantity } from '../utils/helpers';
 import { sanitizeStoredRecipe } from './storageService';
 import { normalizeIngredient } from '../utils/ingredientNormalizer';
 
@@ -341,41 +342,112 @@ export const RecipeShareService = {
   },
 
   /**
-   * Ouvre la feuille de partage native du système avec le lien profond et le résumé de la recette.
+   * Formate la liste des ingrédients pour le partage ou la copie, avec mise à l'échelle des portions.
+   */
+  formatIngredientsText(recipe: Recipe, currentServings?: number): string {
+    const baseServings = recipe.servings || 4;
+    const targetServings = currentServings || baseServings;
+    const isScaled = targetServings !== baseServings;
+
+    const lines: string[] = [];
+    lines.push(`🛒 Ingrédients pour ${recipe.title.trim()} (${targetServings} pers.${isScaled ? ' - portions adaptées' : ''}) :`);
+
+    const ingredients = recipe.ingredients || [];
+    if (ingredients.length === 0) {
+      lines.push('• Aucun ingrédient spécifié');
+    } else {
+      for (const ing of ingredients) {
+        let displayQty = ing.quantity || '';
+        if (displayQty && isScaled) {
+          displayQty = scaleQuantity(displayQty, baseServings, targetServings);
+        }
+        const qtyStr = displayQty ? `${displayQty} ` : '';
+        const unitStr = ing.unit ? `${ing.unit} ` : '';
+        const optStr = ing.isOptional ? ' (optionnel)' : '';
+        lines.push(`• ${qtyStr}${unitStr}${ing.name}${optStr}`.trim());
+      }
+    }
+
+    return lines.join('\n');
+  },
+
+  /**
+   * Formate le texte complet et autonome de la recette (titre, temps, portions, ingrédients et étapes).
+   */
+  formatRecipeShareText(recipe: Recipe, currentServings?: number): string {
+    const baseServings = recipe.servings || 4;
+    const targetServings = currentServings || baseServings;
+    const isScaled = targetServings !== baseServings;
+
+    const sections: string[] = [];
+
+    // En-tête
+    sections.push(`🍽️ ${recipe.title.trim()} (${targetServings} pers.${isScaled ? ' - portions adaptées' : ''})`);
+    if (recipe.description && recipe.description.trim()) {
+      sections.push(recipe.description.trim());
+    }
+
+    // Métadonnées (durées, niveau)
+    const timeParts: string[] = [];
+    if (recipe.prepTimeMinutes && recipe.prepTimeMinutes > 0) {
+      timeParts.push(`⏱️ Préparation : ${recipe.prepTimeMinutes} min`);
+    }
+    if (recipe.cookTimeMinutes && recipe.cookTimeMinutes > 0) {
+      timeParts.push(`🔥 Cuisson : ${recipe.cookTimeMinutes} min`);
+    }
+    if (recipe.difficulty) {
+      timeParts.push(`Niveau : ${recipe.difficulty}`);
+    }
+    if (timeParts.length > 0) {
+      sections.push(timeParts.join(' | '));
+    }
+
+    // Ingrédients
+    sections.push(this.formatIngredientsText(recipe, targetServings));
+
+    // Étapes de préparation
+    const steps = recipe.steps || [];
+    if (steps.length > 0) {
+      const stepLines = steps.map((s, idx) => `${idx + 1}. ${s.instruction.trim()}`);
+      sections.push(`👨‍🍳 Préparation :\n${stepLines.join('\n')}`);
+    }
+
+    return sections.join('\n\n');
+  },
+
+  /**
+   * Copie la liste des ingrédients dans le presse-papier avec les portions adaptées.
+   */
+  async copyIngredientsToClipboard(
+    recipe: Recipe,
+    currentServings?: number
+  ): Promise<boolean> {
+    try {
+      const text = this.formatIngredientsText(recipe, currentServings);
+      if (Clipboard && typeof Clipboard.setStringAsync === 'function') {
+        await Clipboard.setStringAsync(text);
+        return true;
+      }
+      return false;
+    } catch (e) {
+      console.error('[RecipeShareService] Erreur copie presse-papier:', e);
+      return false;
+    }
+  },
+
+  /**
+   * Ouvre la feuille de partage native du système avec le texte complet.
    */
   async shareRecipeViaSystem(
     recipe: Recipe,
     currentServings?: number
   ): Promise<boolean> {
     try {
-      const shareUrl = this.createShareUrl(recipe);
-      const servings = currentServings || recipe.servings || 4;
-
-      const ingredientLines = (recipe.ingredients || [])
-        .slice(0, 15)
-        .map((i) => {
-          const qty = i.quantity ? `${i.quantity} ` : '';
-          const unit = i.unit ? `${i.unit} ` : '';
-          return `• ${qty}${unit}${i.name}`.trim();
-        })
-        .join('\n');
-
-      const extraCount = (recipe.ingredients || []).length - 15;
-      const extraSuffix = extraCount > 0 ? `\n... et ${extraCount} autres ingrédients` : '';
-
-      const message = [
-        `🍽️ Recette Papilles : ${recipe.title} (${servings} pers.)`,
-        recipe.description ? `\n${recipe.description}` : '',
-        `\n📲 Ouvre ce lien sur ton téléphone pour l'ajouter directement dans ton application Papilles :\n${shareUrl}`,
-        `\nIngrédients :\n${ingredientLines}${extraSuffix}`,
-      ]
-        .filter(Boolean)
-        .join('\n');
+      const message = this.formatRecipeShareText(recipe, currentServings);
 
       await Share.share({
         title: recipe.title,
         message,
-        url: shareUrl, // Pris en compte sur iOS
       });
 
       return true;

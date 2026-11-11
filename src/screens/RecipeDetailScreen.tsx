@@ -23,7 +23,7 @@ import { styles } from './RecipeDetailScreen.styles';
 import { useTheme } from '../theme/ThemeContext';
 import { StarRating } from '../components/common/StarRating';
 import { CookingModeModal } from '../components/recipe-detail/CookingModeModal';
-import { RecipeQrModal } from '../components/import-share/RecipeQrModal';
+import { RecipeShareModal } from '../components/import-share/RecipeShareModal';
 import { RecipePrintModal } from '../components/import-share/RecipePrintModal';
 import { PlanRecipeModal } from '../components/planner/PlanRecipeModal';
 import { RecipeIngredientsList } from '../components/recipe-detail/RecipeIngredientsList';
@@ -195,7 +195,7 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
   // Gestion rapide des tags de la recette
   const [isTagModalVisible, setIsTagModalVisible] = useState(false);
   const [modalDraftTags, setModalDraftTags] = useState<string[]>(recipe.tags || []);
-  const [isQrModalVisible, setIsQrModalVisible] = useState(false);
+  const [isShareModalVisible, setIsShareModalVisible] = useState(false);
   const [isPrintModalVisible, setIsPrintModalVisible] = useState(false);
   const [detailTagInput, setDetailTagInput] = useState('');
 
@@ -777,9 +777,9 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
               <Ionicons name="create-outline" size={18} color={colors.textPrimary} />
             </TouchableOpacity>
             <TouchableOpacity
-              onPress={() => setIsQrModalVisible(true)}
+              onPress={() => setIsShareModalVisible(true)}
               style={styles.navBtn}
-              accessibilityLabel="Partager la fiche recette"
+              accessibilityLabel="Partager la recette"
             >
               <Ionicons name="share-social-outline" size={18} color={colors.textPrimary} />
             </TouchableOpacity>
@@ -1427,13 +1427,13 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
           />
         )}
 
-        {/* Modal QR Code de partage */}
-        {isQrModalVisible && (
-          <RecipeQrModal
-            visible={isQrModalVisible}
+        {/* Modal de partage unifié */}
+        {isShareModalVisible && (
+          <RecipeShareModal
+            visible={isShareModalVisible}
             recipe={recipe}
             servings={currentServings}
-            onClose={() => setIsQrModalVisible(false)}
+            onClose={() => setIsShareModalVisible(false)}
           />
         )}
 
