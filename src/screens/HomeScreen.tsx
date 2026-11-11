@@ -325,15 +325,22 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
     }
   }
 
+  // Synchronisation de la translation du pager lors de variations de dimensions d'écran (ex: rotation)
+  const [prevScreenWidth, setPrevScreenWidth] = useState(screenWidth);
+  if (prevScreenWidth !== screenWidth) {
+    setPrevScreenWidth(screenWidth);
+    pageTranslateX.setValue(activeTab === 'recipes' ? 0 : -screenWidth);
+  }
+
   // Basculement d'onglet fluide (Recettes <-> Dossiers)
   const switchTab = useCallback(
     (target: HomeViewTab, animated = true) => {
       if (activeTab === target) return;
       Keyboard.dismiss();
       const targetX = target === 'recipes' ? 0 : -screenWidth;
+      setActiveTab(target);
       if (!animated) {
         pageTranslateX.setValue(targetX);
-        setActiveTab(target);
         return;
       }
       Animated.spring(pageTranslateX, {
@@ -344,17 +351,10 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
         restDisplacementThreshold: 1,
         overshootClamping: true,
         useNativeDriver: true,
-      }).start(() => {
-        setActiveTab(target);
-      });
+      }).start();
     },
     [activeTab, screenWidth, pageTranslateX]
   );
-
-  // Synchronisation de la translation du pager lors de variations de dimensions d'écran (ex: rotation)
-  useEffect(() => {
-    pageTranslateX.setValue(activeTab === 'recipes' ? 0 : -screenWidth);
-  }, [screenWidth, activeTab, pageTranslateX]);
 
   // Interception du BackHandler Android :
   // 1. Quitter le mode sélection
@@ -430,6 +430,7 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
           screenWidth
         );
         const targetX = destination === 'recipes' ? 0 : -screenWidth;
+        setActiveTab(destination);
         Animated.spring(pageTranslateX, {
           toValue: targetX,
           velocity: gestureState.vx,
@@ -439,9 +440,7 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
           restDisplacementThreshold: 1,
           overshootClamping: true,
           useNativeDriver: true,
-        }).start(() => {
-          setActiveTab(destination);
-        });
+        }).start();
       },
       onPanResponderTerminate: () => {
         const targetX = activeTab === 'recipes' ? 0 : -screenWidth;
@@ -1683,6 +1682,7 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
             onScroll={handleScroll}
             scrollEventThrottle={16}
             ListEmptyComponent={
+              currentFolderId && !folderRecipeIds ? null :
               currentFolderId && folderRecipeIds && folderRecipeIds.size === 0 && !isSearching && selectedCategories.length === 0 && activeAdvancedFiltersCount === 0 ? (
                 <EmptyState
                   title="Ce dossier est vide"
