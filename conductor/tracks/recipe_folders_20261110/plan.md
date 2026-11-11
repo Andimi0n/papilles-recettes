@@ -37,7 +37,7 @@
   - [x] Liste des dossiers avec état pré-coché (si 1 recette) ou mode additif (si N recettes)
   - [x] Possibilité de créer un nouveau dossier directement dans la Bottom Sheet
   - [x] Enregistrement SQLite réactif et notification visuelle
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: Phase Verification & Checkpoint (4596451)
 
 ## Phase 4 : Navigation Gestuelle, Vue Grille & Vue Intérieure de Dossier
 - [ ] Task: Sélecteur Segmenté & Pager Gestuel Filtré
