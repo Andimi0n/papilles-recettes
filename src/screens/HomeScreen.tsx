@@ -1687,29 +1687,27 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
             </View>
           )}
 
-          {/* Barre de Recherche & Bouton Filtres Avancés (affiché sur l'onglet Recettes) */}
-          {activeTab === 'recipes' && (
-            <SearchBar
-              value={searchQuery}
-              onChangeText={(text) => {
-                setSearchQuery(text);
-                if (!text.trim()) {
-                  setDebouncedSearchQuery('');
-                  setCurrentPage(1);
-                }
-                forceShowFilterBar();
-              }}
-              placeholder="Rechercher ingrédients, plats, synonymes..."
-              onClear={() => {
-                setSearchQuery('');
+          {/* Barre de Recherche & Bouton Filtres Avancés (affiché de façon permanente sans saut de hauteur) */}
+          <SearchBar
+            value={searchQuery}
+            onChangeText={(text) => {
+              setSearchQuery(text);
+              if (!text.trim()) {
                 setDebouncedSearchQuery('');
                 setCurrentPage(1);
-                forceShowFilterBar();
-              }}
-              onOpenAdvancedFilters={() => setIsAdvancedFiltersModalVisible(true)}
-              activeFiltersCount={activeAdvancedFiltersCount}
-            />
-          )}
+              }
+              forceShowFilterBar();
+            }}
+            placeholder="Rechercher ingrédients, plats, synonymes..."
+            onClear={() => {
+              setSearchQuery('');
+              setDebouncedSearchQuery('');
+              setCurrentPage(1);
+              forceShowFilterBar();
+            }}
+            onOpenAdvancedFilters={() => setIsAdvancedFiltersModalVisible(true)}
+            activeFiltersCount={activeAdvancedFiltersCount}
+          />
         </View>
 
         {/* Zone de contenu principale (Pager gestuel horizontal Recettes <-> Dossiers) */}
@@ -1786,7 +1784,25 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
             }
           />
 
-          {/* Double bandeau de filtres rétractable natif (disparaît au défilement vers le bas, réapparaît vers le haut) */}
+            </View>
+
+            {/* Page 2 : Dossiers */}
+            <View style={[styles.pagerPage, { width: screenWidth }]}>
+              <FoldersGridView
+                onSelectFolder={handleSelectFolderFromGrid}
+                onCreateFolder={() => setIsCreateFolderModalVisible(true)}
+                onEditFolder={(folder) => setFolderToEdit(folder)}
+                onDeleteFolder={(folder) => setFolderToDelete(folder)}
+                contentContainerStyle={{
+                  paddingTop: FILTER_BAR_HEIGHT + 6,
+                }}
+                bottomInset={isSelectionMode ? 88 : 30}
+                onScroll={handleScroll}
+              />
+            </View>
+          </Animated.View>
+
+          {/* Double bandeau de filtres rétractable natif (partagé en superposition au-dessus du Pager) */}
           <Animated.View
             style={[
               styles.collapsibleFilterContainer,
@@ -1873,19 +1889,6 @@ const HomeScreenComponent: React.FC<HomeScreenProps> = ({
                 </Text>
               </TouchableOpacity>
             </ScrollView>
-          </Animated.View>
-            </View>
-
-            {/* Page 2 : Dossiers */}
-            <View style={[styles.pagerPage, { width: screenWidth }]}>
-              <FoldersGridView
-                onSelectFolder={handleSelectFolderFromGrid}
-                onCreateFolder={() => setIsCreateFolderModalVisible(true)}
-                onEditFolder={(folder) => setFolderToEdit(folder)}
-                onDeleteFolder={(folder) => setFolderToDelete(folder)}
-                bottomInset={isSelectionMode ? 88 : 30}
-              />
-            </View>
           </Animated.View>
         </View>
 

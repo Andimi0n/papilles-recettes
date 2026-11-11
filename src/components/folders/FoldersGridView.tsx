@@ -3,6 +3,8 @@ import {
   View,
   StyleProp,
   ViewStyle,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { FolderSummary, UNCATEGORIZED_FOLDER_ID } from '../../types/folder';
@@ -72,6 +74,10 @@ export interface FoldersGridViewProps {
    * Marge inférieure pour éviter la superposition de la barre d'onglets
    */
   bottomInset?: number;
+  /**
+   * Callback de défilement pour synchronisation d'en-tête / filtres
+   */
+  onScroll?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
 }
 
 const FoldersGridViewComponent: React.FC<FoldersGridViewProps> = ({
@@ -82,6 +88,7 @@ const FoldersGridViewComponent: React.FC<FoldersGridViewProps> = ({
   initialSummaries,
   contentContainerStyle,
   bottomInset = 80,
+  onScroll,
 }) => {
   const { themeId } = useTheme();
   const styles = dynamicStyles;
@@ -154,6 +161,8 @@ const FoldersGridViewComponent: React.FC<FoldersGridViewProps> = ({
         ]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        onScroll={onScroll}
+        scrollEventThrottle={16}
       />
     </View>
   );
