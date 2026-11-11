@@ -14,14 +14,11 @@
 - [x] **Track: Entonnoir d'ingrédients à 3 niveaux pour la normalisation et l'import de recettes culinaires**
   *Link: [./tracks/import_funnel_ingredient_normalization_20261104/index.md](./tracks/import_funnel_ingredient_normalization_20261104/index.md)*
 
----
-- [~] **Track: Système de dossiers de recettes et sélection multiple sur l'accueil**
-  *Link: [./tracks/recipe_folders_20261110/index.md](./tracks/recipe_folders_20261110/index.md)*
-
-
-
-
 ## Archived Tracks
+
+---
+- [x] **Track: Système de dossiers de recettes et sélection multiple sur l'accueil**
+  *Link: [./archive/recipe_folders_20261110/index.md](./archive/recipe_folders_20261110/index.md)*
 
 ---
 - [x] **Track: Personnalisation des humeurs et prompts du Chef IA**

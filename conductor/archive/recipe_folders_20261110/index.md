@@ -2,7 +2,7 @@
 
 - **ID de la Track :** `recipe_folders_20261110`
 - **Type :** Feature
-- **Statut :** New
+- **Statut :** Completed
 
 ## Documents de la Track
 - [Spécification Technique](./spec.md)
