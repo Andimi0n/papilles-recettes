@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
+  Animated,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,6 +12,8 @@ import { Recipe, RecipeViewMode } from '../../types/recipe';
 import { Colors, createDynamicStyles } from '../../theme/colors';
 import { useTheme } from '../../theme/ThemeContext';
 import { formatDuration } from '../../utils/helpers';
+
+const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
 export interface RecipeStockProgress {
   matchedCount: number;
@@ -21,30 +24,63 @@ export interface RecipeStockProgress {
 export interface RecipeCardProps {
   recipe: Recipe;
   onPress: () => void;
+  onLongPress?: () => void;
   onToggleFavorite?: () => void;
   hasAllergen?: boolean;
   stockProgress?: RecipeStockProgress;
   viewMode?: RecipeViewMode;
+  isSelectionMode?: boolean;
+  isSelected?: boolean;
 }
 
 const RecipeCardComponent: React.FC<RecipeCardProps> = ({
   recipe,
   onPress,
+  onLongPress,
   hasAllergen = false,
   stockProgress,
   viewMode = 'detailed',
+  isSelectionMode = false,
+  isSelected = false,
 }) => {
   const { isDark, colors } = useTheme();
   const totalTime = recipe.prepTimeMinutes + recipe.cookTimeMinutes;
+  const [scaleAnim] = useState(() => new Animated.Value(1));
+
+  const handleLongPress = useCallback(() => {
+    if (onLongPress) {
+      Animated.sequence([
+        Animated.timing(scaleAnim, {
+          toValue: 0.97,
+          duration: 80,
+          useNativeDriver: true,
+        }),
+        Animated.spring(scaleAnim, {
+          toValue: 1.0,
+          friction: 4,
+          tension: 40,
+          useNativeDriver: true,
+        }),
+      ]).start();
+      onLongPress();
+    }
+  }, [onLongPress, scaleAnim]);
 
   // 1. Mode Compact (liste horizontale épurée & rapide à parcourir)
   if (viewMode === 'compact') {
     return (
-      <TouchableOpacity
+      <AnimatedTouchable
         activeOpacity={0.88}
         onPress={onPress}
-        style={styles.compactCard}
-        accessibilityRole="button"
+        onLongPress={onLongPress ? handleLongPress : undefined}
+        delayLongPress={250}
+        style={[
+          styles.compactCard,
+          isSelected && styles.compactCardSelected,
+          { transform: [{ scale: scaleAnim }] },
+        ]}
+        accessibilityRole={isSelectionMode ? 'checkbox' : 'button'}
+        accessibilityState={isSelectionMode ? { selected: isSelected } : undefined}
         accessibilityLabel={`Recette ${recipe.title}`}
       >
         {/* Vignette carrée gauche avec micro-indicateurs */}
@@ -145,20 +181,38 @@ const RecipeCardComponent: React.FC<RecipeCardProps> = ({
           )}
         </View>
 
-        {/* Flèche de navigation à droite */}
-        <Ionicons name="chevron-forward" size={16} color={colors.textMuted} style={styles.compactChevron} />
-      </TouchableOpacity>
+        {/* Flèche de navigation à droite OU Pastille de sélection */}
+        {isSelectionMode ? (
+          <View
+            style={[
+              styles.selectionBadgeCompact,
+              isSelected ? styles.selectionBadgeSelected : styles.selectionBadgeUnselected,
+            ]}
+          >
+            {isSelected && <Ionicons name="checkmark" size={13} color="#FFFFFF" />}
+          </View>
+        ) : (
+          <Ionicons name="chevron-forward" size={16} color={colors.textMuted} style={styles.compactChevron} />
+        )}
+      </AnimatedTouchable>
     );
   }
 
   // 2. Mode Grille (2 colonnes visuelles & équilibrées)
   if (viewMode === 'grid') {
     return (
-      <TouchableOpacity
+      <AnimatedTouchable
         activeOpacity={0.9}
         onPress={onPress}
-        style={styles.gridCard}
-        accessibilityRole="button"
+        onLongPress={onLongPress ? handleLongPress : undefined}
+        delayLongPress={250}
+        style={[
+          styles.gridCard,
+          isSelected && styles.gridCardSelected,
+          { transform: [{ scale: scaleAnim }] },
+        ]}
+        accessibilityRole={isSelectionMode ? 'checkbox' : 'button'}
+        accessibilityState={isSelectionMode ? { selected: isSelected } : undefined}
         accessibilityLabel={`Recette ${recipe.title}`}
       >
         {/* Image panoramique réduite avec badges */}
@@ -177,6 +231,18 @@ const RecipeCardComponent: React.FC<RecipeCardProps> = ({
           ) : (
             <View style={styles.noImagePlaceholder}>
               <Ionicons name="restaurant-outline" size={28} color={Colors.primary + '55'} />
+            </View>
+          )}
+
+          {/* Pastille de sélection en mode sélection */}
+          {isSelectionMode && (
+            <View
+              style={[
+                styles.selectionBadgeGrid,
+                isSelected ? styles.selectionBadgeSelected : styles.selectionBadgeUnselected,
+              ]}
+            >
+              {isSelected && <Ionicons name="checkmark" size={12} color="#FFFFFF" />}
             </View>
           )}
 
@@ -257,16 +323,25 @@ const RecipeCardComponent: React.FC<RecipeCardProps> = ({
             </View>
           )}
         </View>
-      </TouchableOpacity>
+      </AnimatedTouchable>
     );
   }
 
   // 3. Mode Détaillé (grandes cartes d'inspiration, par défaut)
   return (
-    <TouchableOpacity
+    <AnimatedTouchable
       activeOpacity={0.92}
       onPress={onPress}
-      style={styles.card}
+      onLongPress={onLongPress ? handleLongPress : undefined}
+      delayLongPress={250}
+      style={[
+        styles.card,
+        isSelected && styles.cardSelected,
+        { transform: [{ scale: scaleAnim }] },
+      ]}
+      accessibilityRole={isSelectionMode ? 'checkbox' : 'button'}
+      accessibilityState={isSelectionMode ? { selected: isSelected } : undefined}
+      accessibilityLabel={`Recette ${recipe.title}`}
     >
       {/* Image & Badges */}
       <View style={styles.imageContainer}>
@@ -284,6 +359,18 @@ const RecipeCardComponent: React.FC<RecipeCardProps> = ({
         ) : (
           <View style={styles.noImagePlaceholder}>
             <Ionicons name="restaurant-outline" size={40} color={Colors.primary + '55'} />
+          </View>
+        )}
+
+        {/* Pastille de sélection en mode sélection */}
+        {isSelectionMode && (
+          <View
+            style={[
+              styles.selectionBadgeDetailed,
+              isSelected ? styles.selectionBadgeSelected : styles.selectionBadgeUnselected,
+            ]}
+          >
+            {isSelected && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
           </View>
         )}
 
@@ -374,7 +461,7 @@ const RecipeCardComponent: React.FC<RecipeCardProps> = ({
           )}
         </View>
       </View>
-    </TouchableOpacity>
+    </AnimatedTouchable>
   );
 };
 
@@ -731,6 +818,59 @@ const styles = createDynamicStyles((colors, shadows) => ({
   gridStockMicroBadgeText: {
     fontSize: 10,
   },
+  cardSelected: {
+    borderWidth: 2,
+    borderColor: colors.primary,
+  },
+  compactCardSelected: {
+    borderWidth: 2,
+    borderColor: colors.primary,
+  },
+  gridCardSelected: {
+    borderWidth: 2,
+    borderColor: colors.primary,
+  },
+  selectionBadgeDetailed: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    zIndex: 10,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  selectionBadgeGrid: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    zIndex: 10,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  selectionBadgeCompact: {
+    marginLeft: 8,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  selectionBadgeSelected: {
+    backgroundColor: colors.primary,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    ...shadows.small,
+  },
+  selectionBadgeUnselected: {
+    backgroundColor: colors.isDark ? 'rgba(30, 41, 35, 0.75)' : 'rgba(255, 255, 255, 0.75)',
+    borderWidth: 1.5,
+    borderColor: colors.isDark ? 'rgba(255, 255, 255, 0.45)' : 'rgba(0, 0, 0, 0.25)',
+  },
 }));
 
 function areStockProgressEqual(a?: RecipeStockProgress, b?: RecipeStockProgress): boolean {
@@ -747,6 +887,8 @@ export const RecipeCard = React.memo(RecipeCardComponent, (prevProps, nextProps)
   return (
     prevProps.recipe.id === nextProps.recipe.id &&
     prevProps.viewMode === nextProps.viewMode &&
+    prevProps.isSelectionMode === nextProps.isSelectionMode &&
+    prevProps.isSelected === nextProps.isSelected &&
     prevProps.recipe.rating === nextProps.recipe.rating &&
     prevProps.recipe.title === nextProps.recipe.title &&
     prevProps.recipe.imageUrl === nextProps.recipe.imageUrl &&
