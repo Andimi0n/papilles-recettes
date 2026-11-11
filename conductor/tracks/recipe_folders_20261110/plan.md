@@ -57,7 +57,7 @@
   - [x] Vérifier formellement la règle d'or (aucune suppression silencieuse de recettes)
 - [x] Task: Mise à Jour Documentaire (effd236)
   - [x] Mettre à jour la cartographie et les fonctionnalités dans `README.md` et `AGENTS.md`
-- [ ] Task: Validation Qualité Finale & Santé du Projet
-  - [ ] Exécuter `npx tsc --noEmit && npx expo lint` (0 erreur requise)
-  - [ ] Exécuter la suite complète `npm test`
+- [x] Task: Validation Qualité Finale & Santé du Projet (258b340)
+  - [x] Exécuter `npx tsc --noEmit && npx expo lint` (0 erreur requise)
+  - [x] Exécuter la suite complète `npm test`
 - [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
